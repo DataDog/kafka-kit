@@ -207,12 +207,16 @@ func (pm PartitionMap) rebuild(bm brokerMap) (PartitionMap, []string) {
 		constraints := mergeConstraints(replicaSet)
 
 		// For each replica in the partition item.
-		for _, bid := range item.Replicas {
+		for n, bid := range item.Replicas {
+			isLeader := false
+			if n == 0 {
+				isLeader = true
+			}
 			// If the broker ID is marked as replace
 			// in the broker map, get a new ID.
 			if bm[bid].replace {
 				// Fetch the best candidate, append.
-				newBroker, err := bl.bestCandidate(constraints)
+				newBroker, err := bl.bestCandidate(constraints, isLeader)
 				if err != nil {
 					// Append any caught errors.
 					errString := fmt.Sprintf("Partition %d: %s", item.Partition, err.Error())
@@ -237,8 +241,14 @@ func (pm PartitionMap) rebuild(bm brokerMap) (PartitionMap, []string) {
 // bestCandidate takes a *constraints
 // and returns the *broker with the lowest used
 // count that satisfies all constraints.
-func (b brokerList) bestCandidate(c *constraints) (*broker, error) {
+func (b brokerList) bestCandidate(c *constraints, l bool) (*broker, error) {
 	sort.Sort(b)
+	var score int
+	if l {
+		score = 2
+	} else {
+		score = 1
+	}
 
 	var candidate *broker
 
@@ -247,7 +257,7 @@ func (b brokerList) bestCandidate(c *constraints) (*broker, error) {
 		// Candidate passes, return.
 		if c.passes(candidate) {
 			c.add(candidate)
-			candidate.used++
+			candidate.used += score
 
 			return candidate, nil
 		}
@@ -358,14 +368,22 @@ func brokerMapFromTopicMap(pm PartitionMap) brokerMap {
 	for _, partition := range pm.Partitions {
 		// For each broker in the
 		// partition replica set.
-		for _, id := range partition.Replicas {
+		for n, id := range partition.Replicas {
+			// Add a point if the
+			// broker is a leader.
+			var score int
+			if n == 0 {
+				score = 2
+			} else {
+				score = 1
+			}
 			// If the broker isn't in the
 			// broker map, add it.
 			if bmap[id] == nil {
-				bmap[id] = &broker{used: 1, id: id, replace: false}
+				bmap[id] = &broker{used: score, id: id, replace: false}
 			} else {
 				// Else increment used.
-				bmap[id].used++
+				bmap[id].used += score
 			}
 
 			// TODO or would this be a good
