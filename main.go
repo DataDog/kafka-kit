@@ -11,24 +11,15 @@ import (
 	"strings"
 )
 
-// TODO if two brokers are supplied, the
-// first takes all leadership (1)
-
-// - generate: no existing map + broker list
-// - advise: input map with brokers you want to replace,
-//   outputs where you should provision brokers.
-
-// - (1) Needs optimize pass; balance leadership.
-// - Summary output should include counts+advisories: e.g. broker reused too many times.
-
-// - Get builtin + arbitrary attributes from ZK.
-
 var (
 	Config struct {
 		partitions int
 		replicas   int
 		rebuild    string
 		brokers    []int
+		useMeta    bool
+		zkAddr     string
+		zkPrefix   string
 	}
 
 	errNoBrokers = errors.New("No additional brokers that meet contstraints")
@@ -118,7 +109,10 @@ func init() {
 	fmt.Println()
 	// flag.StringVar(&Config.generate, "generate", "", "topic to generate")
 	flag.StringVar(&Config.rebuild, "rebuild", "", "topic to rebuild")
-	brokers := flag.String("brokers", "", "new brokers")
+	flag.BoolVar(&Config.useMeta, "use-meta", true, "use broker metadata for constraints")
+	flag.StringVar(&Config.zkAddr, "zk-addr", "localhost:2181", "ZooKeeper connect string (for broker metadata)")
+	flag.StringVar(&Config.zkPrefix, "zk-prefix", "", "ZooKeeper namespace prefix")
+	brokers := flag.String("brokers", "", "new brokers list")
 
 	flag.Parse()
 
@@ -126,16 +120,27 @@ func init() {
 }
 
 func main() {
+	// Fetch broker metadata.
+	var brokerMetadata brokerMetaMap
+	if Config.useMeta {
+		var err error
+		brokerMetadata, err = getAllBrokerMeta(&zkConfig{ConnectString: "localhost:2181"})
+		if err != nil {
+			fmt.Printf("Error fetching metadata: %s\n", err)
+			os.Exit(1)
+		}
+	}
+
 	// Build topic map from the input.
 	partitionMapIn := PartitionMap{}
 	err := json.Unmarshal([]byte(Config.rebuild), &partitionMapIn)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Printf("Error parsing topic map: %s\n", err)
 		os.Exit(1)
 	}
 
 	// Get a broker map of the brokers in the current topic map.
-	brokers := brokerMapFromTopicMap(partitionMapIn)
+	brokers := brokerMapFromTopicMap(partitionMapIn, brokerMetadata)
 
 	// Update the currentBrokers list with
 	// the provided broker list.
@@ -372,7 +377,7 @@ func (c *constraints) passes(b *broker) bool {
 // brokerMapFromTopicMap creates a brokerMap
 // from a topicMap. Counts occurance is counted.
 // TODO can we remove marked for replacement here too?
-func brokerMapFromTopicMap(pm PartitionMap) brokerMap {
+func brokerMapFromTopicMap(pm PartitionMap, bm brokerMetaMap) brokerMap {
 	bmap := brokerMap{}
 	// For each partition.
 	for _, partition := range pm.Partitions {
@@ -396,8 +401,10 @@ func brokerMapFromTopicMap(pm PartitionMap) brokerMap {
 				bmap[id].used += score
 			}
 
-			// TODO or would this be a good
-			// place to fetch attributes?
+			// Add metadata if we have it.
+			if meta, exists := bm[id]; exists {
+				bmap[id].locality = meta.Rack
+			}
 		}
 	}
 
