@@ -1,7 +1,35 @@
-# topicmappr
-Kafka partition assignment tool
+### Overview
 
-Input topic map + list of target brokers:
+topicmappr was created as a replacement for Kafka's provided `kafka-reassign-partition.sh` tool, providing additional enhancements:
+
+#### Deterministic output
+Given the same input, topicmappr will always provide the same output map.
+
+#### Minimal partition movement
+Avoids reassigning partitions where movement isn't necessary, greatly reducing reassignment times and resource load for simple recoveries.
+
+#### Balancing placement algorithm with multi-dimensional constraints
+For each broker pending replacement, topicmappr chooses the least-utilized candidate broker (based on a combination of topics held and leadership counts) that satisfies the following constraints:
+
+- the broker isn't already in the replica set
+- the broker isn't in any of the existing replica set localities (looks up the built in `rack-id` parameter)
+- [todo] arbitrary, user-supplied constraint keys
+
+Provided enough brokers, topicmapper determines the appropriate leadership, follower and failure domain balance.
+
+#### Summary output
+An output of what's changed along with advisory notices (e.g. insufficient broker counts supplied to satisfy all constraints at the desired partition/replica count).
+
+### Usage
+
+#### Build
+Takes a topic name, partition/replica count, and broker list and generates a topic map.
+
+#### Rebuild
+Takes an existing topic map and a list of target brokers. A topic initially built with the brokers `[1001,1002,1003]` that lost broker `1003` could be rebuilt by supplying the new broker list `[1001,1002,1004]`.
+
+Example:
+
 >  % ./topicmappr -rebuild '{"version":1,"partitions":[{"topic":"myTopic","partition":0,"replicas":[1005,1006]},{"topic":"myTopic","partition":2,"replicas":[1007,1001]},{"topic":"myTopic","partition":7,"replicas":[1007,1002]},{"topic":"myTopic","partition":6,"replicas":[1006,1001]},{"topic":"myTopic","partition":4,"replicas":[1002,1005]},{"topic":"myTopic","partition":5,"replicas":[1005,1007]},{"topic":"myTopic","partition":3,"replicas":[1001,1002]},{"topic":"myTopic","partition":1,"replicas":[1006,1007]}]}' -brokers="1001,1002,1003,1004,1005,1006,1008"
 
 ```
