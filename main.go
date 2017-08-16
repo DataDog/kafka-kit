@@ -89,9 +89,18 @@ type brokerList []*broker
 
 // Satisfy the sort interface for brokerList.
 
-func (b brokerList) Len() int           { return len(b) }
-func (b brokerList) Less(i, j int) bool { return b[i].used < b[j].used }
-func (b brokerList) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
+func (b brokerList) Len() int      { return len(b) }
+func (b brokerList) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
+func (b brokerList) Less(i, j int) bool {
+	if b[i].used < b[j].used {
+		return true
+	}
+	if b[i].used > b[j].used {
+		return false
+	}
+
+	return b[i].id < b[j].id
+}
 
 type constraints struct {
 	locality map[string]bool
@@ -243,6 +252,7 @@ func (pm PartitionMap) rebuild(bm brokerMap) (PartitionMap, []string) {
 // count that satisfies all constraints.
 func (b brokerList) bestCandidate(c *constraints, l bool) (*broker, error) {
 	sort.Sort(b)
+
 	var score int
 	if l {
 		score = 2
