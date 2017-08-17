@@ -124,7 +124,9 @@ func main() {
 	var brokerMetadata brokerMetaMap
 	if Config.useMeta {
 		var err error
-		brokerMetadata, err = getAllBrokerMeta(&zkConfig{ConnectString: "localhost:2181"})
+		brokerMetadata, err = getAllBrokerMeta(&zkConfig{
+			ConnectString: Config.zkAddr,
+			Prefix:        Config.zkPrefix})
 		if err != nil {
 			fmt.Printf("Error fetching metadata: %s\n", err)
 			os.Exit(1)
@@ -144,7 +146,7 @@ func main() {
 
 	// Update the currentBrokers list with
 	// the provided broker list.
-	brokers.update(Config.brokers)
+	brokers.update(Config.brokers, brokerMetadata)
 
 	// Build a new map using the provided list of brokers.
 	partitionMapOut, warns := partitionMapIn.rebuild(brokers)
@@ -307,8 +309,7 @@ func mergeConstraints(bl brokerList) *constraints {
 
 // update takes a brokerMap and a []int
 // of broker IDs and adds them to the brokerMap.
-// TODO we should do attribute lookups here (AZ, etc).
-func (b brokerMap) update(bl []int) {
+func (b brokerMap) update(bl []int, bm brokerMetaMap) {
 	// Build a map from the new broker list.
 	newBrokers := map[int]bool{}
 	for _, broker := range bl {
@@ -325,10 +326,14 @@ func (b brokerMap) update(bl []int) {
 	}
 
 	// Merge new brokers with existing brokers.
-	for nb := range newBrokers {
+	for id := range newBrokers {
 		// Don't overwrite existing (which will be most brokers).
-		if b[nb] == nil {
-			b[nb] = &broker{used: 0, id: nb, replace: false}
+		if b[id] == nil {
+			b[id] = &broker{used: 0, id: id, replace: false}
+			// Add metadata if we have it.
+			if meta, exists := bm[id]; exists {
+				b[id].locality = meta.Rack
+			}
 		}
 	}
 }
