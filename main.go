@@ -139,7 +139,7 @@ func main() {
 	}
 
 	// Build topic map from the input.
-	partitionMapIn := PartitionMap{}
+	partitionMapIn := PartitionMap{Version: 1}
 	err := json.Unmarshal([]byte(Config.rebuild), &partitionMapIn)
 	if err != nil {
 		fmt.Printf("Error parsing topic map: %s\n", err)
@@ -205,7 +205,7 @@ func main() {
 // traverses the partition map and replaces brokers marked
 // for removal with the best available candidate.
 func (pm PartitionMap) rebuild(bm brokerMap) (PartitionMap, []string) {
-	newMap := PartitionMap{}
+	newMap := PartitionMap{Version: 1}
 	// We need a filtered list for
 	// usage sorting and exclusion
 	// of nodes marked for removal.

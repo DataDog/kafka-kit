@@ -23,10 +23,16 @@ type BrokerMeta struct {
 	Rack string `json:"rack"`
 }
 
+// brokerMetaMap is a map of broker IDs
+// to BrokerMeta metadata fetched from
+// ZooKeeper. Currently, just the rack
+// field is retrieved.
 type brokerMetaMap map[int]*BrokerMeta
 
+// topicState is used for unmarshing
+// ZooKeeper json data from a topic:
+// e.g. `get /brokers/topics/some-topic`.
 type topicState struct {
-	Version    int              `json:"version"`
 	Partitions map[string][]int `json:"partitions"`
 }
 
@@ -59,6 +65,7 @@ func getAllBrokerMeta(zc *zkConfig) (brokerMetaMap, error) {
 		path = "brokers/ids"
 	}
 
+	// Get all brokers.
 	entries, err := zk.List(path)
 	if err != nil {
 		return nil, err
@@ -66,6 +73,7 @@ func getAllBrokerMeta(zc *zkConfig) (brokerMetaMap, error) {
 
 	bmm := brokerMetaMap{}
 
+	// Map each broker.
 	for _, pair := range entries {
 		bm := &BrokerMeta{}
 		// In case we encounter non-ints
@@ -86,4 +94,47 @@ func getAllBrokerMeta(zc *zkConfig) (brokerMetaMap, error) {
 	}
 
 	return bmm, nil
+}
+
+func getTopicMeta(zc *zkConfig, t string) (*PartitionMap, error) {
+	var path string
+	if zc.Prefix != "" {
+		path = fmt.Sprintf("%s/brokers/topics/%s", zc.Prefix, t)
+	} else {
+		path = fmt.Sprintf("brokers/topics/%s", t)
+	}
+
+	// Fetch topic data from ZK.
+	ts := &topicState{}
+	m, err := zk.Get(path)
+	switch err {
+	case store.ErrKeyNotFound:
+		return nil, fmt.Errorf("Topic %s not found in ZooKeeper\n", t)
+	case nil:
+		break
+	default:
+		return nil, err
+	}
+
+	err = json.Unmarshal(m.Value, ts)
+	if err != nil {
+		return nil, err
+	}
+
+	// Map topicState to a
+	// PartitionMap.
+	pm := &PartitionMap{Version: 1}
+	pl := partitionList{}
+
+	for partition, replicas := range ts.Partitions {
+		i, _ := strconv.Atoi(partition)
+		pl = append(pl, Partition{
+			Topic:     t,
+			Partition: i,
+			Replicas:  replicas,
+		})
+	}
+	pm.Partitions = pl
+
+	return pm, nil
 }
