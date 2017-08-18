@@ -124,9 +124,14 @@ func main() {
 	var brokerMetadata brokerMetaMap
 	if Config.useMeta {
 		var err error
-		brokerMetadata, err = getAllBrokerMeta(&zkConfig{
+		// ZooKeeper config params.
+		zkc := &zkConfig{
 			ConnectString: Config.zkAddr,
-			Prefix:        Config.zkPrefix})
+			Prefix:        Config.zkPrefix}
+		// Init the ZK client.
+		initZK(zkc)
+		// Fetch broker metadata.
+		brokerMetadata, err = getAllBrokerMeta(zkc)
 		if err != nil {
 			fmt.Printf("Error fetching metadata: %s\n", err)
 			os.Exit(1)

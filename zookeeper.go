@@ -11,6 +11,10 @@ import (
 	"github.com/docker/libkv/store/zookeeper"
 )
 
+var (
+	zk store.Store
+)
+
 func init() {
 	zookeeper.Register()
 }
@@ -21,13 +25,19 @@ type BrokerMeta struct {
 
 type brokerMetaMap map[int]*BrokerMeta
 
+type topicState struct {
+	Version    int              `json:"version"`
+	Partitions map[string][]int `json:"partitions"`
+}
+
 type zkConfig struct {
 	ConnectString string
 	Prefix        string
 }
 
-func getAllBrokerMeta(zc *zkConfig) (brokerMetaMap, error) {
-	kv, err := libkv.NewStore(
+func initZK(zc *zkConfig) error {
+	var err error
+	zk, err = libkv.NewStore(
 		store.ZK,
 		[]string{zc.ConnectString},
 		&store.Config{
@@ -35,9 +45,13 @@ func getAllBrokerMeta(zc *zkConfig) (brokerMetaMap, error) {
 		},
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
+	return nil
+}
+
+func getAllBrokerMeta(zc *zkConfig) (brokerMetaMap, error) {
 	var path string
 	if zc.Prefix != "" {
 		path = fmt.Sprintf("%s/brokers/ids", zc.Prefix)
@@ -45,7 +59,7 @@ func getAllBrokerMeta(zc *zkConfig) (brokerMetaMap, error) {
 		path = "brokers/ids"
 	}
 
-	entries, err := kv.List(path)
+	entries, err := zk.List(path)
 	if err != nil {
 		return nil, err
 	}
