@@ -13,14 +13,17 @@ import (
 
 var (
 	Config struct {
-		partitions int
-		replicas   int
-		rebuild    string
-		brokers    []int
-		useMeta    bool
-		zkAddr     string
-		zkPrefix   string
+		partitions   int
+		replicas     int
+		rebuildMap   string
+		rebuildTopic string
+		brokers      []int
+		useMeta      bool
+		zkAddr       string
+		zkPrefix     string
 	}
+
+	zkc = &zkConfig{}
 
 	errNoBrokers = errors.New("No additional brokers that meet contstraints")
 )
@@ -107,8 +110,8 @@ func newConstraints() *constraints {
 
 func init() {
 	fmt.Println()
-	// flag.StringVar(&Config.generate, "generate", "", "topic to generate")
-	flag.StringVar(&Config.rebuild, "rebuild", "", "topic to rebuild")
+	flag.StringVar(&Config.rebuildMap, "rebuild-map", "", "Rebuild a topic map")
+	flag.StringVar(&Config.rebuildTopic, "rebuild-topic", "", "Rebuild a topic by lookup in ZooKeeper")
 	flag.BoolVar(&Config.useMeta, "use-meta", true, "use broker metadata for constraints")
 	flag.StringVar(&Config.zkAddr, "zk-addr", "localhost:2181", "ZooKeeper connect string (for broker metadata)")
 	flag.StringVar(&Config.zkPrefix, "zk-prefix", "", "ZooKeeper namespace prefix")
@@ -116,20 +119,44 @@ func init() {
 
 	flag.Parse()
 
+	// Sanity check params.
+	switch {
+	case Config.rebuildMap == "" && Config.rebuildTopic == "":
+		fmt.Println("Must specify either -rebuild-map or -rebuild-topic")
+		defaultsAndExit()
+	case len(*brokers) == 0:
+		fmt.Println("Broker list cannot be empty")
+		defaultsAndExit()
+	}
+
 	Config.brokers = brokerStringToSlice(*brokers)
 }
 
+func defaultsAndExit() {
+	flag.PrintDefaults()
+	os.Exit(1)
+}
+
 func main() {
+	// ZooKeeper init.
+	if Config.useMeta || Config.rebuildTopic != "" {
+		// ZooKeeper config params.
+		zkc = &zkConfig{
+			ConnectString: Config.zkAddr,
+			Prefix:        Config.zkPrefix}
+
+		// Init the ZK client.
+		err := initZK(zkc)
+		if err != nil {
+			fmt.Printf("Error connecting to ZooKeeper: %s\n", err)
+			os.Exit(1)
+		}
+	}
+
 	// Fetch broker metadata.
 	var brokerMetadata brokerMetaMap
 	if Config.useMeta {
 		var err error
-		// ZooKeeper config params.
-		zkc := &zkConfig{
-			ConnectString: Config.zkAddr,
-			Prefix:        Config.zkPrefix}
-		// Init the ZK client.
-		initZK(zkc)
 		// Fetch broker metadata.
 		brokerMetadata, err = getAllBrokerMeta(zkc)
 		if err != nil {
@@ -138,12 +165,23 @@ func main() {
 		}
 	}
 
-	// Build topic map from the input.
 	partitionMapIn := PartitionMap{Version: 1}
-	err := json.Unmarshal([]byte(Config.rebuild), &partitionMapIn)
-	if err != nil {
-		fmt.Printf("Error parsing topic map: %s\n", err)
-		os.Exit(1)
+
+	switch {
+	case Config.rebuildMap != "":
+		err := json.Unmarshal([]byte(Config.rebuildMap), &partitionMapIn)
+		if err != nil {
+			fmt.Printf("Error parsing topic map: %s\n", err)
+			os.Exit(1)
+		}
+	case Config.rebuildTopic != "":
+		pmap, err := partitionMapFromZk(zkc, Config.rebuildTopic)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
+		partitionMapIn = *pmap
 	}
 
 	// Get a broker map of the brokers in the current topic map.

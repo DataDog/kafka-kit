@@ -96,7 +96,7 @@ func getAllBrokerMeta(zc *zkConfig) (brokerMetaMap, error) {
 	return bmm, nil
 }
 
-func getTopicMeta(zc *zkConfig, t string) (*PartitionMap, error) {
+func partitionMapFromZk(zc *zkConfig, t string) (*PartitionMap, error) {
 	var path string
 	if zc.Prefix != "" {
 		path = fmt.Sprintf("%s/brokers/topics/%s", zc.Prefix, t)
