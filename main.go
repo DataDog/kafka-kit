@@ -321,7 +321,7 @@ func (b brokerMap) update(bl []int, bm brokerMetaMap) {
 	for _, broker := range b {
 		if _, ok := newBrokers[broker.id]; !ok {
 			b[broker.id].replace = true
-			fmt.Printf("%d marked for replacement\n", broker.id)
+			fmt.Printf("broker %d marked for replacement\n", broker.id)
 		}
 	}
 
@@ -329,10 +329,16 @@ func (b brokerMap) update(bl []int, bm brokerMetaMap) {
 	for id := range newBrokers {
 		// Don't overwrite existing (which will be most brokers).
 		if b[id] == nil {
-			b[id] = &broker{used: 0, id: id, replace: false}
-			// Add metadata if we have it.
+			// Add metadata.
 			if meta, exists := bm[id]; exists {
-				b[id].locality = meta.Rack
+				b[id] = &broker{
+					used:     0,
+					id:       id,
+					replace:  false,
+					locality: meta.Rack,
+				}
+			} else {
+				fmt.Printf("broker %d not found in ZooKeeper\n", id)
 			}
 		}
 	}
