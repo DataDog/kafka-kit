@@ -96,7 +96,7 @@ func getAllBrokerMeta(zc *zkConfig) (brokerMetaMap, error) {
 	return bmm, nil
 }
 
-func partitionMapFromZk(zc *zkConfig, t string) (*PartitionMap, error) {
+func partitionMapFromZk(zc *zkConfig, t string) (*partitionMap, error) {
 	var path string
 	if zc.Prefix != "" {
 		path = fmt.Sprintf("%s/brokers/topics/%s", zc.Prefix, t)
@@ -122,8 +122,8 @@ func partitionMapFromZk(zc *zkConfig, t string) (*PartitionMap, error) {
 	}
 
 	// Map topicState to a
-	// PartitionMap.
-	pm := &PartitionMap{Version: 1}
+	// partitionMap.
+	pm := newPartitionMap()
 	pl := partitionList{}
 
 	for partition, replicas := range ts.Partitions {

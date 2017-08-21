@@ -42,9 +42,9 @@ type Partition struct {
 
 type partitionList []Partition
 
-// PartitionMap maps the
+// partitionMap maps the
 // Kafka topic mapping syntax.
-type PartitionMap struct {
+type partitionMap struct {
 	Version    int           `json:"version"`
 	Partitions partitionList `json:"partitions"`
 }
@@ -62,6 +62,10 @@ func (p partitionList) Less(i, j int) bool {
 	}
 
 	return p[i].Partition < p[j].Partition
+}
+
+func newPartitionMap() *partitionMap {
+	return &partitionMap{Version: 1}
 }
 
 // broker is used for internal
@@ -165,7 +169,7 @@ func main() {
 		}
 	}
 
-	partitionMapIn := PartitionMap{Version: 1}
+	partitionMapIn := newPartitionMap()
 
 	switch {
 	case Config.rebuildMap != "":
@@ -181,7 +185,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		partitionMapIn = *pmap
+		partitionMapIn = pmap
 	}
 
 	// Get a broker map of the brokers in the current topic map.
@@ -242,8 +246,8 @@ func main() {
 // Rebuild takes a partition map and a brokerMap. It
 // traverses the partition map and replaces brokers marked
 // for removal with the best available candidate.
-func (pm PartitionMap) rebuild(bm brokerMap) (PartitionMap, []string) {
-	newMap := PartitionMap{Version: 1}
+func (pm partitionMap) rebuild(bm brokerMap) (*partitionMap, []string) {
+	newMap := newPartitionMap()
 	// We need a filtered list for
 	// usage sorting and exclusion
 	// of nodes marked for removal.
@@ -290,7 +294,7 @@ func (pm PartitionMap) rebuild(bm brokerMap) (PartitionMap, []string) {
 			}
 		}
 
-		// Append the partition item to the new PartitionMap.
+		// Append the partition item to the new partitionMap.
 		newMap.Partitions = append(newMap.Partitions, newP)
 	}
 
@@ -431,7 +435,7 @@ func (c *constraints) passes(b *broker) bool {
 // brokerMapFromTopicMap creates a brokerMap
 // from a topicMap. Counts occurance is counted.
 // TODO can we remove marked for replacement here too?
-func brokerMapFromTopicMap(pm PartitionMap, bm brokerMetaMap) brokerMap {
+func brokerMapFromTopicMap(pm *partitionMap, bm brokerMetaMap) brokerMap {
 	bmap := brokerMap{}
 	// For each partition.
 	for _, partition := range pm.Partitions {
