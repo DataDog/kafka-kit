@@ -376,7 +376,19 @@ func (b brokerMap) update(bl []int, bm brokerMetaMap) {
 	for id := range newBrokers {
 		// Don't overwrite existing (which will be most brokers).
 		if b[id] == nil {
-			// Add metadata.
+			// Skip metadata lookups if
+			// meta is not being used.
+			if len(bm) == 0 {
+				b[id] = &broker{
+					used:    0,
+					id:      id,
+					replace: false,
+				}
+				continue
+			}
+
+			// Else check the broker against
+			// the broker metadata map.
 			if meta, exists := bm[id]; exists {
 				b[id] = &broker{
 					used:     0,
