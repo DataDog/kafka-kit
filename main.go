@@ -32,7 +32,8 @@ var (
 
 const (
 	indent      = "  "
-	leaderScore = 1
+	leaderScore = 3
+	followerScore = 1
 )
 
 // Partition maps the partition objects
@@ -313,9 +314,9 @@ func (pm partitionMap) rebuild(bm brokerMap) (*partitionMap, []string) {
 func (b brokerList) bestCandidate(c *constraints, l bool) (*broker, error) {
 	sort.Sort(b)
 
-	score := 1
+	score := followerScore
 	if l {
-		score += leaderScore
+		score = leaderScore
 	}
 
 	var candidate *broker
@@ -460,9 +461,9 @@ func brokerMapFromTopicMap(pm *partitionMap, bm brokerMetaMap) brokerMap {
 		for n, id := range partition.Replicas {
 			// Add a point if the
 			// broker is a leader.
-			score := 1
+			score := followerScore
 			if n == 0 {
-				score += leaderScore
+				score = leaderScore
 			}
 			// If the broker isn't in the
 			// broker map, add it.
