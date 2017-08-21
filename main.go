@@ -1,12 +1,12 @@
 package main
 
 import (
-	"log"
 	"encoding/json"
 	"errors"
 	"flag"
-	"io/ioutil"
 	"fmt"
+	"io/ioutil"
+	"log"
 	"os"
 	"sort"
 	"strconv"
@@ -31,7 +31,8 @@ var (
 )
 
 const (
-	indent = "  "
+	indent      = "  "
+	leaderScore = 1
 )
 
 // Partition maps the partition objects
@@ -312,11 +313,9 @@ func (pm partitionMap) rebuild(bm brokerMap) (*partitionMap, []string) {
 func (b brokerList) bestCandidate(c *constraints, l bool) (*broker, error) {
 	sort.Sort(b)
 
-	var score int
+	score := 1
 	if l {
-		score = 2
-	} else {
-		score = 1
+		score += leaderScore
 	}
 
 	var candidate *broker
@@ -461,11 +460,9 @@ func brokerMapFromTopicMap(pm *partitionMap, bm brokerMetaMap) brokerMap {
 		for n, id := range partition.Replicas {
 			// Add a point if the
 			// broker is a leader.
-			var score int
+			score := 1
 			if n == 0 {
-				score = 2
-			} else {
-				score = 1
+				score += leaderScore
 			}
 			// If the broker isn't in the
 			// broker map, add it.
