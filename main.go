@@ -1,9 +1,11 @@
 package main
 
 import (
+	"log"
 	"encoding/json"
 	"errors"
 	"flag"
+	"io/ioutil"
 	"fmt"
 	"os"
 	"sort"
@@ -113,6 +115,8 @@ func newConstraints() *constraints {
 }
 
 func init() {
+	log.SetOutput(ioutil.Discard)
+
 	fmt.Println()
 	flag.StringVar(&Config.rebuildMap, "rebuild-map", "", "Rebuild a topic map")
 	flag.StringVar(&Config.rebuildTopic, "rebuild-topic", "", "Rebuild a topic by lookup in ZooKeeper")
@@ -155,6 +159,7 @@ func main() {
 			fmt.Printf("Error connecting to ZooKeeper: %s\n", err)
 			os.Exit(1)
 		}
+
 	}
 
 	// Fetch broker metadata.
