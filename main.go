@@ -200,7 +200,7 @@ func main() {
 
 	// Sort by topic, partition.
 	sort.Sort(partitionMapIn.Partitions)
-	sort.Sort(partitionMapIn.Partitions)
+	sort.Sort(partitionMapOut.Partitions)
 
 	// TODO scan partition lists
 	// and ensure they're the same
