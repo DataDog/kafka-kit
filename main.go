@@ -117,7 +117,7 @@ func newConstraints() *constraints {
 func init() {
 	log.SetOutput(ioutil.Discard)
 
-	fmt.Println()
+	fmt.Fprintln(os.Stderr)
 	flag.StringVar(&Config.rebuildMap, "rebuild-map", "", "Rebuild a topic map")
 	flag.StringVar(&Config.rebuildTopic, "rebuild-topic", "", "Rebuild a topic by lookup in ZooKeeper")
 	flag.BoolVar(&Config.useMeta, "use-meta", true, "use broker metadata for constraints")
@@ -130,10 +130,10 @@ func init() {
 	// Sanity check params.
 	switch {
 	case Config.rebuildMap == "" && Config.rebuildTopic == "":
-		fmt.Println("Must specify either -rebuild-map or -rebuild-topic")
+		fmt.Fprintln(os.Stderr, "Must specify either -rebuild-map or -rebuild-topic")
 		defaultsAndExit()
 	case len(*brokers) == 0:
-		fmt.Println("Broker list cannot be empty")
+		fmt.Fprintln(os.Stderr, "Broker list cannot be empty")
 		defaultsAndExit()
 	}
 
@@ -156,7 +156,7 @@ func main() {
 		// Init the ZK client.
 		err := initZK(zkc)
 		if err != nil {
-			fmt.Printf("Error connecting to ZooKeeper: %s\n", err)
+			fmt.Fprintf(os.Stderr, "Error connecting to ZooKeeper: %s\n", err)
 			os.Exit(1)
 		}
 
@@ -169,7 +169,7 @@ func main() {
 		// Fetch broker metadata.
 		brokerMetadata, err = getAllBrokerMeta(zkc)
 		if err != nil {
-			fmt.Printf("Error fetching metadata: %s\n", err)
+			fmt.Fprintf(os.Stderr, "Error fetching metadata: %s\n", err)
 			os.Exit(1)
 		}
 	}
@@ -180,13 +180,13 @@ func main() {
 	case Config.rebuildMap != "":
 		err := json.Unmarshal([]byte(Config.rebuildMap), &partitionMapIn)
 		if err != nil {
-			fmt.Printf("Error parsing topic map: %s\n", err)
+			fmt.Fprintf(os.Stderr, "Error parsing topic map: %s\n", err)
 			os.Exit(1)
 		}
 	case Config.rebuildTopic != "":
 		pmap, err := partitionMapFromZk(zkc, Config.rebuildTopic)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
 
@@ -212,23 +212,23 @@ func main() {
 	// topic, partition.
 
 	// Print advisory warnings.
-	fmt.Println("\nWARN:")
+	fmt.Fprintln(os.Stderr, "\nWARN:")
 	if len(warns) > 0 {
 		sort.Strings(warns)
 		for _, e := range warns {
-			fmt.Printf("%s%s\n", indent, e)
+			fmt.Fprintf(os.Stderr, "%s%s\n", indent, e)
 		}
 	} else {
-		fmt.Printf("%s[none]\n", indent)
+		fmt.Fprintf(os.Stderr, "%s[none]\n", indent)
 	}
 
 	// Get a status string of what's changed.
-	fmt.Println("\nChanges:")
+	fmt.Fprintln(os.Stderr, "\nChanges:")
 	for i := range partitionMapIn.Partitions {
 		change := whatChanged(partitionMapIn.Partitions[i].Replicas,
 			partitionMapOut.Partitions[i].Replicas)
 
-		fmt.Printf("%s%s p%d: %v -> %v %s\n",
+		fmt.Fprintf(os.Stderr, "%s%s p%d: %v -> %v %s\n",
 			indent,
 			partitionMapIn.Partitions[i].Topic,
 			partitionMapIn.Partitions[i].Partition,
@@ -238,10 +238,10 @@ func main() {
 	}
 
 	// Print the new partition map.
-	fmt.Println("\nNew partition map:\n")
+	fmt.Fprintln(os.Stderr, "\nNew partition map:\n")
 	out, err := json.Marshal(partitionMapOut)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
@@ -395,7 +395,7 @@ func (b brokerMap) update(bl []int, bm brokerMetaMap) {
 	for _, broker := range b {
 		if _, ok := newBrokers[broker.id]; !ok {
 			b[broker.id].replace = true
-			fmt.Printf("broker %d marked for replacement\n", broker.id)
+			fmt.Fprintf(os.Stderr, "broker %d marked for replacement\n", broker.id)
 		}
 	}
 
@@ -424,7 +424,7 @@ func (b brokerMap) update(bl []int, bm brokerMetaMap) {
 					locality: meta.Rack,
 				}
 			} else {
-				fmt.Printf("broker %d not found in ZooKeeper\n", id)
+				fmt.Fprintf(os.Stderr, "broker %d not found in ZooKeeper\n", id)
 			}
 		}
 	}
@@ -564,12 +564,12 @@ func brokerStringToSlice(s string) []int {
 		i, err := strconv.Atoi(p)
 		// Err and exit on bad input.
 		if err != nil {
-			fmt.Println(err)
+			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
 
 		if ids[i] {
-			fmt.Printf("ID %d supplied as duplicate, excluding\n", i)
+			fmt.Fprintf(os.Stderr, "ID %d supplied as duplicate, excluding\n", i)
 			info++
 			continue
 		}
@@ -580,7 +580,7 @@ func brokerStringToSlice(s string) []int {
 
 	// Formatting purposes.
 	if info > 0 {
-		fmt.Println()
+		fmt.Fprintln(os.Stderr)
 	}
 
 	return is
