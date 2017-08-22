@@ -195,10 +195,22 @@ func main() {
 
 	// Get a broker map of the brokers in the current topic map.
 	brokers := brokerMapFromTopicMap(partitionMapIn, brokerMetadata)
+	startLen := len(brokers)
 
 	// Update the currentBrokers list with
 	// the provided broker list.
-	brokers.update(Config.brokers, brokerMetadata)
+	toReplace := brokers.update(Config.brokers, brokerMetadata)
+	newBrokers := len(brokers) - startLen
+
+	if toReplace == 0 {
+		fmt.Fprintln(os.Stderr, "No brokers marked for removal")
+		// If list is the same, no action.
+		if newBrokers > 0 {
+			fmt.Fprintf(os.Stderr, "%d additional broker(s)\n", newBrokers)
+		}
+
+		// If list is larger, we are growing.
+	}
 
 	// Build a new map using the provided list of brokers.
 	partitionMapOut, warns := partitionMapIn.rebuild(brokers)
@@ -383,7 +395,7 @@ func mergeConstraints(bl brokerList) *constraints {
 
 // update takes a brokerMap and a []int
 // of broker IDs and adds them to the brokerMap.
-func (b brokerMap) update(bl []int, bm brokerMetaMap) {
+func (b brokerMap) update(bl []int, bm brokerMetaMap) int {
 	// Build a map from the new broker list.
 	newBrokers := map[int]bool{}
 	for _, broker := range bl {
@@ -392,10 +404,12 @@ func (b brokerMap) update(bl []int, bm brokerMetaMap) {
 
 	// Set the replace flag for existing brokers
 	// not in the new broker map.
+	marked := 0
 	for _, broker := range b {
 		if _, ok := newBrokers[broker.id]; !ok {
+			marked++
 			b[broker.id].replace = true
-			fmt.Fprintf(os.Stderr, "broker %d marked for replacement\n", broker.id)
+			fmt.Fprintf(os.Stderr, "broker %d marked for removal\n", broker.id)
 		}
 	}
 
@@ -428,6 +442,8 @@ func (b brokerMap) update(bl []int, bm brokerMetaMap) {
 			}
 		}
 	}
+
+	return marked
 }
 
 // filteredList converts a brokerMap to a brokerList,
