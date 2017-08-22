@@ -31,9 +31,7 @@ var (
 )
 
 const (
-	indent      = "  "
-	leaderScore = 3
-	followerScore = 1
+	indent = "  "
 )
 
 // Partition maps the partition objects
@@ -262,47 +260,55 @@ func (pm partitionMap) rebuild(bm brokerMap) (*partitionMap, []string) {
 
 	var errs []string
 
-	// For each partition item in the
+	pass := 0
+	// For each partition partn in the
 	// partitions list.
-	for _, item := range pm.Partitions {
-		newP := Partition{Partition: item.Partition, Topic: item.Topic}
+start:
+	for n, partn := range pm.Partitions {
+		if pass == 0 {
+			newP := Partition{Partition: partn.Partition, Topic: partn.Topic}
+			newMap.Partitions = append(newMap.Partitions, newP)
+		}
 
 		// Build a brokerList from the
 		// IDs in the replica set to
 		// get a *constraints.
 		replicaSet := brokerList{}
-		for _, bid := range item.Replicas {
+		for _, bid := range partn.Replicas {
 			replicaSet = append(replicaSet, bm[bid])
 		}
-		constraints := mergeConstraints(replicaSet)
-
-		// For each replica in the partition item.
-		for n, bid := range item.Replicas {
-			isLeader := false
-			if n == 0 {
-				isLeader = true
-			}
-			// If the broker ID is marked as replace
-			// in the broker map, get a new ID.
-			if bm[bid].replace {
-				// Fetch the best candidate, append.
-				newBroker, err := bl.bestCandidate(constraints, isLeader)
-				if err != nil {
-					// Append any caught errors.
-					errString := fmt.Sprintf("Partition %d: %s", item.Partition, err.Error())
-					errs = append(errs, errString)
-					continue
-				}
-
-				newP.Replicas = append(newP.Replicas, newBroker.id)
-			} else {
-				// Otherwise keep the broker where it is.
-				newP.Replicas = append(newP.Replicas, bid)
-			}
+		// Add existing brokers.
+		for _, bid := range newMap.Partitions[n].Replicas {
+			replicaSet = append(replicaSet, bm[bid])
 		}
 
-		// Append the partition item to the new partitionMap.
-		newMap.Partitions = append(newMap.Partitions, newP)
+		constraints := mergeConstraints(replicaSet)
+
+		// For each replica in the partition partn.
+		bid := partn.Replicas[pass]
+
+		// If the broker ID is marked as replace
+		// in the broker map, get a new ID.
+		if bm[bid].replace {
+			// Fetch the best candidate, append.
+			newBroker, err := bl.bestCandidate(constraints)
+			if err != nil {
+				// Append any caught errors.
+				errString := fmt.Sprintf("Partition %d: %s", partn.Partition, err.Error())
+				errs = append(errs, errString)
+				continue
+			}
+
+			newMap.Partitions[n].Replicas = append(newMap.Partitions[n].Replicas, newBroker.id)
+		} else {
+			// Otherwise keep the broker where it is.
+			newMap.Partitions[n].Replicas = append(newMap.Partitions[n].Replicas, bid)
+		}
+
+	}
+	pass++
+	if pass < 2 {
+		goto start
 	}
 
 	return newMap, errs
@@ -311,13 +317,8 @@ func (pm partitionMap) rebuild(bm brokerMap) (*partitionMap, []string) {
 // bestCandidate takes a *constraints
 // and returns the *broker with the lowest used
 // count that satisfies all constraints.
-func (b brokerList) bestCandidate(c *constraints, l bool) (*broker, error) {
+func (b brokerList) bestCandidate(c *constraints) (*broker, error) {
 	sort.Sort(b)
-
-	score := followerScore
-	if l {
-		score = leaderScore
-	}
 
 	var candidate *broker
 
@@ -326,7 +327,7 @@ func (b brokerList) bestCandidate(c *constraints, l bool) (*broker, error) {
 		// Candidate passes, return.
 		if c.passes(candidate) {
 			c.add(candidate)
-			candidate.used += score
+			candidate.used++
 
 			return candidate, nil
 		}
@@ -458,20 +459,14 @@ func brokerMapFromTopicMap(pm *partitionMap, bm brokerMetaMap) brokerMap {
 	for _, partition := range pm.Partitions {
 		// For each broker in the
 		// partition replica set.
-		for n, id := range partition.Replicas {
-			// Add a point if the
-			// broker is a leader.
-			score := followerScore
-			if n == 0 {
-				score = leaderScore
-			}
+		for _, id := range partition.Replicas {
 			// If the broker isn't in the
 			// broker map, add it.
 			if bmap[id] == nil {
-				bmap[id] = &broker{used: score, id: id, replace: false}
+				bmap[id] = &broker{used: 0, id: id, replace: false}
 			} else {
 				// Else increment used.
-				bmap[id].used += score
+				bmap[id].used++
 			}
 
 			// Add metadata if we have it.
