@@ -27,7 +27,7 @@ var (
 
 	zkc = &zkConfig{}
 
-	errNoBrokers = errors.New("No additional brokers that meet contstraints")
+	errNoBrokers = errors.New("No additional brokers that meet constraints")
 )
 
 const (
@@ -229,6 +229,7 @@ func main() {
 	_ = expand
 
 	// Build a new map using the provided list of brokers.
+	// This is ok to run even when a no-op is intended.
 	partitionMapOut, warns := partitionMapIn.rebuild(brokers)
 
 	// Run an expansion if set.
@@ -432,7 +433,7 @@ func (b brokerMap) update(bl []int, bm brokerMetaMap) (int, int) {
 		if _, ok := newBrokers[broker.id]; !ok {
 			marked++
 			b[broker.id].replace = true
-			fmt.Fprintf(os.Stderr, "%s%d marked for removal\n",
+			fmt.Fprintf(os.Stderr, "%sBroker %d marked for removal\n",
 				indent, broker.id)
 		}
 	}
@@ -465,7 +466,8 @@ func (b brokerMap) update(bl []int, bm brokerMetaMap) (int, int) {
 				}
 			} else {
 				new--
-				fmt.Fprintf(os.Stderr, "broker %d not found in ZooKeeper\n", id)
+				fmt.Fprintf(os.Stderr, "%sBroker %d not found in ZooKeeper\n",
+					indent, id)
 			}
 		}
 	}

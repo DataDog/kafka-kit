@@ -22,32 +22,35 @@ An output of what's changed along with advisory notices (e.g. insufficient broke
 
 ### Usage
 
-#### Build
-Takes a topic name, partition/replica count, and broker list and generates a topic map.
-
 #### rebuild-topic
 Takes a topic name and list of target brokers. The broker map is fetched from ZooKeeper and rebuilt with the supplied broker list.
 
-> % topicmappr -rebuild-topic='myTopic' -zk-addr='localhost:2181' -zk-prefix='kafka' -brokers='1001,1002,1005,1006'
+> % topicmappr -rebuild-topic myTopic -brokers "0,2" -zk-addr "localhost:2181"
+
 ```
-broker 1007 marked for replacement
+Broker change summary:
+  Broker 1 marked for removal
+  Replacing 1, added 1, total count changed by 0
+
+Action:
+  Rebuild topic with 1 broker(s) marked for removal
 
 WARN:
   [none]
 
-Changes:
-  myTopic p0: [1005 1006] -> [1001 1002] replaced broker
-  myTopic p1: [1006 1007] -> [1002 1005] replaced broker
-  myTopic p2: [1007 1001] -> [1005 1001] replaced broker
-  myTopic p3: [1001 1002] -> [1006 1001] replaced broker
-  myTopic p4: [1002 1005] -> [1006 1001] replaced broker
-  myTopic p5: [1005 1007] -> [1005 1006] replaced broker
-  myTopic p6: [1006 1001] -> [1002 1001] replaced broker
-  myTopic p7: [1007 1002] -> [1005 1002] replaced broker
+Partition map changes:
+  myTopic p0: [0 1] -> [0 2] replaced broker
+  myTopic p1: [1 0] -> [2 0] replaced broker
+  myTopic p2: [0 1] -> [0 2] replaced broker
+  myTopic p3: [1 0] -> [2 0] replaced broker
+  myTopic p4: [0 1] -> [0 2] replaced broker
+  myTopic p5: [1 0] -> [2 0] replaced broker
+  myTopic p6: [0 1] -> [0 2] replaced broker
+  myTopic p7: [1 0] -> [2 0] replaced broker
 
 New partition map:
 
-{"version":1,"partitions":[{"topic":"myTopic","partition":3,"replicas":[1001,1002]},{"topic":"myTopic","partition":4,"replicas":[1002,1005]},{"topic":"myTopic","partition":5,"replicas":[1005,1001]},{"topic":"myTopic","partition":6,"replicas":[1006,1001]},{"topic":"myTopic","partition":1,"replicas":[1006,1001]},{"topic":"myTopic","partition":0,"replicas":[1005,1006]},{"topic":"myTopic","partition":2,"replicas":[1002,1001]},{"topic":"myTopic","partition":7,"replicas":[1005,1002]}]}
+{"version":1,"partitions":[{"topic":"myTopic","partition":0,"replicas":[0,2]},{"topic":"myTopic","partition":1,"replicas":[2,0]},{"topic":"myTopic","partition":2,"replicas":[0,2]},{"topic":"myTopic","partition":3,"replicas":[2,0]},{"topic":"myTopic","partition":4,"replicas":[0,2]},{"topic":"myTopic","partition":5,"replicas":[2,0]},{"topic":"myTopic","partition":6,"replicas":[0,2]},{"topic":"myTopic","partition":7,"replicas":[2,0]}]}
 ```
 
 #### rebuild-map
@@ -55,25 +58,64 @@ Takes an existing topic map and a list of target brokers. A topic initially buil
 
 Example:
 
->  % topicmappr -rebuild-map '{"version":1,"partitions":[{"topic":"myTopic","partition":0,"replicas":[1005,1006]},{"topic":"myTopic","partition":2,"replicas":[1007,1001]},{"topic":"myTopic","partition":7,"replicas":[1007,1002]},{"topic":"myTopic","partition":6,"replicas":[1006,1001]},{"topic":"myTopic","partition":4,"replicas":[1002,1005]},{"topic":"myTopic","partition":5,"replicas":[1005,1007]},{"topic":"myTopic","partition":3,"replicas":[1001,1002]},{"topic":"myTopic","partition":1,"replicas":[1006,1007]}]}' -brokers="1001,1002,1003,1004,1005,1006,1008"
+> % topicmappr -rebuild-map '{"version":1,"partitions":[{"topic":"myTopic","partition":0,"replicas":[1005,1006]},{"topic":"myTopic","partition":2,"replicas":[1007,1001]},{"topic":"myTopic","partition":7,"replicas":[1007,1002]},{"topic":"myTopic","partition":6,"replicas":[1006,1001]},{"topic":"myTopic","partition":4,"replicas":[1002,1005]},{"topic":"myTopic","partition":5,"replicas":[1005,1007]},{"topic":"myTopic","partition":3,"replicas":[1001,1002]},{"topic":"myTopic","partition":1,"replicas":[1006,1007]}]}' -brokers="1001,1002,1003,1004,1005,1006,1008" -use-meta=false
 
 ```
-1007 marked for replacement
+Broker change summary:
+  Broker 1007 marked for removal
+  Replacing 1, added 3, total count changed by 2
+
+Action:
+  Rebuild topic with 1 broker(s) marked for removal
 
 WARN:
   [none]
 
-Changes:
+Partition map changes:
   myTopic p0: [1005 1006] -> [1005 1006]
-  myTopic p1: [1006 1007] -> [1004 1001] replaced broker
-  myTopic p2: [1007 1001] -> [1008 1002] replaced broker
-  myTopic p3: [1001 1002] -> [1006 1001] replaced broker
+  myTopic p1: [1006 1007] -> [1006 1003] replaced broker
+  myTopic p2: [1007 1001] -> [1003 1001] replaced broker
+  myTopic p3: [1001 1002] -> [1001 1002]
   myTopic p4: [1002 1005] -> [1002 1005]
-  myTopic p5: [1005 1007] -> [1005 1003] replaced broker
-  myTopic p6: [1006 1001] -> [1001 1002] replaced broker
-  myTopic p7: [1007 1002] -> [1006 1003] replaced broker
+  myTopic p5: [1005 1007] -> [1005 1008] replaced broker
+  myTopic p6: [1006 1001] -> [1006 1001]
+  myTopic p7: [1007 1002] -> [1004 1002] replaced broker
 
 New partition map:
 
-{"version":1,"partitions":[{"topic":"myTopic","partition":0,"replicas":[1005,1006]},{"topic":"myTopic","partition":2,"replicas":[1004,1001]},{"topic":"myTopic","partition":7,"replicas":[1008,1002]},{"topic":"myTopic","partition":6,"replicas":[1006,1001]},{"topic":"myTopic","partition":4,"replicas":[1002,1005]},{"topic":"myTopic","partition":5,"replicas":[1005,1003]},{"topic":"myTopic","partition":3,"replicas":[1001,1002]},{"topic":"myTopic","partition":1,"replicas":[1006,1003]}]}
+{"version":1,"partitions":[{"topic":"myTopic","partition":0,"replicas":[1005,1006]},{"topic":"myTopic","partition":1,"replicas":[1006,1003]},{"topic":"myTopic","partition":2,"replicas":[1003,1001]},{"topic":"myTopic","partition":3,"replicas":[1001,1002]},{"topic":"myTopic","partition":4,"replicas":[1002,1005]},{"topic":"myTopic","partition":5,"replicas":[1005,1008]},{"topic":"myTopic","partition":6,"replicas":[1006,1001]},{"topic":"myTopic","partition":7,"replicas":[1004,1002]}]}
+```
+
+### Safeties using ZooKeeper state
+
+Topicmappr references cluster state from ZooKeeper, automatically enforcing the following:
+
+- The `broker.rack` Kafka attribute is used as a placement constraint. No replica set shall have brokers that share this attribute.
+- All provided brokers exist and are visible in ZooKeeper.
+- The topic exists in ZooKeeper.
+
+Example attempting to rebuild a topic with a non-existent broker:
+
+> % topicmappr -rebuild-topic myTopic -brokers "0,3"
+
+```
+Broker change summary:
+  Broker 1 marked for removal
+  Broker 3 not found in ZooKeeper
+  Replacing 1, added 0, total count changed by -1
+
+Action:
+  Shrinking topic by 1 broker(s)
+
+WARN:
+  Partition 0: No additional brokers that meet constraints
+  Partition 1: No additional brokers that meet constraints
+  Partition 2: No additional brokers that meet constraints                               Partition 3: No additional brokers that meet constraints                               Partition 4: No additional brokers that meet constraints                               Partition 5: No additional brokers that meet constraints                               Partition 6: No additional brokers that meet constraints
+  Partition 7: No additional brokers that meet constraints
+
+Partition map changes:
+  myTopic p0: [0 1] -> [0] replaced broker
+  myTopic p1: [1 0] -> [0] replaced broker
+  myTopic p2: [0 1] -> [0] replaced broker
+<...>
 ```
