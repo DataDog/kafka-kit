@@ -110,7 +110,11 @@ Action:
 WARN:
   Partition 0: No additional brokers that meet constraints
   Partition 1: No additional brokers that meet constraints
-  Partition 2: No additional brokers that meet constraints                               Partition 3: No additional brokers that meet constraints                               Partition 4: No additional brokers that meet constraints                               Partition 5: No additional brokers that meet constraints                               Partition 6: No additional brokers that meet constraints
+  Partition 2: No additional brokers that meet constraints
+  Partition 3: No additional brokers that meet constraints
+  Partition 4: No additional brokers that meet constraints
+  Partition 5: No additional brokers that meet constraints
+  Partition 6: No additional brokers that meet constraints
   Partition 7: No additional brokers that meet constraints
 
 Partition map changes:
