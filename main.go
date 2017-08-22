@@ -193,7 +193,7 @@ func main() {
 		partitionMapIn = pmap
 	}
 
-	fmt.Fprintf(os.Stderr, "Broker summary:\n")
+	fmt.Fprintf(os.Stderr, "Broker change summary:\n")
 
 	// Get a broker map of the brokers in the current topic map.
 	brokers := brokerMapFromTopicMap(partitionMapIn, brokerMetadata)
@@ -203,11 +203,38 @@ func main() {
 	replace, added := brokers.update(Config.brokers, brokerMetadata)
 	change := added - replace
 
+	// Print change summary.
 	fmt.Fprintf(os.Stderr, "%sReplacing %d, added %d, total count changed by %d\n",
 		indent, replace, added, change)
 
+	// Print action.
+	fmt.Fprintf(os.Stderr, "\nAction:\n")
+	expand := false
+
+	switch {
+	case change >= 0 && replace > 0:
+		fmt.Fprintf(os.Stderr, "%sRebuild topic with %d broker(s) marked for removal\n",
+			indent, replace)
+	case change > 0 && replace == 0:
+		expand = true
+		fmt.Fprintf(os.Stderr, "%sExpanding/rebalancing topic with %d broker(s)\n",
+			indent, added)
+	case change < 0:
+		fmt.Fprintf(os.Stderr, "%sShrinking topic by %d broker(s)\n",
+			indent, replace)
+	default:
+		fmt.Fprintf(os.Stderr, "%sno-op\n", indent)
+	}
+
+	_ = expand
+
 	// Build a new map using the provided list of brokers.
 	partitionMapOut, warns := partitionMapIn.rebuild(brokers)
+
+	// Run an expansion if set.
+	// Expansions also trigger a
+	// rebalance.
+	// if expand {...}
 
 	// Sort by topic, partition.
 	sort.Sort(partitionMapIn.Partitions)
@@ -229,7 +256,7 @@ func main() {
 	}
 
 	// Get a status string of what's changed.
-	fmt.Fprintln(os.Stderr, "\nChanges:")
+	fmt.Fprintln(os.Stderr, "\nPartition map changes:")
 	for i := range partitionMapIn.Partitions {
 		change := whatChanged(partitionMapIn.Partitions[i].Replicas,
 			partitionMapOut.Partitions[i].Replicas)
