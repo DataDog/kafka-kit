@@ -193,24 +193,18 @@ func main() {
 		partitionMapIn = pmap
 	}
 
+	fmt.Fprintf(os.Stderr, "Broker summary:\n")
+
 	// Get a broker map of the brokers in the current topic map.
 	brokers := brokerMapFromTopicMap(partitionMapIn, brokerMetadata)
-	startLen := len(brokers)
 
 	// Update the currentBrokers list with
 	// the provided broker list.
-	toReplace := brokers.update(Config.brokers, brokerMetadata)
-	newBrokers := len(brokers) - startLen
+	replace, added := brokers.update(Config.brokers, brokerMetadata)
+	change := added - replace
 
-	if toReplace == 0 {
-		fmt.Fprintln(os.Stderr, "No brokers marked for removal")
-		// If list is the same, no action.
-		if newBrokers > 0 {
-			fmt.Fprintf(os.Stderr, "%d additional broker(s)\n", newBrokers)
-		}
-
-		// If list is larger, we are growing.
-	}
+	fmt.Fprintf(os.Stderr, "%sReplacing %d, added %d, total count changed by %d\n",
+		indent, replace, added, change)
 
 	// Build a new map using the provided list of brokers.
 	partitionMapOut, warns := partitionMapIn.rebuild(brokers)
@@ -260,8 +254,8 @@ func main() {
 	fmt.Println(string(out))
 }
 
-// Rebuild takes a partition map and a brokerMap. It
-// traverses the partition map and replaces brokers marked
+// Rebuild takes a brokerMap and traverses
+// the partition map, replacing brokers marked
 // for removal with the best available candidate.
 func (pm partitionMap) rebuild(bm brokerMap) (*partitionMap, []string) {
 	newMap := newPartitionMap()
@@ -394,8 +388,10 @@ func mergeConstraints(bl brokerList) *constraints {
 }
 
 // update takes a brokerMap and a []int
-// of broker IDs and adds them to the brokerMap.
-func (b brokerMap) update(bl []int, bm brokerMetaMap) int {
+// of broker IDs and adds them to the brokerMap,
+// returning the count of marked for replacement and
+// newly included brokers.
+func (b brokerMap) update(bl []int, bm brokerMetaMap) (int, int) {
 	// Build a map from the new broker list.
 	newBrokers := map[int]bool{}
 	for _, broker := range bl {
@@ -409,14 +405,17 @@ func (b brokerMap) update(bl []int, bm brokerMetaMap) int {
 		if _, ok := newBrokers[broker.id]; !ok {
 			marked++
 			b[broker.id].replace = true
-			fmt.Fprintf(os.Stderr, "broker %d marked for removal\n", broker.id)
+			fmt.Fprintf(os.Stderr, "%s%d marked for removal\n",
+				indent, broker.id)
 		}
 	}
 
 	// Merge new brokers with existing brokers.
+	new := 0
 	for id := range newBrokers {
 		// Don't overwrite existing (which will be most brokers).
 		if b[id] == nil {
+			new++
 			// Skip metadata lookups if
 			// meta is not being used.
 			if len(bm) == 0 {
@@ -438,12 +437,13 @@ func (b brokerMap) update(bl []int, bm brokerMetaMap) int {
 					locality: meta.Rack,
 				}
 			} else {
+				new--
 				fmt.Fprintf(os.Stderr, "broker %d not found in ZooKeeper\n", id)
 			}
 		}
 	}
 
-	return marked
+	return marked, new
 }
 
 // filteredList converts a brokerMap to a brokerList,
