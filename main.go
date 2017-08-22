@@ -264,33 +264,49 @@ func (pm partitionMap) rebuild(bm brokerMap) (*partitionMap, []string) {
 	// For each partition partn in the
 	// partitions list.
 start:
+	skipped := 0
 	for n, partn := range pm.Partitions {
+		// If this is the first pass, create
+		// the new partition.
 		if pass == 0 {
 			newP := Partition{Partition: partn.Partition, Topic: partn.Topic}
 			newMap.Partitions = append(newMap.Partitions, newP)
 		}
 
 		// Build a brokerList from the
-		// IDs in the replica set to
+		// IDs in the old replica set to
 		// get a *constraints.
 		replicaSet := brokerList{}
 		for _, bid := range partn.Replicas {
 			replicaSet = append(replicaSet, bm[bid])
 		}
-		// Add existing brokers.
+		// Add existing brokers in the
+		// new replica set as well.
 		for _, bid := range newMap.Partitions[n].Replicas {
 			replicaSet = append(replicaSet, bm[bid])
 		}
 
 		constraints := mergeConstraints(replicaSet)
 
-		// For each replica in the partition partn.
+		// The number of needed passes may vary;
+		// e.g. if most replica sets have a len
+		// of 2 and a few with a len of 3, we have
+		// to do 3 passes while skipping some
+		// on final passes.
+		if pass > len(partn.Replicas)-1 {
+			skipped++
+			continue
+		}
+
+		// Get the broker ID we're
+		// either going to move into
+		// the new map or replace.
 		bid := partn.Replicas[pass]
 
 		// If the broker ID is marked as replace
 		// in the broker map, get a new ID.
 		if bm[bid].replace {
-			// Fetch the best candidate, append.
+			// Fetch the best candidate and append.
 			newBroker, err := bl.bestCandidate(constraints)
 			if err != nil {
 				// Append any caught errors.
@@ -306,8 +322,13 @@ start:
 		}
 
 	}
+
 	pass++
-	if pass < 2 {
+	// Check if we need more passes.
+	// If we've just counted as many skips
+	// as there are partitions to handle,
+	// we have nothing left to do.
+	if skipped < len(pm.Partitions) {
 		goto start
 	}
 
