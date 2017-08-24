@@ -15,8 +15,6 @@ import (
 
 var (
 	Config struct {
-		partitions   int
-		replicas     int
 		rebuildMap   string
 		rebuildTopic string
 		brokers      []int
@@ -24,7 +22,7 @@ var (
 		zkAddr       string
 		zkPrefix     string
 		outFile      string
-
+		ignoreWarns  bool
 	}
 
 	zkc = &zkConfig{}
@@ -126,6 +124,7 @@ func init() {
 	flag.StringVar(&Config.zkAddr, "zk-addr", "localhost:2181", "ZooKeeper connect string (for broker metadata or rebuild-topic lookups)")
 	flag.StringVar(&Config.zkPrefix, "zk-prefix", "", "ZooKeeper namespace prefix")
 	flag.StringVar(&Config.outFile, "out-file", "", "Output map to file")
+	flag.BoolVar(&Config.ignoreWarns, "ignore-warns", false, "Whether a map should be produced if warnings are emitted")
 	brokers := flag.String("brokers", "", "Broker list to rebuild topic partition map with")
 
 	flag.Parse()
@@ -276,6 +275,15 @@ func main() {
 
 	// Print the new partition map.
 	fmt.Fprintln(os.Stderr, "\nNew partition map:")
+
+	// Don't write the output if ignoreWarns is set.
+	if !Config.ignoreWarns && len(warns) > 0 {
+		fmt.Fprintf(os.Stderr,
+			"%sWarnings encountered, partition map not created. Override with --ignore-warns.\n",
+			indent)
+		os.Exit(1)
+	}
+
 	out, err := json.Marshal(partitionMapOut)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -284,6 +292,7 @@ func main() {
 
 	mapOut := string(out)
 
+	// File output.
 	if Config.outFile != "" {
 		err := ioutil.WriteFile(Config.outFile, []byte(mapOut+"\n"), 0644)
 		if err != nil {
@@ -293,6 +302,7 @@ func main() {
 		}
 	}
 
+	// Stdout.
 	fmt.Println(mapOut)
 }
 
