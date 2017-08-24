@@ -24,6 +24,7 @@ var (
 		zkAddr       string
 		zkPrefix     string
 		outFile      string
+
 	}
 
 	zkc = &zkConfig{}
@@ -121,11 +122,11 @@ func init() {
 	fmt.Fprintln(os.Stderr)
 	flag.StringVar(&Config.rebuildMap, "rebuild-map", "", "Rebuild a topic map")
 	flag.StringVar(&Config.rebuildTopic, "rebuild-topic", "", "Rebuild a topic by lookup in ZooKeeper")
-	flag.BoolVar(&Config.useMeta, "use-meta", true, "use broker metadata for constraints")
-	flag.StringVar(&Config.zkAddr, "zk-addr", "localhost:2181", "ZooKeeper connect string (for broker metadata)")
+	flag.BoolVar(&Config.useMeta, "use-meta", true, "Use broker metadata as constraints")
+	flag.StringVar(&Config.zkAddr, "zk-addr", "localhost:2181", "ZooKeeper connect string (for broker metadata or rebuild-topic lookups)")
 	flag.StringVar(&Config.zkPrefix, "zk-prefix", "", "ZooKeeper namespace prefix")
 	flag.StringVar(&Config.outFile, "out-file", "", "Output map to file")
-	brokers := flag.String("brokers", "", "new brokers list")
+	brokers := flag.String("brokers", "", "Broker list to rebuild topic partition map with")
 
 	flag.Parse()
 
