@@ -23,6 +23,7 @@ var (
 		useMeta      bool
 		zkAddr       string
 		zkPrefix     string
+		outFile      string
 	}
 
 	zkc = &zkConfig{}
@@ -123,6 +124,7 @@ func init() {
 	flag.BoolVar(&Config.useMeta, "use-meta", true, "use broker metadata for constraints")
 	flag.StringVar(&Config.zkAddr, "zk-addr", "localhost:2181", "ZooKeeper connect string (for broker metadata)")
 	flag.StringVar(&Config.zkPrefix, "zk-prefix", "", "ZooKeeper namespace prefix")
+	flag.StringVar(&Config.outFile, "out-file", "", "Output map to file")
 	brokers := flag.String("brokers", "", "new brokers list")
 
 	flag.Parse()
@@ -272,14 +274,25 @@ func main() {
 	}
 
 	// Print the new partition map.
-	fmt.Fprintln(os.Stderr, "\nNew partition map:\n")
+	fmt.Fprintln(os.Stderr, "\nNew partition map:")
 	out, err := json.Marshal(partitionMapOut)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
-	fmt.Println(string(out))
+	mapOut := string(out)
+
+	if Config.outFile != "" {
+		err := ioutil.WriteFile(Config.outFile, []byte(mapOut+"\n"), 0644)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		} else {
+			fmt.Fprintf(os.Stderr, "%sMap written to %s\n\n", indent, Config.outFile)
+		}
+	}
+
+	fmt.Println(mapOut)
 }
 
 // Rebuild takes a brokerMap and traverses
