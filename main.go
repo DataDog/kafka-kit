@@ -34,6 +34,10 @@ const (
 	indent = "  "
 )
 
+// TODO make references to topic map vs
+// broker map consistent, e.g. types vs
+// func names.
+
 // Partition maps the partition objects
 // in the Kafka topic mapping syntax.
 type Partition struct {
@@ -164,11 +168,21 @@ func main() {
 
 	}
 
+	// General flow:
+	// 1) partitionMap formed from topic data (provided or via zk).
+	// brokerMap is build from brokers found in input
+	// partitionMap + any new brokers provided from the
+	// --brokers param.
+	// 2) New partitionMap from origial map rebuild with updated
+	// the updated brokerMap; marked brokers are removed and newly
+	// provided brokers are swapped in where possible.
+	// 3) New map is possibly expanded/rebalanced.
+	// 4) Final map output.
+
 	// Fetch broker metadata.
 	var brokerMetadata brokerMetaMap
 	if Config.useMeta {
 		var err error
-		// Fetch broker metadata.
 		brokerMetadata, err = getAllBrokerMeta(zkc)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error fetching metadata: %s\n", err)
@@ -178,6 +192,9 @@ func main() {
 
 	partitionMapIn := newPartitionMap()
 
+	// Build a topic map with either
+	// explicit input or by fetching the
+	// map data from ZooKeeper.
 	switch {
 	case Config.rebuildMap != "":
 		err := json.Unmarshal([]byte(Config.rebuildMap), &partitionMapIn)
@@ -198,6 +215,7 @@ func main() {
 	fmt.Fprintf(os.Stderr, "Broker change summary:\n")
 
 	// Get a broker map of the brokers in the current topic map.
+	// If meta data isn't being looked up, brokerMetadata will be empty.
 	brokers := brokerMapFromTopicMap(partitionMapIn, brokerMetadata)
 
 	// Update the currentBrokers list with
@@ -228,16 +246,16 @@ func main() {
 		fmt.Fprintf(os.Stderr, "%sno-op\n", indent)
 	}
 
-	_ = expand
-
 	// Build a new map using the provided list of brokers.
 	// This is ok to run even when a no-op is intended.
 	partitionMapOut, warns := partitionMapIn.rebuild(brokers)
 
-	// Run an expansion if set.
-	// Expansions also trigger a
-	// rebalance.
-	// if expand {...}
+	// If expand is set.
+	if expand {
+		//partitionMapOut.expand(brokers)
+	}
+
+	// TODO Rebalance.
 
 	// Sort by topic, partition.
 	sort.Sort(partitionMapIn.Partitions)
@@ -416,6 +434,32 @@ func (b brokerList) bestCandidate(c *constraints) (*broker, error) {
 	return nil, errNoBrokers
 }
 
+// add takes a *broker and adds its
+// attributes to the *constraints.
+func (c *constraints) add(b *broker) {
+	if b.locality != "" {
+		c.locality[b.locality] = true
+	}
+
+	c.id[b.id] = true
+}
+
+// passes takes a *broker and returns
+// whether or not it passes constraints.
+func (c *constraints) passes(b *broker) bool {
+	switch {
+	// Fail if the candidate is one of the
+	// IDs already in the replica set.
+	case c.id[b.id]:
+		return false
+	// Fail if the candidate is in any of
+	// the existing replica set localities.
+	case c.locality[b.locality]:
+		return false
+	}
+	return true
+}
+
 // mergeConstraints takes a brokerlist and
 // builds a *constraints by merging the
 // attributes of all brokers from the supplied list.
@@ -511,33 +555,6 @@ func (b brokerMap) filteredList() brokerList {
 	}
 
 	return bl
-}
-
-// add takes a *broker and adds its
-// attributes to the *constraints.
-func (c *constraints) add(b *broker) {
-	if b.locality != "" {
-		c.locality[b.locality] = true
-	}
-
-	c.id[b.id] = true
-}
-
-// passes takes a *broker and returns
-// whether or not it passes constraints.
-func (c *constraints) passes(b *broker) bool {
-	switch {
-	// Fail if the candidate is one of the
-	// IDs already in the replica set.
-	case c.id[b.id]:
-		return false
-	// Fail if the candidate is in any of
-	// the existing replica set localities.
-	case c.locality[b.locality]:
-		return false
-	}
-
-	return true
 }
 
 // brokerMapFromTopicMap creates a brokerMap
