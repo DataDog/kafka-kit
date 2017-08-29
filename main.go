@@ -74,6 +74,11 @@ func newPartitionMap() *partitionMap {
 	return &partitionMap{Version: 1}
 }
 
+type brokerUseStats struct {
+	leader   int
+	follower int
+}
+
 // broker is used for internal
 // metadata / accounting.
 type broker struct {
@@ -291,6 +296,15 @@ func main() {
 			change)
 	}
 
+	// Get a per-broker count of leader, follower
+	// and total partition assignments.
+	fmt.Fprintln(os.Stderr, "\nPartitions assigned:")
+	useStats := partitionMapOut.useStats()
+	for id, use := range useStats {
+		fmt.Fprintf(os.Stderr, "%sBroker %d - leader: %d, follower: %d, total: %d\n",
+			indent, id, use.leader, use.follower, use.leader+use.follower)
+	}
+
 	// Print the new partition map.
 	fmt.Fprintln(os.Stderr, "\nNew partition map:")
 
@@ -322,6 +336,30 @@ func main() {
 
 	// Stdout.
 	fmt.Println(mapOut)
+}
+
+// useStats returns a map of broker IDs
+// to brokerUseStats; each contains a count
+// of leader and follower partition assignments.
+func (pm partitionMap) useStats() map[int]*brokerUseStats {
+	stats := map[int]*brokerUseStats{}
+	// Get counts.
+	for _, p := range pm.Partitions {
+		for i, b := range p.Replicas {
+			if _, exists := stats[b]; !exists {
+				stats[b] = &brokerUseStats{}
+			}
+			// Idx 0 for each replica set
+			// is a leader assignment.
+			if i == 0 {
+				stats[b].leader++
+			} else {
+				stats[b].follower++
+			}
+		}
+	}
+
+	return stats
 }
 
 // Rebuild takes a brokerMap and traverses
