@@ -15,14 +15,14 @@ import (
 
 var (
 	Config struct {
-		rebuildMap   string
-		rebuildTopic string
-		brokers      []int
-		useMeta      bool
-		zkAddr       string
-		zkPrefix     string
-		outFile      string
-		ignoreWarns  bool
+		rebuildMap    string
+		rebuildTopics []string
+		brokers       []int
+		useMeta       bool
+		zkAddr        string
+		zkPrefix      string
+		outFile       string
+		ignoreWarns   bool
 	}
 
 	zkc = &zkConfig{}
@@ -128,7 +128,7 @@ func init() {
 
 	fmt.Fprintln(os.Stderr)
 	flag.StringVar(&Config.rebuildMap, "rebuild-map", "", "Rebuild a topic map")
-	flag.StringVar(&Config.rebuildTopic, "rebuild-topic", "", "Rebuild a topic by lookup in ZooKeeper")
+	topics := flag.String("rebuild-topics", "", "Rebuild topics (comma delim list) by lookup in ZooKeeper")
 	flag.BoolVar(&Config.useMeta, "use-meta", true, "Use broker metadata as constraints")
 	flag.StringVar(&Config.zkAddr, "zk-addr", "localhost:2181", "ZooKeeper connect string (for broker metadata or rebuild-topic lookups)")
 	flag.StringVar(&Config.zkPrefix, "zk-prefix", "", "ZooKeeper namespace prefix")
@@ -140,8 +140,8 @@ func init() {
 
 	// Sanity check params.
 	switch {
-	case Config.rebuildMap == "" && Config.rebuildTopic == "":
-		fmt.Fprintln(os.Stderr, "Must specify either -rebuild-map or -rebuild-topic")
+	case Config.rebuildMap == "" && *topics == "":
+		fmt.Fprintln(os.Stderr, "Must specify either -rebuild-map or -rebuild-topics")
 		defaultsAndExit()
 	case len(*brokers) == 0:
 		fmt.Fprintln(os.Stderr, "Broker list cannot be empty")
@@ -149,6 +149,7 @@ func init() {
 	}
 
 	Config.brokers = brokerStringToSlice(*brokers)
+	Config.rebuildTopics = strings.Split(*topics, ",")
 }
 
 func defaultsAndExit() {
@@ -158,7 +159,7 @@ func defaultsAndExit() {
 
 func main() {
 	// ZooKeeper init.
-	if Config.useMeta || Config.rebuildTopic != "" {
+	if Config.useMeta || len(Config.rebuildTopics) > 0 {
 		// ZooKeeper config params.
 		zkc = &zkConfig{
 			ConnectString: Config.zkAddr,
@@ -207,14 +208,21 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Error parsing topic map: %s\n", err)
 			os.Exit(1)
 		}
-	case Config.rebuildTopic != "":
-		pmap, err := partitionMapFromZk(zkc, Config.rebuildTopic)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
+	case len(Config.rebuildTopics) > 0:
+		pmapMerged := newPartitionMap()
+		// Get a partition map for each topic.
+		for _, t := range Config.rebuildTopics {
+			pmap, err := partitionMapFromZk(zkc, t)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+
+			// Merge multiple maps.
+			pmapMerged.Partitions = append(pmapMerged.Partitions, pmap.Partitions...)
 		}
 
-		partitionMapIn = pmap
+		partitionMapIn = pmapMerged
 	}
 
 	fmt.Fprintf(os.Stderr, "Broker change summary:\n")
