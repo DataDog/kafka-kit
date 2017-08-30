@@ -8,7 +8,7 @@ Given the same input, topicmappr will always provide the same output map.
 #### Minimal partition movement
 Avoids reassigning partitions where movement isn't necessary, greatly reducing reassignment times and resource load for simple recoveries.
 
-#### Balancing placement algorithm with multi-dimensional constraints
+#### Balancing partition placement with constraints
 For each broker pending replacement, topicmappr chooses the least-utilized candidate broker (based on a combination of topics held and leadership counts) that satisfies the following constraints:
 
 - the broker isn't already in the replica set
@@ -22,10 +22,34 @@ An output of what's changed along with advisory notices (e.g. insufficient broke
 
 ### Usage
 
-#### rebuild-topic
-Takes a topic name and list of target brokers. The broker map is fetched from ZooKeeper and rebuilt with the supplied broker list.
+Flags:
 
-> % topicmappr -rebuild-topic myTopic -brokers "0,2" -zk-addr "localhost:2181"
+```
+topicmappr -h
+
+Usage of topicmappr:
+  -brokers string
+        Broker list to rebuild topic partition map with
+  -ignore-warns
+        Whether a map should be produced if warnings are emitted
+  -out-file string
+        Output map to file
+  -rebuild-map string
+        Rebuild a topic map
+  -rebuild-topics string
+        Rebuild topics (comma delim list) by lookup in ZooKeeper
+  -use-meta
+        Use broker metadata as constraints (default true)
+  -zk-addr string
+        ZooKeeper connect string (for broker metadata or rebuild-topic lookups) (default "localhost:2181")
+  -zk-prefix string
+        ZooKeeper namespace prefix
+```
+
+#### rebuild-topics
+Takes a comma delimited list of topic names and a list of target brokers. The broker map is fetched from ZooKeeper and rebuilt with the supplied broker list.
+
+> % topicmappr -rebuild-topics myTopic -brokers "0,2" -zk-addr "localhost:2181"
 
 ```
 Broker change summary:
@@ -48,6 +72,10 @@ Partition map changes:
   myTopic p6: [0 1] -> [0 2] replaced broker
   myTopic p7: [1 0] -> [2 0] replaced broker
 
+Partitions assigned:
+  Broker 0 - leader: 4, follower: 4, total: 8
+  Broker 2 - leader: 4, follower: 4, total: 8
+
 New partition map:
 
 {"version":1,"partitions":[{"topic":"myTopic","partition":0,"replicas":[0,2]},{"topic":"myTopic","partition":1,"replicas":[2,0]},{"topic":"myTopic","partition":2,"replicas":[0,2]},{"topic":"myTopic","partition":3,"replicas":[2,0]},{"topic":"myTopic","partition":4,"replicas":[0,2]},{"topic":"myTopic","partition":5,"replicas":[2,0]},{"topic":"myTopic","partition":6,"replicas":[0,2]},{"topic":"myTopic","partition":7,"replicas":[2,0]}]}
@@ -55,6 +83,8 @@ New partition map:
 
 #### rebuild-map
 Takes an existing topic map and a list of target brokers. A topic initially built with the brokers `[1001,1002,1003]` that lost broker `1003` could be rebuilt by supplying the new broker list `[1001,1002,1004]`.
+
+Multiple topics can be included in the topic map.
 
 Example:
 
@@ -81,8 +111,16 @@ Partition map changes:
   myTopic p6: [1006 1001] -> [1006 1001]
   myTopic p7: [1007 1002] -> [1004 1002] replaced broker
 
-New partition map:
+Partitions assigned:
+  Broker 1002 - leader: 1, follower: 2, total: 3
+  Broker 1008 - leader: 0, follower: 1, total: 1
+  Broker 1004 - leader: 1, follower: 0, total: 1
+  Broker 1005 - leader: 2, follower: 1, total: 3
+  Broker 1006 - leader: 2, follower: 1, total: 3
+  Broker 1003 - leader: 1, follower: 1, total: 2
+  Broker 1001 - leader: 1, follower: 2, total: 3
 
+New partition map:
 {"version":1,"partitions":[{"topic":"myTopic","partition":0,"replicas":[1005,1006]},{"topic":"myTopic","partition":1,"replicas":[1006,1003]},{"topic":"myTopic","partition":2,"replicas":[1003,1001]},{"topic":"myTopic","partition":3,"replicas":[1001,1002]},{"topic":"myTopic","partition":4,"replicas":[1002,1005]},{"topic":"myTopic","partition":5,"replicas":[1005,1008]},{"topic":"myTopic","partition":6,"replicas":[1006,1001]},{"topic":"myTopic","partition":7,"replicas":[1004,1002]}]}
 ```
 
