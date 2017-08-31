@@ -32,7 +32,7 @@ var (
 
 	zkc = &zkConfig{}
 	// Characters allowed in Kafka topic names
-	topicNormalChar, _ = regexp.Compile(`[a-zA-Z0-9\\._\\-]`)
+	topicNormalChar, _ = regexp.Compile(`[a-zA-Z0-9_\\-]`)
 
 	errNoBrokers = errors.New("No additional brokers that meet constraints")
 )

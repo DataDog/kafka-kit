@@ -49,7 +49,7 @@ Usage of topicmappr:
 #### rebuild-topics
 Takes a comma delimited list of topic names and a list of target brokers. The broker map is fetched from ZooKeeper and rebuilt with the supplied broker list.
 
-Regex is supported for topic names. For instance, providing `--rebuild-topics="myTopic[0-9]"` might return `myTopic1`, `myTopic2`, and `myTopic3`.
+Regex is supported for topic names\*. For instance, providing `--rebuild-topics="myTopic[0-9]"` might return `myTopic1`, `myTopic2`, and `myTopic3`.
 
 > % topicmappr -rebuild-topics myTopic -brokers "0,2" -zk-addr "localhost:2181"
 
@@ -85,6 +85,8 @@ New partition map:
 
 {"version":1,"partitions":[{"topic":"myTopic","partition":0,"replicas":[0,2]},{"topic":"myTopic","partition":1,"replicas":[2,0]},{"topic":"myTopic","partition":2,"replicas":[0,2]},{"topic":"myTopic","partition":3,"replicas":[2,0]},{"topic":"myTopic","partition":4,"replicas":[0,2]},{"topic":"myTopic","partition":5,"replicas":[2,0]},{"topic":"myTopic","partition":6,"replicas":[0,2]},{"topic":"myTopic","partition":7,"replicas":[2,0]}]}
 ```
+
+\*Take note of how regex is interpreted: all topics included in the `--rebuild-topics` list ultimately become regex. Topic names where all characters are those allowed by Kafka (`a-z`, `A-Z`, `0-9`, `_`, `-`, `.`) sans `.`, are assumed to be literal names and thus become the regex `/^topic$/`. The inclusion of a `.` or any other character assumes that the entry is to be interpreted as regex and is compiled as is. This means that if you want to rebuild the literal topic `my.topic`, it's best to provide `--rebuild-topics="my\.topic"`. Without escaping the `.` (`--rebuild-topics="my.topic"`), both `my.topic` and `my1topic` would be targeted.
 
 #### rebuild-map
 Takes an existing topic map and a list of target brokers. A topic initially built with the brokers `[1001,1002,1003]` that lost broker `1003` could be rebuilt by supplying the new broker list `[1001,1002,1004]`.
