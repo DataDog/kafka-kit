@@ -270,7 +270,18 @@ func main() {
 		partitionMapIn = pmapMerged
 	}
 
-	fmt.Fprintf(os.Stderr, "Broker change summary:\n")
+	// Get a list of affected topics.
+	topics := map[string]bool{}
+	for _, p := range partitionMapIn.Partitions {
+		topics[p.Topic] = true
+	}
+
+	fmt.Fprintf(os.Stderr, "Topics:\n")
+	for t := range topics {
+		fmt.Fprintf(os.Stderr, "%s%s\n", indent, t)
+	}
+
+	fmt.Fprintf(os.Stderr, "\nBroker change summary:\n")
 
 	// Get a broker map of the brokers in the current topic map.
 	// If meta data isn't being looked up, brokerMetadata will be empty.
