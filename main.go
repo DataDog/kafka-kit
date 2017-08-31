@@ -8,15 +8,21 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 )
 
+const (
+	validTopicNameChar = `[a-zA-Z0-9\\._\\-]`
+	indent             = "  "
+)
+
 var (
 	Config struct {
 		rebuildMap    string
-		rebuildTopics []string
+		rebuildTopics []*regexp.Regexp
 		brokers       []int
 		useMeta       bool
 		zkAddr        string
@@ -26,12 +32,10 @@ var (
 	}
 
 	zkc = &zkConfig{}
+	// Characters allowed in Kafka topic names
+	topicNormalChar, _ = regexp.Compile(`[a-zA-Z0-9\\._\\-]`)
 
 	errNoBrokers = errors.New("No additional brokers that meet constraints")
-)
-
-const (
-	indent = "  "
 )
 
 // TODO make references to topic map vs
@@ -149,7 +153,40 @@ func init() {
 	}
 
 	Config.brokers = brokerStringToSlice(*brokers)
-	Config.rebuildTopics = strings.Split(*topics, ",")
+	topicNames := strings.Split(*topics, ",")
+
+	// Determine if regexp was provided in the topic
+	// name. If not, set the topic name to ^name$.
+	for n, t := range topicNames {
+		if !containsRegex(t) {
+			topicNames[n] = fmt.Sprintf(`^%s$`, t)
+		}
+	}
+
+	// Ensure all topic regex compiles.
+	for _, t := range topicNames {
+		r, err := regexp.Compile(t)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Invalid topic regex: %s\n", t)
+			os.Exit(1)
+		}
+
+		Config.rebuildTopics = append(Config.rebuildTopics, r)
+	}
+}
+
+func containsRegex(t string) bool {
+	// Check each character of the
+	// topic name. If it doesn't contain
+	// a legal Kafka topic name character, we're
+	// going to assume it's regex.
+	for _, c := range t {
+		if !topicNormalChar.MatchString(string(c)) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func defaultsAndExit() {
@@ -209,9 +246,17 @@ func main() {
 			os.Exit(1)
 		}
 	case len(Config.rebuildTopics) > 0:
+		// Get a list of topic names from ZK
+		// matching the provided list.
+		topicsToRebuild, err := getTopics(zkc, Config.rebuildTopics)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+
 		pmapMerged := newPartitionMap()
 		// Get a partition map for each topic.
-		for _, t := range Config.rebuildTopics {
+		for _, t := range topicsToRebuild {
 			pmap, err := partitionMapFromZk(zkc, t)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)

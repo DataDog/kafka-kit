@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -55,6 +56,41 @@ func initZK(zc *zkConfig) error {
 	}
 
 	return nil
+}
+
+func getTopics(zc *zkConfig, ts []*regexp.Regexp) ([]string, error) {
+	matchingTopics := []string{}
+
+	var path string
+	if zc.Prefix != "" {
+		path = fmt.Sprintf("%s/brokers/topics", zc.Prefix)
+	} else {
+		path = "brokers/topics"
+	}
+
+	// Find all topics in ZK.
+	entries, err := zk.List(path)
+	if err != nil {
+		return nil, err
+	}
+
+	matched := map[string]bool{}
+	// Get all topics that match all
+	// provided topic regexps.
+	for _, topicRe := range ts {
+		for _, topic := range entries {
+			if topicRe.MatchString(topic.Key) {
+				matched[topic.Key] = true
+			}
+		}
+	}
+
+	// Add matches to a slice.
+	for topic := range matched {
+		matchingTopics = append(matchingTopics, topic)
+	}
+
+	return matchingTopics, nil
 }
 
 func getAllBrokerMeta(zc *zkConfig) (brokerMetaMap, error) {
