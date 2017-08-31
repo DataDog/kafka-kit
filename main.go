@@ -488,7 +488,7 @@ start:
 			newBroker, err := bl.bestCandidate(constraints)
 			if err != nil {
 				// Append any caught errors.
-				errString := fmt.Sprintf("Partition %d: %s", partn.Partition, err.Error())
+				errString := fmt.Sprintf("%s p%d: %s", partn.Topic, partn.Partition, err.Error())
 				errs = append(errs, errString)
 				continue
 			}

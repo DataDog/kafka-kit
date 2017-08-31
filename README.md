@@ -49,9 +49,14 @@ Usage of topicmappr:
 #### rebuild-topics
 Takes a comma delimited list of topic names and a list of target brokers. The broker map is fetched from ZooKeeper and rebuilt with the supplied broker list.
 
+Regex is supported for topic names. For instance, providing `--rebuild-topics="myTopic[0-9]"` might return `myTopic1`, `myTopic2`, and `myTopic3`.
+
 > % topicmappr -rebuild-topics myTopic -brokers "0,2" -zk-addr "localhost:2181"
 
 ```
+Topics:
+  myTopic
+
 Broker change summary:
   Broker 1 marked for removal
   Replacing 1, added 1, total count changed by 0
@@ -91,6 +96,9 @@ Example:
 > % topicmappr -rebuild-map '{"version":1,"partitions":[{"topic":"myTopic","partition":0,"replicas":[1005,1006]},{"topic":"myTopic","partition":2,"replicas":[1007,1001]},{"topic":"myTopic","partition":7,"replicas":[1007,1002]},{"topic":"myTopic","partition":6,"replicas":[1006,1001]},{"topic":"myTopic","partition":4,"replicas":[1002,1005]},{"topic":"myTopic","partition":5,"replicas":[1005,1007]},{"topic":"myTopic","partition":3,"replicas":[1001,1002]},{"topic":"myTopic","partition":1,"replicas":[1006,1007]}]}' -brokers="1001,1002,1003,1004,1005,1006,1008" -use-meta=false
 
 ```
+Topics:
+  myTopic
+
 Broker change summary:
   Broker 1007 marked for removal
   Replacing 1, added 3, total count changed by 2
@@ -146,14 +154,14 @@ Action:
   Shrinking topic by 1 broker(s)
 
 WARN:
-  Partition 0: No additional brokers that meet constraints
-  Partition 1: No additional brokers that meet constraints
-  Partition 2: No additional brokers that meet constraints
-  Partition 3: No additional brokers that meet constraints
-  Partition 4: No additional brokers that meet constraints
-  Partition 5: No additional brokers that meet constraints
-  Partition 6: No additional brokers that meet constraints
-  Partition 7: No additional brokers that meet constraints
+  myTopic p0: No additional brokers that meet constraints
+  myTopic p1: No additional brokers that meet constraints
+  myTopic p2: No additional brokers that meet constraints
+  myTopic p3: No additional brokers that meet constraints
+  myTopic p4: No additional brokers that meet constraints
+  myTopic p5: No additional brokers that meet constraints
+  myTopic p6: No additional brokers that meet constraints
+  myTopic p7: No additional brokers that meet constraints
 
 Partition map changes:
   myTopic p0: [0 1] -> [0] replaced broker
