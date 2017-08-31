@@ -15,7 +15,6 @@ import (
 )
 
 const (
-	validTopicNameChar = `[a-zA-Z0-9\\._\\-]`
 	indent             = "  "
 )
 
