@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	indent             = "  "
+	indent = "  "
 )
 
 var (
