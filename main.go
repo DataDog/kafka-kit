@@ -129,7 +129,7 @@ func newConstraints() *constraints {
 func init() {
 	log.SetOutput(ioutil.Discard)
 
-	fmt.Fprintln(os.Stderr)
+	fmt.Println()
 	flag.StringVar(&Config.rebuildMap, "rebuild-map", "", "Rebuild a topic map")
 	topics := flag.String("rebuild-topics", "", "Rebuild topics (comma delim list) by lookup in ZooKeeper")
 	flag.BoolVar(&Config.useMeta, "use-meta", true, "Use broker metadata as constraints")
@@ -144,10 +144,10 @@ func init() {
 	// Sanity check params.
 	switch {
 	case Config.rebuildMap == "" && *topics == "":
-		fmt.Fprintln(os.Stderr, "Must specify either -rebuild-map or -rebuild-topics")
+		fmt.Println("Must specify either -rebuild-map or -rebuild-topics")
 		defaultsAndExit()
 	case len(*brokers) == 0:
-		fmt.Fprintln(os.Stderr, "Broker list cannot be empty")
+		fmt.Println("Broker list cannot be empty")
 		defaultsAndExit()
 	}
 
@@ -166,7 +166,7 @@ func init() {
 	for _, t := range topicNames {
 		r, err := regexp.Compile(t)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Invalid topic regex: %s\n", t)
+			fmt.Printf("Invalid topic regex: %s\n", t)
 			os.Exit(1)
 		}
 
@@ -204,7 +204,7 @@ func main() {
 		// Init the ZK client.
 		err := initZK(zkc)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error connecting to ZooKeeper: %s\n", err)
+			fmt.Printf("Error connecting to ZooKeeper: %s\n", err)
 			os.Exit(1)
 		}
 
@@ -227,7 +227,7 @@ func main() {
 		var err error
 		brokerMetadata, err = getAllBrokerMeta(zkc)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error fetching metadata: %s\n", err)
+			fmt.Printf("Error fetching metadata: %s\n", err)
 			os.Exit(1)
 		}
 	}
@@ -241,7 +241,7 @@ func main() {
 	case Config.rebuildMap != "":
 		err := json.Unmarshal([]byte(Config.rebuildMap), &partitionMapIn)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error parsing topic map: %s\n", err)
+			fmt.Printf("Error parsing topic map: %s\n", err)
 			os.Exit(1)
 		}
 	case len(Config.rebuildTopics) > 0:
@@ -249,7 +249,7 @@ func main() {
 		// matching the provided list.
 		topicsToRebuild, err := getTopics(zkc, Config.rebuildTopics)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Println(err)
 			os.Exit(1)
 		}
 
@@ -258,7 +258,7 @@ func main() {
 		for _, t := range topicsToRebuild {
 			pmap, err := partitionMapFromZk(zkc, t)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, err)
+				fmt.Println(err)
 				os.Exit(1)
 			}
 
@@ -275,12 +275,12 @@ func main() {
 		topics[p.Topic] = true
 	}
 
-	fmt.Fprintf(os.Stderr, "Topics:\n")
+	fmt.Printf("Topics:\n")
 	for t := range topics {
-		fmt.Fprintf(os.Stderr, "%s%s\n", indent, t)
+		fmt.Printf("%s%s\n", indent, t)
 	}
 
-	fmt.Fprintf(os.Stderr, "\nBroker change summary:\n")
+	fmt.Printf("\nBroker change summary:\n")
 
 	// Get a broker map of the brokers in the current topic map.
 	// If meta data isn't being looked up, brokerMetadata will be empty.
@@ -292,26 +292,26 @@ func main() {
 	change := added - replace
 
 	// Print change summary.
-	fmt.Fprintf(os.Stderr, "%sReplacing %d, added %d, total count changed by %d\n",
+	fmt.Printf("%sReplacing %d, added %d, total count changed by %d\n",
 		indent, replace, added, change)
 
 	// Print action.
-	fmt.Fprintf(os.Stderr, "\nAction:\n")
+	fmt.Printf("\nAction:\n")
 	expand := false
 
 	switch {
 	case change >= 0 && replace > 0:
-		fmt.Fprintf(os.Stderr, "%sRebuild topic with %d broker(s) marked for removal\n",
+		fmt.Printf("%sRebuild topic with %d broker(s) marked for removal\n",
 			indent, replace)
 	case change > 0 && replace == 0:
 		expand = true
-		fmt.Fprintf(os.Stderr, "%sExpanding/rebalancing topic with %d broker(s)\n",
+		fmt.Printf("%sExpanding/rebalancing topic with %d broker(s)\n",
 			indent, added)
 	case change < 0:
-		fmt.Fprintf(os.Stderr, "%sShrinking topic by %d broker(s)\n",
+		fmt.Printf("%sShrinking topic by %d broker(s)\n",
 			indent, replace)
 	default:
-		fmt.Fprintf(os.Stderr, "%sno-op\n", indent)
+		fmt.Printf("%sno-op\n", indent)
 	}
 
 	// Build a new map using the provided list of brokers.
@@ -334,23 +334,23 @@ func main() {
 	// topic, partition.
 
 	// Print advisory warnings.
-	fmt.Fprintln(os.Stderr, "\nWARN:")
+	fmt.Println("\nWARN:")
 	if len(warns) > 0 {
 		sort.Strings(warns)
 		for _, e := range warns {
-			fmt.Fprintf(os.Stderr, "%s%s\n", indent, e)
+			fmt.Printf("%s%s\n", indent, e)
 		}
 	} else {
-		fmt.Fprintf(os.Stderr, "%s[none]\n", indent)
+		fmt.Printf("%s[none]\n", indent)
 	}
 
 	// Get a status string of what's changed.
-	fmt.Fprintln(os.Stderr, "\nPartition map changes:")
+	fmt.Println("\nPartition map changes:")
 	for i := range partitionMapIn.Partitions {
 		change := whatChanged(partitionMapIn.Partitions[i].Replicas,
 			partitionMapOut.Partitions[i].Replicas)
 
-		fmt.Fprintf(os.Stderr, "%s%s p%d: %v -> %v %s\n",
+		fmt.Printf("%s%s p%d: %v -> %v %s\n",
 			indent,
 			partitionMapIn.Partitions[i].Topic,
 			partitionMapIn.Partitions[i].Partition,
@@ -361,19 +361,19 @@ func main() {
 
 	// Get a per-broker count of leader, follower
 	// and total partition assignments.
-	fmt.Fprintln(os.Stderr, "\nPartitions assigned:")
+	fmt.Println("\nPartitions assigned:")
 	useStats := partitionMapOut.useStats()
 	for id, use := range useStats {
-		fmt.Fprintf(os.Stderr, "%sBroker %d - leader: %d, follower: %d, total: %d\n",
+		fmt.Printf("%sBroker %d - leader: %d, follower: %d, total: %d\n",
 			indent, id, use.leader, use.follower, use.leader+use.follower)
 	}
 
 	// Print the new partition map.
-	fmt.Fprintln(os.Stderr, "\nNew partition map:")
+	fmt.Println("\nNew partition map:")
 
 	// Don't write the output if ignoreWarns is set.
 	if !Config.ignoreWarns && len(warns) > 0 {
-		fmt.Fprintf(os.Stderr,
+		fmt.Printf(
 			"%sWarnings encountered, partition map not created. Override with --ignore-warns.\n",
 			indent)
 		os.Exit(1)
@@ -381,7 +381,7 @@ func main() {
 
 	out, err := json.Marshal(partitionMapOut)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Println(err)
 		os.Exit(1)
 	}
 
@@ -391,9 +391,9 @@ func main() {
 	if Config.outFile != "" {
 		err := ioutil.WriteFile(Config.outFile, []byte(mapOut+"\n"), 0644)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Println(err)
 		} else {
-			fmt.Fprintf(os.Stderr, "%sMap written to %s\n\n", indent, Config.outFile)
+			fmt.Printf("%sMap written to %s\n\n", indent, Config.outFile)
 		}
 	}
 
@@ -602,7 +602,7 @@ func (b brokerMap) update(bl []int, bm brokerMetaMap) (int, int) {
 		if _, ok := newBrokers[broker.id]; !ok {
 			marked++
 			b[broker.id].replace = true
-			fmt.Fprintf(os.Stderr, "%sBroker %d marked for removal\n",
+			fmt.Printf("%sBroker %d marked for removal\n",
 				indent, broker.id)
 		}
 	}
@@ -635,7 +635,7 @@ func (b brokerMap) update(bl []int, bm brokerMetaMap) (int, int) {
 				}
 				new++
 			} else {
-				fmt.Fprintf(os.Stderr, "%sBroker %d not found in ZooKeeper\n",
+				fmt.Printf("%sBroker %d not found in ZooKeeper\n",
 					indent, id)
 			}
 		}
@@ -751,12 +751,12 @@ func brokerStringToSlice(s string) []int {
 		i, err := strconv.Atoi(p)
 		// Err and exit on bad input.
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Println(err)
 			os.Exit(1)
 		}
 
 		if ids[i] {
-			fmt.Fprintf(os.Stderr, "ID %d supplied as duplicate, excluding\n", i)
+			fmt.Printf("ID %d supplied as duplicate, excluding\n", i)
 			info++
 			continue
 		}
@@ -767,7 +767,7 @@ func brokerStringToSlice(s string) []int {
 
 	// Formatting purposes.
 	if info > 0 {
-		fmt.Fprintln(os.Stderr)
+		fmt.Println()
 	}
 
 	return is
