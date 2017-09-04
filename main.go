@@ -253,6 +253,19 @@ func main() {
 			os.Exit(1)
 		}
 
+		// Log and exit if no matching topics were found.
+		if len(topicsToRebuild) == 0 {
+			fmt.Printf("No topics found matching: ")
+			for n, t := range Config.rebuildTopics {
+				fmt.Printf("/%s/", t)
+				if n < len(Config.rebuildTopics)-1 {
+					fmt.Printf(", ")
+				}
+			}
+			fmt.Println()
+			os.Exit(1)
+		}
+
 		pmapMerged := newPartitionMap()
 		// Get a partition map for each topic.
 		for _, t := range topicsToRebuild {
