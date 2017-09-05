@@ -761,7 +761,7 @@ func brokerStringToSlice(s string) []int {
 	// Iterate and convert
 	// each broker ID.
 	for _, p := range parts {
-		i, err := strconv.Atoi(p)
+		i, err := strconv.Atoi(strings.TrimSpace(p))
 		// Err and exit on bad input.
 		if err != nil {
 			fmt.Println(err)
