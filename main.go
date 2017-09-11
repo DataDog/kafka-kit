@@ -266,10 +266,13 @@ func main() {
 			os.Exit(1)
 		}
 
-		pmapMerged := newPartitionMap()
+		// Get current reassign_partitions.
+		reassignments := getReassignments(zkc)
+
 		// Get a partition map for each topic.
+		pmapMerged := newPartitionMap()
 		for _, t := range topicsToRebuild {
-			pmap, err := partitionMapFromZk(zkc, t)
+			pmap, err := partitionMapFromZk(zkc, t, reassignments)
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(1)

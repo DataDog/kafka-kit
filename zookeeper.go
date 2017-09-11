@@ -37,6 +37,21 @@ type topicState struct {
 	Partitions map[string][]int `json:"partitions"`
 }
 
+// reassignments is a map of topic:partition:brokers.
+type reassignments map[string]map[int][]int
+
+// reassignPartitions is used for unmarshalling
+// /kafka/admin/reassign_partitions data.
+type reassignPartitions struct {
+	Partitions []reassignConfig `json:"partitions"`
+}
+
+type reassignConfig struct {
+	Topic     string `json:"topic"`
+	Partition int    `json:"partition"`
+	Replicas  []int  `json:"replicas"`
+}
+
 type zkConfig struct {
 	ConnectString string
 	Prefix        string
@@ -56,6 +71,37 @@ func initZK(zc *zkConfig) error {
 	}
 
 	return nil
+}
+
+func getReassignments(zc *zkConfig) reassignments {
+	reassigns := reassignments{}
+
+	var path string
+	if zc.Prefix != "" {
+		path = fmt.Sprintf("%s/admin/reassign_partitions", zc.Prefix)
+	} else {
+		path = "admin/reassign_partitions"
+	}
+
+	// Get reassignment config.
+	c, err := zk.Get(path)
+	if err != nil {
+		return reassigns
+	}
+
+	rec := &reassignPartitions{}
+	json.Unmarshal(c.Value, rec)
+
+	// Map reassignment config to a
+	// reassignments.
+	for _, cfg := range rec.Partitions {
+		if reassigns[cfg.Topic] == nil {
+			reassigns[cfg.Topic] = map[int][]int{}
+		}
+		reassigns[cfg.Topic][cfg.Partition] = cfg.Replicas
+	}
+
+	return reassigns
 }
 
 func getTopics(zc *zkConfig, ts []*regexp.Regexp) ([]string, error) {
@@ -132,7 +178,7 @@ func getAllBrokerMeta(zc *zkConfig) (brokerMetaMap, error) {
 	return bmm, nil
 }
 
-func partitionMapFromZk(zc *zkConfig, t string) (*partitionMap, error) {
+func partitionMapFromZk(zc *zkConfig, t string, re reassignments) (*partitionMap, error) {
 	var path string
 	if zc.Prefix != "" {
 		path = fmt.Sprintf("%s/brokers/topics/%s", zc.Prefix, t)
@@ -155,6 +201,20 @@ func partitionMapFromZk(zc *zkConfig, t string) (*partitionMap, error) {
 	err = json.Unmarshal(m.Value, ts)
 	if err != nil {
 		return nil, err
+	}
+
+	// Update with partitions in reassignment.
+	// We might have this in /admin/reassign_partitions:
+	// {"version":1,"partitions":[{"topic":"myTopic","partition":14,"replicas":[1039,1044]}]}
+	// But retrieved this in /brokers/topics/myTopic:
+	// {"version":1,"partitions":{"14":[1039,1044,1041,1071]}}.
+	// The latter will be in ts if we're undergoing a partition move, so
+	// but we need to overwrite it with what's intended (the former).
+	if re[t] != nil {
+		for p, replicas := range re[t] {
+			pn := strconv.Itoa(p)
+			ts.Partitions[pn] = replicas
+		}
 	}
 
 	// Map topicState to a
