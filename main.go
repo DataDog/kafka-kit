@@ -347,7 +347,10 @@ func main() {
 		partitionMapOut, warns = partitionMapIn.rebuild(brokers)
 	}
 
-	// If expand is set.
+	// TODO If expand is set.
+	// Might want to require a
+	// --force-rebuild if expand
+	// includes existing brokers.
 	if expand {
 		//partitionMapOut.expand(brokers)
 	}
