@@ -28,6 +28,7 @@ var (
 		zkPrefix      string
 		outFile       string
 		ignoreWarns   bool
+		forceRebuild  bool
 	}
 
 	zkc = &zkConfig{}
@@ -137,6 +138,7 @@ func init() {
 	flag.StringVar(&Config.zkPrefix, "zk-prefix", "", "ZooKeeper namespace prefix")
 	flag.StringVar(&Config.outFile, "out-file", "", "Output map to file")
 	flag.BoolVar(&Config.ignoreWarns, "ignore-warns", false, "Whether a map should be produced if warnings are emitted")
+	flag.BoolVar(&Config.forceRebuild, "force-rebuild", false, "Forces a rebuild even if all existing brokers are provided")
 	brokers := flag.String("brokers", "", "Broker list to rebuild topic partition map with")
 
 	flag.Parse()
@@ -300,7 +302,7 @@ func main() {
 
 	// Get a broker map of the brokers in the current topic map.
 	// If meta data isn't being looked up, brokerMetadata will be empty.
-	brokers := brokerMapFromTopicMap(partitionMapIn, brokerMetadata)
+	brokers := brokerMapFromTopicMap(partitionMapIn, brokerMetadata, Config.forceRebuild)
 
 	// Update the currentBrokers list with
 	// the provided broker list.
@@ -332,7 +334,18 @@ func main() {
 
 	// Build a new map using the provided list of brokers.
 	// This is ok to run even when a no-op is intended.
-	partitionMapOut, warns := partitionMapIn.rebuild(brokers)
+
+	var partitionMapOut *partitionMap
+	var warns []string
+
+	// If we're doing a force rebuild, the input map
+	// must have all brokers stripped out.
+	if Config.forceRebuild {
+		partitionMapInStripped := partitionMapIn.strip()
+		partitionMapOut, warns = partitionMapInStripped.rebuild(brokers)
+	} else {
+		partitionMapOut, warns = partitionMapIn.rebuild(brokers)
+	}
 
 	// If expand is set.
 	if expand {
@@ -441,7 +454,7 @@ func (pm partitionMap) useStats() map[int]*brokerUseStats {
 	return stats
 }
 
-// Rebuild takes a brokerMap and traverses
+// rebuild takes a brokerMap and traverses
 // the partition map, replacing brokers marked
 // for removal with the best available candidate.
 func (pm partitionMap) rebuild(bm brokerMap) (*partitionMap, []string) {
@@ -577,6 +590,28 @@ func (c *constraints) passes(b *broker) bool {
 	return true
 }
 
+// strip takes a partitionMap and returns a
+// copy where all broker ID references are replaced
+// with the stub broker with ID 0 where the replace
+// field is set to true. This ensures that the
+// entire map is rebuilt, even if the provided broker
+// list matches what's already in the map.
+func (pm partitionMap) strip() *partitionMap {
+	stripped := newPartitionMap()
+
+	for _, p := range pm.Partitions {
+		part := Partition{
+			Topic:     p.Topic,
+			Partition: p.Partition,
+			Replicas:  make([]int, len(p.Replicas)),
+		}
+
+		stripped.Partitions = append(stripped.Partitions, part)
+	}
+
+	return stripped
+}
+
 // mergeConstraints takes a brokerlist and
 // builds a *constraints by merging the
 // attributes of all brokers from the supplied list.
@@ -615,6 +650,12 @@ func (b brokerMap) update(bl []int, bm brokerMetaMap) (int, int) {
 	// not in the new broker map.
 	marked := 0
 	for _, broker := range b {
+		// Broker ID 0 is a special stub
+		// ID used for internal purposes.
+		// Skip it.
+		if broker.id == 0 {
+			continue
+		}
 		if _, ok := newBrokers[broker.id]; !ok {
 			marked++
 			b[broker.id].replace = true
@@ -677,7 +718,7 @@ func (b brokerMap) filteredList() brokerList {
 // brokerMapFromTopicMap creates a brokerMap
 // from a topicMap. Counts occurance is counted.
 // TODO can we remove marked for replacement here too?
-func brokerMapFromTopicMap(pm *partitionMap, bm brokerMetaMap) brokerMap {
+func brokerMapFromTopicMap(pm *partitionMap, bm brokerMetaMap, force bool) brokerMap {
 	bmap := brokerMap{}
 	// For each partition.
 	for _, partition := range pm.Partitions {
@@ -687,9 +728,16 @@ func brokerMapFromTopicMap(pm *partitionMap, bm brokerMetaMap) brokerMap {
 			// If the broker isn't in the
 			// broker map, add it.
 			if bmap[id] == nil {
+				// If we're doing a force rebuid, replace
+				// should be set to true.
 				bmap[id] = &broker{used: 0, id: id, replace: false}
-			} else {
-				// Else increment used.
+			}
+
+			// Track use scoring unless we're
+			// doing a force rebuild. In this case,
+			// we're treating existing brokers the same
+			// as new brokers (which start with a score of 0).
+			if !force {
 				bmap[id].used++
 			}
 
@@ -699,6 +747,12 @@ func brokerMapFromTopicMap(pm *partitionMap, bm brokerMetaMap) brokerMap {
 			}
 		}
 	}
+
+	// Broker ID 0 is used for --force-rebuild.
+	// We request a stripped map which replaces
+	// all existing brokers with the fake broker
+	// with ID set for replacement.
+	bmap[0] = &broker{used: 0, id: 0, replace: true}
 
 	return bmap
 }
