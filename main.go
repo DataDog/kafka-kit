@@ -458,6 +458,8 @@ func (pm partitionMap) useStats() map[int]*brokerUseStats {
 // the partition map, replacing brokers marked
 // for removal with the best available candidate.
 func (pm partitionMap) rebuild(bm brokerMap) (*partitionMap, []string) {
+	sort.Sort(pm.Partitions)
+
 	newMap := newPartitionMap()
 	// We need a filtered list for
 	// usage sorting and exclusion
