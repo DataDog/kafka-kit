@@ -599,6 +599,10 @@ func (c *constraints) passes(b *broker) bool {
 func (pm partitionMap) strip() *partitionMap {
 	stripped := newPartitionMap()
 
+	// Copy each partition sans the replicas list.
+	// The make([]int, ...) defaults the replica set to
+	// ID 0, which is a default stub broker with replace
+	// set to true.
 	for _, p := range pm.Partitions {
 		part := Partition{
 			Topic:     p.Topic,
