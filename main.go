@@ -315,15 +315,13 @@ func main() {
 
 	// Print action.
 	fmt.Printf("\nAction:\n")
-	expand := false
 
 	switch {
 	case change >= 0 && replace > 0:
 		fmt.Printf("%sRebuild topic with %d broker(s) marked for removal\n",
 			indent, replace)
 	case change > 0 && replace == 0:
-		expand = true
-		fmt.Printf("%sExpanding/rebalancing topic with %d broker(s)\n",
+		fmt.Printf("%sExpanding/rebalancing topic with %d broker(s) (this is a no-op unless --force-rebuild is specified)\n",
 			indent, added)
 	case change < 0:
 		fmt.Printf("%sShrinking topic by %d broker(s)\n",
@@ -347,15 +345,7 @@ func main() {
 		partitionMapOut, warns = partitionMapIn.rebuild(brokers)
 	}
 
-	// TODO If expand is set.
-	// Might want to require a
-	// --force-rebuild if expand
-	// includes existing brokers.
-	if expand {
-		//partitionMapOut.expand(brokers)
-	}
-
-	// TODO Rebalance.
+	// TODO Dedicated rebalance.
 
 	// Sort by topic, partition.
 	sort.Sort(partitionMapIn.Partitions)
