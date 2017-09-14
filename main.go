@@ -775,7 +775,7 @@ func whatChanged(s1 []int, s2 []int) string {
 
 	// Nothing changed.
 	if !changed {
-		return ""
+		return "no-op"
 	}
 
 	sort.Ints(a)
