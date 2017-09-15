@@ -52,9 +52,10 @@ Subsequent executions should always produce the same output map (\*provided the 
 
 For instance, if `test_topic` were initially built on brokers `1001,1002`, a run with `1001,1002,1003,1004` would be a no-op. An example that can be tested locally using a mock map:
 
-```
-$ topicmappr -rebuild-map '{"version":1,"partitions":[{"topic":"test_topic","partition":0,"replicas":[1001,1002]},{"topic":"test_topic","partition":1,"replicas":[1002,1001]},{"topic":"test_topic","partition":2,"replicas":[1001,1002]},{"topic":"test_topic","partition":3,"replicas":[1002,1001]}]}' -brokers=1001,1002,1003,1004 -use-meta=false
 
+> $ topicmappr -rebuild-map '{"version":1,"partitions":[{"topic":"test_topic","partition":0,"replicas":[1001,1002]},{"topic":"test_topic","partition":1,"replicas":[1002,1001]},{"topic":"test_topic","partition":2,"replicas":[1001,1002]},{"topic":"test_topic","partition":3,"replicas":[1002,1001]}]}' -brokers=1001,1002,1003,1004 -use-meta=false
+
+```
 Topics:
   test_topic
 
@@ -76,9 +77,10 @@ Partition map changes:
 ```
 
 If broker `1002` failed, we would exclude it from the list, indicating that those positions be filled with the best fitting broker in the list:
-```
-$ topicmappr -rebuild-map '{"version":1,"partitions":[{"topic":"test_topic","partition":0,"replicas":[1001,1002]},{"topic":"test_topic","partition":1,"replicas":[1002,1001]},{"topic":"test_topic","partition":2,"replicas":[1001,1002]},{"topic":"test_topic","partition":3,"replicas":[1002,1001]}]}' -brokers=1001,1003,1004 -use-meta=false
 
+> $ topicmappr -rebuild-map '{"version":1,"partitions":[{"topic":"test_topic","partition":0,"replicas":[1001,1002]},{"topic":"test_topic","partition":1,"replicas":[1002,1001]},{"topic":"test_topic","partition":2,"replicas":[1001,1002]},{"topic":"test_topic","partition":3,"replicas":[1002,1001]}]}' -brokers=1001,1003,1004 -use-meta=false
+
+```
 Topics:
   test_topic
 
@@ -108,9 +110,10 @@ Partitions assigned:
 Essentially, if all brokers handling a topic are a subset of the provided list, nothing changes. The default action is to only fix what's broken.
 
 This can be overriden with the `--force-rebuild` option, tells topicmappr to rebuild an ideal map from the broker list, disregarding the state of the topic:
-```
-topicmappr -rebuild-map '{"version":1,"partitions":[{"topic":"test_topic","partition":0,"replicas":[1001,1002]},{"topic":"test_topic","partition":1,"replicas":[1002,1001]},{"topic":"test_topic","partition":2,"replicas":[1001,1002]},{"topic":"test_topic","partition":3,"replicas":[1002,1001]}]}' -brokers=1001,1002,1003,1004 -use-meta=false --force-rebuild
 
+> $ topicmappr -rebuild-map '{"version":1,"partitions":[{"topic":"test_topic","partition":0,"replicas":[1001,1002]},{"topic":"test_topic","partition":1,"replicas":[1002,1001]},{"topic":"test_topic","partition":2,"replicas":[1001,1002]},{"topic":"test_topic","partition":3,"replicas":[1002,1001]}]}' -brokers=1001,1002,1003,1004 -use-meta=false --force-rebuild
+
+```
 Topics:
   test_topic
 
