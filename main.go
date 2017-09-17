@@ -306,7 +306,7 @@ func main() {
 
 	// Update the currentBrokers list with
 	// the provided broker list.
-	replace, added := brokers.update(Config.brokers, brokerMetadata)
+	replace, added, missing := brokers.update(Config.brokers, brokerMetadata)
 	change := added - replace
 
 	// Print change summary.
@@ -345,15 +345,15 @@ func main() {
 		partitionMapOut, warns = partitionMapIn.rebuild(brokers)
 	}
 
-	// TODO Dedicated rebalance.
-
 	// Sort by topic, partition.
 	sort.Sort(partitionMapIn.Partitions)
 	sort.Sort(partitionMapOut.Partitions)
 
-	// TODO scan partition lists
-	// and ensure they're the same
-	// topic, partition.
+	// Count missing brokers as a warning.
+	if missing > 0 {
+		w := fmt.Sprintf("%d brokers not found in ZooKeeper\n", missing)
+		warns = append(warns, w)
+	}
 
 	// Print advisory warnings.
 	fmt.Println("\nWARN:")
@@ -365,6 +365,10 @@ func main() {
 	} else {
 		fmt.Printf("%s[none]\n", indent)
 	}
+
+	// TODO scan partition lists
+	// and ensure they're the same
+	// topic, partition.
 
 	// Get a status string of what's changed.
 	fmt.Println("\nPartition map changes:")
@@ -636,9 +640,10 @@ func mergeConstraints(bl brokerList) *constraints {
 
 // update takes a brokerMap and a []int
 // of broker IDs and adds them to the brokerMap,
-// returning the count of marked for replacement and
-// newly included brokers.
-func (b brokerMap) update(bl []int, bm brokerMetaMap) (int, int) {
+// returning the count of marked for replacement,
+// newly included, and brokers that weren't found
+// in ZooKeeper.
+func (b brokerMap) update(bl []int, bm brokerMetaMap) (int, int, int) {
 	// Build a map from the new broker list.
 	newBrokers := map[int]bool{}
 	for _, broker := range bl {
@@ -665,6 +670,7 @@ func (b brokerMap) update(bl []int, bm brokerMetaMap) (int, int) {
 
 	// Merge new brokers with existing brokers.
 	new := 0
+	missing := 0
 	for id := range newBrokers {
 		// Don't overwrite existing (which will be most brokers).
 		if b[id] == nil {
@@ -691,13 +697,14 @@ func (b brokerMap) update(bl []int, bm brokerMetaMap) (int, int) {
 				}
 				new++
 			} else {
+				missing++
 				fmt.Printf("%sBroker %d not found in ZooKeeper\n",
 					indent, id)
 			}
 		}
 	}
 
-	return marked, new
+	return marked, new, missing
 }
 
 // filteredList converts a brokerMap to a brokerList,
