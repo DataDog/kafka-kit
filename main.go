@@ -351,7 +351,7 @@ func main() {
 
 	// Count missing brokers as a warning.
 	if missing > 0 {
-		w := fmt.Sprintf("%d brokers not found in ZooKeeper\n", missing)
+		w := fmt.Sprintf("%d provided brokers not found in ZooKeeper\n", missing)
 		warns = append(warns, w)
 	}
 
@@ -644,15 +644,38 @@ func mergeConstraints(bl brokerList) *constraints {
 // newly included, and brokers that weren't found
 // in ZooKeeper.
 func (b brokerMap) update(bl []int, bm brokerMetaMap) (int, int, int) {
+	var new int
+	var missing int
+	var marked int
+
 	// Build a map from the new broker list.
 	newBrokers := map[int]bool{}
 	for _, broker := range bl {
 		newBrokers[broker] = true
 	}
 
+	// Do an initial pass on existing brokers
+	// and see if any are missing in ZooKeeper.
+	for id := range b {
+		// Skip reserved ID 0.
+		if id == 0 {
+			continue
+		}
+
+		if _, exist := bm[id]; !exist {
+			fmt.Printf("%sPrevious broker %d missing\n",
+				indent, id)
+			b[id].replace = true
+			// If this broker is missing and was provided in
+			// the broker list, consider it a "missing provided broker".
+			if _, ok := newBrokers[id]; ok {
+				missing++
+			}
+		}
+	}
+
 	// Set the replace flag for existing brokers
 	// not in the new broker map.
-	marked := 0
 	for _, broker := range b {
 		// Broker ID 0 is a special stub
 		// ID used for internal purposes.
@@ -660,6 +683,7 @@ func (b brokerMap) update(bl []int, bm brokerMetaMap) (int, int, int) {
 		if broker.id == 0 {
 			continue
 		}
+
 		if _, ok := newBrokers[broker.id]; !ok {
 			marked++
 			b[broker.id].replace = true
@@ -669,8 +693,6 @@ func (b brokerMap) update(bl []int, bm brokerMetaMap) (int, int, int) {
 	}
 
 	// Merge new brokers with existing brokers.
-	new := 0
-	missing := 0
 	for id := range newBrokers {
 		// Don't overwrite existing (which will be most brokers).
 		if b[id] == nil {
