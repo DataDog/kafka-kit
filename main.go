@@ -83,6 +83,13 @@ type brokerUseStats struct {
 	follower int
 }
 
+type brokerStatus struct {
+	new        int
+	missing    int
+	oldMissing int
+	replace    int
+}
+
 // broker is used for internal
 // metadata / accounting.
 type broker struct {
@@ -306,26 +313,26 @@ func main() {
 
 	// Update the currentBrokers list with
 	// the provided broker list.
-	replace, added, missing := brokers.update(Config.brokers, brokerMetadata)
-	change := added - replace
+	bs := brokers.update(Config.brokers, brokerMetadata)
+	change := bs.new - bs.replace - bs.missing
 
 	// Print change summary.
-	fmt.Printf("%sReplacing %d, added %d, total count changed by %d\n",
-		indent, replace, added, change)
+	fmt.Printf("%sReplacing %d, added %d, missing %d, total count changed by %d\n",
+		indent, bs.replace, bs.new, bs.missing+bs.oldMissing, change)
 
 	// Print action.
 	fmt.Printf("\nAction:\n")
 
 	switch {
-	case change >= 0 && replace > 0:
+	case change >= 0 && bs.replace > 0:
 		fmt.Printf("%sRebuild topic with %d broker(s) marked for removal\n",
-			indent, replace)
-	case change > 0 && replace == 0:
+			indent, bs.replace)
+	case change > 0 && bs.replace == 0:
 		fmt.Printf("%sExpanding/rebalancing topic with %d broker(s) (this is a no-op unless --force-rebuild is specified)\n",
-			indent, added)
+			indent, bs.new)
 	case change < 0:
 		fmt.Printf("%sShrinking topic by %d broker(s)\n",
-			indent, replace)
+			indent, bs.replace)
 	default:
 		fmt.Printf("%sno-op\n", indent)
 	}
@@ -350,8 +357,8 @@ func main() {
 	sort.Sort(partitionMapOut.Partitions)
 
 	// Count missing brokers as a warning.
-	if missing > 0 {
-		w := fmt.Sprintf("%d provided brokers not found in ZooKeeper\n", missing)
+	if bs.missing > 0 {
+		w := fmt.Sprintf("%d provided brokers not found in ZooKeeper\n", bs.missing)
 		warns = append(warns, w)
 	}
 
@@ -643,10 +650,8 @@ func mergeConstraints(bl brokerList) *constraints {
 // returning the count of marked for replacement,
 // newly included, and brokers that weren't found
 // in ZooKeeper.
-func (b brokerMap) update(bl []int, bm brokerMetaMap) (int, int, int) {
-	var new int
-	var missing int
-	var marked int
+func (b brokerMap) update(bl []int, bm brokerMetaMap) *brokerStatus {
+	bs := &brokerStatus{}
 
 	// Build a map from the new broker list.
 	newBrokers := map[int]bool{}
@@ -669,7 +674,9 @@ func (b brokerMap) update(bl []int, bm brokerMetaMap) (int, int, int) {
 			// If this broker is missing and was provided in
 			// the broker list, consider it a "missing provided broker".
 			if _, ok := newBrokers[id]; ok {
-				missing++
+				bs.missing++
+			} else {
+				bs.oldMissing++
 			}
 		}
 	}
@@ -685,7 +692,7 @@ func (b brokerMap) update(bl []int, bm brokerMetaMap) (int, int, int) {
 		}
 
 		if _, ok := newBrokers[broker.id]; !ok {
-			marked++
+			bs.replace++
 			b[broker.id].replace = true
 			fmt.Printf("%sBroker %d marked for removal\n",
 				indent, broker.id)
@@ -704,7 +711,7 @@ func (b brokerMap) update(bl []int, bm brokerMetaMap) (int, int, int) {
 					id:      id,
 					replace: false,
 				}
-				new++
+				bs.new++
 				continue
 			}
 
@@ -717,16 +724,16 @@ func (b brokerMap) update(bl []int, bm brokerMetaMap) (int, int, int) {
 					replace:  false,
 					locality: meta.Rack,
 				}
-				new++
+				bs.new++
 			} else {
-				missing++
+				bs.missing++
 				fmt.Printf("%sBroker %d not found in ZooKeeper\n",
 					indent, id)
 			}
 		}
 	}
 
-	return marked, new, missing
+	return bs
 }
 
 // filteredList converts a brokerMap to a brokerList,
