@@ -328,7 +328,7 @@ func main() {
 		fmt.Printf("%sRebuild topic with %d broker(s) marked for removal\n",
 			indent, bs.replace)
 	case change > 0 && bs.replace == 0:
-		fmt.Printf("%sExpanding/rebalancing topic with %d broker(s) (this is a no-op unless --force-rebuild is specified)\n",
+		fmt.Printf("%sExpanding/rebalancing topic with %d additional broker(s) (this is a no-op unless --force-rebuild is specified)\n",
 			indent, bs.new)
 	case change < 0:
 		fmt.Printf("%sShrinking topic by %d broker(s)\n",
