@@ -314,7 +314,7 @@ func main() {
 	// Update the currentBrokers list with
 	// the provided broker list.
 	bs := brokers.update(Config.brokers, brokerMetadata)
-	change := bs.new - bs.replace - bs.missing
+	change := bs.new - bs.replace
 
 	// Print change summary.
 	fmt.Printf("%sReplacing %d, added %d, missing %d, total count changed by %d\n",
@@ -332,7 +332,7 @@ func main() {
 			indent, bs.new)
 	case change < 0:
 		fmt.Printf("%sShrinking topic by %d broker(s)\n",
-			indent, bs.replace)
+			indent, -change)
 	default:
 		fmt.Printf("%sno-op\n", indent)
 	}
