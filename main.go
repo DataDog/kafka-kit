@@ -661,22 +661,24 @@ func (b brokerMap) update(bl []int, bm brokerMetaMap) *brokerStatus {
 
 	// Do an initial pass on existing brokers
 	// and see if any are missing in ZooKeeper.
-	for id := range b {
-		// Skip reserved ID 0.
-		if id == 0 {
-			continue
-		}
+	if len(bm) > 0 {
+		for id := range b {
+			// Skip reserved ID 0.
+			if id == 0 {
+				continue
+			}
 
-		if _, exist := bm[id]; !exist {
-			fmt.Printf("%sPrevious broker %d missing\n",
-				indent, id)
-			b[id].replace = true
-			// If this broker is missing and was provided in
-			// the broker list, consider it a "missing provided broker".
-			if _, ok := newBrokers[id]; ok {
-				bs.missing++
-			} else {
-				bs.oldMissing++
+			if _, exist := bm[id]; !exist {
+				fmt.Printf("%sPrevious broker %d missing\n",
+					indent, id)
+				b[id].replace = true
+				// If this broker is missing and was provided in
+				// the broker list, consider it a "missing provided broker".
+				if _, ok := newBrokers[id]; len(bm) > 0 && ok {
+					bs.missing++
+				} else {
+					bs.oldMissing++
+				}
 			}
 		}
 	}
