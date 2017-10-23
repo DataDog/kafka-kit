@@ -162,6 +162,11 @@ func init() {
 		defaultsAndExit()
 	}
 
+	// Append trailing slash if not included.
+	if Config.outPath != "" && Config.outPath[len(Config.outPath)-1] != 47 {
+		Config.outPath = Config.outPath+"/"
+	}
+
 	Config.brokers = brokerStringToSlice(*brokers)
 	topicNames := strings.Split(*topics, ",")
 
