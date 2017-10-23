@@ -26,6 +26,7 @@ var (
 		useMeta       bool
 		zkAddr        string
 		zkPrefix      string
+		outPath       string
 		outFile       string
 		ignoreWarns   bool
 		forceRebuild  bool
@@ -143,7 +144,8 @@ func init() {
 	flag.BoolVar(&Config.useMeta, "use-meta", true, "Use broker metadata as constraints")
 	flag.StringVar(&Config.zkAddr, "zk-addr", "localhost:2181", "ZooKeeper connect string (for broker metadata or rebuild-topic lookups)")
 	flag.StringVar(&Config.zkPrefix, "zk-prefix", "", "ZooKeeper namespace prefix")
-	flag.StringVar(&Config.outFile, "out-file", "", "Output map to file")
+	flag.StringVar(&Config.outPath, "out-path", "", "Path to write output map files to")
+	flag.StringVar(&Config.outFile, "out-file", "", "If defined, write a combined map of all topics to a file")
 	flag.BoolVar(&Config.ignoreWarns, "ignore-warns", false, "Whether a map should be produced if warnings are emitted")
 	flag.BoolVar(&Config.forceRebuild, "force-rebuild", false, "Forces a rebuild even if all existing brokers are provided")
 	brokers := flag.String("brokers", "", "Broker list to rebuild topic partition map with")
@@ -401,9 +403,6 @@ func main() {
 			indent, id, use.leader, use.follower, use.leader+use.follower)
 	}
 
-	// Print the new partition map.
-	fmt.Println("\nNew partition map:")
-
 	// Don't write the output if ignoreWarns is set.
 	if !Config.ignoreWarns && len(warns) > 0 {
 		fmt.Printf(
@@ -412,26 +411,34 @@ func main() {
 		os.Exit(1)
 	}
 
-	out, err := json.Marshal(partitionMapOut)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+	// Map per topic.
+	tm := map[string]*partitionMap{}
+	for _, p := range partitionMapOut.Partitions {
+		if tm[p.Topic] == nil {
+			tm[p.Topic] = newPartitionMap()
+		}
+		tm[p.Topic].Partitions = append(tm[p.Topic].Partitions, p)
 	}
 
-	mapOut := string(out)
-
-	// File output.
+	fmt.Println("\nNew parition maps:")
+	// Global map if set.
 	if Config.outFile != "" {
-		err := ioutil.WriteFile(Config.outFile, []byte(mapOut+"\n"), 0644)
+		err := writeMap(partitionMapOut, Config.outPath+Config.outFile)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Printf("%s%s", indent, err)
 		} else {
-			fmt.Printf("%sMap written to %s\n\n", indent, Config.outFile)
+			fmt.Printf("%s%s%s.json [combined map]\n", indent, Config.outPath, Config.outFile)
 		}
 	}
 
-	// Stdout.
-	fmt.Println(mapOut)
+	for t := range tm {
+		err := writeMap(tm[t], Config.outPath+t)
+		if err != nil {
+			fmt.Printf("%s%s", indent, err)
+		} else {
+			fmt.Printf("%s%s%s.json\n", indent, Config.outPath, t)
+		}
+	}
 }
 
 // useStats returns a map of broker IDs
@@ -878,4 +885,24 @@ func brokerStringToSlice(s string) []int {
 	}
 
 	return is
+}
+
+// writeMap takes a *partitionMap and writes a JSON
+// text file to the provided path.
+func writeMap(pm *partitionMap, path string) error {
+	// Marshal.
+	out, err := json.Marshal(pm)
+	if err != nil {
+		return err
+	}
+
+	mapOut := string(out)
+
+	// Write file.
+	err = ioutil.WriteFile(path+".json", []byte(mapOut+"\n"), 0644)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
