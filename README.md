@@ -26,23 +26,25 @@ Flags:
 ```
 Usage of topicmappr:
   -brokers string
-    	Broker list to rebuild topic partition map with
+        Broker list to rebuild topic partition map with
   -force-rebuild
-    	Forces a rebuild even if all existing brokers are provided
+        Forces a rebuild even if all existing brokers are provided
   -ignore-warns
-    	Whether a map should be produced if warnings are emitted
+        Whether a map should be produced if warnings are emitted
   -out-file string
-    	Output map to file
+        If defined, write a combined map of all topics to a file
+  -out-path string
+        Path to write output map files to
   -rebuild-map string
-    	Rebuild a topic map
+        Rebuild a topic map
   -rebuild-topics string
-    	Rebuild topics (comma delim list) by lookup in ZooKeeper
+        Rebuild topics (comma delim list) by lookup in ZooKeeper
   -use-meta
-    	Use broker metadata as constraints (default true)
+        Use broker metadata as constraints (default true)
   -zk-addr string
-    	ZooKeeper connect string (for broker metadata or rebuild-topic lookups) (default "localhost:2181")
+        ZooKeeper connect string (for broker metadata or rebuild-topic lookups) (default "localhost:2181")
   -zk-prefix string
-    	ZooKeeper namespace prefix
+        ZooKeeper namespace prefix
 ```
 
 ### How Mapping Work
@@ -175,9 +177,8 @@ Partitions assigned:
   Broker 0 - leader: 4, follower: 4, total: 8
   Broker 2 - leader: 4, follower: 4, total: 8
 
-New partition map:
-
-{"version":1,"partitions":[{"topic":"test_topic","partition":0,"replicas":[0,2]},{"topic":"test_topic","partition":1,"replicas":[2,0]},{"topic":"test_topic","partition":2,"replicas":[0,2]},{"topic":"test_topic","partition":3,"replicas":[2,0]},{"topic":"test_topic","partition":4,"replicas":[0,2]},{"topic":"test_topic","partition":5,"replicas":[2,0]},{"topic":"test_topic","partition":6,"replicas":[0,2]},{"topic":"test_topic","partition":7,"replicas":[2,0]}]}
+New parition maps:
+  test_topic.json
 ```
 
 \*Take note of how regex is interpreted: all topics included in the `--rebuild-topics` list ultimately become regex. Topic names where all characters are those allowed by Kafka (`a-z`, `A-Z`, `0-9`, `_`, `-`, `.`) sans `.`, are assumed to be literal names and thus become the regex `/^topic$/`. The inclusion of a `.` or any other character assumes that the entry is to be interpreted as regex and is compiled as is. This means that if you want to rebuild the literal topic `my.topic`, it's best to provide `--rebuild-topics="my\.topic"`. Without escaping the `.` (`--rebuild-topics="my.topic"`), both `my.topic` and `my1topic` would be targeted.
@@ -224,8 +225,8 @@ Partitions assigned:
   Broker 1003 - leader: 1, follower: 1, total: 2
   Broker 1001 - leader: 1, follower: 2, total: 3
 
-New partition map:
-{"version":1,"partitions":[{"topic":"test_topic","partition":0,"replicas":[1005,1006]},{"topic":"test_topic","partition":1,"replicas":[1006,1003]},{"topic":"test_topic","partition":2,"replicas":[1003,1001]},{"topic":"test_topic","partition":3,"replicas":[1001,1002]},{"topic":"test_topic","partition":4,"replicas":[1002,1005]},{"topic":"test_topic","partition":5,"replicas":[1005,1008]},{"topic":"test_topic","partition":6,"replicas":[1006,1001]},{"topic":"test_topic","partition":7,"replicas":[1004,1002]}]}
+New parition maps:
+  test_topic.json
 ```
 
 ### Scaling and Managing Topics
