@@ -425,7 +425,7 @@ func main() {
 		tm[p.Topic].Partitions = append(tm[p.Topic].Partitions, p)
 	}
 
-	fmt.Println("\nNew parition maps:")
+	fmt.Println("\nNew partition maps:")
 	// Global map if set.
 	if Config.outFile != "" {
 		err := writeMap(partitionMapOut, Config.outPath+Config.outFile)
