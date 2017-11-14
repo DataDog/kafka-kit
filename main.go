@@ -30,6 +30,7 @@ var (
 		outFile       string
 		ignoreWarns   bool
 		forceRebuild  bool
+		replication   int
 	}
 
 	zkc = &zkConfig{}
@@ -148,6 +149,7 @@ func init() {
 	flag.StringVar(&Config.outFile, "out-file", "", "If defined, write a combined map of all topics to a file")
 	flag.BoolVar(&Config.ignoreWarns, "ignore-warns", false, "Whether a map should be produced if warnings are emitted")
 	flag.BoolVar(&Config.forceRebuild, "force-rebuild", false, "Forces a rebuild even if all existing brokers are provided")
+	flag.IntVar(&Config.replication, "replication", 0, "Change the replication factor")
 	brokers := flag.String("brokers", "", "Broker list to rebuild topic partition map with")
 
 	flag.Parse()
@@ -344,6 +346,13 @@ func main() {
 		fmt.Printf("%sno-op\n", indent)
 	}
 
+	if Config.replication > 0 {
+		fmt.Printf("%sUpdating replication factor to %d\n",
+			indent, Config.replication)
+
+		partitionMapIn.setReplication(Config.replication)
+	}
+
 	// Build a new map using the provided list of brokers.
 	// This is ok to run even when a no-op is intended.
 
@@ -471,8 +480,8 @@ func (pm partitionMap) useStats() map[int]*brokerUseStats {
 }
 
 // rebuild takes a brokerMap and traverses
-// the partition map, replacing brokers marked
-// for removal with the best available candidate.
+// the partition map, replacing brokers marked removal
+// with the best available candidate.
 func (pm partitionMap) rebuild(bm brokerMap) (*partitionMap, []string) {
 	sort.Sort(pm.Partitions)
 
@@ -486,7 +495,7 @@ func (pm partitionMap) rebuild(bm brokerMap) (*partitionMap, []string) {
 
 	pass := 0
 	// For each partition partn in the
-	// partitions list.
+	// partitions list:
 start:
 	skipped := 0
 	for n, partn := range pm.Partitions {
@@ -606,6 +615,26 @@ func (c *constraints) passes(b *broker) bool {
 		return false
 	}
 	return true
+}
+
+// setReplication ensures that replica sets
+// is reset to the replication factor r. Sets
+// exceeding r are truncated, sets below r
+// are extended with stub brokers.
+func (pm partitionMap) setReplication(r int) {
+	for n, p := range pm.Partitions {
+		l := len(p.Replicas)
+
+		switch {
+		// Truncate replicas beyond r.
+		case l > r:
+			pm.Partitions[n].Replicas = p.Replicas[:r]
+		// Add stub brokers to meet r.
+		case l < r:
+			r := make([]int, r-l)
+			pm.Partitions[n].Replicas = append(p.Replicas, r...)
+		}
+	}
 }
 
 // strip takes a partitionMap and returns a
