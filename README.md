@@ -39,6 +39,8 @@ Usage of topicmappr:
         Rebuild a topic map
   -rebuild-topics string
         Rebuild topics (comma delim list) by lookup in ZooKeeper
+  -replication int
+        Change the replication factor
   -use-meta
         Use broker metadata as constraints (default true)
   -zk-addr string
