@@ -342,7 +342,7 @@ func main() {
 	case change < 0:
 		fmt.Printf("%sShrinking topic by %d broker(s)\n",
 			indent, -change)
-	default:
+	case Config.replication == 0:
 		fmt.Printf("%sno-op\n", indent)
 	}
 
