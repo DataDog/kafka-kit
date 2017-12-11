@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math"
 	"os"
 	"regexp"
 	"sort"
@@ -346,6 +348,12 @@ func main() {
 		fmt.Printf("%sno-op\n", indent)
 	}
 
+	originalMap := partitionMapIn.copy()
+
+	// If the replication factor is changed,
+	// the partition map input needs to have stub
+	// brokers appended (for r factor increase) or
+	// existing brokers removed (for r factor decrease).
 	if Config.replication > 0 {
 		fmt.Printf("%sUpdating replication factor to %d\n",
 			indent, Config.replication)
@@ -395,15 +403,15 @@ func main() {
 
 	// Get a status string of what's changed.
 	fmt.Println("\nPartition map changes:")
-	for i := range partitionMapIn.Partitions {
-		change := whatChanged(partitionMapIn.Partitions[i].Replicas,
+	for i := range originalMap.Partitions {
+		change := whatChanged(originalMap.Partitions[i].Replicas,
 			partitionMapOut.Partitions[i].Replicas)
 
 		fmt.Printf("%s%s p%d: %v -> %v %s\n",
 			indent,
-			partitionMapIn.Partitions[i].Topic,
-			partitionMapIn.Partitions[i].Partition,
-			partitionMapIn.Partitions[i].Replicas,
+			originalMap.Partitions[i].Topic,
+			originalMap.Partitions[i].Partition,
+			originalMap.Partitions[i].Replicas,
 			partitionMapOut.Partitions[i].Replicas,
 			change)
 	}
@@ -637,6 +645,23 @@ func (pm partitionMap) setReplication(r int) {
 	}
 }
 
+func (pm partitionMap) copy() *partitionMap {
+	cpy := newPartitionMap()
+
+	for _, p := range pm.Partitions {
+		part := Partition{
+			Topic:     p.Topic,
+			Partition: p.Partition,
+			Replicas:  make([]int, len(p.Replicas)),
+		}
+
+		copy(part.Replicas, p.Replicas)
+		cpy.Partitions = append(cpy.Partitions, part)
+	}
+
+	return cpy
+}
+
 // strip takes a partitionMap and returns a
 // copy where all broker ID references are replaced
 // with the stub broker with ID 0 where the replace
@@ -838,49 +863,93 @@ func brokerMapFromTopicMap(pm *partitionMap, bm brokerMetaMap, force bool) broke
 // whatChanged takes a before and after broker
 // replica set and returns a string describing
 // what changed.
-// TODO this needs to handle different length inputs.
 func whatChanged(s1 []int, s2 []int) string {
-	a, b := make([]int, len(s1)), make([]int, len(s1))
+	var changes []string
+
+	a, b := make([]int, len(s1)), make([]int, len(s2))
 	copy(a, s1)
 	copy(b, s2)
 
-	var changed bool
+	var lchanged bool
+	var echanged bool
 
-	for i := range a {
-		if a[i] != b[i] {
-			changed = true
+	// Check if the len is different.
+	switch {
+	case len(a) > len(b):
+		lchanged = true
+		changes = append(changes, "decreased replication")
+	case len(a) < len(b):
+		lchanged = true
+		changes = append(changes, "increased replication")
+	}
+
+	// If the len is the same,
+	// check elements.
+	if !lchanged {
+		for i := range a {
+			if a[i] != b[i] {
+				echanged = true
+			}
 		}
 	}
 
 	// Nothing changed.
-	if !changed {
+	if !lchanged && !echanged {
 		return "no-op"
+	}
+
+	// Determine what else changed.
+
+	// Get smaller replica set len between
+	// old vs new, then cap both to this len for
+	// comparison.
+	slen := int(math.Min(float64(len(a)), float64(len(b))))
+
+	a = a[:slen]
+	b = b[:slen]
+
+	echanged = false
+	for i := range a {
+		if a[i] != b[i] {
+			echanged = true
+		}
 	}
 
 	sort.Ints(a)
 	sort.Ints(b)
 
 	samePostSort := true
-
-	// The replica set was changed.
-	// Sort it and figure out how.
-
 	for i := range a {
 		if a[i] != b[i] {
 			samePostSort = false
 		}
 	}
 
-	// If we're here, the replica set
-	// was the same but in a different order.
-	if samePostSort {
-		return "preferred leader"
+	// If the broker lists changed but
+	// are the same after sorting,
+	// we've just changed the preferred
+	// leader.
+	if echanged && samePostSort {
+		changes = append(changes, "preferred leader")
 	}
 
-	// Otherwise, a broker was added
-	// or removed.
-	return "replaced broker"
+	// If the broker lists changed and
+	// aren't the same after sorting, we've
+	// replaced a broker.
+	if echanged && !samePostSort {
+		changes = append(changes, "replaced broker")
+	}
 
+	// Construct change string.
+	var buf bytes.Buffer
+	for i, c := range changes {
+		buf.WriteString(c)
+		if i < len(changes)-1 {
+			buf.WriteString(", ")
+		}
+	}
+
+	return buf.String()
 }
 
 // brokerStringToSlice takes a broker list
