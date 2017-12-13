@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -47,86 +46,6 @@ var (
 // broker map consistent, e.g. types vs
 // func names.
 
-// Partition maps the partition objects
-// in the Kafka topic mapping syntax.
-type Partition struct {
-	Topic     string `json:"topic"`
-	Partition int    `json:"partition"`
-	Replicas  []int  `json:"replicas"`
-}
-
-type partitionList []Partition
-
-// partitionMap maps the
-// Kafka topic mapping syntax.
-type partitionMap struct {
-	Version    int           `json:"version"`
-	Partitions partitionList `json:"partitions"`
-}
-
-// Satisfy the sort interface for partitionList.
-
-func (p partitionList) Len() int      { return len(p) }
-func (p partitionList) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
-func (p partitionList) Less(i, j int) bool {
-	if p[i].Topic < p[j].Topic {
-		return true
-	}
-	if p[i].Topic > p[j].Topic {
-		return false
-	}
-
-	return p[i].Partition < p[j].Partition
-}
-
-func newPartitionMap() *partitionMap {
-	return &partitionMap{Version: 1}
-}
-
-type brokerUseStats struct {
-	leader   int
-	follower int
-}
-
-type brokerStatus struct {
-	new        int
-	missing    int
-	oldMissing int
-	replace    int
-}
-
-// broker is used for internal
-// metadata / accounting.
-type broker struct {
-	id       int
-	locality string
-	used     int
-	replace  bool
-}
-
-// brokerMap holds a mapping of
-// broker IDs to *broker.
-type brokerMap map[int]*broker
-
-// brokerList is a slice of
-// brokers for sorting by used count.
-type brokerList []*broker
-
-// Satisfy the sort interface for brokerList.
-
-func (b brokerList) Len() int      { return len(b) }
-func (b brokerList) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
-func (b brokerList) Less(i, j int) bool {
-	if b[i].used < b[j].used {
-		return true
-	}
-	if b[i].used > b[j].used {
-		return false
-	}
-
-	return b[i].id < b[j].id
-}
-
 type constraints struct {
 	locality map[string]bool
 	id       map[int]bool
@@ -140,6 +59,14 @@ func newConstraints() *constraints {
 }
 
 func init() {
+	// Skip init in tests to avoid
+	// errors as a result of the
+	// sanity checks that follow
+	// flag parsing.
+	if flag.Lookup("test.v") != nil {
+		return
+	}
+
 	log.SetOutput(ioutil.Discard)
 
 	fmt.Println()
@@ -251,62 +178,30 @@ func main() {
 		var err error
 		brokerMetadata, err = getAllBrokerMeta(zkc)
 		if err != nil {
-			fmt.Printf("Error fetching metadata: %s\n", err)
+			fmt.Printf("Error fetching broker metadata: %s\n", err)
 			os.Exit(1)
 		}
 	}
 
-	partitionMapIn := newPartitionMap()
-
 	// Build a topic map with either
 	// explicit input or by fetching the
 	// map data from ZooKeeper.
+	partitionMapIn := newPartitionMap()
 	switch {
 	case Config.rebuildMap != "":
-		err := json.Unmarshal([]byte(Config.rebuildMap), &partitionMapIn)
-		if err != nil {
-			fmt.Printf("Error parsing topic map: %s\n", err)
-			os.Exit(1)
-		}
-	case len(Config.rebuildTopics) > 0:
-		// Get a list of topic names from ZK
-		// matching the provided list.
-		topicsToRebuild, err := getTopics(zkc, Config.rebuildTopics)
+		pm, err := partitionMapFromString(Config.rebuildMap)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
-
-		// Log and exit if no matching topics were found.
-		if len(topicsToRebuild) == 0 {
-			fmt.Printf("No topics found matching: ")
-			for n, t := range Config.rebuildTopics {
-				fmt.Printf("/%s/", t)
-				if n < len(Config.rebuildTopics)-1 {
-					fmt.Printf(", ")
-				}
-			}
-			fmt.Println()
+		partitionMapIn = pm
+	case len(Config.rebuildTopics) > 0:
+		pm, err := partitionMapFromZK(Config.rebuildTopics)
+		if err != nil {
+			fmt.Println(err)
 			os.Exit(1)
 		}
-
-		// Get current reassign_partitions.
-		reassignments := getReassignments(zkc)
-
-		// Get a partition map for each topic.
-		pmapMerged := newPartitionMap()
-		for _, t := range topicsToRebuild {
-			pmap, err := partitionMapFromZk(zkc, t, reassignments)
-			if err != nil {
-				fmt.Println(err)
-				os.Exit(1)
-			}
-
-			// Merge multiple maps.
-			pmapMerged.Partitions = append(pmapMerged.Partitions, pmap.Partitions...)
-		}
-
-		partitionMapIn = pmapMerged
+		partitionMapIn = pm
 	}
 
 	// Get a list of affected topics.
@@ -352,6 +247,8 @@ func main() {
 		fmt.Printf("%sno-op\n", indent)
 	}
 
+	// Store a copy of the
+	// original map.
 	originalMap := partitionMapIn.copy()
 
 	// If the replication factor is changed,
@@ -465,30 +362,6 @@ func main() {
 			fmt.Printf("%s%s%s.json\n", indent, Config.outPath, t)
 		}
 	}
-}
-
-// useStats returns a map of broker IDs
-// to brokerUseStats; each contains a count
-// of leader and follower partition assignments.
-func (pm partitionMap) useStats() map[int]*brokerUseStats {
-	stats := map[int]*brokerUseStats{}
-	// Get counts.
-	for _, p := range pm.Partitions {
-		for i, b := range p.Replicas {
-			if _, exists := stats[b]; !exists {
-				stats[b] = &brokerUseStats{}
-			}
-			// Idx 0 for each replica set
-			// is a leader assignment.
-			if i == 0 {
-				stats[b].leader++
-			} else {
-				stats[b].follower++
-			}
-		}
-	}
-
-	return stats
 }
 
 // whatChanged takes a before and after broker

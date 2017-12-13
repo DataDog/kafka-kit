@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -153,6 +154,9 @@ func getAllBrokerMeta(zc *zkConfig) (brokerMetaMap, error) {
 	// Get all brokers.
 	entries, err := zk.List(path)
 	if err != nil {
+		if err.Error() == "Key not found in store" {
+			return nil, errors.New("No brokers registered")
+		}
 		return nil, err
 	}
 

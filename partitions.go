@@ -1,11 +1,50 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
+	"regexp"
 	"sort"
 )
+
+// Partition maps the partition objects
+// in the Kafka topic mapping syntax.
+type Partition struct {
+	Topic     string `json:"topic"`
+	Partition int    `json:"partition"`
+	Replicas  []int  `json:"replicas"`
+}
+
+type partitionList []Partition
+
+// partitionMap maps the
+// Kafka topic mapping syntax.
+type partitionMap struct {
+	Version    int           `json:"version"`
+	Partitions partitionList `json:"partitions"`
+}
+
+// Satisfy the sort interface for partitionList.
+
+func (p partitionList) Len() int      { return len(p) }
+func (p partitionList) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
+func (p partitionList) Less(i, j int) bool {
+	if p[i].Topic < p[j].Topic {
+		return true
+	}
+	if p[i].Topic > p[j].Topic {
+		return false
+	}
+
+	return p[i].Partition < p[j].Partition
+}
+
+func newPartitionMap() *partitionMap {
+	return &partitionMap{Version: 1}
+}
 
 // rebuild takes a brokerMap and traverses
 // the partition map, replacing brokers marked removal
@@ -96,6 +135,64 @@ pass:
 	return newMap, errs
 }
 
+// partitionMapFromString takes a json encoded string
+// and returns a *partitionMap.
+func partitionMapFromString(s string) (*partitionMap, error) {
+	pm := newPartitionMap()
+
+	err := json.Unmarshal([]byte(s), &pm)
+	if err != nil {
+		errString := fmt.Sprintf("Error parsing topic map: %s", err.Error())
+		return nil, errors.New(errString)
+	}
+
+	return pm, nil
+}
+
+// partitionMapFromZK takes a slice of regexp
+// and finds all matching topics for each. A
+// merged *partitionMap of all matching topic
+// maps is returned.
+func partitionMapFromZK(t []*regexp.Regexp) (*partitionMap, error) {
+	// Get a list of topic names from ZK
+	// matching the provided list.
+	topicsToRebuild, err := getTopics(zkc, Config.rebuildTopics)
+	if err != nil {
+		return nil, err
+	}
+
+	// Err if no matching topics were found.
+	if len(topicsToRebuild) == 0 {
+		var b bytes.Buffer
+		b.WriteString("No topics found matching: ")
+		for n, t := range Config.rebuildTopics {
+			b.WriteString(fmt.Sprintf("/%s/", t))
+			if n < len(Config.rebuildTopics)-1 {
+				b.WriteString(", ")
+			}
+		}
+
+		return nil, errors.New(b.String())
+	}
+
+	// Get current reassign_partitions.
+	reassignments := getReassignments(zkc)
+
+	// Get a partition map for each topic.
+	pmapMerged := newPartitionMap()
+	for _, t := range topicsToRebuild {
+		pmap, err := partitionMapFromZk(zkc, t, reassignments)
+		if err != nil {
+			return nil, err
+		}
+
+		// Merge multiple maps.
+		pmapMerged.Partitions = append(pmapMerged.Partitions, pmap.Partitions...)
+	}
+
+	return pmapMerged, nil
+}
+
 // setReplication ensures that replica sets
 // is reset to the replication factor r. Sets
 // exceeding r are truncated, sets below r
@@ -178,4 +275,28 @@ func writeMap(pm *partitionMap, path string) error {
 	}
 
 	return nil
+}
+
+// useStats returns a map of broker IDs
+// to brokerUseStats; each contains a count
+// of leader and follower partition assignments.
+func (pm partitionMap) useStats() map[int]*brokerUseStats {
+	stats := map[int]*brokerUseStats{}
+	// Get counts.
+	for _, p := range pm.Partitions {
+		for i, b := range p.Replicas {
+			if _, exists := stats[b]; !exists {
+				stats[b] = &brokerUseStats{}
+			}
+			// Idx 0 for each replica set
+			// is a leader assignment.
+			if i == 0 {
+				stats[b].leader++
+			} else {
+				stats[b].follower++
+			}
+		}
+	}
+
+	return stats
 }
