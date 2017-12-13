@@ -20,6 +20,9 @@ func init() {
 	zookeeper.Register()
 }
 
+// BrokerMeta holds metadata that
+// describes a broker, used in satisfying
+// constraints.
 type BrokerMeta struct {
 	Rack string `json:"rack"`
 }
@@ -191,7 +194,7 @@ func partitionMapFromZk(zc *zkConfig, t string, re reassignments) (*partitionMap
 	m, err := zk.Get(path)
 	switch err {
 	case store.ErrKeyNotFound:
-		return nil, fmt.Errorf("Topic %s not found in ZooKeeper\n", t)
+		return nil, fmt.Errorf("Topic %s not found in ZooKeeper", t)
 	case nil:
 		break
 	default:

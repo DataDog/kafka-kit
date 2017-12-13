@@ -21,6 +21,8 @@ const (
 )
 
 var (
+	// Config holds configuration
+	// parameters.
 	Config struct {
 		rebuildMap    string
 		rebuildTopics []*regexp.Regexp
@@ -194,6 +196,9 @@ func init() {
 	}
 }
 
+// containsRegex takes a topic name
+// reference and returns whether or not
+// it should be interpreted as regex.
 func containsRegex(t string) bool {
 	// Check each character of the
 	// topic name. If it doesn't contain
@@ -504,7 +509,7 @@ func (pm partitionMap) rebuild(bm brokerMap) (*partitionMap, []string) {
 	pass := 0
 	// For each partition partn in the
 	// partitions list:
-start:
+pass:
 	skipped := 0
 	for n, partn := range pm.Partitions {
 		// If this is the first pass, create
@@ -570,7 +575,7 @@ start:
 	// as there are partitions to handle,
 	// we have nothing left to do.
 	if skipped < len(pm.Partitions) {
-		goto start
+		goto pass
 	}
 
 	return newMap, errs
@@ -645,6 +650,7 @@ func (pm partitionMap) setReplication(r int) {
 	}
 }
 
+// copy returns a copy of a *partitionMap.
 func (pm partitionMap) copy() *partitionMap {
 	cpy := newPartitionMap()
 
