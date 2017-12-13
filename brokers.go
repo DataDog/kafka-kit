@@ -8,6 +8,50 @@ import (
 	"strings"
 )
 
+type brokerUseStats struct {
+	leader   int
+	follower int
+}
+
+type brokerStatus struct {
+	new        int
+	missing    int
+	oldMissing int
+	replace    int
+}
+
+// broker is used for internal
+// metadata / accounting.
+type broker struct {
+	id       int
+	locality string
+	used     int
+	replace  bool
+}
+
+// brokerMap holds a mapping of
+// broker IDs to *broker.
+type brokerMap map[int]*broker
+
+// brokerList is a slice of
+// brokers for sorting by used count.
+type brokerList []*broker
+
+// Satisfy the sort interface for brokerList.
+
+func (b brokerList) Len() int      { return len(b) }
+func (b brokerList) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
+func (b brokerList) Less(i, j int) bool {
+	if b[i].used < b[j].used {
+		return true
+	}
+	if b[i].used > b[j].used {
+		return false
+	}
+
+	return b[i].id < b[j].id
+}
+
 // bestCandidate takes a *constraints
 // and returns the *broker with the lowest used
 // count that satisfies all constraints.

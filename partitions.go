@@ -10,6 +10,42 @@ import (
 	"sort"
 )
 
+// Partition maps the partition objects
+// in the Kafka topic mapping syntax.
+type Partition struct {
+	Topic     string `json:"topic"`
+	Partition int    `json:"partition"`
+	Replicas  []int  `json:"replicas"`
+}
+
+type partitionList []Partition
+
+// partitionMap maps the
+// Kafka topic mapping syntax.
+type partitionMap struct {
+	Version    int           `json:"version"`
+	Partitions partitionList `json:"partitions"`
+}
+
+// Satisfy the sort interface for partitionList.
+
+func (p partitionList) Len() int      { return len(p) }
+func (p partitionList) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
+func (p partitionList) Less(i, j int) bool {
+	if p[i].Topic < p[j].Topic {
+		return true
+	}
+	if p[i].Topic > p[j].Topic {
+		return false
+	}
+
+	return p[i].Partition < p[j].Partition
+}
+
+func newPartitionMap() *partitionMap {
+	return &partitionMap{Version: 1}
+}
+
 // rebuild takes a brokerMap and traverses
 // the partition map, replacing brokers marked removal
 // with the best available candidate.
