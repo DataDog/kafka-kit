@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -140,6 +139,14 @@ func newConstraints() *constraints {
 }
 
 func init() {
+	// Skip init in tests to avoid
+	// errors as a result of the
+	// sanity checks that follow
+	// flag parsing.
+	if flag.Lookup("test.v") != nil {
+		return
+	}
+
 	log.SetOutput(ioutil.Discard)
 
 	fmt.Println()
@@ -251,62 +258,30 @@ func main() {
 		var err error
 		brokerMetadata, err = getAllBrokerMeta(zkc)
 		if err != nil {
-			fmt.Printf("Error fetching metadata: %s\n", err)
+			fmt.Printf("Error fetching broker metadata: %s\n", err)
 			os.Exit(1)
 		}
 	}
 
-	partitionMapIn := newPartitionMap()
-
 	// Build a topic map with either
 	// explicit input or by fetching the
 	// map data from ZooKeeper.
+	partitionMapIn := newPartitionMap()
 	switch {
 	case Config.rebuildMap != "":
-		err := json.Unmarshal([]byte(Config.rebuildMap), &partitionMapIn)
-		if err != nil {
-			fmt.Printf("Error parsing topic map: %s\n", err)
-			os.Exit(1)
-		}
-	case len(Config.rebuildTopics) > 0:
-		// Get a list of topic names from ZK
-		// matching the provided list.
-		topicsToRebuild, err := getTopics(zkc, Config.rebuildTopics)
+		pm, err := partitionMapFromString(Config.rebuildMap)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
-
-		// Log and exit if no matching topics were found.
-		if len(topicsToRebuild) == 0 {
-			fmt.Printf("No topics found matching: ")
-			for n, t := range Config.rebuildTopics {
-				fmt.Printf("/%s/", t)
-				if n < len(Config.rebuildTopics)-1 {
-					fmt.Printf(", ")
-				}
-			}
-			fmt.Println()
+		partitionMapIn = pm
+	case len(Config.rebuildTopics) > 0:
+		pm, err := partitionMapFromZK(Config.rebuildTopics)
+		if err != nil {
+			fmt.Println(err)
 			os.Exit(1)
 		}
-
-		// Get current reassign_partitions.
-		reassignments := getReassignments(zkc)
-
-		// Get a partition map for each topic.
-		pmapMerged := newPartitionMap()
-		for _, t := range topicsToRebuild {
-			pmap, err := partitionMapFromZk(zkc, t, reassignments)
-			if err != nil {
-				fmt.Println(err)
-				os.Exit(1)
-			}
-
-			// Merge multiple maps.
-			pmapMerged.Partitions = append(pmapMerged.Partitions, pmap.Partitions...)
-		}
-
-		partitionMapIn = pmapMerged
+		partitionMapIn = pm
 	}
 
 	// Get a list of affected topics.
@@ -352,6 +327,8 @@ func main() {
 		fmt.Printf("%sno-op\n", indent)
 	}
 
+	// Store a copy of the
+	// original map.
 	originalMap := partitionMapIn.copy()
 
 	// If the replication factor is changed,
@@ -465,30 +442,6 @@ func main() {
 			fmt.Printf("%s%s%s.json\n", indent, Config.outPath, t)
 		}
 	}
-}
-
-// useStats returns a map of broker IDs
-// to brokerUseStats; each contains a count
-// of leader and follower partition assignments.
-func (pm partitionMap) useStats() map[int]*brokerUseStats {
-	stats := map[int]*brokerUseStats{}
-	// Get counts.
-	for _, p := range pm.Partitions {
-		for i, b := range p.Replicas {
-			if _, exists := stats[b]; !exists {
-				stats[b] = &brokerUseStats{}
-			}
-			// Idx 0 for each replica set
-			// is a leader assignment.
-			if i == 0 {
-				stats[b].leader++
-			} else {
-				stats[b].follower++
-			}
-		}
-	}
-
-	return stats
 }
 
 // whatChanged takes a before and after broker

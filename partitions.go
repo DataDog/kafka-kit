@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
+	"regexp"
 	"sort"
 )
 
@@ -96,6 +99,64 @@ pass:
 	return newMap, errs
 }
 
+// partitionMapFromString takes a json encoded string
+// and returns a *partitionMap.
+func partitionMapFromString(s string) (*partitionMap, error) {
+	pm := newPartitionMap()
+
+	err := json.Unmarshal([]byte(s), &pm)
+	if err != nil {
+		errString := fmt.Sprintf("Error parsing topic map: %s", err.Error())
+		return nil, errors.New(errString)
+	}
+
+	return pm, nil
+}
+
+// partitionMapFromZK takes a slice of regexp
+// and finds all matching topics for each. A
+// merged *partitionMap of all matching topic
+// maps is returned.
+func partitionMapFromZK(t []*regexp.Regexp) (*partitionMap, error) {
+	// Get a list of topic names from ZK
+	// matching the provided list.
+	topicsToRebuild, err := getTopics(zkc, Config.rebuildTopics)
+	if err != nil {
+		return nil, err
+	}
+
+	// Err if no matching topics were found.
+	if len(topicsToRebuild) == 0 {
+		var b bytes.Buffer
+		b.WriteString("No topics found matching: ")
+		for n, t := range Config.rebuildTopics {
+			b.WriteString(fmt.Sprintf("/%s/", t))
+			if n < len(Config.rebuildTopics)-1 {
+				b.WriteString(", ")
+			}
+		}
+
+		return nil, errors.New(b.String())
+	}
+
+	// Get current reassign_partitions.
+	reassignments := getReassignments(zkc)
+
+	// Get a partition map for each topic.
+	pmapMerged := newPartitionMap()
+	for _, t := range topicsToRebuild {
+		pmap, err := partitionMapFromZk(zkc, t, reassignments)
+		if err != nil {
+			return nil, err
+		}
+
+		// Merge multiple maps.
+		pmapMerged.Partitions = append(pmapMerged.Partitions, pmap.Partitions...)
+	}
+
+	return pmapMerged, nil
+}
+
 // setReplication ensures that replica sets
 // is reset to the replication factor r. Sets
 // exceeding r are truncated, sets below r
@@ -178,4 +239,28 @@ func writeMap(pm *partitionMap, path string) error {
 	}
 
 	return nil
+}
+
+// useStats returns a map of broker IDs
+// to brokerUseStats; each contains a count
+// of leader and follower partition assignments.
+func (pm partitionMap) useStats() map[int]*brokerUseStats {
+	stats := map[int]*brokerUseStats{}
+	// Get counts.
+	for _, p := range pm.Partitions {
+		for i, b := range p.Replicas {
+			if _, exists := stats[b]; !exists {
+				stats[b] = &brokerUseStats{}
+			}
+			// Idx 0 for each replica set
+			// is a leader assignment.
+			if i == 0 {
+				stats[b].leader++
+			} else {
+				stats[b].follower++
+			}
+		}
+	}
+
+	return stats
 }
