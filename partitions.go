@@ -49,7 +49,7 @@ func newPartitionMap() *partitionMap {
 // rebuild takes a brokerMap and traverses
 // the partition map, replacing brokers marked removal
 // with the best available candidate.
-func (pm partitionMap) rebuild(bm brokerMap) (*partitionMap, []string) {
+func (pm *partitionMap) rebuild(bm brokerMap) (*partitionMap, []string) {
 	sort.Sort(pm.Partitions)
 
 	newMap := newPartitionMap()
@@ -197,7 +197,7 @@ func partitionMapFromZK(t []*regexp.Regexp) (*partitionMap, error) {
 // is reset to the replication factor r. Sets
 // exceeding r are truncated, sets below r
 // are extended with stub brokers.
-func (pm partitionMap) setReplication(r int) {
+func (pm *partitionMap) setReplication(r int) {
 	for n, p := range pm.Partitions {
 		l := len(p.Replicas)
 
@@ -214,7 +214,7 @@ func (pm partitionMap) setReplication(r int) {
 }
 
 // copy returns a copy of a *partitionMap.
-func (pm partitionMap) copy() *partitionMap {
+func (pm *partitionMap) copy() *partitionMap {
 	cpy := newPartitionMap()
 
 	for _, p := range pm.Partitions {
@@ -231,13 +231,47 @@ func (pm partitionMap) copy() *partitionMap {
 	return cpy
 }
 
+// Equal checks the equality betwee two partition maps.
+// Equality requires that the total order is exactly
+// the same.
+func (pm1 *partitionMap) equal(pm2 *partitionMap) bool {
+	// Crude checks.
+	switch {
+	case len(pm1.Partitions) != len(pm2.Partitions):
+		return false
+	case pm1.Version != pm2.Version:
+		return false
+	}
+
+	// Iterative comparison.
+	for i, p1 := range pm1.Partitions {
+		p2 := pm2.Partitions[i]
+		switch {
+		case p1.Topic != p2.Topic:
+			return false
+		case p1.Partition != p2.Partition:
+			return false
+		case len(p1.Replicas) != len(p2.Replicas):
+			return false
+		}
+		// This is fine...
+		for n := range p1.Replicas {
+			if p1.Replicas[n] != p2.Replicas[n] {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
 // strip takes a partitionMap and returns a
 // copy where all broker ID references are replaced
 // with the stub broker with ID 0 where the replace
 // field is set to true. This ensures that the
 // entire map is rebuilt, even if the provided broker
 // list matches what's already in the map.
-func (pm partitionMap) strip() *partitionMap {
+func (pm *partitionMap) strip() *partitionMap {
 	stripped := newPartitionMap()
 
 	// Copy each partition sans the replicas list.
@@ -280,7 +314,7 @@ func writeMap(pm *partitionMap, path string) error {
 // useStats returns a map of broker IDs
 // to brokerUseStats; each contains a count
 // of leader and follower partition assignments.
-func (pm partitionMap) useStats() map[int]*brokerUseStats {
+func (pm *partitionMap) useStats() map[int]*brokerUseStats {
 	stats := map[int]*brokerUseStats{}
 	// Get counts.
 	for _, p := range pm.Partitions {
