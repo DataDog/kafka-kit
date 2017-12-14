@@ -76,6 +76,8 @@ func getMapString(n string) string {
     {"topic":"%s","partition":3,"replicas":[1004,1003,1002]}]}`, n, n, n, n)
 }
 
+// func TestCopy(t *testing.T) {}
+
 // func TestRebuild(t *testing.T) {}
 
 func TestPartitionMapFromString(t *testing.T) {
@@ -137,7 +139,5 @@ func TestPartitionMapFromZK(t *testing.T) {
 }
 
 // func TestSetReplication(t *testing.T) {}
-// func TestCopy(t *testing.T) {}
 // func TestStrip(t *testing.T) {}
-// func TestWriteMap(t *testing.T) {}
 // func TestUseStats(t *testing.T) {}
