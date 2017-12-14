@@ -185,13 +185,16 @@ func getAllBrokerMeta(zc *zkConfig) (brokerMetaMap, error) {
 	return bmm, nil
 }
 
-func partitionMapFromZk(zc *zkConfig, t string, re reassignments) (*partitionMap, error) {
+func getPartitionMap(zc *zkConfig, t string) (*partitionMap, error) {
 	var path string
 	if zc.Prefix != "" {
 		path = fmt.Sprintf("%s/brokers/topics/%s", zc.Prefix, t)
 	} else {
 		path = fmt.Sprintf("brokers/topics/%s", t)
 	}
+
+	// Get current reassign_partitions.
+	re := getReassignments(zkc)
 
 	// Fetch topic data from ZK.
 	ts := &topicState{}
