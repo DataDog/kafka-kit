@@ -46,7 +46,7 @@ func newPartitionMap() *partitionMap {
 	return &partitionMap{Version: 1}
 }
 
-// rebuild takes a brokerMap and traverses
+// Rebuild takes a brokerMap and traverses
 // the partition map, replacing brokers marked removal
 // with the best available candidate.
 func (pm *partitionMap) rebuild(bm brokerMap) (*partitionMap, []string) {
@@ -156,7 +156,7 @@ func partitionMapFromString(s string) (*partitionMap, error) {
 func partitionMapFromZK(t []*regexp.Regexp) (*partitionMap, error) {
 	// Get a list of topic names from ZK
 	// matching the provided list.
-	topicsToRebuild, err := getTopics(zkc, Config.rebuildTopics)
+	topicsToRebuild, err := getTopics(zkc, t)
 	if err != nil {
 		return nil, err
 	}
@@ -175,13 +175,10 @@ func partitionMapFromZK(t []*regexp.Regexp) (*partitionMap, error) {
 		return nil, errors.New(b.String())
 	}
 
-	// Get current reassign_partitions.
-	reassignments := getReassignments(zkc)
-
 	// Get a partition map for each topic.
 	pmapMerged := newPartitionMap()
 	for _, t := range topicsToRebuild {
-		pmap, err := partitionMapFromZk(zkc, t, reassignments)
+		pmap, err := getPartitionMap(zkc, t)
 		if err != nil {
 			return nil, err
 		}
@@ -234,17 +231,17 @@ func (pm *partitionMap) copy() *partitionMap {
 // Equal checks the equality betwee two partition maps.
 // Equality requires that the total order is exactly
 // the same.
-func (pm1 *partitionMap) equal(pm2 *partitionMap) bool {
+func (pm *partitionMap) equal(pm2 *partitionMap) bool {
 	// Crude checks.
 	switch {
-	case len(pm1.Partitions) != len(pm2.Partitions):
+	case len(pm.Partitions) != len(pm2.Partitions):
 		return false
-	case pm1.Version != pm2.Version:
+	case pm.Version != pm2.Version:
 		return false
 	}
 
 	// Iterative comparison.
-	for i, p1 := range pm1.Partitions {
+	for i, p1 := range pm.Partitions {
 		p2 := pm2.Partitions[i]
 		switch {
 		case p1.Topic != p2.Topic:
