@@ -35,16 +35,11 @@ var (
 		replication   int
 	}
 
-	zkc = &zkConfig{}
 	// Characters allowed in Kafka topic names
 	topicNormalChar, _ = regexp.Compile(`[a-zA-Z0-9_\\-]`)
 
 	errNoBrokers = errors.New("No additional brokers that meet constraints")
 )
-
-// TODO make references to topic map vs
-// broker map consistent, e.g. types vs
-// func names.
 
 type constraints struct {
 	locality map[string]bool
@@ -146,19 +141,18 @@ func defaultsAndExit() {
 
 func main() {
 	// ZooKeeper init.
+	var zk *zk
 	if Config.useMeta || len(Config.rebuildTopics) > 0 {
-		// ZooKeeper config params.
-		zkc = &zkConfig{
-			ConnectString: Config.zkAddr,
-			Prefix:        Config.zkPrefix}
+		var err error
+		zk, err = newZK(&zkConfig{
+			connect: Config.zkAddr,
+			prefix:  Config.zkPrefix,
+		})
 
-		// Init the ZK client.
-		err := initZK(zkc)
 		if err != nil {
 			fmt.Printf("Error connecting to ZooKeeper: %s\n", err)
 			os.Exit(1)
 		}
-
 	}
 
 	// General flow:
@@ -176,7 +170,7 @@ func main() {
 	var brokerMetadata brokerMetaMap
 	if Config.useMeta {
 		var err error
-		brokerMetadata, err = getAllBrokerMeta(zkc)
+		brokerMetadata, err = zk.getAllBrokerMeta()
 		if err != nil {
 			fmt.Printf("Error fetching broker metadata: %s\n", err)
 			os.Exit(1)
@@ -196,7 +190,7 @@ func main() {
 		}
 		partitionMapIn = pm
 	case len(Config.rebuildTopics) > 0:
-		pm, err := partitionMapFromZK(Config.rebuildTopics)
+		pm, err := partitionMapFromZK(Config.rebuildTopics, zk)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
