@@ -26,6 +26,13 @@ type zkConfig struct {
 	mock    bool
 }
 
+type zkhandler interface {
+	getReassignments() reassignments
+	getTopics([]*regexp.Regexp) ([]string, error)
+	getAllBrokerMeta() (brokerMetaMap, error)
+	getPartitionMap(string) (*partitionMap, error)
+}
+
 func init() {
 	zookeeper.Register()
 }
