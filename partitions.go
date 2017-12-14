@@ -153,7 +153,7 @@ func partitionMapFromString(s string) (*partitionMap, error) {
 // and finds all matching topics for each. A
 // merged *partitionMap of all matching topic
 // maps is returned.
-func partitionMapFromZK(t []*regexp.Regexp, zk *zk) (*partitionMap, error) {
+func partitionMapFromZK(t []*regexp.Regexp, zk zkhandler) (*partitionMap, error) {
 	// Get a list of topic names from ZK
 	// matching the provided list.
 	topicsToRebuild, err := zk.getTopics(t)
