@@ -17,13 +17,11 @@ type zk struct {
 	client  store.Store
 	connect string
 	prefix  string
-	mock    bool
 }
 
 type zkConfig struct {
 	connect string
 	prefix  string
-	mock    bool
 }
 
 type zkhandler interface {
@@ -76,7 +74,6 @@ func newZK(c *zkConfig) (*zk, error) {
 	z := &zk{
 		connect: c.connect,
 		prefix:  c.prefix,
-		mock:    c.mock,
 	}
 
 	var err error
