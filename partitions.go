@@ -231,13 +231,13 @@ func (pm *partitionMap) copy() *partitionMap {
 // Equal checks the equality betwee two partition maps.
 // Equality requires that the total order is exactly
 // the same.
-func (pm *partitionMap) equal(pm2 *partitionMap) bool {
+func (pm *partitionMap) equal(pm2 *partitionMap) (bool, error) {
 	// Crude checks.
 	switch {
 	case len(pm.Partitions) != len(pm2.Partitions):
-		return false
+		return false, errors.New("partitions len")
 	case pm.Version != pm2.Version:
-		return false
+		return false, errors.New("version")
 	}
 
 	// Iterative comparison.
@@ -245,21 +245,21 @@ func (pm *partitionMap) equal(pm2 *partitionMap) bool {
 		p2 := pm2.Partitions[i]
 		switch {
 		case p1.Topic != p2.Topic:
-			return false
+			return false, errors.New("topic order")
 		case p1.Partition != p2.Partition:
-			return false
+			return false, errors.New("partition order")
 		case len(p1.Replicas) != len(p2.Replicas):
-			return false
+			return false, errors.New("replica list")
 		}
 		// This is fine...
 		for n := range p1.Replicas {
 			if p1.Replicas[n] != p2.Replicas[n] {
-				return false
+				return false, errors.New("replica")
 			}
 		}
 	}
 
-	return true
+	return true, nil
 }
 
 // strip takes a partitionMap and returns a
