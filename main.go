@@ -162,6 +162,14 @@ func main() {
 		partitionMapIn = pm
 	}
 
+	// Order from ZooKeeper can be
+	// random.
+	sort.Sort(partitionMapIn.Partitions)
+
+	// Store a copy of the
+	// original map.
+	originalMap := partitionMapIn.copy()
+
 	// Get a list of affected topics.
 	topics := map[string]bool{}
 	for _, p := range partitionMapIn.Partitions {
@@ -204,10 +212,6 @@ func main() {
 	case Config.replication == 0:
 		fmt.Printf("%sno-op\n", indent)
 	}
-
-	// Store a copy of the
-	// original map.
-	originalMap := partitionMapIn.copy()
 
 	// If the replication factor is changed,
 	// the partition map input needs to have stub
