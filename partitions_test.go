@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"testing"
-  "regexp"
 )
 
 func testGetMapString(n string) string {
@@ -16,14 +16,14 @@ func testGetMapString(n string) string {
 }
 
 func TestEqual(t *testing.T) {
-  pm, _ := partitionMapFromString(testGetMapString("test_topic"))
-  pm2, _ := partitionMapFromString(testGetMapString("test_topic"))
+	pm, _ := partitionMapFromString(testGetMapString("test_topic"))
+	pm2, _ := partitionMapFromString(testGetMapString("test_topic"))
 
-  if same, _ := pm.equal(pm2); !same {
-    t.Error("Unexpected inequality")
-  }
+	if same, _ := pm.equal(pm2); !same {
+		t.Error("Unexpected inequality")
+	}
 
-  // After modifying the partitions list,
+	// After modifying the partitions list,
 	// we expect inequality.
 	pm.Partitions = pm.Partitions[:2]
 	if same, _ := pm.equal(pm2); same {
@@ -32,14 +32,14 @@ func TestEqual(t *testing.T) {
 }
 
 func TestCopy(t *testing.T) {
-  pm, _ := partitionMapFromString(testGetMapString("test_topic"))
-  pm2 := pm.copy()
+	pm, _ := partitionMapFromString(testGetMapString("test_topic"))
+	pm2 := pm.copy()
 
-  if same, _ := pm.equal(pm2); !same {
-    t.Error("Unexpected inequality")
-  }
+	if same, _ := pm.equal(pm2); !same {
+		t.Error("Unexpected inequality")
+	}
 
-  // After modifying the partitions list,
+	// After modifying the partitions list,
 	// we expect inequality.
 	pm.Partitions = pm.Partitions[:2]
 	if same, _ := pm.equal(pm2); same {
@@ -47,7 +47,41 @@ func TestCopy(t *testing.T) {
 	}
 }
 
-// func TestRebuild(t *testing.T) {}
+func TestRebuild(t *testing.T) {
+	zk := &zkmock{}
+	bm, _ := zk.getAllBrokerMeta()
+	pm, _ := partitionMapFromString(testGetMapString("test_topic"))
+	forceRebuild := false
+
+	brokers := brokerMapFromTopicMap(pm, bm, forceRebuild)
+	out, err := pm.rebuild(brokers)
+	if err != nil {
+		t.Errorf("Unexpected error(s): %s", err)
+	}
+
+	// This rebuild should be a no-op since
+	// all brokers already in the map were provided,
+	// none marked as replace.
+	if same, _ := pm.equal(out); !same {
+		t.Error("Expected no-op, topic map changed")
+	}
+
+	// Mark 1004 for replacement.
+	brokers[1004].replace = true
+	out, err = pm.rebuild(brokers)
+	if err != nil {
+		t.Errorf("Unexpected error(s): %s", err)
+	}
+
+	// Expected map after a replacement rebuild.
+	expected, _ := partitionMapFromString(testGetMapString("test_topic"))
+	expected.Partitions[2].Replicas = []int{1003, 1002, 1001}
+	expected.Partitions[3].Replicas = []int{1001, 1003, 1002}
+
+	if same, _ := out.equal(expected); !same {
+		t.Error("Unexpected inequality")
+	}
+}
 
 func TestPartitionMapFromString(t *testing.T) {
 	pm, _ := partitionMapFromString(testGetMapString("test_topic"))
@@ -101,68 +135,68 @@ func TestPartitionMapFromZK(t *testing.T) {
 }
 
 func TestSetReplication(t *testing.T) {
-  pm, _ := partitionMapFromString(testGetMapString("test_topic"))
+	pm, _ := partitionMapFromString(testGetMapString("test_topic"))
 
-  pm.setReplication(3)
-  // All partitions should now have 3 replicas.
-  for _, r := range pm.Partitions {
-    if len(r.Replicas) != 3 {
-      t.Errorf("Expected 3 replicas, got %d", len(r.Replicas))
-    }
-  }
+	pm.setReplication(3)
+	// All partitions should now have 3 replicas.
+	for _, r := range pm.Partitions {
+		if len(r.Replicas) != 3 {
+			t.Errorf("Expected 3 replicas, got %d", len(r.Replicas))
+		}
+	}
 
-  pm.setReplication(2)
-  // All partitions should now have 3 replicas.
-  for _, r := range pm.Partitions {
-    if len(r.Replicas) != 2 {
-      t.Errorf("Expected 2 replicas, got %d", len(r.Replicas))
-    }
-  }
+	pm.setReplication(2)
+	// All partitions should now have 3 replicas.
+	for _, r := range pm.Partitions {
+		if len(r.Replicas) != 2 {
+			t.Errorf("Expected 2 replicas, got %d", len(r.Replicas))
+		}
+	}
 
-  pm.setReplication(0)
-  // Setting to 0 is a no-op.
-  for _, r := range pm.Partitions {
-    if len(r.Replicas) != 2 {
-      t.Errorf("Expected 2 replicas, got %d", len(r.Replicas))
-    }
-  }
+	pm.setReplication(0)
+	// Setting to 0 is a no-op.
+	for _, r := range pm.Partitions {
+		if len(r.Replicas) != 2 {
+			t.Errorf("Expected 2 replicas, got %d", len(r.Replicas))
+		}
+	}
 }
 
 func TestStrip(t *testing.T) {
-  pm, _ := partitionMapFromString(testGetMapString("test_topic"))
+	pm, _ := partitionMapFromString(testGetMapString("test_topic"))
 
-  spm := pm.strip()
+	spm := pm.strip()
 
-  for _, p := range spm.Partitions {
-    for _, b := range p.Replicas {
-      if b != 0 {
-        t.Errorf("Unexpected non-stub broker ID %d", b)
-      }
-    }
-  }
+	for _, p := range spm.Partitions {
+		for _, b := range p.Replicas {
+			if b != 0 {
+				t.Errorf("Unexpected non-stub broker ID %d", b)
+			}
+		}
+	}
 }
 
 func TestUseStats(t *testing.T) {
-  pm, _ := partitionMapFromString(testGetMapString("test_topic"))
+	pm, _ := partitionMapFromString(testGetMapString("test_topic"))
 
-  s := pm.useStats()
+	s := pm.useStats()
 
-  expected := map[int][2]int{
-    1001: [2]int{1,2},
-    1002: [2]int{1,2},
-    1003: [2]int{1,1},
-    1004: [2]int{1,1},
-  }
+	expected := map[int][2]int{
+		1001: [2]int{1, 2},
+		1002: [2]int{1, 2},
+		1003: [2]int{1, 1},
+		1004: [2]int{1, 1},
+	}
 
-  for b, bs := range s {
-    if bs.leader != expected[b][0] {
-      t.Errorf("Expected leader count %d for %d, got %d",
-        expected[b][0], b, bs.leader)
-    }
+	for b, bs := range s {
+		if bs.leader != expected[b][0] {
+			t.Errorf("Expected leader count %d for %d, got %d",
+				expected[b][0], b, bs.leader)
+		}
 
-    if bs.follower != expected[b][1] {
-      t.Errorf("Expected follower count %d for %d, got %d",
-        expected[b][1], b, bs.follower)
-    }
-  }
+		if bs.follower != expected[b][1] {
+			t.Errorf("Expected follower count %d for %d, got %d",
+				expected[b][1], b, bs.follower)
+		}
+	}
 }

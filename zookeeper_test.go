@@ -1,9 +1,10 @@
 package main
 
 import (
-  //"testing"
-  "regexp"
+	//"testing"
+	"regexp"
 )
+
 /*
 // Update with partitions in reassignment.
 // We might have this in /admin/reassign_partitions:
@@ -79,15 +80,4 @@ func (z *zkmock) getPartitionMap(t string) (*partitionMap, error) {
 	}
 
 	return p, nil
-}
-
-func testGetBrokerMetaMap() *brokerMetaMap {
-  b := &brokerMetaMap{
-    1001: &BrokerMeta{Rack: "a"},
-    1002: &BrokerMeta{Rack: "b"},
-    1003: &BrokerMeta{Rack: "c"},
-    1004: &BrokerMeta{Rack: "a"},
-  }
-
-  return b
 }
