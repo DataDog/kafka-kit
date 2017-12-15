@@ -47,42 +47,6 @@ func TestCopy(t *testing.T) {
 	}
 }
 
-func TestRebuild(t *testing.T) {
-	zk := &zkmock{}
-	bm, _ := zk.getAllBrokerMeta()
-	pm, _ := partitionMapFromString(testGetMapString("test_topic"))
-	forceRebuild := false
-
-	brokers := brokerMapFromTopicMap(pm, bm, forceRebuild)
-	out, err := pm.rebuild(brokers)
-	if err != nil {
-		t.Errorf("Unexpected error(s): %s", err)
-	}
-
-	// This rebuild should be a no-op since
-	// all brokers already in the map were provided,
-	// none marked as replace.
-	if same, _ := pm.equal(out); !same {
-		t.Error("Expected no-op, topic map changed")
-	}
-
-	// Mark 1004 for replacement.
-	brokers[1004].replace = true
-	out, err = pm.rebuild(brokers)
-	if err != nil {
-		t.Errorf("Unexpected error(s): %s", err)
-	}
-
-	// Expected map after a replacement rebuild.
-	expected, _ := partitionMapFromString(testGetMapString("test_topic"))
-	expected.Partitions[2].Replicas = []int{1003, 1002, 1001}
-	expected.Partitions[3].Replicas = []int{1001, 1003, 1002}
-
-	if same, _ := out.equal(expected); !same {
-		t.Error("Unexpected inequality")
-	}
-}
-
 func TestPartitionMapFromString(t *testing.T) {
 	pm, _ := partitionMapFromString(testGetMapString("test_topic"))
 	zk := &zkmock{}
@@ -198,5 +162,61 @@ func TestUseStats(t *testing.T) {
 			t.Errorf("Expected follower count %d for %d, got %d",
 				expected[b][1], b, bs.follower)
 		}
+	}
+}
+
+func TestRebuild(t *testing.T) {
+	zk := &zkmock{}
+	bm, _ := zk.getAllBrokerMeta()
+	pm, _ := partitionMapFromString(testGetMapString("test_topic"))
+	forceRebuild := false
+
+	brokers := brokerMapFromTopicMap(pm, bm, forceRebuild)
+	out, errs := pm.rebuild(brokers)
+	if errs != nil {
+		t.Errorf("Unexpected error(s): %s", errs)
+	}
+
+	// This rebuild should be a no-op since
+	// all brokers already in the map were provided,
+	// none marked as replace.
+	if same, _ := pm.equal(out); !same {
+		t.Error("Expected no-op, topic map changed")
+	}
+
+	// Mark 1004 for replacement.
+	brokers[1004].replace = true
+	out, errs = pm.rebuild(brokers)
+	if errs != nil {
+		t.Errorf("Unexpected error(s): %s", errs)
+	}
+
+	// Expected map after a replacement rebuild.
+	expected, _ := partitionMapFromString(testGetMapString("test_topic"))
+	expected.Partitions[2].Replicas = []int{1003, 1002, 1001}
+	expected.Partitions[3].Replicas = []int{1001, 1003, 1002}
+
+	if same, _ := out.equal(expected); !same {
+		t.Error("Unexpected inequality after broker replacement")
+	}
+
+	// Test a rebuild with a change in
+	// replication factor.
+	pm.setReplication(2)
+	expected.setReplication(2)
+
+	out, _ = pm.rebuild(brokers)
+
+	if same, _ := out.equal(expected); !same {
+		t.Error("Unexpected inequality after replication factor change -> rebuild")
+	}
+
+	// Test a force rebuild.
+	pmStripped := pm.strip()
+	out, _ = pmStripped.rebuild(brokers)
+
+	same, _ := pm.equal(out)
+	if same {
+		t.Error("Unexpected inequality after force rebuild")
 	}
 }
