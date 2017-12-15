@@ -195,6 +195,11 @@ func partitionMapFromZK(t []*regexp.Regexp, zk zkhandler) (*partitionMap, error)
 // exceeding r are truncated, sets below r
 // are extended with stub brokers.
 func (pm *partitionMap) setReplication(r int) {
+	// 0 is a no-op.
+	if r == 0 {
+		return
+	}
+
 	for n, p := range pm.Partitions {
 		l := len(p.Replicas)
 

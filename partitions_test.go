@@ -138,6 +138,32 @@ func TestPartitionMapFromZK(t *testing.T) {
 
 }
 
-// func TestSetReplication(t *testing.T) {}
+func TestSetReplication(t *testing.T) {
+  pm, _ := partitionMapFromString(getMapString("test_topic"))
+
+  pm.setReplication(3)
+  // All partitions should now have 3 replicas.
+  for _, r := range pm.Partitions {
+    if len(r.Replicas) != 3 {
+      t.Errorf("Expected 3 replicas, got %d", len(r.Replicas))
+    }
+  }
+
+  pm.setReplication(2)
+  // All partitions should now have 3 replicas.
+  for _, r := range pm.Partitions {
+    if len(r.Replicas) != 2 {
+      t.Errorf("Expected 2 replicas, got %d", len(r.Replicas))
+    }
+  }
+
+  pm.setReplication(0)
+  // Setting to 0 is a no-op.
+  for _, r := range pm.Partitions {
+    if len(r.Replicas) != 2 {
+      t.Errorf("Expected 2 replicas, got %d", len(r.Replicas))
+    }
+  }
+}
 // func TestStrip(t *testing.T) {}
 // func TestUseStats(t *testing.T) {}
