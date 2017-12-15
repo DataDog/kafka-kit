@@ -7,68 +7,7 @@ import (
 	"testing"
 )
 
-// zkmock implements a mock zkhandler.
-type zkmock struct{}
-
-func (z *zkmock) getReassignments() reassignments {
-	r := reassignments{
-		"test_topic": map[int][]int{
-			2: []int{1003, 1004},
-			3: []int{1004, 1003},
-		},
-	}
-	return r
-}
-
-func (z *zkmock) getTopics(ts []*regexp.Regexp) ([]string, error) {
-	t := []string{"test_topic", "test_topic2"}
-
-	match := map[string]bool{}
-	// Get all topics that match all
-	// provided topic regexps.
-	for _, topicRe := range ts {
-		for _, topic := range t {
-			if topicRe.MatchString(topic) {
-				match[topic] = true
-			}
-		}
-	}
-
-	// Add matches to a slice.
-	matched := []string{}
-	for topic := range match {
-		matched = append(matched, topic)
-	}
-
-	return matched, nil
-}
-
-func (z *zkmock) getAllBrokerMeta() (brokerMetaMap, error) {
-	b := brokerMetaMap{
-		1001: &BrokerMeta{Rack: "a"},
-		1002: &BrokerMeta{Rack: "b"},
-		1003: &BrokerMeta{Rack: "c"},
-		1004: &BrokerMeta{Rack: "a"},
-	}
-
-	return b, nil
-}
-
-func (z *zkmock) getPartitionMap(t string) (*partitionMap, error) {
-	p := &partitionMap{
-		Version: 1,
-		Partitions: partitionList{
-			Partition{Topic: t, Partition: 0, Replicas: []int{1001, 1002}},
-			Partition{Topic: t, Partition: 1, Replicas: []int{1002, 1001}},
-			Partition{Topic: t, Partition: 2, Replicas: []int{1003, 1004, 1001}},
-			Partition{Topic: t, Partition: 3, Replicas: []int{1004, 1003, 1002}},
-		},
-	}
-
-	return p, nil
-}
-
-func getMapString(n string) string {
+func testGetMapString(n string) string {
 	return fmt.Sprintf(`{"version":1,"partitions":[
     {"topic":"%s","partition":0,"replicas":[1001,1002]},
     {"topic":"%s","partition":1,"replicas":[1002,1001]},
@@ -76,25 +15,82 @@ func getMapString(n string) string {
     {"topic":"%s","partition":3,"replicas":[1004,1003,1002]}]}`, n, n, n, n)
 }
 
-// func TestCopy(t *testing.T) {}
+func TestEqual(t *testing.T) {
+	pm, _ := partitionMapFromString(testGetMapString("test_topic"))
+	pm2, _ := partitionMapFromString(testGetMapString("test_topic"))
 
-// func TestRebuild(t *testing.T) {}
-
-func TestPartitionMapFromString(t *testing.T) {
-	pm, _ := partitionMapFromString(getMapString("test_topic"))
-	zk := &zkmock{}
-	pmap, _ := zk.getPartitionMap("test_topic")
-
-	// We expect equality here.
-	if same, _ := pm.equal(pmap); !same {
-		t.Errorf("Unexpected inequality")
+	if same, _ := pm.equal(pm2); !same {
+		t.Error("Unexpected inequality")
 	}
 
 	// After modifying the partitions list,
 	// we expect inequality.
 	pm.Partitions = pm.Partitions[:2]
-	if same, _ := pm.equal(pmap); same {
+	if same, _ := pm.equal(pm2); same {
 		t.Errorf("Unexpected equality")
+	}
+}
+
+func TestCopy(t *testing.T) {
+	pm, _ := partitionMapFromString(testGetMapString("test_topic"))
+	pm2 := pm.copy()
+
+	if same, _ := pm.equal(pm2); !same {
+		t.Error("Unexpected inequality")
+	}
+
+	// After modifying the partitions list,
+	// we expect inequality.
+	pm.Partitions = pm.Partitions[:2]
+	if same, _ := pm.equal(pm2); same {
+		t.Errorf("Unexpected equality")
+	}
+}
+
+func TestRebuild(t *testing.T) {
+	zk := &zkmock{}
+	bm, _ := zk.getAllBrokerMeta()
+	pm, _ := partitionMapFromString(testGetMapString("test_topic"))
+	forceRebuild := false
+
+	brokers := brokerMapFromTopicMap(pm, bm, forceRebuild)
+	out, err := pm.rebuild(brokers)
+	if err != nil {
+		t.Errorf("Unexpected error(s): %s", err)
+	}
+
+	// This rebuild should be a no-op since
+	// all brokers already in the map were provided,
+	// none marked as replace.
+	if same, _ := pm.equal(out); !same {
+		t.Error("Expected no-op, topic map changed")
+	}
+
+	// Mark 1004 for replacement.
+	brokers[1004].replace = true
+	out, err = pm.rebuild(brokers)
+	if err != nil {
+		t.Errorf("Unexpected error(s): %s", err)
+	}
+
+	// Expected map after a replacement rebuild.
+	expected, _ := partitionMapFromString(testGetMapString("test_topic"))
+	expected.Partitions[2].Replicas = []int{1003, 1002, 1001}
+	expected.Partitions[3].Replicas = []int{1001, 1003, 1002}
+
+	if same, _ := out.equal(expected); !same {
+		t.Error("Unexpected inequality")
+	}
+}
+
+func TestPartitionMapFromString(t *testing.T) {
+	pm, _ := partitionMapFromString(testGetMapString("test_topic"))
+	zk := &zkmock{}
+	pm2, _ := zk.getPartitionMap("test_topic")
+
+	// We expect equality here.
+	if same, _ := pm.equal(pm2); !same {
+		t.Errorf("Unexpected inequality")
 	}
 }
 
@@ -124,7 +120,7 @@ func TestPartitionMapFromZK(t *testing.T) {
 	// equality testing.
 	pm2 := newPartitionMap()
 	for _, t := range []string{"test_topic", "test_topic2"} {
-		pmap, _ := partitionMapFromString(getMapString(t))
+		pmap, _ := partitionMapFromString(testGetMapString(t))
 		pm2.Partitions = append(pm2.Partitions, pmap.Partitions...)
 	}
 
@@ -138,6 +134,69 @@ func TestPartitionMapFromZK(t *testing.T) {
 
 }
 
-// func TestSetReplication(t *testing.T) {}
-// func TestStrip(t *testing.T) {}
-// func TestUseStats(t *testing.T) {}
+func TestSetReplication(t *testing.T) {
+	pm, _ := partitionMapFromString(testGetMapString("test_topic"))
+
+	pm.setReplication(3)
+	// All partitions should now have 3 replicas.
+	for _, r := range pm.Partitions {
+		if len(r.Replicas) != 3 {
+			t.Errorf("Expected 3 replicas, got %d", len(r.Replicas))
+		}
+	}
+
+	pm.setReplication(2)
+	// All partitions should now have 3 replicas.
+	for _, r := range pm.Partitions {
+		if len(r.Replicas) != 2 {
+			t.Errorf("Expected 2 replicas, got %d", len(r.Replicas))
+		}
+	}
+
+	pm.setReplication(0)
+	// Setting to 0 is a no-op.
+	for _, r := range pm.Partitions {
+		if len(r.Replicas) != 2 {
+			t.Errorf("Expected 2 replicas, got %d", len(r.Replicas))
+		}
+	}
+}
+
+func TestStrip(t *testing.T) {
+	pm, _ := partitionMapFromString(testGetMapString("test_topic"))
+
+	spm := pm.strip()
+
+	for _, p := range spm.Partitions {
+		for _, b := range p.Replicas {
+			if b != 0 {
+				t.Errorf("Unexpected non-stub broker ID %d", b)
+			}
+		}
+	}
+}
+
+func TestUseStats(t *testing.T) {
+	pm, _ := partitionMapFromString(testGetMapString("test_topic"))
+
+	s := pm.useStats()
+
+	expected := map[int][2]int{
+		1001: [2]int{1, 2},
+		1002: [2]int{1, 2},
+		1003: [2]int{1, 1},
+		1004: [2]int{1, 1},
+	}
+
+	for b, bs := range s {
+		if bs.leader != expected[b][0] {
+			t.Errorf("Expected leader count %d for %d, got %d",
+				expected[b][0], b, bs.leader)
+		}
+
+		if bs.follower != expected[b][1] {
+			t.Errorf("Expected follower count %d for %d, got %d",
+				expected[b][1], b, bs.follower)
+		}
+	}
+}
