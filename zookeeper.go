@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -12,14 +13,31 @@ import (
 	"github.com/docker/libkv/store/zookeeper"
 )
 
-var (
-	zk store.Store
-)
+type zk struct {
+	client  store.Store
+	connect string
+	prefix  string
+}
+
+type zkConfig struct {
+	connect string
+	prefix  string
+}
+
+type zkhandler interface {
+	getReassignments() reassignments
+	getTopics([]*regexp.Regexp) ([]string, error)
+	getAllBrokerMeta() (brokerMetaMap, error)
+	getPartitionMap(string) (*partitionMap, error)
+}
 
 func init() {
 	zookeeper.Register()
 }
 
+// BrokerMeta holds metadata that
+// describes a broker, used in satisfying
+// constraints.
 type BrokerMeta struct {
 	Rack string `json:"rack"`
 }
@@ -52,39 +70,40 @@ type reassignConfig struct {
 	Replicas  []int  `json:"replicas"`
 }
 
-type zkConfig struct {
-	ConnectString string
-	Prefix        string
-}
+func newZK(c *zkConfig) (*zk, error) {
+	z := &zk{
+		connect: c.connect,
+		prefix:  c.prefix,
+	}
 
-func initZK(zc *zkConfig) error {
 	var err error
-	zk, err = libkv.NewStore(
+	z.client, err = libkv.NewStore(
 		store.ZK,
-		[]string{zc.ConnectString},
+		[]string{z.connect},
 		&store.Config{
 			ConnectionTimeout: 10 * time.Second,
 		},
 	)
+
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return z, nil
 }
 
-func getReassignments(zc *zkConfig) reassignments {
+func (z *zk) getReassignments() reassignments {
 	reassigns := reassignments{}
 
 	var path string
-	if zc.Prefix != "" {
-		path = fmt.Sprintf("%s/admin/reassign_partitions", zc.Prefix)
+	if z.prefix != "" {
+		path = fmt.Sprintf("%s/admin/reassign_partitions", z.prefix)
 	} else {
 		path = "admin/reassign_partitions"
 	}
 
 	// Get reassignment config.
-	c, err := zk.Get(path)
+	c, err := z.client.Get(path)
 	if err != nil {
 		return reassigns
 	}
@@ -104,18 +123,18 @@ func getReassignments(zc *zkConfig) reassignments {
 	return reassigns
 }
 
-func getTopics(zc *zkConfig, ts []*regexp.Regexp) ([]string, error) {
+func (z *zk) getTopics(ts []*regexp.Regexp) ([]string, error) {
 	matchingTopics := []string{}
 
 	var path string
-	if zc.Prefix != "" {
-		path = fmt.Sprintf("%s/brokers/topics", zc.Prefix)
+	if z.prefix != "" {
+		path = fmt.Sprintf("%s/brokers/topics", z.prefix)
 	} else {
 		path = "brokers/topics"
 	}
 
-	// Find all topics in ZK.
-	entries, err := zk.List(path)
+	// Find all topics in z.
+	entries, err := z.client.List(path)
 	if err != nil {
 		return nil, err
 	}
@@ -139,17 +158,20 @@ func getTopics(zc *zkConfig, ts []*regexp.Regexp) ([]string, error) {
 	return matchingTopics, nil
 }
 
-func getAllBrokerMeta(zc *zkConfig) (brokerMetaMap, error) {
+func (z *zk) getAllBrokerMeta() (brokerMetaMap, error) {
 	var path string
-	if zc.Prefix != "" {
-		path = fmt.Sprintf("%s/brokers/ids", zc.Prefix)
+	if z.prefix != "" {
+		path = fmt.Sprintf("%s/brokers/ids", z.prefix)
 	} else {
 		path = "brokers/ids"
 	}
 
 	// Get all brokers.
-	entries, err := zk.List(path)
+	entries, err := z.client.List(path)
 	if err != nil {
+		if err.Error() == "Key not found in store" {
+			return nil, errors.New("No brokers registered")
+		}
 		return nil, err
 	}
 
@@ -178,20 +200,23 @@ func getAllBrokerMeta(zc *zkConfig) (brokerMetaMap, error) {
 	return bmm, nil
 }
 
-func partitionMapFromZk(zc *zkConfig, t string, re reassignments) (*partitionMap, error) {
+func (z *zk) getPartitionMap(t string) (*partitionMap, error) {
 	var path string
-	if zc.Prefix != "" {
-		path = fmt.Sprintf("%s/brokers/topics/%s", zc.Prefix, t)
+	if z.prefix != "" {
+		path = fmt.Sprintf("%s/brokers/topics/%s", z.prefix, t)
 	} else {
 		path = fmt.Sprintf("brokers/topics/%s", t)
 	}
 
-	// Fetch topic data from ZK.
+	// Get current reassign_partitions.
+	re := z.getReassignments()
+
+	// Fetch topic data from z.
 	ts := &topicState{}
-	m, err := zk.Get(path)
+	m, err := z.client.Get(path)
 	switch err {
 	case store.ErrKeyNotFound:
-		return nil, fmt.Errorf("Topic %s not found in ZooKeeper\n", t)
+		return nil, fmt.Errorf("Topic %s not found in ZooKeeper", t)
 	case nil:
 		break
 	default:
