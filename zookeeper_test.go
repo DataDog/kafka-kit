@@ -5,22 +5,6 @@ import (
 	"regexp"
 )
 
-/*
-// Update with partitions in reassignment.
-// We might have this in /admin/reassign_partitions:
-// {"version":1,"partitions":[{"topic":"myTopic","partition":14,"replicas":[1039,1044]}]}
-// But retrieved this in /brokers/topics/myTopic:
-// {"version":1,"partitions":{"14":[1039,1044,1041,1071]}}.
-// The latter will be in ts if we're undergoing a partition move, so
-// but we need to overwrite it with what's intended (the former).
-if re[t] != nil {
-  for p, replicas := range re[t] {
-    pn := strconv.Itoa(p)
-    ts.Partitions[pn] = replicas
-  }
-}
-*/
-
 // zkmock implements a mock zkhandler.
 type zkmock struct{}
 
@@ -81,3 +65,8 @@ func (z *zkmock) getPartitionMap(t string) (*partitionMap, error) {
 
 	return p, nil
 }
+
+// func TestGetReassignments(t *testing.T) {}
+// func TestGetTopics(t *testing.T) {}
+// func TestGetAllBrokerMeta(t *testing.T) {}
+// func TestGetPartitionMap(t *testing.T) {}

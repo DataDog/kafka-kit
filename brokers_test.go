@@ -37,3 +37,11 @@ func TestBrokerMapFromTopicMap(t *testing.T) {
 		}
 	}
 }
+
+// func TestBestCandidate(t *testing.T) {}
+// func TestConstraintsAdd(t *testing.T) {}
+// func TestConstraintsPasses(t *testing.T) {}
+// func TestMergeConstraints(t *testing.T) {}
+// func TestUpdate(t *testing.T) {}
+// func TestFilteredList(t *testing.T) {}
+// func TestBrokerStringToSlice(t *testing.T) {}
