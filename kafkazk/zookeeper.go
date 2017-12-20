@@ -1,4 +1,4 @@
-package main
+package kafkazk
 
 import (
 	"encoding/json"
@@ -13,22 +13,22 @@ import (
 	"github.com/docker/libkv/store/zookeeper"
 )
 
-type zk struct {
+type ZK struct {
 	client  store.Store
-	connect string
-	prefix  string
+	Connect string
+	Prefix  string
 }
 
-type zkConfig struct {
-	connect string
-	prefix  string
+type ZKConfig struct {
+	Connect string
+	Prefix  string
 }
 
 type zkhandler interface {
 	getReassignments() reassignments
 	getTopics([]*regexp.Regexp) ([]string, error)
-	getAllBrokerMeta() (brokerMetaMap, error)
-	getPartitionMap(string) (*partitionMap, error)
+	GetAllBrokerMeta() (BrokerMetaMap, error)
+	getPartitionMap(string) (*PartitionMap, error)
 }
 
 func init() {
@@ -42,11 +42,11 @@ type BrokerMeta struct {
 	Rack string `json:"rack"`
 }
 
-// brokerMetaMap is a map of broker IDs
+// BrokerMetaMap is a map of broker IDs
 // to BrokerMeta metadata fetched from
 // ZooKeeper. Currently, just the rack
 // field is retrieved.
-type brokerMetaMap map[int]*BrokerMeta
+type BrokerMetaMap map[int]*BrokerMeta
 
 // topicState is used for unmarshing
 // ZooKeeper json data from a topic:
@@ -70,16 +70,16 @@ type reassignConfig struct {
 	Replicas  []int  `json:"replicas"`
 }
 
-func newZK(c *zkConfig) (*zk, error) {
-	z := &zk{
-		connect: c.connect,
-		prefix:  c.prefix,
+func NewZK(c *ZKConfig) (*ZK, error) {
+	z := &ZK{
+		Connect: c.Connect,
+		Prefix:  c.Prefix,
 	}
 
 	var err error
 	z.client, err = libkv.NewStore(
 		store.ZK,
-		[]string{z.connect},
+		[]string{z.Connect},
 		&store.Config{
 			ConnectionTimeout: 10 * time.Second,
 		},
@@ -92,12 +92,12 @@ func newZK(c *zkConfig) (*zk, error) {
 	return z, nil
 }
 
-func (z *zk) getReassignments() reassignments {
+func (z *ZK) getReassignments() reassignments {
 	reassigns := reassignments{}
 
 	var path string
-	if z.prefix != "" {
-		path = fmt.Sprintf("%s/admin/reassign_partitions", z.prefix)
+	if z.Prefix != "" {
+		path = fmt.Sprintf("%s/admin/reassign_partitions", z.Prefix)
 	} else {
 		path = "admin/reassign_partitions"
 	}
@@ -123,12 +123,12 @@ func (z *zk) getReassignments() reassignments {
 	return reassigns
 }
 
-func (z *zk) getTopics(ts []*regexp.Regexp) ([]string, error) {
+func (z *ZK) getTopics(ts []*regexp.Regexp) ([]string, error) {
 	matchingTopics := []string{}
 
 	var path string
-	if z.prefix != "" {
-		path = fmt.Sprintf("%s/brokers/topics", z.prefix)
+	if z.Prefix != "" {
+		path = fmt.Sprintf("%s/brokers/topics", z.Prefix)
 	} else {
 		path = "brokers/topics"
 	}
@@ -158,10 +158,10 @@ func (z *zk) getTopics(ts []*regexp.Regexp) ([]string, error) {
 	return matchingTopics, nil
 }
 
-func (z *zk) getAllBrokerMeta() (brokerMetaMap, error) {
+func (z *ZK) GetAllBrokerMeta() (BrokerMetaMap, error) {
 	var path string
-	if z.prefix != "" {
-		path = fmt.Sprintf("%s/brokers/ids", z.prefix)
+	if z.Prefix != "" {
+		path = fmt.Sprintf("%s/brokers/ids", z.Prefix)
 	} else {
 		path = "brokers/ids"
 	}
@@ -175,7 +175,7 @@ func (z *zk) getAllBrokerMeta() (brokerMetaMap, error) {
 		return nil, err
 	}
 
-	bmm := brokerMetaMap{}
+	bmm := BrokerMetaMap{}
 
 	// Map each broker.
 	for _, pair := range entries {
@@ -200,10 +200,10 @@ func (z *zk) getAllBrokerMeta() (brokerMetaMap, error) {
 	return bmm, nil
 }
 
-func (z *zk) getPartitionMap(t string) (*partitionMap, error) {
+func (z *ZK) getPartitionMap(t string) (*PartitionMap, error) {
 	var path string
-	if z.prefix != "" {
-		path = fmt.Sprintf("%s/brokers/topics/%s", z.prefix, t)
+	if z.Prefix != "" {
+		path = fmt.Sprintf("%s/brokers/topics/%s", z.Prefix, t)
 	} else {
 		path = fmt.Sprintf("brokers/topics/%s", t)
 	}
@@ -243,8 +243,8 @@ func (z *zk) getPartitionMap(t string) (*partitionMap, error) {
 	}
 
 	// Map topicState to a
-	// partitionMap.
-	pm := newPartitionMap()
+	// PartitionMap.
+	pm := NewPartitionMap()
 	pl := partitionList{}
 
 	for partition, replicas := range ts.Partitions {

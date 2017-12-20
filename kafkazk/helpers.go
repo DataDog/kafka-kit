@@ -1,11 +1,18 @@
-package main
+package kafkazk
 
 import (
 	"bytes"
-	"flag"
+	"errors"
 	"math"
-	"os"
 	"sort"
+)
+
+const (
+	indent = "  "
+)
+
+var (
+	errNoBrokers = errors.New("No additional brokers that meet constraints")
 )
 
 type constraints struct {
@@ -13,7 +20,7 @@ type constraints struct {
 	id       map[int]bool
 }
 
-func newConstraints() *constraints {
+func NewConstraints() *constraints {
 	return &constraints{
 		locality: make(map[string]bool),
 		id:       make(map[int]bool),
@@ -23,7 +30,7 @@ func newConstraints() *constraints {
 // whatChanged takes a before and after broker
 // replica set and returns a string describing
 // what changed.
-func whatChanged(s1 []int, s2 []int) string {
+func WhatChanged(s1 []int, s2 []int) string {
 	var changes []string
 
 	a, b := make([]int, len(s1)), make([]int, len(s2))
@@ -110,26 +117,4 @@ func whatChanged(s1 []int, s2 []int) string {
 	}
 
 	return buf.String()
-}
-
-// containsRegex takes a topic name
-// reference and returns whether or not
-// it should be interpreted as regex.
-func containsRegex(t string) bool {
-	// Check each character of the
-	// topic name. If it doesn't contain
-	// a legal Kafka topic name character, we're
-	// going to assume it's regex.
-	for _, c := range t {
-		if !topicNormalChar.MatchString(string(c)) {
-			return true
-		}
-	}
-
-	return false
-}
-
-func defaultsAndExit() {
-	flag.PrintDefaults()
-	os.Exit(1)
 }

@@ -1,4 +1,4 @@
-package main
+package kafkazk
 
 import (
 	"fmt"
@@ -8,16 +8,16 @@ import (
 	"strings"
 )
 
-type brokerUseStats struct {
-	leader   int
-	follower int
+type BrokerUseStats struct {
+	Leader   int
+	Follower int
 }
 
 type brokerStatus struct {
-	new        int
-	missing    int
-	oldMissing int
-	replace    int
+	New        int
+	Missing    int
+	OldMissing int
+	Replace    int
 }
 
 // broker is used for internal
@@ -105,7 +105,7 @@ func (c *constraints) passes(b *broker) bool {
 // builds a *constraints by merging the
 // attributes of all brokers from the supplied list.
 func mergeConstraints(bl brokerList) *constraints {
-	c := newConstraints()
+	c := NewConstraints()
 
 	for _, b := range bl {
 		// Don't merge in attributes
@@ -124,12 +124,12 @@ func mergeConstraints(bl brokerList) *constraints {
 	return c
 }
 
-// update takes a brokerMap and a []int
+// Update takes a brokerMap and a []int
 // of broker IDs and adds them to the brokerMap,
 // returning the count of marked for replacement,
 // newly included, and brokers that weren't found
 // in ZooKeeper.
-func (b brokerMap) update(bl []int, bm brokerMetaMap) *brokerStatus {
+func (b brokerMap) Update(bl []int, bm BrokerMetaMap) *brokerStatus {
 	bs := &brokerStatus{}
 
 	// Build a map from the new broker list.
@@ -154,9 +154,9 @@ func (b brokerMap) update(bl []int, bm brokerMetaMap) *brokerStatus {
 				// If this broker is missing and was provided in
 				// the broker list, consider it a "missing provided broker".
 				if _, ok := newBrokers[id]; len(bm) > 0 && ok {
-					bs.missing++
+					bs.Missing++
 				} else {
-					bs.oldMissing++
+					bs.OldMissing++
 				}
 			}
 		}
@@ -173,7 +173,7 @@ func (b brokerMap) update(bl []int, bm brokerMetaMap) *brokerStatus {
 		}
 
 		if _, ok := newBrokers[broker.id]; !ok {
-			bs.replace++
+			bs.Replace++
 			b[broker.id].replace = true
 			fmt.Printf("%sBroker %d marked for removal\n",
 				indent, broker.id)
@@ -192,7 +192,7 @@ func (b brokerMap) update(bl []int, bm brokerMetaMap) *brokerStatus {
 					id:      id,
 					replace: false,
 				}
-				bs.new++
+				bs.New++
 				continue
 			}
 
@@ -205,9 +205,9 @@ func (b brokerMap) update(bl []int, bm brokerMetaMap) *brokerStatus {
 					replace:  false,
 					locality: meta.Rack,
 				}
-				bs.new++
+				bs.New++
 			} else {
-				bs.missing++
+				bs.Missing++
 				fmt.Printf("%sBroker %d not found in ZooKeeper\n",
 					indent, id)
 			}
@@ -231,10 +231,10 @@ func (b brokerMap) filteredList() brokerList {
 	return bl
 }
 
-// brokerMapFromTopicMap creates a brokerMap
+// BrokerMapFromTopicMap creates a brokerMap
 // from a topicMap. Counts occurance is counted.
 // TODO can we remove marked for replacement here too?
-func brokerMapFromTopicMap(pm *partitionMap, bm brokerMetaMap, force bool) brokerMap {
+func BrokerMapFromTopicMap(pm *PartitionMap, bm BrokerMetaMap, force bool) brokerMap {
 	bmap := brokerMap{}
 	// For each partition.
 	for _, partition := range pm.Partitions {
@@ -265,7 +265,7 @@ func brokerMapFromTopicMap(pm *partitionMap, bm brokerMetaMap, force bool) broke
 	}
 
 	// Broker ID 0 is used for --force-rebuild.
-	// We request a stripped map which replaces
+	// We request a Stripped map which replaces
 	// all existing brokers with the fake broker
 	// with ID set for replacement.
 	bmap[0] = &broker{used: 0, id: 0, replace: true}
@@ -273,10 +273,10 @@ func brokerMapFromTopicMap(pm *partitionMap, bm brokerMetaMap, force bool) broke
 	return bmap
 }
 
-// brokerStringToSlice takes a broker list
+// BrokerStringToSlice takes a broker list
 // as a string and returns a []int of
 // broker IDs.
-func brokerStringToSlice(s string) []int {
+func BrokerStringToSlice(s string) []int {
 	ids := map[int]bool{}
 	var info int
 

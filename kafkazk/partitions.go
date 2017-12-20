@@ -1,7 +1,6 @@
-package main
+package kafkazk
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -20,9 +19,9 @@ type Partition struct {
 
 type partitionList []Partition
 
-// partitionMap maps the
+// PartitionMap maps the
 // Kafka topic mapping syntax.
-type partitionMap struct {
+type PartitionMap struct {
 	Version    int           `json:"version"`
 	Partitions partitionList `json:"partitions"`
 }
@@ -42,17 +41,17 @@ func (p partitionList) Less(i, j int) bool {
 	return p[i].Partition < p[j].Partition
 }
 
-func newPartitionMap() *partitionMap {
-	return &partitionMap{Version: 1}
+func NewPartitionMap() *PartitionMap {
+	return &PartitionMap{Version: 1}
 }
 
 // Rebuild takes a brokerMap and traverses
 // the partition map, replacing brokers marked removal
 // with the best available candidate.
-func (pm *partitionMap) rebuild(bm brokerMap) (*partitionMap, []string) {
+func (pm *PartitionMap) Rebuild(bm brokerMap) (*PartitionMap, []string) {
 	sort.Sort(pm.Partitions)
 
-	newMap := newPartitionMap()
+	newMap := NewPartitionMap()
 	// We need a filtered list for
 	// usage sorting and exclusion
 	// of nodes marked for removal.
@@ -135,10 +134,10 @@ pass:
 	return newMap, errs
 }
 
-// partitionMapFromString takes a json encoded string
-// and returns a *partitionMap.
-func partitionMapFromString(s string) (*partitionMap, error) {
-	pm := newPartitionMap()
+// PartitionMapFromString takes a json encoded string
+// and returns a *PartitionMap.
+func PartitionMapFromString(s string) (*PartitionMap, error) {
+	pm := NewPartitionMap()
 
 	err := json.Unmarshal([]byte(s), &pm)
 	if err != nil {
@@ -149,11 +148,11 @@ func partitionMapFromString(s string) (*partitionMap, error) {
 	return pm, nil
 }
 
-// partitionMapFromZK takes a slice of regexp
+// PartitionMapFromZK takes a slice of regexp
 // and finds all matching topics for each. A
-// merged *partitionMap of all matching topic
+// merged *PartitionMap of all matching topic
 // maps is returned.
-func partitionMapFromZK(t []*regexp.Regexp, zk zkhandler) (*partitionMap, error) {
+func PartitionMapFromZK(t []*regexp.Regexp, zk zkhandler) (*PartitionMap, error) {
 	// Get a list of topic names from ZK
 	// matching the provided list.
 	topicsToRebuild, err := zk.getTopics(t)
@@ -163,20 +162,12 @@ func partitionMapFromZK(t []*regexp.Regexp, zk zkhandler) (*partitionMap, error)
 
 	// Err if no matching topics were found.
 	if len(topicsToRebuild) == 0 {
-		var b bytes.Buffer
-		b.WriteString("No topics found matching: ")
-		for n, t := range Config.rebuildTopics {
-			b.WriteString(fmt.Sprintf("/%s/", t))
-			if n < len(Config.rebuildTopics)-1 {
-				b.WriteString(", ")
-			}
-		}
-
-		return nil, errors.New(b.String())
+		errS := fmt.Sprintf("No topics found matching: %s", t)
+		return nil, errors.New(errS)
 	}
 
 	// Get a partition map for each topic.
-	pmapMerged := newPartitionMap()
+	pmapMerged := NewPartitionMap()
 	for _, t := range topicsToRebuild {
 		pmap, err := zk.getPartitionMap(t)
 		if err != nil {
@@ -190,11 +181,11 @@ func partitionMapFromZK(t []*regexp.Regexp, zk zkhandler) (*partitionMap, error)
 	return pmapMerged, nil
 }
 
-// setReplication ensures that replica sets
+// SetReplication ensures that replica sets
 // is reset to the replication factor r. Sets
 // exceeding r are truncated, sets below r
 // are extended with stub brokers.
-func (pm *partitionMap) setReplication(r int) {
+func (pm *PartitionMap) SetReplication(r int) {
 	// 0 is a no-op.
 	if r == 0 {
 		return
@@ -215,9 +206,9 @@ func (pm *partitionMap) setReplication(r int) {
 	}
 }
 
-// copy returns a copy of a *partitionMap.
-func (pm *partitionMap) copy() *partitionMap {
-	cpy := newPartitionMap()
+// Copy returns a copy of a *PartitionMap.
+func (pm *PartitionMap) Copy() *PartitionMap {
+	cpy := NewPartitionMap()
 
 	for _, p := range pm.Partitions {
 		part := Partition{
@@ -236,7 +227,7 @@ func (pm *partitionMap) copy() *partitionMap {
 // Equal checks the equality betwee two partition maps.
 // Equality requires that the total order is exactly
 // the same.
-func (pm *partitionMap) equal(pm2 *partitionMap) (bool, error) {
+func (pm *PartitionMap) equal(pm2 *PartitionMap) (bool, error) {
 	// Crude checks.
 	switch {
 	case len(pm.Partitions) != len(pm2.Partitions):
@@ -267,14 +258,14 @@ func (pm *partitionMap) equal(pm2 *partitionMap) (bool, error) {
 	return true, nil
 }
 
-// strip takes a partitionMap and returns a
+// Strip takes a PartitionMap and returns a
 // copy where all broker ID references are replaced
 // with the stub broker with ID 0 where the replace
 // field is set to true. This ensures that the
 // entire map is rebuilt, even if the provided broker
 // list matches what's already in the map.
-func (pm *partitionMap) strip() *partitionMap {
-	stripped := newPartitionMap()
+func (pm *PartitionMap) Strip() *PartitionMap {
+	Stripped := NewPartitionMap()
 
 	// Copy each partition sans the replicas list.
 	// The make([]int, ...) defaults the replica set to
@@ -287,15 +278,15 @@ func (pm *partitionMap) strip() *partitionMap {
 			Replicas:  make([]int, len(p.Replicas)),
 		}
 
-		stripped.Partitions = append(stripped.Partitions, part)
+		Stripped.Partitions = append(Stripped.Partitions, part)
 	}
 
-	return stripped
+	return Stripped
 }
 
-// writeMap takes a *partitionMap and writes a JSON
+// writeMap takes a *PartitionMap and writes a JSON
 // text file to the provided path.
-func writeMap(pm *partitionMap, path string) error {
+func WriteMap(pm *PartitionMap, path string) error {
 	// Marshal.
 	out, err := json.Marshal(pm)
 	if err != nil {
@@ -313,23 +304,23 @@ func writeMap(pm *partitionMap, path string) error {
 	return nil
 }
 
-// useStats returns a map of broker IDs
-// to brokerUseStats; each contains a count
+// UseStats returns a map of broker IDs
+// to BrokerUseStats; each contains a count
 // of leader and follower partition assignments.
-func (pm *partitionMap) useStats() map[int]*brokerUseStats {
-	stats := map[int]*brokerUseStats{}
+func (pm *PartitionMap) UseStats() map[int]*BrokerUseStats {
+	stats := map[int]*BrokerUseStats{}
 	// Get counts.
 	for _, p := range pm.Partitions {
 		for i, b := range p.Replicas {
 			if _, exists := stats[b]; !exists {
-				stats[b] = &brokerUseStats{}
+				stats[b] = &BrokerUseStats{}
 			}
 			// Idx 0 for each replica set
 			// is a leader assignment.
 			if i == 0 {
-				stats[b].leader++
+				stats[b].Leader++
 			} else {
-				stats[b].follower++
+				stats[b].Follower++
 			}
 		}
 	}
