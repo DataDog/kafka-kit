@@ -1,4 +1,4 @@
-package main
+package kafkazk
 
 import (
 	"fmt"
@@ -16,8 +16,8 @@ func testGetMapString(n string) string {
 }
 
 func TestEqual(t *testing.T) {
-	pm, _ := partitionMapFromString(testGetMapString("test_topic"))
-	pm2, _ := partitionMapFromString(testGetMapString("test_topic"))
+	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
+	pm2, _ := PartitionMapFromString(testGetMapString("test_topic"))
 
 	if same, _ := pm.equal(pm2); !same {
 		t.Error("Unexpected inequality")
@@ -32,8 +32,8 @@ func TestEqual(t *testing.T) {
 }
 
 func TestCopy(t *testing.T) {
-	pm, _ := partitionMapFromString(testGetMapString("test_topic"))
-	pm2 := pm.copy()
+	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
+	pm2 := pm.Copy()
 
 	if same, _ := pm.equal(pm2); !same {
 		t.Error("Unexpected inequality")
@@ -48,7 +48,7 @@ func TestCopy(t *testing.T) {
 }
 
 func TestPartitionMapFromString(t *testing.T) {
-	pm, _ := partitionMapFromString(testGetMapString("test_topic"))
+	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 	zk := &zkmock{}
 	pm2, _ := zk.getPartitionMap("test_topic")
 
@@ -63,13 +63,13 @@ func TestPartitionMapFromZK(t *testing.T) {
 
 	r := []*regexp.Regexp{}
 	r = append(r, regexp.MustCompile("/^null$/"))
-	pm, err := partitionMapFromZK(r, zk)
+	pm, err := PartitionMapFromZK(r, zk)
 
 	// This should fail because we're passing
 	// a regex that the mock call to getTopics()
-	// from partitionMapFromZK doesn't have
+	// from PartitionMapFromZK doesn't have
 	// any matches.
-	if pm != nil || err.Error() != "No topics found matching: " {
+	if pm != nil || err.Error() != "No topics found matching: [/^null$/]" {
 		t.Errorf("Expected topic lookup failure")
 	}
 
@@ -78,13 +78,13 @@ func TestPartitionMapFromZK(t *testing.T) {
 
 	// This is going to match both "test_topic"
 	// and "test_topic2" from the mock.
-	pm, _ = partitionMapFromZK(r, zk)
+	pm, _ = PartitionMapFromZK(r, zk)
 
 	// Build a merged map of these for
 	// equality testing.
-	pm2 := newPartitionMap()
+	pm2 := NewPartitionMap()
 	for _, t := range []string{"test_topic", "test_topic2"} {
-		pmap, _ := partitionMapFromString(testGetMapString(t))
+		pmap, _ := PartitionMapFromString(testGetMapString(t))
 		pm2.Partitions = append(pm2.Partitions, pmap.Partitions...)
 	}
 
@@ -99,9 +99,9 @@ func TestPartitionMapFromZK(t *testing.T) {
 }
 
 func TestSetReplication(t *testing.T) {
-	pm, _ := partitionMapFromString(testGetMapString("test_topic"))
+	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 
-	pm.setReplication(3)
+	pm.SetReplication(3)
 	// All partitions should now have 3 replicas.
 	for _, r := range pm.Partitions {
 		if len(r.Replicas) != 3 {
@@ -109,7 +109,7 @@ func TestSetReplication(t *testing.T) {
 		}
 	}
 
-	pm.setReplication(2)
+	pm.SetReplication(2)
 	// All partitions should now have 3 replicas.
 	for _, r := range pm.Partitions {
 		if len(r.Replicas) != 2 {
@@ -117,7 +117,7 @@ func TestSetReplication(t *testing.T) {
 		}
 	}
 
-	pm.setReplication(0)
+	pm.SetReplication(0)
 	// Setting to 0 is a no-op.
 	for _, r := range pm.Partitions {
 		if len(r.Replicas) != 2 {
@@ -127,9 +127,9 @@ func TestSetReplication(t *testing.T) {
 }
 
 func TestStrip(t *testing.T) {
-	pm, _ := partitionMapFromString(testGetMapString("test_topic"))
+	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 
-	spm := pm.strip()
+	spm := pm.Strip()
 
 	for _, p := range spm.Partitions {
 		for _, b := range p.Replicas {
@@ -141,9 +141,9 @@ func TestStrip(t *testing.T) {
 }
 
 func TestUseStats(t *testing.T) {
-	pm, _ := partitionMapFromString(testGetMapString("test_topic"))
+	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 
-	s := pm.useStats()
+	s := pm.UseStats()
 
 	expected := map[int][2]int{
 		1001: [2]int{1, 2},
@@ -153,26 +153,26 @@ func TestUseStats(t *testing.T) {
 	}
 
 	for b, bs := range s {
-		if bs.leader != expected[b][0] {
+		if bs.Leader != expected[b][0] {
 			t.Errorf("Expected leader count %d for %d, got %d",
-				expected[b][0], b, bs.leader)
+				expected[b][0], b, bs.Leader)
 		}
 
-		if bs.follower != expected[b][1] {
+		if bs.Follower != expected[b][1] {
 			t.Errorf("Expected follower count %d for %d, got %d",
-				expected[b][1], b, bs.follower)
+				expected[b][1], b, bs.Follower)
 		}
 	}
 }
 
 func TestRebuild(t *testing.T) {
 	zk := &zkmock{}
-	bm, _ := zk.getAllBrokerMeta()
-	pm, _ := partitionMapFromString(testGetMapString("test_topic"))
+	bm, _ := zk.GetAllBrokerMeta()
+	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 	forceRebuild := false
 
-	brokers := brokerMapFromTopicMap(pm, bm, forceRebuild)
-	out, errs := pm.rebuild(brokers)
+	brokers := BrokerMapFromTopicMap(pm, bm, forceRebuild)
+	out, errs := pm.Rebuild(brokers)
 	if errs != nil {
 		t.Errorf("Unexpected error(s): %s", errs)
 	}
@@ -186,13 +186,13 @@ func TestRebuild(t *testing.T) {
 
 	// Mark 1004 for replacement.
 	brokers[1004].replace = true
-	out, errs = pm.rebuild(brokers)
+	out, errs = pm.Rebuild(brokers)
 	if errs != nil {
 		t.Errorf("Unexpected error(s): %s", errs)
 	}
 
 	// Expected map after a replacement rebuild.
-	expected, _ := partitionMapFromString(testGetMapString("test_topic"))
+	expected, _ := PartitionMapFromString(testGetMapString("test_topic"))
 	expected.Partitions[2].Replicas = []int{1003, 1002, 1001}
 	expected.Partitions[3].Replicas = []int{1001, 1003, 1002}
 
@@ -202,18 +202,18 @@ func TestRebuild(t *testing.T) {
 
 	// Test a rebuild with a change in
 	// replication factor.
-	pm.setReplication(2)
-	expected.setReplication(2)
+	pm.SetReplication(2)
+	expected.SetReplication(2)
 
-	out, _ = pm.rebuild(brokers)
+	out, _ = pm.Rebuild(brokers)
 
 	if same, _ := out.equal(expected); !same {
 		t.Error("Unexpected inequality after replication factor change -> rebuild")
 	}
 
 	// Test a force rebuild.
-	pmStripped := pm.strip()
-	out, _ = pmStripped.rebuild(brokers)
+	pmStripped := pm.Strip()
+	out, _ = pmStripped.Rebuild(brokers)
 
 	same, _ := pm.equal(out)
 	if same {

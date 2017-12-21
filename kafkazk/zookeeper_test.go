@@ -1,4 +1,4 @@
-package main
+package kafkazk
 
 import (
 	//"testing"
@@ -41,8 +41,8 @@ func (z *zkmock) getTopics(ts []*regexp.Regexp) ([]string, error) {
 	return matched, nil
 }
 
-func (z *zkmock) getAllBrokerMeta() (brokerMetaMap, error) {
-	b := brokerMetaMap{
+func (z *zkmock) GetAllBrokerMeta() (BrokerMetaMap, error) {
+	b := BrokerMetaMap{
 		1001: &BrokerMeta{Rack: "a"},
 		1002: &BrokerMeta{Rack: "b"},
 		1003: &BrokerMeta{Rack: "c"},
@@ -52,8 +52,8 @@ func (z *zkmock) getAllBrokerMeta() (brokerMetaMap, error) {
 	return b, nil
 }
 
-func (z *zkmock) getPartitionMap(t string) (*partitionMap, error) {
-	p := &partitionMap{
+func (z *zkmock) getPartitionMap(t string) (*PartitionMap, error) {
+	p := &PartitionMap{
 		Version: 1,
 		Partitions: partitionList{
 			Partition{Topic: t, Partition: 0, Replicas: []int{1001, 1002}},

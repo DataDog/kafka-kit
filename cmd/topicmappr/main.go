@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -10,6 +9,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/datadog/topicmappr/kafkazk"
 )
 
 const (
@@ -17,6 +18,9 @@ const (
 )
 
 var (
+	// Characters allowed in Kafka topic names
+	topicNormalChar, _ = regexp.Compile(`[a-zA-Z0-9_\\-]`)
+
 	// Config holds configuration
 	// parameters.
 	Config struct {
@@ -32,22 +36,9 @@ var (
 		forceRebuild  bool
 		replication   int
 	}
-
-	// Characters allowed in Kafka topic names
-	topicNormalChar, _ = regexp.Compile(`[a-zA-Z0-9_\\-]`)
-
-	errNoBrokers = errors.New("No additional brokers that meet constraints")
 )
 
 func init() {
-	// Skip init in tests to avoid
-	// errors as a result of the
-	// sanity checks that follow
-	// flag parsing.
-	if flag.Lookup("test.v") != nil {
-		return
-	}
-
 	log.SetOutput(ioutil.Discard)
 
 	fmt.Println()
@@ -80,7 +71,7 @@ func init() {
 		Config.outPath = Config.outPath + "/"
 	}
 
-	Config.brokers = brokerStringToSlice(*brokers)
+	Config.brokers = kafkazk.BrokerStringToSlice(*brokers)
 	topicNames := strings.Split(*topics, ",")
 
 	// Determine if regexp was provided in the topic
@@ -105,12 +96,12 @@ func init() {
 
 func main() {
 	// ZooKeeper init.
-	var zk *zk
+	var zk *kafkazk.ZK
 	if Config.useMeta || len(Config.rebuildTopics) > 0 {
 		var err error
-		zk, err = newZK(&zkConfig{
-			connect: Config.zkAddr,
-			prefix:  Config.zkPrefix,
+		zk, err = kafkazk.NewZK(&kafkazk.ZKConfig{
+			Connect: Config.zkAddr,
+			Prefix:  Config.zkPrefix,
 		})
 
 		if err != nil {
@@ -131,10 +122,10 @@ func main() {
 	// 4) Final map output.
 
 	// Fetch broker metadata.
-	var brokerMetadata brokerMetaMap
+	var brokerMetadata kafkazk.BrokerMetaMap
 	if Config.useMeta {
 		var err error
-		brokerMetadata, err = zk.getAllBrokerMeta()
+		brokerMetadata, err = zk.GetAllBrokerMeta()
 		if err != nil {
 			fmt.Printf("Error fetching broker metadata: %s\n", err)
 			os.Exit(1)
@@ -144,17 +135,17 @@ func main() {
 	// Build a topic map with either
 	// explicit input or by fetching the
 	// map data from ZooKeeper.
-	partitionMapIn := newPartitionMap()
+	partitionMapIn := kafkazk.NewPartitionMap()
 	switch {
 	case Config.rebuildMap != "":
-		pm, err := partitionMapFromString(Config.rebuildMap)
+		pm, err := kafkazk.PartitionMapFromString(Config.rebuildMap)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
 		partitionMapIn = pm
 	case len(Config.rebuildTopics) > 0:
-		pm, err := partitionMapFromZK(Config.rebuildTopics, zk)
+		pm, err := kafkazk.PartitionMapFromZK(Config.rebuildTopics, zk)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -168,7 +159,7 @@ func main() {
 
 	// Store a copy of the
 	// original map.
-	originalMap := partitionMapIn.copy()
+	originalMap := partitionMapIn.Copy()
 
 	// Get a list of affected topics.
 	topics := map[string]bool{}
@@ -185,27 +176,27 @@ func main() {
 
 	// Get a broker map of the brokers in the current topic map.
 	// If meta data isn't being looked up, brokerMetadata will be empty.
-	brokers := brokerMapFromTopicMap(partitionMapIn, brokerMetadata, Config.forceRebuild)
+	brokers := kafkazk.BrokerMapFromTopicMap(partitionMapIn, brokerMetadata, Config.forceRebuild)
 
 	// Update the currentBrokers list with
 	// the provided broker list.
-	bs := brokers.update(Config.brokers, brokerMetadata)
-	change := bs.new - bs.replace
+	bs := brokers.Update(Config.brokers, brokerMetadata)
+	change := bs.New - bs.Replace
 
 	// Print change summary.
 	fmt.Printf("%sReplacing %d, added %d, missing %d, total count changed by %d\n",
-		indent, bs.replace, bs.new, bs.missing+bs.oldMissing, change)
+		indent, bs.Replace, bs.New, bs.Missing+bs.OldMissing, change)
 
 	// Print action.
 	fmt.Printf("\nAction:\n")
 
 	switch {
-	case change >= 0 && bs.replace > 0:
+	case change >= 0 && bs.Replace > 0:
 		fmt.Printf("%sRebuild topic with %d broker(s) marked for removal\n",
-			indent, bs.replace)
-	case change > 0 && bs.replace == 0:
+			indent, bs.Replace)
+	case change > 0 && bs.Replace == 0:
 		fmt.Printf("%sExpanding/rebalancing topic with %d additional broker(s) (this is a no-op unless --force-rebuild is specified)\n",
-			indent, bs.new)
+			indent, bs.New)
 	case change < 0:
 		fmt.Printf("%sShrinking topic by %d broker(s)\n",
 			indent, -change)
@@ -221,22 +212,22 @@ func main() {
 		fmt.Printf("%sUpdating replication factor to %d\n",
 			indent, Config.replication)
 
-		partitionMapIn.setReplication(Config.replication)
+		partitionMapIn.SetReplication(Config.replication)
 	}
 
 	// Build a new map using the provided list of brokers.
 	// This is ok to run even when a no-op is intended.
 
-	var partitionMapOut *partitionMap
+	var partitionMapOut *kafkazk.PartitionMap
 	var warns []string
 
 	// If we're doing a force rebuild, the input map
 	// must have all brokers stripped out.
 	if Config.forceRebuild {
-		partitionMapInStripped := partitionMapIn.strip()
-		partitionMapOut, warns = partitionMapInStripped.rebuild(brokers)
+		partitionMapInStripped := partitionMapIn.Strip()
+		partitionMapOut, warns = partitionMapInStripped.Rebuild(brokers)
 	} else {
-		partitionMapOut, warns = partitionMapIn.rebuild(brokers)
+		partitionMapOut, warns = partitionMapIn.Rebuild(brokers)
 	}
 
 	// Sort by topic, partition.
@@ -244,8 +235,8 @@ func main() {
 	sort.Sort(partitionMapOut.Partitions)
 
 	// Count missing brokers as a warning.
-	if bs.missing > 0 {
-		w := fmt.Sprintf("%d provided brokers not found in ZooKeeper\n", bs.missing)
+	if bs.Missing > 0 {
+		w := fmt.Sprintf("%d provided brokers not found in ZooKeeper\n", bs.Missing)
 		warns = append(warns, w)
 	}
 
@@ -267,7 +258,7 @@ func main() {
 	// Get a status string of what's changed.
 	fmt.Println("\nPartition map changes:")
 	for i := range originalMap.Partitions {
-		change := whatChanged(originalMap.Partitions[i].Replicas,
+		change := kafkazk.WhatChanged(originalMap.Partitions[i].Replicas,
 			partitionMapOut.Partitions[i].Replicas)
 
 		fmt.Printf("%s%s p%d: %v -> %v %s\n",
@@ -282,10 +273,10 @@ func main() {
 	// Get a per-broker count of leader, follower
 	// and total partition assignments.
 	fmt.Println("\nPartitions assigned:")
-	useStats := partitionMapOut.useStats()
-	for id, use := range useStats {
+	UseStats := partitionMapOut.UseStats()
+	for id, use := range UseStats {
 		fmt.Printf("%sBroker %d - leader: %d, follower: %d, total: %d\n",
-			indent, id, use.leader, use.follower, use.leader+use.follower)
+			indent, id, use.Leader, use.Follower, use.Leader+use.Follower)
 	}
 
 	// Don't write the output if ignoreWarns is set.
@@ -297,10 +288,10 @@ func main() {
 	}
 
 	// Map per topic.
-	tm := map[string]*partitionMap{}
+	tm := map[string]*kafkazk.PartitionMap{}
 	for _, p := range partitionMapOut.Partitions {
 		if tm[p.Topic] == nil {
-			tm[p.Topic] = newPartitionMap()
+			tm[p.Topic] = kafkazk.NewPartitionMap()
 		}
 		tm[p.Topic].Partitions = append(tm[p.Topic].Partitions, p)
 	}
@@ -308,7 +299,7 @@ func main() {
 	fmt.Println("\nNew partition maps:")
 	// Global map if set.
 	if Config.outFile != "" {
-		err := writeMap(partitionMapOut, Config.outPath+Config.outFile)
+		err := kafkazk.WriteMap(partitionMapOut, Config.outPath+Config.outFile)
 		if err != nil {
 			fmt.Printf("%s%s", indent, err)
 		} else {
@@ -317,11 +308,33 @@ func main() {
 	}
 
 	for t := range tm {
-		err := writeMap(tm[t], Config.outPath+t)
+		err := kafkazk.WriteMap(tm[t], Config.outPath+t)
 		if err != nil {
 			fmt.Printf("%s%s", indent, err)
 		} else {
 			fmt.Printf("%s%s%s.json\n", indent, Config.outPath, t)
 		}
 	}
+}
+
+// containsRegex takes a topic name
+// reference and returns whether or not
+// it should be interpreted as regex.
+func containsRegex(t string) bool {
+	// Check each character of the
+	// topic name. If it doesn't contain
+	// a legal Kafka topic name character, we're
+	// going to assume it's regex.
+	for _, c := range t {
+		if !topicNormalChar.MatchString(string(c)) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func defaultsAndExit() {
+	flag.PrintDefaults()
+	os.Exit(1)
 }

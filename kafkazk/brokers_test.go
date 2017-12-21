@@ -1,4 +1,4 @@
-package main
+package kafkazk
 
 import (
 	"testing"
@@ -6,11 +6,11 @@ import (
 
 func TestBrokerMapFromTopicMap(t *testing.T) {
 	zk := &zkmock{}
-	bm, _ := zk.getAllBrokerMeta()
-	pm, _ := partitionMapFromString(testGetMapString("test_topic"))
+	bm, _ := zk.GetAllBrokerMeta()
+	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 	forceRebuild := false
 
-	brokers := brokerMapFromTopicMap(pm, bm, forceRebuild)
+	brokers := BrokerMapFromTopicMap(pm, bm, forceRebuild)
 
 	expected := brokerMap{
 		0:    &broker{id: 0, replace: true},
