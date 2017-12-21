@@ -8,8 +8,8 @@ import (
 // zkmock implements a mock zkhandler.
 type zkmock struct{}
 
-func (z *zkmock) getReassignments() reassignments {
-	r := reassignments{
+func (z *zkmock) GetReassignments() Reassignments {
+	r := Reassignments{
 		"test_topic": map[int][]int{
 			2: []int{1003, 1004},
 			3: []int{1004, 1003},
@@ -18,7 +18,7 @@ func (z *zkmock) getReassignments() reassignments {
 	return r
 }
 
-func (z *zkmock) getTopics(ts []*regexp.Regexp) ([]string, error) {
+func (z *zkmock) GetTopics(ts []*regexp.Regexp) ([]string, error) {
 	t := []string{"test_topic", "test_topic2"}
 
 	match := map[string]bool{}

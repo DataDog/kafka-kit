@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/DataDog/topicmappr/kafkametrics"
+	"github.com/datadog/topicmappr/kafkametrics"
+	"github.com/datadog/topicmappr/kafkazk"
 	"github.com/jamiealquiza/envy"
 )
 
@@ -49,4 +50,42 @@ func main() {
 	for id, b := range brokers {
 		fmt.Printf("Broker %s: %.0fMB/s net TX\n", id, b.NetTX)
 	}
+
+	zk := &zkmock{}
+	reassignments := zk.GetReassignments()
+}
+
+type zkmock struct{}
+
+func (z *zkmock) GetReassignments() reassignments {
+	r := reassignments{
+		"test_topic": map[int][]int{
+			2: []int{1003, 1004},
+			3: []int{1004, 1003},
+		},
+	}
+	return r
+}
+
+func (z *zkmock) GetTopics(ts []*regexp.Regexp) ([]string, error) {
+	t := []string{"test_topic", "test_topic2"}
+
+	match := map[string]bool{}
+	// Get all topics that match all
+	// provided topic regexps.
+	for _, topicRe := range ts {
+		for _, topic := range t {
+			if topicRe.MatchString(topic) {
+				match[topic] = true
+			}
+		}
+	}
+
+	// Add matches to a slice.
+	matched := []string{}
+	for topic := range match {
+		matched = append(matched, topic)
+	}
+
+	return matched, nil
 }

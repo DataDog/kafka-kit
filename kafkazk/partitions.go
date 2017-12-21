@@ -155,7 +155,7 @@ func PartitionMapFromString(s string) (*PartitionMap, error) {
 func PartitionMapFromZK(t []*regexp.Regexp, zk zkhandler) (*PartitionMap, error) {
 	// Get a list of topic names from ZK
 	// matching the provided list.
-	topicsToRebuild, err := zk.getTopics(t)
+	topicsToRebuild, err := zk.GetTopics(t)
 	if err != nil {
 		return nil, err
 	}
