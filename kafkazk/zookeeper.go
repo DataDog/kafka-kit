@@ -27,6 +27,7 @@ type ZKConfig struct {
 type zkhandler interface {
 	GetReassignments() Reassignments
 	GetTopics([]*regexp.Regexp) ([]string, error)
+	GetTopicConfig(string) (*TopicConfig, error)
 	GetAllBrokerMeta() (BrokerMetaMap, error)
 	getPartitionMap(string) (*PartitionMap, error)
 }
@@ -59,7 +60,7 @@ type topicState struct {
 type Reassignments map[string]map[int][]int
 
 // reassignPartitions is used for unmarshalling
-// /kafka/admin/reassign_partitions data.
+// /admin/reassign_partitions data.
 type reassignPartitions struct {
 	Partitions []reassignConfig `json:"partitions"`
 }
@@ -68,6 +69,13 @@ type reassignConfig struct {
 	Topic     string `json:"topic"`
 	Partition int    `json:"partition"`
 	Replicas  []int  `json:"replicas"`
+}
+
+// TopicConfig is used for unmarshalling
+// /config/topics/<topic> data.
+type TopicConfig struct {
+	Version int               `json:"version"`
+	Config  map[string]string `json:"config"`
 }
 
 func NewZK(c *ZKConfig) (*ZK, error) {
@@ -123,7 +131,7 @@ func (z *ZK) GetReassignments() Reassignments {
 	return reassigns
 }
 
-func (z *ZK) GetTopics(ts []*regexp.Regexp) ([]string, error) {
+func (z *ZK) getTopics(ts []*regexp.Regexp) ([]string, error) {
 	matchingTopics := []string{}
 
 	var path string
@@ -156,6 +164,27 @@ func (z *ZK) GetTopics(ts []*regexp.Regexp) ([]string, error) {
 	}
 
 	return matchingTopics, nil
+}
+
+func (z *ZK) GetTopicConfig(t string) (*TopicConfig, error) {
+	config := &TopicConfig{}
+
+	var path string
+	if z.Prefix != "" {
+		path = fmt.Sprintf("%s/topic/config/%s", z.Prefix, t)
+	} else {
+		path = fmt.Sprintf("topic/config/%s", t)
+	}
+
+	// Get topic config.
+	c, err := z.client.Get(path)
+	if err != nil {
+		return nil, err
+	}
+
+	json.Unmarshal(c.Value, config)
+
+	return config, nil
 }
 
 func (z *ZK) GetAllBrokerMeta() (BrokerMetaMap, error) {

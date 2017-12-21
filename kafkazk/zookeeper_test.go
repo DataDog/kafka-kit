@@ -41,6 +41,16 @@ func (z *zkmock) GetTopics(ts []*regexp.Regexp) ([]string, error) {
 	return matched, nil
 }
 
+func (zk *zkmock) GetTopicConfig(t string) (*TopicConfig, error) {
+	return &TopicConfig{
+		Version: 1,
+		Config: map[string]string{
+			"leader.replication.throttled.replicas":   "0:1001,0:1002",
+			"follower.replication.throttled.replicas": "0:1003,0:1004",
+		},
+	}, nil
+}
+
 func (z *zkmock) GetAllBrokerMeta() (BrokerMetaMap, error) {
 	b := BrokerMetaMap{
 		1001: &BrokerMeta{Rack: "a"},
