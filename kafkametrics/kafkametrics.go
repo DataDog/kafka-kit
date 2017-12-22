@@ -6,9 +6,9 @@ package kafkametrics
 import (
 	"bytes"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
-	"strconv"
 
 	dd "github.com/zorkian/go-datadog-api"
 )
@@ -45,9 +45,10 @@ type BrokerMetrics map[int]*Broker
 // Broker holds metrics and metadata
 // for a Kafka broker.
 type Broker struct {
-	ID int
-	Host  string
-	NetTX float64
+	ID           int
+	Host         string
+	InstanceType string
+	NetTX        float64
 }
 
 // APIError types are returned
@@ -149,7 +150,7 @@ func (k *KafkaMetrics) GetMetrics() (BrokerMetrics, error) {
 
 	// Get broker IDs for each host,
 	// populate into a BrokerMetrics.
-	var missingIDs []string
+	var missingTags [][2]string
 	for _, b := range brokerMeta {
 		ht, err := k.c.GetHostTags(b.Host, "")
 		if err != nil {
@@ -159,19 +160,27 @@ func (k *KafkaMetrics) GetMetrics() (BrokerMetrics, error) {
 			}
 		}
 
+		// Fetch host metadata.
 		ids := valFromTags(ht, "broker_id")
 		if ids != "" {
 			id, _ := strconv.Atoi(ids)
 			b.ID = id
 			brokers[id] = b
 		} else {
-			missingIDs = append(missingIDs, b.Host)
+			missingTags = append(missingTags, [2]string{"broker_id", b.Host})
+		}
+
+		it := valFromTags(ht, "instance-type")
+		if it != "" {
+			b.InstanceType = it
+		} else {
+			missingTags = append(missingTags, [2]string{"instance_type", b.Host})
 		}
 	}
 
-	if len(missingIDs) > 0 {
+	if len(missingTags) > 0 {
 		return brokers, &PartialResults{
-			err: fmt.Sprintf("broker_id tag missing for: %s", missingIDs),
+			err: fmt.Sprintf("%s tag missing for: %s", missingTags[0], missingTags[1]),
 		}
 	}
 
