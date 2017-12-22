@@ -173,9 +173,9 @@ func (z *ZK) GetTopicConfig(t string) (*TopicConfig, error) {
 
 	var path string
 	if z.Prefix != "" {
-		path = fmt.Sprintf("%s/topic/config/%s", z.Prefix, t)
+		path = fmt.Sprintf("%s/config/topics/%s", z.Prefix, t)
 	} else {
-		path = fmt.Sprintf("topic/config/%s", t)
+		path = fmt.Sprintf("config/topics/%s", t)
 	}
 
 	// Get topic config.
