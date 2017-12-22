@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"strconv"
 
 	dd "github.com/zorkian/go-datadog-api"
 )
@@ -39,11 +40,12 @@ type KafkaMetrics struct {
 
 // BrokerMetrics is a map of broker IDs
 // to *Broker structs.
-type BrokerMetrics map[string]*Broker
+type BrokerMetrics map[int]*Broker
 
 // Broker holds metrics and metadata
 // for a Kafka broker.
 type Broker struct {
+	ID int
 	Host  string
 	NetTX float64
 }
@@ -157,8 +159,10 @@ func (k *KafkaMetrics) GetMetrics() (BrokerMetrics, error) {
 			}
 		}
 
-		id := valFromTags(ht, "broker_id")
-		if id != "" {
+		ids := valFromTags(ht, "broker_id")
+		if ids != "" {
+			id, _ := strconv.Atoi(ids)
+			b.ID = id
 			brokers[id] = b
 		} else {
 			missingIDs = append(missingIDs, b.Host)

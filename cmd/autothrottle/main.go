@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/datadog/topicmappr/kafkametrics"
@@ -77,7 +78,7 @@ func main() {
 	topicConfigs := map[string]*kafkazk.TopicConfig{}
 
 	for _, t := range topics {
-		config, err := getTopicConfig(zk, t)
+		config, err := zk.GetTopicConfig(t)
 		if err != nil {
 			fmt.Printf("Error fetching topic config: %s\n", err.Error())
 			os.Exit(1)
@@ -91,18 +92,11 @@ func main() {
 	brokers := replicasFromTopicConfigs(brokerMetrics, topicConfigs)
 
 	constrainingLeader := brokers.highestLeaderNetTX()
-	fmt.Printf("Broker %s has the highest outbound network throughput of %.2fMB/s\n",
-		constrainingLeader.Host, constrainingLeader.NetTX)
-}
+	fmt.Printf("Broker %d has the highest outbound network throughput of %.2fMB/s\n",
+		constrainingLeader.ID, constrainingLeader.NetTX)
 
-// Change this to a kafkazk.ZKHandler.
-func getTopicConfig(z *zkmock, t string) (*kafkazk.TopicConfig, error) {
-	c, err := z.GetTopicConfig(t)
-	if err != nil {
-		return nil, err
-	}
-
-	return c, nil
+	// Calculate headroom.
+	// Apply replication limit to all brokers.
 }
 
 // replicasFromTopicConfigs takes a map of kafkametrics.BrokerMetrics and
@@ -111,13 +105,14 @@ func getTopicConfig(z *zkmock, t string) (*kafkazk.TopicConfig, error) {
 func replicasFromTopicConfigs(b kafkametrics.BrokerMetrics, c map[string]*kafkazk.TopicConfig) ThrottledReplicas {
 	t := ThrottledReplicas{}
 	for topic := range c {
-		// Convert the topic's leader.replication.throttled.replicas
+		// Convert the config leader.replication.throttled.replicas
 		// and follower.replication.throttled.replicas lists
 		// to *[]Brokers. An array is returned where index 0
 		// is the leaders list, index 1 is the followers list.
 		brokers, err := brokersFromConfig(b, c[topic])
 		if err != nil {
 			fmt.Println(err)
+			// XXX This should return an error.
 			os.Exit(1)
 		}
 
@@ -143,6 +138,27 @@ func (t ThrottledReplicas) highestLeaderNetTX() *kafkametrics.Broker {
 	return broker
 }
 
+func brokersFromThrottleList(l string) ([]int, error) {
+	brokers := []int{}
+	// Split the [partitionID]-[brokerID]
+	// replica strings.
+	rs := strings.Split(l, ",")
+	// For each replica string,
+	// get the broker ID.
+	for _, r := range rs {
+		ids := strings.Split(r, ":")[1]
+		id, err := strconv.Atoi(ids)
+		if err != nil {
+			errS := fmt.Sprintf("Bad broker ID %s", ids)
+			return brokers, errors.New(errS)
+		}
+
+		brokers = append(brokers, id)
+	}
+
+	return brokers, nil
+}
+
 // brokersFromConfig takes a *kafkazk.TopicConfig and maps the
 // leader.replication.throttled.replicas and follower.replication.throttled.replicas
 // fields to a [2][]*kafkametrics.Broker.
@@ -158,45 +174,35 @@ func brokersFromConfig(b kafkametrics.BrokerMetrics, c *kafkazk.TopicConfig) ([2
 	// broker IDs found in the TopicConfig.
 	// Using a map rather than appending to the
 	// lists directly to avoid duplicates.
-	bids := map[string]map[string]interface{}{
-		"leaders":   map[string]interface{}{},
-		"followers": map[string]interface{}{},
+	bids := map[string]map[int]interface{}{
+		"leader":   map[int]interface{}{},
+		"follower": map[int]interface{}{},
 	}
 
-	if s, exists := c.Config["leader.replication.throttled.replicas"]; exists {
-		// Split the [partitionID]-[brokerID]
-		// replica strings.
-		rs := strings.Split(s, ",")
-		// For each replica string,
-		// get the broker ID.
-		for _, r := range rs {
-			id := strings.Split(r, ":")[1]
-			// If the broker ID is in the BrokerMetrics,
-			// append it to the list.
-			bids["leaders"][id] = nil
-		}
-	}
-
-	if s, exists := c.Config["follower.replication.throttled.replicas"]; exists {
-		// Split the [partitionID]-[brokerID]
-		// replica strings.
-		rs := strings.Split(s, ",")
-		// For each replica string,
-		// get the broker ID.
-		for _, r := range rs {
-			id := strings.Split(r, ":")[1]
-			// If the broker ID is in the BrokerMetrics,
-			// append it to the list.
-			bids["followers"][id] = nil
+	// Get leaders and followers from each
+	// list of throttled replicas in the
+	// topic config.
+	for _, t := range []string{"leader", "follower"} {
+		if l, exists := c.Config[t+".replication.throttled.replicas"]; exists {
+			blist, err := brokersFromThrottleList(l)
+			if err != nil {
+				return brokers, err
+			}
+			// Ad each broker to the bids map.
+			for _, id := range blist {
+				bids[t][id] = nil
+			}
 		}
 	}
 
 	// For each broker in the leaders and followers
-	// lists, lookup in the BrokerMetrics.
+	// lists, lookup in the BrokerMetrics. If a
+	// corresponding BrokerMetrics exists,
+	// append it to the final brokers sublist.
 	for list := range bids {
 		for id := range bids[list] {
 			if broker, exists := b[id]; exists {
-				if list == "leaders" {
+				if list == "leader" {
 					brokers[0] = append(brokers[0], broker)
 				} else {
 					brokers[1] = append(brokers[1], broker)
