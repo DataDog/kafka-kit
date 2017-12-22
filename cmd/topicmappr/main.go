@@ -103,11 +103,12 @@ func main() {
 			Connect: Config.zkAddr,
 			Prefix:  Config.zkPrefix,
 		})
-
 		if err != nil {
 			fmt.Printf("Error connecting to ZooKeeper: %s\n", err)
 			os.Exit(1)
 		}
+
+		defer zk.Close()
 	}
 
 	// General flow:

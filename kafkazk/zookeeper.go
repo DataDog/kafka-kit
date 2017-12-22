@@ -19,8 +19,6 @@ type ZK struct {
 	Prefix  string
 }
 
-type ZKMock struct{}
-
 type ZKConfig struct {
 	Connect string
 	Prefix  string
@@ -102,6 +100,10 @@ func NewZK(c *ZKConfig) (*ZK, error) {
 	return z, nil
 }
 
+func (z *ZK) Close() {
+	z.client.Close()
+}
+
 func (z *ZK) GetReassignments() Reassignments {
 	reassigns := Reassignments{}
 
@@ -133,7 +135,7 @@ func (z *ZK) GetReassignments() Reassignments {
 	return reassigns
 }
 
-func (z *ZK) getTopics(ts []*regexp.Regexp) ([]string, error) {
+func (z *ZK) GetTopics(ts []*regexp.Regexp) ([]string, error) {
 	matchingTopics := []string{}
 
 	var path string

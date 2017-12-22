@@ -74,6 +74,8 @@ func main() {
 		Connect: Config.ZKAddr,
 		Prefix:  Config.ZKPrefix,
 	})
+	defer zk.Close()
+
 	reassignments := zk.GetReassignments()
 
 	// Get topics undergoing reassignment.
