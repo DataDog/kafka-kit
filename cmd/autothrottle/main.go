@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/datadog/topicmappr/kafkametrics"
-	"github.com/datadog/topicmappr/kafkazk"
+	"github.com/DataDog/topicmappr/kafkametrics"
+	"github.com/DataDog/topicmappr/kafkazk"
 	"github.com/jamiealquiza/envy"
 )
 
@@ -133,6 +133,20 @@ func main() {
 		fmt.Println(errs)
 		os.Exit(1)
 	}
+
+	var leaders []int
+	var followers []int
+
+	for _, b := range brokers.Leaders {
+		leaders = append(leaders, b.ID)
+	}
+
+	for _, b := range brokers.Followers {
+		followers = append(followers, b.ID)
+	}
+
+	fmt.Printf("Leaders participating in replication: %v\n", leaders)
+	fmt.Printf("Followers participating in replication: %v\n", followers)
 
 	constrainingLeader := brokers.highestLeaderNetTX()
 	replicationHeadRoom, err := bwLimits.headroom(constrainingLeader)
