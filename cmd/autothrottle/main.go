@@ -4,6 +4,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io/ioutil"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -20,6 +22,8 @@ var Config struct {
 	AppKey         string
 	NetworkTXQuery string
 	MetricsWindow  int
+	ZKAddr         string
+	ZKPrefix       string
 }
 
 // Limits is a map of instance-type
@@ -30,7 +34,7 @@ type Limits map[string]float64
 // and returns the headroom / free capacity.
 func (l Limits) headroom(b *kafkametrics.Broker) (float64, error) {
 	if k, exists := l[b.InstanceType]; exists {
-		return k-b.NetTX, nil
+		return k - b.NetTX, nil
 	}
 
 	return 0.00, errors.New("Unknown instance type")
@@ -45,10 +49,14 @@ type ThrottledReplicas struct {
 }
 
 func init() {
+	log.SetOutput(ioutil.Discard)
+
 	flag.StringVar(&Config.APIKey, "api-key", "", "Datadog API key")
 	flag.StringVar(&Config.AppKey, "app-key", "", "Datadog app key")
 	flag.StringVar(&Config.NetworkTXQuery, "net-tx-query", "avg:system.net.bytes_sent{service:kafka} by {host}", "Network query for broker outbound bandwidth by host")
 	flag.IntVar(&Config.MetricsWindow, "metrics-window", 300, "Time span of metrics to average")
+	flag.StringVar(&Config.ZKAddr, "zk-addr", "localhost:2181", "ZooKeeper connect string (for broker metadata or rebuild-topic lookups)")
+	flag.StringVar(&Config.ZKPrefix, "zk-prefix", "", "ZooKeeper namespace prefix")
 	envy.Parse("TEST")
 	flag.Parse()
 }
@@ -58,7 +66,43 @@ func main() {
 	bwLimits := Limits{
 		"d2.4xlarge": 240.00,
 		"d2.2xlarge": 120.00,
-		"d2.xlarge": 60.00,
+		"d2.xlarge":  60.00,
+	}
+
+	// Get ongoing topic reassignments.
+	zk, err := kafkazk.NewZK(&kafkazk.ZKConfig{
+		Connect: Config.ZKAddr,
+		Prefix:  Config.ZKPrefix,
+	})
+	reassignments := zk.GetReassignments()
+
+	// Get topics undergoing reassignment.
+	topics := []string{}
+	for t := range reassignments {
+		topics = append(topics, t)
+	}
+
+	if len(topics) > 0 {
+		fmt.Printf("Topics with ongoing reassignments: %s\n", topics)
+	} else {
+		fmt.Println("No topics undergoing reassignment")
+		return
+	}
+
+	// Populate the topic configs from ZK.
+	// Topic configs include a list of partitions
+	// undergoing replication and broker IDs being
+	// replicated to and from.
+	topicConfigs := map[string]*kafkazk.TopicConfig{}
+
+	for _, t := range topics {
+		config, err := zk.GetTopicConfig(t)
+		if err != nil {
+			fmt.Printf("Error fetching topic config: %s\n", err.Error())
+			os.Exit(1)
+		}
+
+		topicConfigs[t] = config
 	}
 
 	// Init a Kafka metrics fetcher.
@@ -80,37 +124,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Get ongoing topic reassignments.
-	zk := &zkmock{}
-	reassignments := zk.GetReassignments()
-
-	// Get topics undergoing reassignment.
-	topics := []string{}
-	for t := range reassignments {
-		topics = append(topics, t)
-	}
-
-	fmt.Printf("Topics with ongoing reassignments: %s\n", topics)
-
-	// Populate the topic configs from ZK.
-	// Topic configs include a list of partitions
-	// undergoing replication and broker IDs being
-	// replicated to and from.
-	topicConfigs := map[string]*kafkazk.TopicConfig{}
-
-	for _, t := range topics {
-		config, err := zk.GetTopicConfig(t)
-		if err != nil {
-			fmt.Printf("Error fetching topic config: %s\n", err.Error())
-			os.Exit(1)
-		}
-
-		topicConfigs[t] = config
-	}
-
 	// Get a ThrottledReplicas from the
 	// topic configs retrieved.
-	brokers := replicasFromTopicConfigs(brokerMetrics, topicConfigs)
+	brokers, errs := replicasFromTopicConfigs(brokerMetrics, topicConfigs)
+	if len(errs) > 0 {
+		fmt.Println(errs)
+		os.Exit(1)
+	}
 
 	constrainingLeader := brokers.highestLeaderNetTX()
 	replicationHeadRoom, err := bwLimits.headroom(constrainingLeader)
@@ -131,8 +151,9 @@ func main() {
 // replicasFromTopicConfigs takes a map of kafkametrics.BrokerMetrics and
 // kafkazk.TopicConfigs fetched from ZK and returns a ThrottledReplicas
 // with lists of leader / follower brokers participating in a replication.
-func replicasFromTopicConfigs(b kafkametrics.BrokerMetrics, c map[string]*kafkazk.TopicConfig) ThrottledReplicas {
+func replicasFromTopicConfigs(b kafkametrics.BrokerMetrics, c map[string]*kafkazk.TopicConfig) (ThrottledReplicas, []error) {
 	t := ThrottledReplicas{}
+	var errs []error
 	for topic := range c {
 		// Convert the config leader.replication.throttled.replicas
 		// and follower.replication.throttled.replicas lists
@@ -140,9 +161,7 @@ func replicasFromTopicConfigs(b kafkametrics.BrokerMetrics, c map[string]*kafkaz
 		// is the leaders list, index 1 is the followers list.
 		brokers, err := brokersFromConfig(b, c[topic])
 		if err != nil {
-			fmt.Println(err)
-			// XXX This should return an error.
-			os.Exit(1)
+			errs = append(errs, err...)
 		}
 
 		// Append the leader/followers.
@@ -150,7 +169,7 @@ func replicasFromTopicConfigs(b kafkametrics.BrokerMetrics, c map[string]*kafkaz
 		t.Followers = append(t.Followers, brokers[1]...)
 	}
 
-	return t
+	return t, errs
 }
 
 func (t ThrottledReplicas) highestLeaderNetTX() *kafkametrics.Broker {
@@ -191,13 +210,15 @@ func brokersFromThrottleList(l string) ([]int, error) {
 // brokersFromConfig takes a *kafkazk.TopicConfig and maps the
 // leader.replication.throttled.replicas and follower.replication.throttled.replicas
 // fields to a [2][]*kafkametrics.Broker.
-func brokersFromConfig(b kafkametrics.BrokerMetrics, c *kafkazk.TopicConfig) ([2][]*kafkametrics.Broker, error) {
+func brokersFromConfig(b kafkametrics.BrokerMetrics, c *kafkazk.TopicConfig) ([2][]*kafkametrics.Broker, []error) {
 	brokers := [2][]*kafkametrics.Broker{
 		// Leaders.
 		[]*kafkametrics.Broker{},
 		// Followers.
 		[]*kafkametrics.Broker{},
 	}
+
+	var errs []error
 
 	// Brokers is a map of leader and follower
 	// broker IDs found in the TopicConfig.
@@ -215,13 +236,17 @@ func brokersFromConfig(b kafkametrics.BrokerMetrics, c *kafkazk.TopicConfig) ([2
 		if l, exists := c.Config[t+".replication.throttled.replicas"]; exists {
 			blist, err := brokersFromThrottleList(l)
 			if err != nil {
-				return brokers, err
+				errs = append(errs, err)
 			}
 			// Ad each broker to the bids map.
 			for _, id := range blist {
 				bids[t][id] = nil
 			}
 		}
+	}
+
+	if len(errs) > 0 {
+		return brokers, errs
 	}
 
 	// For each broker in the leaders and followers
@@ -237,8 +262,9 @@ func brokersFromConfig(b kafkametrics.BrokerMetrics, c *kafkazk.TopicConfig) ([2
 					brokers[1] = append(brokers[1], broker)
 				}
 			} else {
-				errS := fmt.Sprintf("Broker %s from the topic config not found in the broker metrics map", id)
-				return brokers, errors.New(errS)
+				errS := fmt.Sprintf("Broker %d from the topic config not found in the broker metrics map", id)
+				errs = append(errs, errors.New(errS))
+				return brokers, errs
 			}
 		}
 	}
