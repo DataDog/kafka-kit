@@ -19,12 +19,14 @@ type ZK struct {
 	Prefix  string
 }
 
+type ZKMock struct{}
+
 type ZKConfig struct {
 	Connect string
 	Prefix  string
 }
 
-type zkhandler interface {
+type ZKHandler interface {
 	GetReassignments() Reassignments
 	GetTopics([]*regexp.Regexp) ([]string, error)
 	GetTopicConfig(string) (*TopicConfig, error)
