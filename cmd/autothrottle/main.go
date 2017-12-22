@@ -22,6 +22,20 @@ var Config struct {
 	MetricsWindow  int
 }
 
+// Limits is a map of instance-type
+// to network bandwidth limits.
+type Limits map[string]float64
+
+// headroom takes an instance type and utilization
+// and returns the headroom / free capacity.
+func (l Limits) headroom(b *kafkametrics.Broker) (float64, error) {
+	if k, exists := l[b.InstanceType]; exists {
+		return k-b.NetTX, nil
+	}
+
+	return 0.00, errors.New("Unknown instance type")
+}
+
 // ThrottledReplicas is a list of brokers
 // with a throttle applied for an ongoing
 // reassignment.
@@ -40,6 +54,13 @@ func init() {
 }
 
 func main() {
+	// Hardcoded for now.
+	bwLimits := Limits{
+		"d2.4xlarge": 240.00,
+		"d2.2xlarge": 120.00,
+		"d2.xlarge": 60.00,
+	}
+
 	// Init a Kafka metrics fetcher.
 	km, err := kafkametrics.NewKafkaMetrics(&kafkametrics.Config{
 		APIKey:         Config.APIKey,
@@ -92,8 +113,16 @@ func main() {
 	brokers := replicasFromTopicConfigs(brokerMetrics, topicConfigs)
 
 	constrainingLeader := brokers.highestLeaderNetTX()
+	replicationHeadRoom, err := bwLimits.headroom(constrainingLeader)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
 	fmt.Printf("Broker %d has the highest outbound network throughput of %.2fMB/s\n",
 		constrainingLeader.ID, constrainingLeader.NetTX)
+
+	fmt.Printf("Calculated replication headroom: %.2fMB/s\n", replicationHeadRoom)
 
 	// Calculate headroom.
 	// Apply replication limit to all brokers.
