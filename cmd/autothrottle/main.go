@@ -9,22 +9,33 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/DataDog/topicmappr/kafkametrics"
 	"github.com/DataDog/topicmappr/kafkazk"
 	"github.com/jamiealquiza/envy"
 )
 
-// Config holds configuration
-// parameters.
-var Config struct {
-	APIKey         string
-	AppKey         string
-	NetworkTXQuery string
-	MetricsWindow  int
-	ZKAddr         string
-	ZKPrefix       string
-}
+var (
+	// Config holds configuration
+	// parameters.
+	Config struct {
+		APIKey         string
+		AppKey         string
+		NetworkTXQuery string
+		MetricsWindow  int
+		ZKAddr         string
+		ZKPrefix       string
+		Interval       int
+	}
+
+	// Hardcoded for now.
+	BWLimits = Limits{
+		"d2.4xlarge": 240.00,
+		"d2.2xlarge": 120.00,
+		"d2.xlarge":  60.00,
+	}
+)
 
 // Limits is a map of instance-type
 // to network bandwidth limits.
@@ -57,40 +68,57 @@ func init() {
 	flag.IntVar(&Config.MetricsWindow, "metrics-window", 300, "Time span of metrics to average")
 	flag.StringVar(&Config.ZKAddr, "zk-addr", "localhost:2181", "ZooKeeper connect string (for broker metadata or rebuild-topic lookups)")
 	flag.StringVar(&Config.ZKPrefix, "zk-prefix", "", "ZooKeeper namespace prefix")
-	envy.Parse("TEST")
+	flag.IntVar(&Config.Interval, "interval", 60, "Autothrottle check interval in seconds")
+
+	envy.Parse("AUTOTHROTTLE")
 	flag.Parse()
 }
 
 func main() {
-	// Hardcoded for now.
-	bwLimits := Limits{
-		"d2.4xlarge": 240.00,
-		"d2.2xlarge": 120.00,
-		"d2.xlarge":  60.00,
-	}
-
-	// Get ongoing topic reassignments.
 	zk, err := kafkazk.NewZK(&kafkazk.ZKConfig{
 		Connect: Config.ZKAddr,
 		Prefix:  Config.ZKPrefix,
 	})
 	defer zk.Close()
 
-	reassignments := zk.GetReassignments()
-
-	// Get topics undergoing reassignment.
-	topics := []string{}
-	for t := range reassignments {
-		topics = append(topics, t)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
 
-	if len(topics) > 0 {
-		fmt.Printf("Topics with ongoing reassignments: %s\n", topics)
-	} else {
-		fmt.Println("No topics undergoing reassignment")
-		return
+	var topics []string
+	var reassignments kafkazk.Reassignments
+
+	for {
+		// Get topics undergoing reassignment.
+		reassignments = zk.GetReassignments() // This needs to return an error.
+		topics = topics[:0]
+		for t := range reassignments {
+			topics = append(topics, t)
+		}
+
+		// If topics are being reassigned, update
+		// the replication throttle.
+		if len(topics) > 0 {
+			fmt.Printf("Topics with ongoing reassignments: %s\n", topics)
+			err := updateReplicationThrottle(topics, zk)
+			if err != nil {
+				fmt.Println(err)
+			}
+		} else {
+			fmt.Println("No topics undergoing reassignment")
+		}
+
+		time.Sleep(time.Second * time.Duration(Config.Interval))
 	}
 
+}
+
+// updateReplicationThrottle takes a list of topics undergoing
+// replication and a *kafkazk.ZK. Metrics for brokers participating in
+// any ongoing replication are fetched to determine replication headroom.
+// The replication throttle is then adjusted accordingly.
+func updateReplicationThrottle(topics []string, zk *kafkazk.ZK) error {
 	// Populate the topic configs from ZK.
 	// Topic configs include a list of partitions
 	// undergoing replication and broker IDs being
@@ -100,8 +128,8 @@ func main() {
 	for _, t := range topics {
 		config, err := zk.GetTopicConfig(t)
 		if err != nil {
-			fmt.Printf("Error fetching topic config: %s\n", err.Error())
-			os.Exit(1)
+			errS := fmt.Sprintf("Error fetching topic config: %s\n", err.Error())
+			return errors.New(errS)
 		}
 
 		topicConfigs[t] = config
@@ -115,23 +143,20 @@ func main() {
 		MetricsWindow:  Config.MetricsWindow,
 	})
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return err
 	}
 
 	// Get broker metrics.
 	brokerMetrics, err := km.GetMetrics()
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return err
 	}
 
 	// Get a ThrottledReplicas from the
 	// topic configs retrieved.
 	brokers, errs := replicasFromTopicConfigs(brokerMetrics, topicConfigs)
 	if len(errs) > 0 {
-		fmt.Println(errs)
-		os.Exit(1)
+		return err
 	}
 
 	var leaders []int
@@ -149,19 +174,20 @@ func main() {
 	fmt.Printf("Followers participating in replication: %v\n", followers)
 
 	constrainingLeader := brokers.highestLeaderNetTX()
-	replicationHeadRoom, err := bwLimits.headroom(constrainingLeader)
+	replicationHeadRoom, err := BWLimits.headroom(constrainingLeader)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		return err
 	}
 
 	fmt.Printf("Broker %d has the highest outbound network throughput of %.2fMB/s\n",
 		constrainingLeader.ID, constrainingLeader.NetTX)
 
-	fmt.Printf("Calculated replication headroom: %.2fMB/s\n", replicationHeadRoom)
+	fmt.Printf("Replication headroom: %.2fMB/s\n", replicationHeadRoom)
 
 	// Calculate headroom.
 	// Apply replication limit to all brokers.
+
+	return nil
 }
 
 // replicasFromTopicConfigs takes a map of kafkametrics.BrokerMetrics and
@@ -188,6 +214,8 @@ func replicasFromTopicConfigs(b kafkametrics.BrokerMetrics, c map[string]*kafkaz
 	return t, errs
 }
 
+// highestLeaderNetTX takes a ThrottledReplicas and returns
+// the leader with the highest outbound network throughput.
 func (t ThrottledReplicas) highestLeaderNetTX() *kafkametrics.Broker {
 	hwm := 0.00
 	var broker *kafkametrics.Broker
@@ -202,6 +230,9 @@ func (t ThrottledReplicas) highestLeaderNetTX() *kafkametrics.Broker {
 	return broker
 }
 
+// brokersFromThrottleList takes a string list of throttled
+// replicas and returns a []int of broker IDs from
+// the list.
 func brokersFromThrottleList(l string) ([]int, error) {
 	brokers := []int{}
 	// Split the [partitionID]-[brokerID]
