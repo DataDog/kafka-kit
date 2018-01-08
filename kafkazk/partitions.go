@@ -131,6 +131,15 @@ pass:
 		goto pass
 	}
 
+	// Final check to ensure that no
+	// replica sets were somehow set to 0.
+	for _, partn := range newMap.Partitions {
+		if len(partn.Replicas) == 0 {
+			errString := fmt.Sprintf("%s p%d: configured to zero replicas", partn.Topic, partn.Partition)
+			errs = append(errs, errString)
+		}
+	}
+
 	return newMap, errs
 }
 
