@@ -4,7 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	// "io/ioutil"
 	"log"
 	"os"
 	"strconv"
@@ -60,7 +60,7 @@ type ThrottledReplicas struct {
 }
 
 func init() {
-	log.SetOutput(ioutil.Discard)
+	// log.SetOutput(ioutil.Discard)
 
 	flag.StringVar(&Config.APIKey, "api-key", "", "Datadog API key")
 	flag.StringVar(&Config.AppKey, "app-key", "", "Datadog app key")
@@ -75,6 +75,8 @@ func init() {
 }
 
 func main() {
+	log.Println("::: Authrottle starting")
+
 	zk, err := kafkazk.NewZK(&kafkazk.ZKConfig{
 		Connect: Config.ZKAddr,
 		Prefix:  Config.ZKPrefix,
@@ -100,13 +102,13 @@ func main() {
 		// If topics are being reassigned, update
 		// the replication throttle.
 		if len(topics) > 0 {
-			fmt.Printf("Topics with ongoing reassignments: %s\n", topics)
+			log.Printf("Topics with ongoing reassignments: %s\n", topics)
 			err := updateReplicationThrottle(topics, zk)
 			if err != nil {
-				fmt.Println(err)
+				log.Println(err)
 			}
 		} else {
-			fmt.Println("No topics undergoing reassignment")
+			log.Println("No topics undergoing reassignment")
 		}
 
 		time.Sleep(time.Second * time.Duration(Config.Interval))
@@ -170,8 +172,8 @@ func updateReplicationThrottle(topics []string, zk *kafkazk.ZK) error {
 		followers = append(followers, b.ID)
 	}
 
-	fmt.Printf("Leaders participating in replication: %v\n", leaders)
-	fmt.Printf("Followers participating in replication: %v\n", followers)
+	log.Printf("Leaders participating in replication: %v\n", leaders)
+	log.Printf("Followers participating in replication: %v\n", followers)
 
 	constrainingLeader := brokers.highestLeaderNetTX()
 	replicationHeadRoom, err := BWLimits.headroom(constrainingLeader)
@@ -179,10 +181,10 @@ func updateReplicationThrottle(topics []string, zk *kafkazk.ZK) error {
 		return err
 	}
 
-	fmt.Printf("Broker %d has the highest outbound network throughput of %.2fMB/s\n",
+	log.Printf("Broker %d has the highest outbound network throughput of %.2fMB/s\n",
 		constrainingLeader.ID, constrainingLeader.NetTX)
 
-	fmt.Printf("Replication headroom: %.2fMB/s\n", replicationHeadRoom)
+	log.Printf("Replication headroom: %.2fMB/s\n", replicationHeadRoom)
 
 	// Calculate headroom.
 	// Apply replication limit to all brokers.
