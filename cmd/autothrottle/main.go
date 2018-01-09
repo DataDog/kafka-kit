@@ -75,14 +75,21 @@ func init() {
 }
 
 func main() {
-	log.Println("::: Authrottle starting")
+	log.Println("Authrottle Running")
 
 	zk, err := kafkazk.NewZK(&kafkazk.ZKConfig{
 		Connect: Config.ZKAddr,
 		Prefix:  Config.ZKPrefix,
 	})
+
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
 	defer zk.Close()
 
+	err = zk.InitRawClient()
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -158,18 +165,21 @@ func updateReplicationThrottle(topics []string, zk *kafkazk.ZK) error {
 	// topic configs retrieved.
 	brokers, errs := replicasFromTopicConfigs(brokerMetrics, topicConfigs)
 	if len(errs) > 0 {
-		return err
+		return errors.New(fmt.Sprint("Broker lookup error(s): %s", errs))
 	}
 
 	var leaders []int
 	var followers []int
+	allBrokers := map[int]interface{}{}
 
 	for _, b := range brokers.Leaders {
 		leaders = append(leaders, b.ID)
+		allBrokers[b.ID] = nil
 	}
 
 	for _, b := range brokers.Followers {
 		followers = append(followers, b.ID)
+		allBrokers[b.ID] = nil
 	}
 
 	log.Printf("Leaders participating in replication: %v\n", leaders)
@@ -186,8 +196,25 @@ func updateReplicationThrottle(topics []string, zk *kafkazk.ZK) error {
 
 	log.Printf("Replication headroom: %.2fMB/s\n", replicationHeadRoom)
 
-	// Calculate headroom.
+	rateString := strconv.Itoa(int(replicationHeadRoom * 1000000))
+
 	// Apply replication limit to all brokers.
+	for b := range allBrokers {
+		log.Printf("Setting throttle %.2fMB/s on broker %d\n", replicationHeadRoom, b)
+		config := kafkazk.KafkaConfig{
+			Type: "broker",
+			Name: strconv.Itoa(b),
+			Configs: [][2]string{
+				[2]string{"leader.replication.throttled.rate", rateString},
+				[2]string{"follower.replication.throttled.rate", rateString},
+			},
+		}
+
+		err := zk.UpdateKafkaConfig(config)
+		if err != nil {
+			log.Printf("Error setting throttle on broker %d: %s\n", b, err)
+		}
+	}
 
 	return nil
 }
