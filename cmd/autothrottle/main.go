@@ -214,6 +214,10 @@ func updateReplicationThrottle(topics []string, zk *kafkazk.ZK) error {
 		if err != nil {
 			log.Printf("Error setting throttle on broker %d: %s\n", b, err)
 		}
+
+		// Hard coded sleep to reduce
+		// ZK load.
+		time.Sleep(500*time.Millisecond)
 	}
 
 	return nil
