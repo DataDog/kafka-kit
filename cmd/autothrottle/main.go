@@ -4,7 +4,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	// "io/ioutil"
 	"log"
 	"os"
 	"strconv"
@@ -97,6 +96,7 @@ func main() {
 
 	var topics []string
 	var reassignments kafkazk.Reassignments
+	var knownThrottles bool
 
 	for {
 		// Get topics undergoing reassignment.
@@ -114,13 +114,55 @@ func main() {
 			if err != nil {
 				log.Println(err)
 			}
+			// Set knownThrottles.
+			knownThrottles = true
 		} else {
 			log.Println("No topics undergoing reassignment")
+			// Unset any throttles.
+			if knownThrottles {
+				err := removeAllThrottles(zk)
+				if err != nil {
+					log.Println(err)
+				}
+				knownThrottles = false
+			}
 		}
 
 		time.Sleep(time.Second * time.Duration(Config.Interval))
 	}
 
+}
+
+func removeAllThrottles(zk *kafkazk.ZK) error {
+	// Fetch brokers.
+	brokers, err := zk.GetAllBrokerMeta()
+	if err != nil {
+		return err
+	}
+
+	// Unset throttles.
+	for b := range brokers {
+		log.Printf("Removing throttle on broker %d\n", b)
+		config := kafkazk.KafkaConfig{
+			Type: "broker",
+			Name: strconv.Itoa(b),
+			Configs: [][2]string{
+				[2]string{"leader.replication.throttled.rate", ""},
+				[2]string{"follower.replication.throttled.rate", ""},
+			},
+		}
+
+		err := zk.UpdateKafkaConfig(config)
+		if err != nil {
+			log.Printf("Error removing throttle on broker %d: %s\n", b, err)
+		}
+
+		// Hard coded sleep to reduce
+		// ZK load.
+		time.Sleep(500*time.Millisecond)
+	}
+
+	return nil
 }
 
 // updateReplicationThrottle takes a list of topics undergoing
