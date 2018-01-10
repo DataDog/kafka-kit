@@ -11,10 +11,17 @@ import (
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
 	"github.com/docker/libkv/store/zookeeper"
+	zk "github.com/samuel/go-zookeeper/zk"
+)
+
+var (
+	ErrZKConn                 = errors.New("Error connecting to ZooKeeper")
+	ErrInvalidKafkaConfigType = errors.New("Invalid Kafka config type")
 )
 
 type ZK struct {
 	client  store.Store
+	rclient *zk.Conn
 	Connect string
 	Prefix  string
 }
@@ -24,9 +31,10 @@ type ZKConfig struct {
 	Prefix  string
 }
 
-type zkhandler interface {
-	getReassignments() reassignments
-	getTopics([]*regexp.Regexp) ([]string, error)
+type ZKHandler interface {
+	GetReassignments() Reassignments
+	GetTopics([]*regexp.Regexp) ([]string, error)
+	GetTopicConfig(string) (*TopicConfig, error)
 	GetAllBrokerMeta() (BrokerMetaMap, error)
 	getPartitionMap(string) (*PartitionMap, error)
 }
@@ -55,11 +63,11 @@ type topicState struct {
 	Partitions map[string][]int `json:"partitions"`
 }
 
-// reassignments is a map of topic:partition:brokers.
-type reassignments map[string]map[int][]int
+// Reassignments is a map of topic:partition:brokers.
+type Reassignments map[string]map[int][]int
 
 // reassignPartitions is used for unmarshalling
-// /kafka/admin/reassign_partitions data.
+// /admin/reassign_partitions data.
 type reassignPartitions struct {
 	Partitions []reassignConfig `json:"partitions"`
 }
@@ -68,6 +76,13 @@ type reassignConfig struct {
 	Topic     string `json:"topic"`
 	Partition int    `json:"partition"`
 	Replicas  []int  `json:"replicas"`
+}
+
+// TopicConfig is used for unmarshalling
+// /config/topics/<topic> data.
+type TopicConfig struct {
+	Version int               `json:"version"`
+	Config  map[string]string `json:"config"`
 }
 
 func NewZK(c *ZKConfig) (*ZK, error) {
@@ -81,7 +96,7 @@ func NewZK(c *ZKConfig) (*ZK, error) {
 		store.ZK,
 		[]string{z.Connect},
 		&store.Config{
-			ConnectionTimeout: 10 * time.Second,
+		// DisableLogging: true, // Pending merge upstream.
 		},
 	)
 
@@ -92,8 +107,12 @@ func NewZK(c *ZKConfig) (*ZK, error) {
 	return z, nil
 }
 
-func (z *ZK) getReassignments() reassignments {
-	reassigns := reassignments{}
+func (z *ZK) Close() {
+	z.client.Close()
+}
+
+func (z *ZK) GetReassignments() Reassignments {
+	reassigns := Reassignments{}
 
 	var path string
 	if z.Prefix != "" {
@@ -112,7 +131,7 @@ func (z *ZK) getReassignments() reassignments {
 	json.Unmarshal(c.Value, rec)
 
 	// Map reassignment config to a
-	// reassignments.
+	// Reassignments.
 	for _, cfg := range rec.Partitions {
 		if reassigns[cfg.Topic] == nil {
 			reassigns[cfg.Topic] = map[int][]int{}
@@ -123,7 +142,7 @@ func (z *ZK) getReassignments() reassignments {
 	return reassigns
 }
 
-func (z *ZK) getTopics(ts []*regexp.Regexp) ([]string, error) {
+func (z *ZK) GetTopics(ts []*regexp.Regexp) ([]string, error) {
 	matchingTopics := []string{}
 
 	var path string
@@ -156,6 +175,27 @@ func (z *ZK) getTopics(ts []*regexp.Regexp) ([]string, error) {
 	}
 
 	return matchingTopics, nil
+}
+
+func (z *ZK) GetTopicConfig(t string) (*TopicConfig, error) {
+	config := &TopicConfig{}
+
+	var path string
+	if z.Prefix != "" {
+		path = fmt.Sprintf("%s/config/topics/%s", z.Prefix, t)
+	} else {
+		path = fmt.Sprintf("config/topics/%s", t)
+	}
+
+	// Get topic config.
+	c, err := z.client.Get(path)
+	if err != nil {
+		return nil, err
+	}
+
+	json.Unmarshal(c.Value, config)
+
+	return config, nil
 }
 
 func (z *ZK) GetAllBrokerMeta() (BrokerMetaMap, error) {
@@ -209,7 +249,7 @@ func (z *ZK) getPartitionMap(t string) (*PartitionMap, error) {
 	}
 
 	// Get current reassign_partitions.
-	re := z.getReassignments()
+	re := z.GetReassignments()
 
 	// Fetch topic data from z.
 	ts := &topicState{}
@@ -258,4 +298,104 @@ func (z *ZK) getPartitionMap(t string) (*PartitionMap, error) {
 	pm.Partitions = pl
 
 	return pm, nil
+}
+
+type KafkaConfig struct {
+	Type    string      // Topic or broker.
+	Name    string      // Entity name.
+	Configs [][2]string // Slice of [2]string{key,value} configs.
+
+}
+
+type KafkaConfigData struct {
+	Version int               `json:"version"`
+	Config  map[string]string `json:"config"`
+}
+
+var validKafkaConfigTypes = map[string]interface{}{
+	"broker": nil,
+	"topic":  nil,
+}
+
+func (z *ZK) UpdateKafkaConfig(c KafkaConfig) error {
+	if _, valid := validKafkaConfigTypes[c.Type]; !valid {
+		return ErrInvalidKafkaConfigType
+	}
+
+	err := z.InitRawClient()
+	if err != nil {
+		return ErrZKConn
+	}
+
+	// Get current config from the
+	// appropriate path.
+	var path string
+	if z.Prefix != "" {
+		path = fmt.Sprintf("/%s/config/%ss/%c", z.Prefix, c.Type, c.Name)
+	} else {
+		path = fmt.Sprintf("/config/%ss/%s", c.Type, c.Name)
+	}
+
+	data, _, err := z.rclient.Get(path)
+	if err != nil {
+		return err
+	}
+
+	config := &KafkaConfigData{}
+	json.Unmarshal(data, &config)
+
+	// Populate configs.
+	var changed bool
+	for _, kv := range c.Configs {
+		// If the config is value is diff,
+		// set and flip the changed var.
+		if config.Config[kv[0]] != kv[1] {
+			changed = true
+			config.Config[kv[0]] = kv[1]
+		}
+	}
+
+	// Write the config back.
+	if changed {
+		newConfig, err := json.Marshal(config)
+		if err != nil {
+			errS := fmt.Sprintf("Error marshalling config: %s", err)
+			return errors.New(errS)
+		}
+		_, err = z.rclient.Set(path, newConfig, -1)
+		if err != nil {
+			return err
+		}
+	}
+
+	// If there were any config changes,
+	// write a change notification at
+	// /config/changes/config_change_<seq>.
+	cpath := "/config/changes/config_change_"
+	if z.Prefix != "" {
+		cpath = "/" + z.Prefix + cpath
+	}
+
+	if changed {
+		cdata := fmt.Sprintf(`{"version":2,"entity_path":"%ss/%s"}`, c.Type, c.Name)
+		_, err := z.rclient.Create(cpath, []byte(cdata), zk.FlagSequence, zk.WorldACL(31))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (z *ZK) InitRawClient() error {
+	if z.rclient == nil {
+		c, _, err := zk.Connect(
+			[]string{z.Connect}, 10*time.Second, zk.WithLogInfo(false))
+		if err != nil {
+			return err
+		}
+		z.rclient = c
+	}
+
+	return nil
 }

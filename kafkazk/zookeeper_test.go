@@ -5,11 +5,11 @@ import (
 	"regexp"
 )
 
-// zkmock implements a mock zkhandler.
-type zkmock struct{}
+// ZKMock implements a mock ZKHandler.
+type ZKMock struct{}
 
-func (z *zkmock) getReassignments() reassignments {
-	r := reassignments{
+func (z *ZKMock) GetReassignments() Reassignments {
+	r := Reassignments{
 		"test_topic": map[int][]int{
 			2: []int{1003, 1004},
 			3: []int{1004, 1003},
@@ -18,7 +18,7 @@ func (z *zkmock) getReassignments() reassignments {
 	return r
 }
 
-func (z *zkmock) getTopics(ts []*regexp.Regexp) ([]string, error) {
+func (z *ZKMock) GetTopics(ts []*regexp.Regexp) ([]string, error) {
 	t := []string{"test_topic", "test_topic2"}
 
 	match := map[string]bool{}
@@ -41,7 +41,17 @@ func (z *zkmock) getTopics(ts []*regexp.Regexp) ([]string, error) {
 	return matched, nil
 }
 
-func (z *zkmock) GetAllBrokerMeta() (BrokerMetaMap, error) {
+func (zk *ZKMock) GetTopicConfig(t string) (*TopicConfig, error) {
+	return &TopicConfig{
+		Version: 1,
+		Config: map[string]string{
+			"leader.replication.throttled.replicas":   "0:1001,0:1002",
+			"follower.replication.throttled.replicas": "0:1003,0:1004",
+		},
+	}, nil
+}
+
+func (z *ZKMock) GetAllBrokerMeta() (BrokerMetaMap, error) {
 	b := BrokerMetaMap{
 		1001: &BrokerMeta{Rack: "a"},
 		1002: &BrokerMeta{Rack: "b"},
@@ -52,7 +62,7 @@ func (z *zkmock) GetAllBrokerMeta() (BrokerMetaMap, error) {
 	return b, nil
 }
 
-func (z *zkmock) getPartitionMap(t string) (*PartitionMap, error) {
+func (z *ZKMock) getPartitionMap(t string) (*PartitionMap, error) {
 	p := &PartitionMap{
 		Version: 1,
 		Partitions: partitionList{

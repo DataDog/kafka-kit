@@ -49,7 +49,7 @@ func TestCopy(t *testing.T) {
 
 func TestPartitionMapFromString(t *testing.T) {
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
-	zk := &zkmock{}
+	zk := &ZKMock{}
 	pm2, _ := zk.getPartitionMap("test_topic")
 
 	// We expect equality here.
@@ -59,14 +59,14 @@ func TestPartitionMapFromString(t *testing.T) {
 }
 
 func TestPartitionMapFromZK(t *testing.T) {
-	zk := &zkmock{}
+	zk := &ZKMock{}
 
 	r := []*regexp.Regexp{}
 	r = append(r, regexp.MustCompile("/^null$/"))
 	pm, err := PartitionMapFromZK(r, zk)
 
 	// This should fail because we're passing
-	// a regex that the mock call to getTopics()
+	// a regex that the mock call to GetTopics()
 	// from PartitionMapFromZK doesn't have
 	// any matches.
 	if pm != nil || err.Error() != "No topics found matching: [/^null$/]" {
@@ -166,7 +166,7 @@ func TestUseStats(t *testing.T) {
 }
 
 func TestRebuild(t *testing.T) {
-	zk := &zkmock{}
+	zk := &ZKMock{}
 	bm, _ := zk.GetAllBrokerMeta()
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 	forceRebuild := false

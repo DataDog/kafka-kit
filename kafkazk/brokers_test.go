@@ -5,7 +5,7 @@ import (
 )
 
 func TestBrokerMapFromTopicMap(t *testing.T) {
-	zk := &zkmock{}
+	zk := &ZKMock{}
 	bm, _ := zk.GetAllBrokerMeta()
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 	forceRebuild := false
