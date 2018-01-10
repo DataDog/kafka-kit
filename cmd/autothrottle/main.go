@@ -30,9 +30,14 @@ var (
 
 	// Hardcoded for now.
 	BWLimits = Limits{
-		"d2.4xlarge": 240.00,
+		// d2 class.
+		"d2.xlarge":  100.00,
 		"d2.2xlarge": 120.00,
-		"d2.xlarge":  60.00,
+		"d2.4xlarge": 240.00,
+		// i3 class.
+		"i3.xlarge":  130.00,
+		"i3.2xlarge": 250.00,
+		"i3.4xlarge": 500.00,
 	}
 )
 
