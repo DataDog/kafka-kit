@@ -340,7 +340,7 @@ func (z *ZK) UpdateKafkaConfig(c KafkaConfig) error {
 	// appropriate path.
 	var path string
 	if z.Prefix != "" {
-		path = fmt.Sprintf("/%s/config/%ss/%c", z.Prefix, c.Type, c.Name)
+		path = fmt.Sprintf("/%s/config/%ss/%s", z.Prefix, c.Type, c.Name)
 	} else {
 		path = fmt.Sprintf("/config/%ss/%s", c.Type, c.Name)
 	}
