@@ -41,10 +41,11 @@ var (
 type Limits map[string]float64
 
 // headroom takes an instance type and utilization
-// and returns the headroom / free capacity.
+// and returns the headroom / free capacity. A minimum
+// value of 10MB/s is returned.
 func (l Limits) headroom(b *kafkametrics.Broker) (float64, error) {
 	if k, exists := l[b.InstanceType]; exists {
-		return k - b.NetTX, nil
+		return math.Max(k-b.NetTX, 10.00), nil
 	}
 
 	return 0.00, errors.New("Unknown instance type")
