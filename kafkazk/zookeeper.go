@@ -317,6 +317,15 @@ var validKafkaConfigTypes = map[string]interface{}{
 	"topic":  nil,
 }
 
+// UpdateKafkaConfig takes a KafkaConfig with key
+// value pairs of entity config. If the config is changed,
+// a persistent sequential znode is also written to
+// propagate changes (via watches) to all Kafka brokers.
+// This is a Kafka specific behavior; further references
+// are available from the Kafka codebase.
+// If a config value is set to an empty string (""),
+// the entire config key itself is deleted. This was
+// an easy way to merge update/delete into a single func.
 func (z *ZK) UpdateKafkaConfig(c KafkaConfig) error {
 	if _, valid := validKafkaConfigTypes[c.Type]; !valid {
 		return ErrInvalidKafkaConfigType
@@ -351,7 +360,13 @@ func (z *ZK) UpdateKafkaConfig(c KafkaConfig) error {
 		// set and flip the changed var.
 		if config.Config[kv[0]] != kv[1] {
 			changed = true
-			config.Config[kv[0]] = kv[1]
+			// If the string is empty, we
+			// delete the config.
+			if kv[1] == "" {
+				delete(config.Config, kv[0])
+			} else {
+				config.Config[kv[0]] = kv[1]
+			}
 		}
 	}
 
