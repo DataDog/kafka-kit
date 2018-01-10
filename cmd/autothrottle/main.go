@@ -76,6 +76,7 @@ func init() {
 func main() {
 	log.Println("Authrottle Running")
 
+	// Init ZK.
 	zk, err := kafkazk.NewZK(&kafkazk.ZKConfig{
 		Connect: Config.ZKAddr,
 		Prefix:  Config.ZKPrefix,
@@ -88,6 +89,7 @@ func main() {
 
 	defer zk.Close()
 
+	// Eh.
 	err = zk.InitRawClient()
 	if err != nil {
 		fmt.Println(err)
@@ -97,13 +99,41 @@ func main() {
 	var topics []string
 	var reassignments kafkazk.Reassignments
 	var knownThrottles bool
+	var replicatingPreviously map[string]interface{}
+	var replicatingNow map[string]interface{}
+	var done []string
 
+	// Run.
 	for {
 		// Get topics undergoing reassignment.
-		reassignments = zk.GetReassignments() // This needs to return an error.
+		reassignments = zk.GetReassignments() // TODO This needs to return an error.
 		topics = topics[:0]
+		replicatingNow = make(map[string]interface{})
 		for t := range reassignments {
 			topics = append(topics, t)
+			replicatingNow[t] = nil
+		}
+
+		// Check for topics that were
+		// previously seen replicating,
+		// but are no longer.
+		done = done[:0]
+		for t := range replicatingPreviously {
+			if _, replicating := replicatingNow[t]; !replicating {
+				done = append(done, t)
+			}
+		}
+
+		if len(done) > 0 {
+			log.Printf("Topics done reassigning: %s\n", done)
+		}
+
+		// Rebuild replicatingPreviously with
+		// the current replications for the next
+		// check iteration.
+		replicatingPreviously = make(map[string]interface{})
+		for t := range replicatingNow {
+			replicatingPreviously[t] = nil
 		}
 
 		// If topics are being reassigned, update
@@ -128,6 +158,7 @@ func main() {
 			}
 		}
 
+		// Sleep for the next check interval.
 		time.Sleep(time.Second * time.Duration(Config.Interval))
 	}
 
@@ -159,7 +190,7 @@ func removeAllThrottles(zk *kafkazk.ZK) error {
 
 		// Hard coded sleep to reduce
 		// ZK load.
-		time.Sleep(500*time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
 	}
 
 	return nil
@@ -259,7 +290,7 @@ func updateReplicationThrottle(topics []string, zk *kafkazk.ZK) error {
 
 		// Hard coded sleep to reduce
 		// ZK load.
-		time.Sleep(500*time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
 	}
 
 	return nil
