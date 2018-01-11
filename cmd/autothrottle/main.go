@@ -30,9 +30,14 @@ var (
 
 	// Hardcoded for now.
 	BWLimits = Limits{
-		"d2.4xlarge": 240.00,
+		// d2 class.
+		"d2.xlarge":  100.00,
 		"d2.2xlarge": 120.00,
-		"d2.xlarge":  60.00,
+		"d2.4xlarge": 240.00,
+		// i3 class.
+		"i3.xlarge":  130.00,
+		"i3.2xlarge": 250.00,
+		"i3.4xlarge": 500.00,
 	}
 )
 
@@ -41,10 +46,11 @@ var (
 type Limits map[string]float64
 
 // headroom takes an instance type and utilization
-// and returns the headroom / free capacity.
+// and returns the headroom / free capacity. A minimum
+// value of 10MB/s is returned.
 func (l Limits) headroom(b *kafkametrics.Broker) (float64, error) {
 	if k, exists := l[b.InstanceType]; exists {
-		return k - b.NetTX, nil
+		return math.Max(k-b.NetTX, 10.00), nil
 	}
 
 	return 0.00, errors.New("Unknown instance type")
