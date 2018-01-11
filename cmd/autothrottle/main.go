@@ -354,7 +354,12 @@ func brokersFromThrottleList(l string) ([]int, error) {
 	// For each replica string,
 	// get the broker ID.
 	for _, r := range rs {
-		ids := strings.Split(r, ":")[1]
+		p := strings.Split(r, ":")
+		if len(p) != 2 {
+			errS := fmt.Sprintf("Malformed throttle entry %s", r)
+			return brokers, errors.New(errS)
+		}
+		ids := p[1]
 		id, err := strconv.Atoi(ids)
 		if err != nil {
 			errS := fmt.Sprintf("Bad broker ID %s", ids)
