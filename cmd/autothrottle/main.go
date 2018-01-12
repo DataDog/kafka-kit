@@ -27,6 +27,8 @@ var (
 		ZKAddr         string
 		ZKPrefix       string
 		Interval       int
+		APIListen      string
+		ConfigZKPrefix string
 	}
 
 	// Hardcoded for now.
@@ -75,6 +77,8 @@ func init() {
 	flag.StringVar(&Config.ZKAddr, "zk-addr", "localhost:2181", "ZooKeeper connect string (for broker metadata or rebuild-topic lookups)")
 	flag.StringVar(&Config.ZKPrefix, "zk-prefix", "", "ZooKeeper namespace prefix")
 	flag.IntVar(&Config.Interval, "interval", 60, "Autothrottle check interval in seconds")
+	flag.StringVar(&Config.APIListen, "api-listen", "localhost:8080", "Admin API listen address:port")
+	flag.StringVar(&Config.ConfigZKPrefix, "zk-config-prefix", "autothrottle", "ZooKeeper prefix to store autothrottle configuration")
 
 	envy.Parse("AUTOTHROTTLE")
 	flag.Parse()
@@ -88,6 +92,14 @@ func main() {
 		Connect: Config.ZKAddr,
 		Prefix:  Config.ZKPrefix,
 	})
+
+	// Init the admin API.
+	initAPI(&APIConfig{
+		Listen:   Config.APIListen,
+		ZKPrefix: Config.ConfigZKPrefix,
+	}, zk)
+
+	log.Printf("Admin API: %s\n", Config.APIListen)
 
 	if err != nil {
 		fmt.Println(err)
