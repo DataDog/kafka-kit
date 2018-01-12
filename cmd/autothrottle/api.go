@@ -52,6 +52,7 @@ func initAPI(c *APIConfig, zk *kafkazk.ZK) {
 
 	m.HandleFunc("/get_throttle", func(w http.ResponseWriter, req *http.Request) { getThrottle(w, req, zk, p) })
 	m.HandleFunc("/set_throttle", func(w http.ResponseWriter, req *http.Request) { setThrottle(w, req, zk, p) })
+	m.HandleFunc("/remove_throttle", func(w http.ResponseWriter, req *http.Request) { removeThrottle(w, req, zk, p) })
 
 	go func() {
 		err := http.ListenAndServe(c.Listen, m)
@@ -117,4 +118,21 @@ func setThrottle(w http.ResponseWriter, req *http.Request, zk *kafkazk.ZK, p str
 
 func logReq(req *http.Request) {
 	log.Printf("[API] %s %s %s\n", req.Method, req.RequestURI, req.RemoteAddr)
+}
+
+func removeThrottle(w http.ResponseWriter, req *http.Request, zk *kafkazk.ZK, p string) {
+	logReq(req)
+	if req.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		io.WriteString(w, incorrectMethod)
+		return
+	}
+
+	err := zk.Set(p, "")
+	if err != nil {
+		errS := fmt.Sprintf("Error setting throttle: %s\n", err)
+		io.WriteString(w, errS)
+	} else {
+		io.WriteString(w, "Throttle successfully removed\n")
+	}
 }
