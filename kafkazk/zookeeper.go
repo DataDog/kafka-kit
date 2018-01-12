@@ -15,8 +15,13 @@ import (
 )
 
 var (
-	ErrZKConn                 = errors.New("Error connecting to ZooKeeper")
+	ErrRawClientRequired      = errors.New("Raw client not initialized")
 	ErrInvalidKafkaConfigType = errors.New("Invalid Kafka config type")
+
+	validKafkaConfigTypes = map[string]interface{}{
+		"broker": nil,
+		"topic":  nil,
+	}
 )
 
 type ZK struct {
@@ -81,6 +86,18 @@ type reassignConfig struct {
 // TopicConfig is used for unmarshalling
 // /config/topics/<topic> data.
 type TopicConfig struct {
+	Version int               `json:"version"`
+	Config  map[string]string `json:"config"`
+}
+
+type KafkaConfig struct {
+	Type    string      // Topic or broker.
+	Name    string      // Entity name.
+	Configs [][2]string // Slice of [2]string{key,value} configs.
+
+}
+
+type KafkaConfigData struct {
 	Version int               `json:"version"`
 	Config  map[string]string `json:"config"`
 }
@@ -300,21 +317,49 @@ func (z *ZK) getPartitionMap(t string) (*PartitionMap, error) {
 	return pm, nil
 }
 
-type KafkaConfig struct {
-	Type    string      // Topic or broker.
-	Name    string      // Entity name.
-	Configs [][2]string // Slice of [2]string{key,value} configs.
+func (z *ZK) Get(p string) ([]byte, error) {
+	if z.rclient == nil {
+		return nil, ErrRawClientRequired
+	}
 
+	r, _, err := z.rclient.Get(p)
+	return r, err
 }
 
-type KafkaConfigData struct {
-	Version int               `json:"version"`
-	Config  map[string]string `json:"config"`
+func (z *ZK) Set(p string, d string) error {
+	if z.rclient == nil {
+		return ErrRawClientRequired
+	}
+
+	_, err := z.rclient.Set(p, []byte(d), -1)
+	return err
 }
 
-var validKafkaConfigTypes = map[string]interface{}{
-	"broker": nil,
-	"topic":  nil,
+func (z *ZK) CreateSequential(p string, d string) error {
+	if z.rclient == nil {
+		return ErrRawClientRequired
+	}
+
+	_, err := z.rclient.Create(p, []byte(d), zk.FlagSequence, zk.WorldACL(31))
+	return err
+}
+
+func (z *ZK) Create(p string, d string) error {
+	if z.rclient == nil {
+		return ErrRawClientRequired
+	}
+
+	_, err := z.rclient.Create(p, []byte(d), 0, zk.WorldACL(31))
+	return err
+}
+
+func (z *ZK) Exists(p string) (bool, error) {
+	if z.rclient == nil {
+		return false, ErrRawClientRequired
+	}
+
+	e, _, err := z.rclient.Exists(p)
+	return e, err
 }
 
 // UpdateKafkaConfig takes a KafkaConfig with key
@@ -327,13 +372,12 @@ var validKafkaConfigTypes = map[string]interface{}{
 // the entire config key itself is deleted. This was
 // an easy way to merge update/delete into a single func.
 func (z *ZK) UpdateKafkaConfig(c KafkaConfig) error {
-	if _, valid := validKafkaConfigTypes[c.Type]; !valid {
-		return ErrInvalidKafkaConfigType
+	if z.rclient == nil {
+		return ErrRawClientRequired
 	}
 
-	err := z.InitRawClient()
-	if err != nil {
-		return ErrZKConn
+	if _, valid := validKafkaConfigTypes[c.Type]; !valid {
+		return ErrInvalidKafkaConfigType
 	}
 
 	// Get current config from the
@@ -393,7 +437,7 @@ func (z *ZK) UpdateKafkaConfig(c KafkaConfig) error {
 
 	if changed {
 		cdata := fmt.Sprintf(`{"version":2,"entity_path":"%ss/%s"}`, c.Type, c.Name)
-		_, err := z.rclient.Create(cpath, []byte(cdata), zk.FlagSequence, zk.WorldACL(31))
+		err := z.CreateSequential(cpath, cdata)
 		if err != nil {
 			return err
 		}

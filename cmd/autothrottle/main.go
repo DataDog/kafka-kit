@@ -27,6 +27,8 @@ var (
 		ZKAddr         string
 		ZKPrefix       string
 		Interval       int
+		APIListen      string
+		ConfigZKPrefix string
 	}
 
 	// Hardcoded for now.
@@ -75,6 +77,8 @@ func init() {
 	flag.StringVar(&Config.ZKAddr, "zk-addr", "localhost:2181", "ZooKeeper connect string (for broker metadata or rebuild-topic lookups)")
 	flag.StringVar(&Config.ZKPrefix, "zk-prefix", "", "ZooKeeper namespace prefix")
 	flag.IntVar(&Config.Interval, "interval", 60, "Autothrottle check interval in seconds")
+	flag.StringVar(&Config.APIListen, "api-listen", "localhost:8080", "Admin API listen address:port")
+	flag.StringVar(&Config.ConfigZKPrefix, "zk-config-prefix", "autothrottle", "ZooKeeper prefix to store autothrottle configuration")
 
 	envy.Parse("AUTOTHROTTLE")
 	flag.Parse()
@@ -88,6 +92,16 @@ func main() {
 		Connect: Config.ZKAddr,
 		Prefix:  Config.ZKPrefix,
 	})
+
+	// Init the admin API.
+	apiConfig := &APIConfig{
+		Listen:   Config.APIListen,
+		ZKPrefix: Config.ConfigZKPrefix,
+	}
+
+	initAPI(apiConfig, zk)
+
+	log.Printf("Admin API: %s\n", Config.APIListen)
 
 	if err != nil {
 		fmt.Println(err)
@@ -147,7 +161,16 @@ func main() {
 		// the replication throttle.
 		if len(topics) > 0 {
 			log.Printf("Topics with ongoing reassignments: %s\n", topics)
-			err := updateReplicationThrottle(topics, zk)
+
+			// Check if a throttle override is set.
+			// If so, apply that static throttle.
+			p := fmt.Sprintf("/%s/%s", apiConfig.ZKPrefix, apiConfig.RateSetting)
+			override, err := zk.Get(p)
+			if err != nil {
+				log.Printf("Error fetching override: %s\n", err)
+			}
+
+			err = updateReplicationThrottle(topics, zk, string(override))
 			if err != nil {
 				log.Println(err)
 			}
@@ -204,10 +227,12 @@ func removeAllThrottles(zk *kafkazk.ZK) error {
 }
 
 // updateReplicationThrottle takes a list of topics undergoing
-// replication and a *kafkazk.ZK. Metrics for brokers participating in
-// any ongoing replication are fetched to determine replication headroom.
+// replication, a *kafkazk.ZK and an override param. Metrics for brokers participating
+// in any ongoing replication are fetched to determine replication headroom.
 // The replication throttle is then adjusted accordingly.
-func updateReplicationThrottle(topics []string, zk *kafkazk.ZK) error {
+// If a non-empty override is provided, that static value is used instead
+// of a dynamically determined value.
+func updateReplicationThrottle(topics []string, zk *kafkazk.ZK, override string) error {
 	// Populate the topic configs from ZK.
 	// Topic configs include a list of partitions
 	// undergoing replication and broker IDs being
@@ -265,22 +290,30 @@ func updateReplicationThrottle(topics []string, zk *kafkazk.ZK) error {
 	log.Printf("Leaders participating in replication: %v\n", leaders)
 	log.Printf("Followers participating in replication: %v\n", followers)
 
-	constrainingLeader := brokers.highestLeaderNetTX()
-	replicationHeadRoom, err := BWLimits.headroom(constrainingLeader)
-	if err != nil {
-		return err
+	// Use the throttle override if set. Otherwise, use metrics.
+	var tvalue float64
+	if override != "" {
+		log.Printf("A throttle override is set: %sMB/s\n", override)
+		o, _ := strconv.Atoi(override)
+		tvalue = float64(o) * 1000000.00
+	} else {
+		constrainingLeader := brokers.highestLeaderNetTX()
+		replicationHeadRoom, err := BWLimits.headroom(constrainingLeader)
+		if err != nil {
+			return err
+		}
+
+		tvalue = replicationHeadRoom * 1000000.00
+
+		log.Printf("Broker %d has the highest outbound network throughput of %.2fMB/s\n",
+			constrainingLeader.ID, constrainingLeader.NetTX)
+		log.Printf("Replication headroom: %.2fMB/s\n", tvalue)
 	}
 
-	log.Printf("Broker %d has the highest outbound network throughput of %.2fMB/s\n",
-		constrainingLeader.ID, constrainingLeader.NetTX)
-
-	log.Printf("Replication headroom: %.2fMB/s\n", replicationHeadRoom)
-
-	rateString := strconv.Itoa(int(replicationHeadRoom * 1000000))
-
 	// Apply replication limit to all brokers.
+	rateString := fmt.Sprintf("%.0f", tvalue)
 	for b := range allBrokers {
-		log.Printf("Setting throttle %.2fMB/s on broker %d\n", replicationHeadRoom, b)
+		log.Printf("Setting throttle %.2fMB/s on broker %d\n", tvalue, b)
 		config := kafkazk.KafkaConfig{
 			Type: "broker",
 			Name: strconv.Itoa(b),
@@ -354,7 +387,12 @@ func brokersFromThrottleList(l string) ([]int, error) {
 	// For each replica string,
 	// get the broker ID.
 	for _, r := range rs {
-		ids := strings.Split(r, ":")[1]
+		p := strings.Split(r, ":")
+		if len(p) != 2 {
+			errS := fmt.Sprintf("Malformed throttle entry %s", r)
+			return brokers, errors.New(errS)
+		}
+		ids := p[1]
 		id, err := strconv.Atoi(ids)
 		if err != nil {
 			errS := fmt.Sprintf("Bad broker ID %s", ids)
