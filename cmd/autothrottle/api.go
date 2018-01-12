@@ -5,13 +5,15 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/DataDog/topicmappr/kafkazk"
 )
 
 type APIConfig struct {
-	Listen   string
-	ZKPrefix string
+	Listen      string
+	ZKPrefix    string
+	RateSetting string
 }
 
 var (
@@ -21,7 +23,9 @@ var (
 )
 
 func initAPI(c *APIConfig, zk *kafkazk.ZK) {
-	p := fmt.Sprintf("/%s/%s", c.ZKPrefix, rateSettingsZNode)
+	c.RateSetting = rateSettingsZNode
+
+	p := fmt.Sprintf("/%s/%s", c.ZKPrefix, c.RateSetting)
 	m := http.NewServeMux()
 
 	err := zk.InitRawClient()
@@ -35,10 +39,15 @@ func initAPI(c *APIConfig, zk *kafkazk.ZK) {
 		log.Fatal(err)
 	}
 
-	fmt.Println(exists)
-
 	if !exists {
-		err = zk.Create(p, "")
+		err = zk.Create("/"+c.ZKPrefix, "null")
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = zk.Create(p, "null")
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	m.HandleFunc("/get_throttle", func(w http.ResponseWriter, req *http.Request) { getThrottle(w, req, zk, p) })
@@ -59,6 +68,21 @@ func getThrottle(w http.ResponseWriter, req *http.Request, zk *kafkazk.ZK, p str
 		io.WriteString(w, incorrectMethod)
 		return
 	}
+
+	t, err := zk.Get(p)
+	if err != nil {
+		errS := fmt.Sprintf("Error getting throttle: %s\n", err.Error())
+		io.WriteString(w, errS)
+		return
+	}
+
+	switch string(t) {
+	case "":
+		io.WriteString(w, "No throttle is set\n")
+	default:
+		resp := fmt.Sprintf("A throttle override is configured at %sMB/s\n", t)
+		io.WriteString(w, resp)
+	}
 }
 
 func setThrottle(w http.ResponseWriter, req *http.Request, zk *kafkazk.ZK, p string) {
@@ -70,8 +94,14 @@ func setThrottle(w http.ResponseWriter, req *http.Request, zk *kafkazk.ZK, p str
 	}
 
 	rate := req.URL.Query().Get("rate")
+
 	if rate == "" {
 		io.WriteString(w, "Rate param must be supplied\n")
+		return
+	}
+
+	if _, err := strconv.Atoi(rate); err != nil {
+		io.WriteString(w, "Rate param must be supplied as an integer\n")
 		return
 	}
 
@@ -80,7 +110,7 @@ func setThrottle(w http.ResponseWriter, req *http.Request, zk *kafkazk.ZK, p str
 		errS := fmt.Sprintf("Error setting throttle: %s\n", err)
 		io.WriteString(w, errS)
 	} else {
-		resp := fmt.Sprintf("Throttle set to %s\n", rate)
+		resp := fmt.Sprintf("Throttle successfully set to %sMB/s\n", rate)
 		io.WriteString(w, resp)
 	}
 }

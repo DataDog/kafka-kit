@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	ErrRawClientRequired = errors.New("Raw client not initialized")
+	ErrRawClientRequired      = errors.New("Raw client not initialized")
 	ErrInvalidKafkaConfigType = errors.New("Invalid Kafka config type")
 
 	validKafkaConfigTypes = map[string]interface{}{
@@ -349,7 +349,7 @@ func (z *ZK) Create(p string, d string) error {
 		return ErrRawClientRequired
 	}
 
-	_, err := z.rclient.Create(p, []byte(d), nil, zk.WorldACL(31))
+	_, err := z.rclient.Create(p, []byte(d), 0, zk.WorldACL(31))
 	return err
 }
 
