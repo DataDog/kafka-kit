@@ -33,6 +33,8 @@ var (
 
 	// Hardcoded for now.
 	BWLimits = Limits{
+		// Min. config.
+		"mininum": 10.00,
 		// d2 class.
 		"d2.xlarge":  100.00,
 		"d2.2xlarge": 120.00,
@@ -53,10 +55,10 @@ type Limits map[string]float64
 // value of 10MB/s is returned.
 func (l Limits) headroom(b *kafkametrics.Broker) (float64, error) {
 	if k, exists := l[b.InstanceType]; exists {
-		return math.Max(k-b.NetTX, 10.00), nil
+		return math.Max(k-b.NetTX, l.minimum), nil
 	}
 
-	return 0.00, errors.New("Unknown instance type")
+	return l.minimum, errors.New("Unknown instance type")
 }
 
 // ThrottledReplicas is a list of brokers
