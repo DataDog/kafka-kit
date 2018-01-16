@@ -77,6 +77,14 @@ func (e *PartialResults) Error() string {
 	return e.err
 }
 
+// Event is used to post Datadog
+// events.
+type Event struct {
+	Title string
+	Text  string
+	Tags  []string
+}
+
 // NewKafkaMetrics takes a *Config and
 // returns a *KafkaMetrics, along with
 // any credential validation errors.
@@ -185,6 +193,19 @@ func (k *KafkaMetrics) GetMetrics() (BrokerMetrics, error) {
 	}
 
 	return brokers, nil
+}
+
+// PostEvent posts an event to the
+// Datadog API.
+func (k *KafkaMetrics) PostEvent(e *Event) error {
+	m := &dd.Event{
+		Title: &e.Title,
+		Text:  &e.Text,
+		Tags:  e.Tags,
+	}
+
+	_, err := k.c.PostEvent(m)
+	return err
 }
 
 // tagValFromScope takes a metric scope string
