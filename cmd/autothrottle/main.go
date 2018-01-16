@@ -283,7 +283,7 @@ func removeAllThrottles(zk *kafkazk.ZK, events *EventGenerator) error {
 	}
 
 	// Write event.
-	m := fmt.Sprintf("Replication throttle removed on the following brokers: %s", allBrokers)
+	m := fmt.Sprintf("Replication throttle removed on the following brokers: %v", allBrokers)
 	events.Write("Broker replication throttle removed", m)
 
 	return nil
@@ -383,15 +383,20 @@ func updateReplicationThrottle(topics []string, zk *kafkazk.ZK, km *kafkametrics
 			log.Printf("Error setting throttle on broker %d: %s\n", b, err)
 		}
 
-		// Write event.
-		m := fmt.Sprintf("Replication throttle of %.2fMB/s set on the following brokers: %s",
-			replicationHeadRoom, allBrokers)
-		events.Write("Broker replication throttle set", m)
-
 		// Hard coded sleep to reduce
 		// ZK load.
 		time.Sleep(500 * time.Millisecond)
 	}
+
+	// Write event.
+	var allBrokersList []int
+	for b := range allBrokers {
+		allBrokersList = append(allBrokersList, b)
+	}
+
+	m := fmt.Sprintf("Replication throttle of %.2fMB/s set on the following brokers: %v",
+		replicationHeadRoom, allBrokersList)
+	events.Write("Broker replication throttle set", m)
 
 	return nil
 }
@@ -539,8 +544,6 @@ func eventWriter(k *kafkametrics.KafkaMetrics, c chan *kafkametrics.Event) {
 		err := k.PostEvent(e)
 		if err != nil {
 			log.Printf("Error writing event: %s\n", err)
-		} else {
-			log.Printf("Event posted: %v\n", e)
 		}
 	}
 }
