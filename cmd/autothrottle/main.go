@@ -34,7 +34,7 @@ var (
 	// Hardcoded for now.
 	BWLimits = Limits{
 		// Min. config.
-		"mininum": 10.00,
+		"mininum":		10.00,
 		// d2 class.
 		"d2.xlarge":  100.00,
 		"d2.2xlarge": 120.00,
@@ -55,10 +55,10 @@ type Limits map[string]float64
 // value of 10MB/s is returned.
 func (l Limits) headroom(b *kafkametrics.Broker) (float64, error) {
 	if k, exists := l[b.InstanceType]; exists {
-		return math.Max(k-b.NetTX, l.minimum), nil
+		return math.Max(k-b.NetTX, l["mininum"]), nil
 	}
 
-	return l.minimum, errors.New("Unknown instance type")
+	return l["mininum"], errors.New("Unknown instance type")
 }
 
 // ThrottledReplicas is a list of brokers
@@ -294,13 +294,14 @@ func updateReplicationThrottle(topics []string, zk *kafkazk.ZK, override string)
 
 	// Use the throttle override if set. Otherwise, use metrics.
 	var tvalue float64
+	var replicationHeadRoom float64
 	if override != "" {
 		log.Printf("A throttle override is set: %sMB/s\n", override)
 		o, _ := strconv.Atoi(override)
 		tvalue = float64(o) * 1000000.00
 	} else {
 		constrainingLeader := brokers.highestLeaderNetTX()
-		replicationHeadRoom, err := BWLimits.headroom(constrainingLeader)
+		replicationHeadRoom, err = BWLimits.headroom(constrainingLeader)
 		if err != nil {
 			return err
 		}
@@ -309,13 +310,13 @@ func updateReplicationThrottle(topics []string, zk *kafkazk.ZK, override string)
 
 		log.Printf("Broker %d has the highest outbound network throughput of %.2fMB/s\n",
 			constrainingLeader.ID, constrainingLeader.NetTX)
-		log.Printf("Replication headroom: %.2fMB/s\n", tvalue)
+		log.Printf("Replication headroom: %.2fMB/s\n", replicationHeadRoom)
 	}
 
 	// Apply replication limit to all brokers.
 	rateString := fmt.Sprintf("%.0f", tvalue)
 	for b := range allBrokers {
-		log.Printf("Setting throttle %.2fMB/s on broker %d\n", tvalue, b)
+		log.Printf("Setting throttle %.2fMB/s on broker %d\n", replicationHeadRoom, b)
 		config := kafkazk.KafkaConfig{
 			Type: "broker",
 			Name: strconv.Itoa(b),

@@ -116,10 +116,6 @@ func setThrottle(w http.ResponseWriter, req *http.Request, zk *kafkazk.ZK, p str
 	}
 }
 
-func logReq(req *http.Request) {
-	log.Printf("[API] %s %s %s\n", req.Method, req.RequestURI, req.RemoteAddr)
-}
-
 func removeThrottle(w http.ResponseWriter, req *http.Request, zk *kafkazk.ZK, p string) {
 	logReq(req)
 	if req.Method != http.MethodPost {
@@ -135,4 +131,8 @@ func removeThrottle(w http.ResponseWriter, req *http.Request, zk *kafkazk.ZK, p 
 	} else {
 		io.WriteString(w, "Throttle successfully removed\n")
 	}
+}
+
+func logReq(req *http.Request) {
+	log.Printf("[API] %s %s %s\n", req.Method, req.RequestURI, req.RemoteAddr)
 }
