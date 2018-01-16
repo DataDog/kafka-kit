@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -17,6 +16,9 @@ import (
 )
 
 var (
+	// Events configs.
+	eventTitlePrefix = "kafka-autothrottle"
+
 	// Config holds configuration
 	// parameters.
 	Config struct {
@@ -29,6 +31,7 @@ var (
 		Interval       int
 		APIListen      string
 		ConfigZKPrefix string
+		DDEventTags    string
 	}
 
 	// Hardcoded for now.
@@ -69,6 +72,28 @@ type ThrottledReplicas struct {
 	Followers []*kafkametrics.Broker
 }
 
+// EventGenerator wraps a channel
+// where *kafkametrics.Event are written
+// to along with any defaults, such as
+// tags.
+type EventGenerator struct {
+	c           chan *kafkametrics.Event
+	tags        []string
+	titlePrefix string
+}
+
+// Write takes an event title and message string
+// and writes a *kafkametrics.Event
+// to the event channel, formatted
+// with the configured title and tags.
+func (e *EventGenerator) Write(t string, m string) {
+	e.c <- &kafkametrics.Event{
+		Title: fmt.Sprintf("[%s] %s", e.titlePrefix, t),
+		Text:  m,
+		Tags:  e.tags,
+	}
+}
+
 func init() {
 	// log.SetOutput(ioutil.Discard)
 
@@ -81,6 +106,7 @@ func init() {
 	flag.IntVar(&Config.Interval, "interval", 60, "Autothrottle check interval in seconds")
 	flag.StringVar(&Config.APIListen, "api-listen", "localhost:8080", "Admin API listen address:port")
 	flag.StringVar(&Config.ConfigZKPrefix, "zk-config-prefix", "autothrottle", "ZooKeeper prefix to store autothrottle configuration")
+	flag.StringVar(&Config.DDEventTags, "dd-event-tags", "", "Comma-delimited list of Datadog event tags")
 
 	envy.Parse("AUTOTHROTTLE")
 	flag.Parse()
@@ -102,21 +128,46 @@ func main() {
 	}
 
 	initAPI(apiConfig, zk)
-
 	log.Printf("Admin API: %s\n", Config.APIListen)
-
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		log.Fatal(err)
 	}
-
 	defer zk.Close()
 
 	// Eh.
 	err = zk.InitRawClient()
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		log.Fatal(err)
+	}
+
+	// Init a Kafka metrics fetcher.
+	km, err := kafkametrics.NewKafkaMetrics(&kafkametrics.Config{
+		APIKey:         Config.APIKey,
+		AppKey:         Config.AppKey,
+		NetworkTXQuery: Config.NetworkTXQuery,
+		MetricsWindow:  Config.MetricsWindow,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Get optional Datadog event tags.
+	t := strings.Split(Config.DDEventTags, ",")
+	tags := []string{"name:kafka-autothrottle"}
+	for _, tag := range t {
+		tags = append(tags, tag)
+	}
+
+	// Init the Datadog event writer.
+	echan := make(chan *kafkametrics.Event, 100)
+	go eventWriter(km, echan)
+
+	// Init an EventGenerator
+	// to pass around.
+	events := &EventGenerator{
+		c:           echan,
+		titlePrefix: eventTitlePrefix,
+		tags:        tags,
 	}
 
 	var topics []string
@@ -147,8 +198,11 @@ func main() {
 			}
 		}
 
+		// Log and write event.
 		if len(done) > 0 {
-			log.Printf("Topics done reassigning: %s\n", done)
+			m := fmt.Sprintf("Topics done reassigning: %s", done)
+			log.Println(m)
+			events.Write("Topics done reassigning", m)
 		}
 
 		// Rebuild replicatingPreviously with
@@ -172,7 +226,7 @@ func main() {
 				log.Printf("Error fetching override: %s\n", err)
 			}
 
-			err = updateReplicationThrottle(topics, zk, string(override))
+			err = updateReplicationThrottle(topics, zk, km, string(override), events)
 			if err != nil {
 				log.Println(err)
 			}
@@ -182,7 +236,7 @@ func main() {
 			log.Println("No topics undergoing reassignment")
 			// Unset any throttles.
 			if knownThrottles {
-				err := removeAllThrottles(zk)
+				err := removeAllThrottles(zk, events)
 				if err != nil {
 					log.Println(err)
 				}
@@ -196,15 +250,18 @@ func main() {
 
 }
 
-func removeAllThrottles(zk *kafkazk.ZK) error {
+func removeAllThrottles(zk *kafkazk.ZK, events *EventGenerator) error {
 	// Fetch brokers.
 	brokers, err := zk.GetAllBrokerMeta()
 	if err != nil {
 		return err
 	}
 
+	var allBrokers []int
+
 	// Unset throttles.
 	for b := range brokers {
+		allBrokers = append(allBrokers, b)
 		log.Printf("Removing throttle on broker %d\n", b)
 		config := kafkazk.KafkaConfig{
 			Type: "broker",
@@ -225,6 +282,10 @@ func removeAllThrottles(zk *kafkazk.ZK) error {
 		time.Sleep(500 * time.Millisecond)
 	}
 
+	// Write event.
+	m := fmt.Sprintf("Replication throttle removed on the following brokers: %s", allBrokers)
+	events.Write("Broker replication throttle removed", m)
+
 	return nil
 }
 
@@ -234,7 +295,7 @@ func removeAllThrottles(zk *kafkazk.ZK) error {
 // The replication throttle is then adjusted accordingly.
 // If a non-empty override is provided, that static value is used instead
 // of a dynamically determined value.
-func updateReplicationThrottle(topics []string, zk *kafkazk.ZK, override string) error {
+func updateReplicationThrottle(topics []string, zk *kafkazk.ZK, km *kafkametrics.KafkaMetrics, override string, events *EventGenerator) error {
 	// Populate the topic configs from ZK.
 	// Topic configs include a list of partitions
 	// undergoing replication and broker IDs being
@@ -249,17 +310,6 @@ func updateReplicationThrottle(topics []string, zk *kafkazk.ZK, override string)
 		}
 
 		topicConfigs[t] = config
-	}
-
-	// Init a Kafka metrics fetcher.
-	km, err := kafkametrics.NewKafkaMetrics(&kafkametrics.Config{
-		APIKey:         Config.APIKey,
-		AppKey:         Config.AppKey,
-		NetworkTXQuery: Config.NetworkTXQuery,
-		MetricsWindow:  Config.MetricsWindow,
-	})
-	if err != nil {
-		return err
 	}
 
 	// Get broker metrics.
@@ -332,6 +382,11 @@ func updateReplicationThrottle(topics []string, zk *kafkazk.ZK, override string)
 		if err != nil {
 			log.Printf("Error setting throttle on broker %d: %s\n", b, err)
 		}
+
+		// Write event.
+		m := fmt.Sprintf("Replication throttle of %.2fMB/s set on the following brokers: %s",
+			replicationHeadRoom, allBrokers)
+		events.Write("Broker replication throttle set", m)
 
 		// Hard coded sleep to reduce
 		// ZK load.
@@ -473,6 +528,21 @@ func brokersFromConfig(b kafkametrics.BrokerMetrics, c *kafkazk.TopicConfig) ([2
 	}
 
 	return brokers, nil
+}
+
+// eventWriter reads from a channel of
+// kafkazk.Event and writes them to the
+// Datadog API. Errors are logged and
+// do not affect progression.
+func eventWriter(k *kafkametrics.KafkaMetrics, c chan *kafkametrics.Event) {
+	for e := range c {
+		err := k.PostEvent(e)
+		if err != nil {
+			log.Printf("Error writing event: %s\n", err)
+		} else {
+			log.Printf("Event posted: %v\n", e)
+		}
+	}
 }
 
 // Temp mocks.
