@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"flag"
 	"fmt"
@@ -250,45 +251,6 @@ func main() {
 
 }
 
-func removeAllThrottles(zk *kafkazk.ZK, events *EventGenerator) error {
-	// Fetch brokers.
-	brokers, err := zk.GetAllBrokerMeta()
-	if err != nil {
-		return err
-	}
-
-	var allBrokers []int
-
-	// Unset throttles.
-	for b := range brokers {
-		allBrokers = append(allBrokers, b)
-		log.Printf("Removing throttle on broker %d\n", b)
-		config := kafkazk.KafkaConfig{
-			Type: "broker",
-			Name: strconv.Itoa(b),
-			Configs: [][2]string{
-				[2]string{"leader.replication.throttled.rate", ""},
-				[2]string{"follower.replication.throttled.rate", ""},
-			},
-		}
-
-		err := zk.UpdateKafkaConfig(config)
-		if err != nil {
-			log.Printf("Error removing throttle on broker %d: %s\n", b, err)
-		}
-
-		// Hard coded sleep to reduce
-		// ZK load.
-		time.Sleep(500 * time.Millisecond)
-	}
-
-	// Write event.
-	m := fmt.Sprintf("Replication throttle removed on the following brokers: %v", allBrokers)
-	events.Write("Broker replication throttle removed", m)
-
-	return nil
-}
-
 // updateReplicationThrottle takes a list of topics undergoing
 // replication, a *kafkazk.ZK and an override param. Metrics for brokers participating
 // in any ongoing replication are fetched to determine replication headroom.
@@ -394,9 +356,50 @@ func updateReplicationThrottle(topics []string, zk *kafkazk.ZK, km *kafkametrics
 		allBrokersList = append(allBrokersList, b)
 	}
 
-	m := fmt.Sprintf("Replication throttle of %.2fMB/s set on the following brokers: %v",
-		replicationHeadRoom, allBrokersList)
-	events.Write("Broker replication throttle set", m)
+	var b bytes.Buffer
+	b.WriteString(fmt.Sprintf("Replication throttle of %.2fMB/s set on the following brokers: %v\n",
+		replicationHeadRoom, allBrokersList))
+	b.WriteString(fmt.Sprintf("Topics currently undergoing replication: %v", topics))
+	events.Write("Broker replication throttle set", b.String())
+
+	return nil
+}
+
+func removeAllThrottles(zk *kafkazk.ZK, events *EventGenerator) error {
+	// Fetch brokers.
+	brokers, err := zk.GetAllBrokerMeta()
+	if err != nil {
+		return err
+	}
+
+	var allBrokers []int
+
+	// Unset throttles.
+	for b := range brokers {
+		allBrokers = append(allBrokers, b)
+		log.Printf("Removing throttle on broker %d\n", b)
+		config := kafkazk.KafkaConfig{
+			Type: "broker",
+			Name: strconv.Itoa(b),
+			Configs: [][2]string{
+				[2]string{"leader.replication.throttled.rate", ""},
+				[2]string{"follower.replication.throttled.rate", ""},
+			},
+		}
+
+		err := zk.UpdateKafkaConfig(config)
+		if err != nil {
+			log.Printf("Error removing throttle on broker %d: %s\n", b, err)
+		}
+
+		// Hard coded sleep to reduce
+		// ZK load.
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	// Write event.
+	m := fmt.Sprintf("Replication throttle removed on the following brokers: %v", allBrokers)
+	events.Write("Broker replication throttle removed", m)
 
 	return nil
 }
