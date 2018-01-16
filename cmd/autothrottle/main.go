@@ -34,7 +34,7 @@ var (
 	// Hardcoded for now.
 	BWLimits = Limits{
 		// Min. config.
-		"mininum":		10.00,
+		"mininum": 10.00,
 		// d2 class.
 		"d2.xlarge":  100.00,
 		"d2.2xlarge": 120.00,
@@ -299,6 +299,8 @@ func updateReplicationThrottle(topics []string, zk *kafkazk.ZK, override string)
 		log.Printf("A throttle override is set: %sMB/s\n", override)
 		o, _ := strconv.Atoi(override)
 		tvalue = float64(o) * 1000000.00
+		// For log output.
+		replicationHeadRoom = float64(o)
 	} else {
 		constrainingLeader := brokers.highestLeaderNetTX()
 		replicationHeadRoom, err = BWLimits.headroom(constrainingLeader)
