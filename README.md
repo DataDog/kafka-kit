@@ -10,4 +10,4 @@ A drop-in replacement for the `kafka-reassign-partition` tool bundled with Kafka
 # autothrottle
 A service that catches Kafka replication/recovery events and dynamically applies broker replication throttles, driven by metrics via the Datadog API.
 
-[README](cmd/topicmappr)
+[README](cmd/autothrottle)
