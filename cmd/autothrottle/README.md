@@ -64,6 +64,22 @@ Usage of autothrottle:
     	ZooKeeper namespace prefix [AUTOTHROTTLE_ZK_PREFIX]
 ```
 
+Admin API:
+
+```
+$ curl localhost:8080/get_throttle
+No throttle is set
+
+$ curl -XPOST "localhost:8080/set_throttle?rate=100"
+Throttle successfully set to 100MB/s
+
+$ curl localhost:8080/get_throttle
+A throttle override is configured at 100MB/s
+
+$ curl -XPOST localhost:8080/remove_throttle
+Throttle successfully removed
+```
+
 # Design diagram
 
 ![img_1620](https://user-images.githubusercontent.com/4108044/35069852-a8476a00-fb98-11e7-8e18-433fa78813a9.jpg)
