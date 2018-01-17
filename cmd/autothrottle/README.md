@@ -6,9 +6,11 @@ It does this by looking up all topics undergoing replication, distinguishes sour
 
 When no replication is occurring, autothrottle will clear all throttles across the cluster (Kafka does not do this on its own and the default tooling is somewhat clumsy at handling this).
 
+Additionally, autothrottle writes Datadog events at each check interval that detail what topics are undergoing replication, a list of all brokers involved, and throttle rates applied.
+
 # Usage
 
-Besides basic configuration such as the cluster ZooKeeper address, Aatothrottle requirements include:
+Besides basic configuration such as the cluster ZooKeeper address, Autothrottle requirements include:
 
 - Datadog API and app key
 - A metric string that returns the `system.net.bytes_sent` metric per host, scoped to the cluster that's being managed
