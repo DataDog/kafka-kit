@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -48,6 +49,9 @@ var (
 		"i3.2xlarge": 250.00,
 		"i3.4xlarge": 500.00,
 	}
+
+	// Misc.
+	topicsRegex = []*regexp.Regexp{regexp.MustCompile(".*")}
 )
 
 // Limits is a map of instance-type
@@ -244,7 +248,7 @@ func main() {
 			if knownThrottles {
 				err := removeAllThrottles(zk, events)
 				if err != nil {
-					log.Println(err)
+					log.Printf("Error removing throttles: %s\n", err.Error())
 				} else {
 					// Only set knownThrottles to
 					// false if we've removed all
@@ -375,6 +379,40 @@ func updateReplicationThrottle(topics []string, zk *kafkazk.ZK, km *kafkametrics
 }
 
 func removeAllThrottles(zk *kafkazk.ZK, events *EventGenerator) error {
+	/****************************
+	Clear topic throttle configs.
+	****************************/
+
+	// Get all topics.
+	topics, err := zk.GetTopics(topicsRegex)
+	if err != nil {
+		return err
+	}
+
+	for _, topic := range topics {
+		config := kafkazk.KafkaConfig{
+			Type: "topic",
+			Name: topic,
+			Configs: [][2]string{
+				[2]string{"leader.replication.throttled.replicas", ""},
+				[2]string{"follower.replication.throttled.replicas", ""},
+			},
+		}
+
+		err := zk.UpdateKafkaConfig(config)
+		if err != nil {
+			log.Printf("Error removing throttle config on topic %s: %s\n", topic, err)
+		}
+
+		// Hardcoded sleep to reduce
+		// ZK load.
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	/**********************
+	Clear broker throttles.
+	**********************/
+
 	// Fetch brokers.
 	brokers, err := zk.GetAllBrokerMeta()
 	if err != nil {
@@ -409,6 +447,13 @@ func removeAllThrottles(zk *kafkazk.ZK, events *EventGenerator) error {
 	// Write event.
 	m := fmt.Sprintf("Replication throttle removed on the following brokers: %v", allBrokers)
 	events.Write("Broker replication throttle removed", m)
+
+	// Lazily check if any
+	// errors were encountered,
+	// return a generic error.
+	if err != nil {
+		return errors.New("one or more throttles were not cleared")
+	}
 
 	return nil
 }
