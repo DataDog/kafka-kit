@@ -171,9 +171,14 @@ func main() {
 		tags:        tags,
 	}
 
+	// Default to true on startup.
+	// In case throttles were set in
+	// an autothrottle session other
+	// than the current one.
+	knownThrottles := true
+
 	var topics []string
 	var reassignments kafkazk.Reassignments
-	var knownThrottles bool
 	var replicatingPreviously map[string]interface{}
 	var replicatingNow map[string]interface{}
 	var done []string
@@ -240,8 +245,12 @@ func main() {
 				err := removeAllThrottles(zk, events)
 				if err != nil {
 					log.Println(err)
+				} else {
+					// Only set knownThrottles to
+					// false if we've removed all
+					// without error.
+					knownThrottles = false
 				}
-				knownThrottles = false
 			}
 		}
 
@@ -392,7 +401,7 @@ func removeAllThrottles(zk *kafkazk.ZK, events *EventGenerator) error {
 			log.Printf("Error removing throttle on broker %d: %s\n", b, err)
 		}
 
-		// Hard coded sleep to reduce
+		// Hardcoded sleep to reduce
 		// ZK load.
 		time.Sleep(500 * time.Millisecond)
 	}
