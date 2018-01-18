@@ -82,7 +82,7 @@ Throttle successfully removed
 
 # Design diagram
 
-![img_1620](https://user-images.githubusercontent.com/4108044/35069852-a8476a00-fb98-11e7-8e18-433fa78813a9.jpg)
+![img_1622](https://user-images.githubusercontent.com/4108044/35110350-d49afbc4-fc35-11e7-93ac-80e80216648a.JPG)
 
 # Future improvements
 - Multi-node / HA coordination through ZooKeeper
