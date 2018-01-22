@@ -119,6 +119,9 @@ func init() {
 
 func main() {
 	log.Println("Authrottle Running")
+	// Lazily prevent a tight restart
+	// loop from thrashing ZK.
+	time.Sleep(1*time.Second)
 
 	// Init ZK.
 	zk, err := kafkazk.NewZK(&kafkazk.ZKConfig{
