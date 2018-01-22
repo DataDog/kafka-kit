@@ -62,6 +62,10 @@ type Limits map[string]float64
 // and returns the headroom / free capacity. A minimum
 // value of 10MB/s is returned.
 func (l Limits) headroom(b *kafkametrics.Broker) (float64, error) {
+	if b == nil {
+		return errors.New("Nil broker provided")
+	}
+
 	if k, exists := l[b.InstanceType]; exists {
 		return math.Max(k-b.NetTX, l["mininum"]), nil
 	}
