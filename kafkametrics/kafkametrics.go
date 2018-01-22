@@ -158,7 +158,7 @@ func (k *KafkaMetrics) GetMetrics() (BrokerMetrics, error) {
 
 	// Get broker IDs for each host,
 	// populate into a BrokerMetrics.
-	var missingTags [][2]string
+	var missingTags bytes.Buffer
 	for _, b := range brokerMeta {
 		ht, err := k.c.GetHostTags(b.Host, "")
 		if err != nil {
@@ -169,26 +169,30 @@ func (k *KafkaMetrics) GetMetrics() (BrokerMetrics, error) {
 		}
 
 		// Fetch host metadata.
+		// Append a log of any missing
+		// metadata.
 		ids := valFromTags(ht, "broker_id")
 		if ids != "" {
 			id, _ := strconv.Atoi(ids)
 			b.ID = id
 			brokers[id] = b
 		} else {
-			missingTags = append(missingTags, [2]string{"broker_id", b.Host})
+			s := fmt.Sprintf(" broker_id:%s", b.Host)
+			missingTags.WriteString(s)
 		}
 
 		it := valFromTags(ht, "instance-type")
 		if it != "" {
 			b.InstanceType = it
 		} else {
-			missingTags = append(missingTags, [2]string{"instance_type", b.Host})
+			s := fmt.Sprintf(" instance_type:%s", b.Host)
+			missingTags.WriteString(s)
 		}
 	}
 
-	if len(missingTags) > 0 {
+	if missingTags.String() != "" {
 		return brokers, &PartialResults{
-			err: fmt.Sprintf("%s tag missing for: %s", missingTags[0], missingTags[1]),
+			err: fmt.Sprintf("Host tags missing for:%s", missingTags.String()),
 		}
 	}
 
