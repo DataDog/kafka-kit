@@ -63,7 +63,7 @@ type Limits map[string]float64
 // value of 10MB/s is returned.
 func (l Limits) headroom(b *kafkametrics.Broker) (float64, error) {
 	if b == nil {
-		return errors.New("Nil broker provided")
+		return l["mininum"], errors.New("Nil broker provided")
 	}
 
 	if k, exists := l[b.InstanceType]; exists {
@@ -103,6 +103,17 @@ func (e *EventGenerator) Write(t string, m string) {
 	}
 }
 
+// UpdateReplicationThrottleRequest holds all types
+// needed to call the updateReplicationThrottle func.
+type UpdateReplicationThrottleRequest struct {
+	topics        []string
+	reassignments kafkazk.Reassignments
+	zk            *kafkazk.ZK
+	km            *kafkametrics.KafkaMetrics
+	override      string
+	events        *EventGenerator
+}
+
 func init() {
 	// log.SetOutput(ioutil.Discard)
 
@@ -125,7 +136,7 @@ func main() {
 	log.Println("Authrottle Running")
 	// Lazily prevent a tight restart
 	// loop from thrashing ZK.
-	time.Sleep(1*time.Second)
+	time.Sleep(1 * time.Second)
 
 	// Init ZK.
 	zk, err := kafkazk.NewZK(&kafkazk.ZKConfig{
@@ -174,8 +185,7 @@ func main() {
 	echan := make(chan *kafkametrics.Event, 100)
 	go eventWriter(km, echan)
 
-	// Init an EventGenerator
-	// to pass around.
+	// Init an EventGenerator.
 	events := &EventGenerator{
 		c:           echan,
 		titlePrefix: eventTitlePrefix,
@@ -194,11 +204,20 @@ func main() {
 	var replicatingNow map[string]interface{}
 	var done []string
 
+	// Params for the updateReplicationThrottle
+	// request.
+	updateParams := &UpdateReplicationThrottleRequest{
+		topics: topics,
+		zk:     zk,
+		km:     km,
+		events: events,
+	}
+
 	// Run.
 	for {
+		topics = topics[:0]
 		// Get topics undergoing reassignment.
 		reassignments = zk.GetReassignments() // TODO This needs to return an error.
-		topics = topics[:0]
 		replicatingNow = make(map[string]interface{})
 		for t := range reassignments {
 			topics = append(topics, t)
@@ -243,7 +262,11 @@ func main() {
 				log.Printf("Error fetching override: %s\n", err)
 			}
 
-			err = updateReplicationThrottle(topics, zk, km, string(override), events)
+			// Update the updateParams.
+			updateParams.override = string(override)
+			updateParams.reassignments = reassignments
+
+			err = updateReplicationThrottle(updateParams)
 			if err != nil {
 				log.Println(err)
 			}
@@ -271,21 +294,23 @@ func main() {
 
 }
 
-// updateReplicationThrottle takes a list of topics undergoing
-// replication, a *kafkazk.ZK and an override param. Metrics for brokers participating
-// in any ongoing replication are fetched to determine replication headroom.
+// updateReplicationThrottle takes a UpdateReplicationThrottleRequest
+// that holds topics being replicated, any clients, throttle override params,
+// and other required metadata.
+// Metrics for brokers participating in any ongoing replication
+// are fetched to determine replication headroom.
 // The replication throttle is then adjusted accordingly.
 // If a non-empty override is provided, that static value is used instead
 // of a dynamically determined value.
-func updateReplicationThrottle(topics []string, zk *kafkazk.ZK, km *kafkametrics.KafkaMetrics, override string, events *EventGenerator) error {
+func updateReplicationThrottle(params *UpdateReplicationThrottleRequest) error {
 	// Populate the topic configs from ZK.
 	// Topic configs include a list of partitions
 	// undergoing replication and broker IDs being
 	// replicated to and from.
 	topicConfigs := map[string]*kafkazk.TopicConfig{}
 
-	for _, t := range topics {
-		config, err := zk.GetTopicConfig(t)
+	for t := range params.reassignments {
+		config, err := params.zk.GetTopicConfig(t)
 		if err != nil {
 			errS := fmt.Sprintf("Error fetching topic config: %s\n", err.Error())
 			return errors.New(errS)
@@ -295,7 +320,7 @@ func updateReplicationThrottle(topics []string, zk *kafkazk.ZK, km *kafkametrics
 	}
 
 	// Get broker metrics.
-	brokerMetrics, err := km.GetMetrics()
+	brokerMetrics, err := params.km.GetMetrics()
 	if err != nil {
 		return err
 	}
@@ -327,9 +352,9 @@ func updateReplicationThrottle(topics []string, zk *kafkazk.ZK, km *kafkametrics
 	// Use the throttle override if set. Otherwise, use metrics.
 	var tvalue float64
 	var replicationHeadRoom float64
-	if override != "" {
-		log.Printf("A throttle override is set: %sMB/s\n", override)
-		o, _ := strconv.Atoi(override)
+	if params.override != "" {
+		log.Printf("A throttle override is set: %sMB/s\n", params.override)
+		o, _ := strconv.Atoi(params.override)
 		tvalue = float64(o) * 1000000.00
 		// For log output.
 		replicationHeadRoom = float64(o)
@@ -359,7 +384,7 @@ func updateReplicationThrottle(topics []string, zk *kafkazk.ZK, km *kafkametrics
 			},
 		}
 
-		changed, err := zk.UpdateKafkaConfig(config)
+		changed, err := params.zk.UpdateKafkaConfig(config)
 		if err != nil {
 			log.Printf("Error setting throttle on broker %d: %s\n", b, err)
 		}
@@ -382,8 +407,8 @@ func updateReplicationThrottle(topics []string, zk *kafkazk.ZK, km *kafkametrics
 	var b bytes.Buffer
 	b.WriteString(fmt.Sprintf("Replication throttle of %.2fMB/s set on the following brokers: %v\n",
 		replicationHeadRoom, allBrokersList))
-	b.WriteString(fmt.Sprintf("Topics currently undergoing replication: %v", topics))
-	events.Write("Broker replication throttle set", b.String())
+	b.WriteString(fmt.Sprintf("Topics currently undergoing replication: %v", params.topics))
+	params.events.Write("Broker replication throttle set", b.String())
 
 	return nil
 }
