@@ -343,7 +343,6 @@ func updateReplicationThrottle(topics []string, zk *kafkazk.ZK, km *kafkametrics
 	// Apply replication limit to all brokers.
 	rateString := fmt.Sprintf("%.0f", tvalue)
 	for b := range allBrokers {
-		log.Printf("Setting throttle %.2fMB/s on broker %d\n", replicationHeadRoom, b)
 		config := kafkazk.KafkaConfig{
 			Type: "broker",
 			Name: strconv.Itoa(b),
@@ -353,9 +352,13 @@ func updateReplicationThrottle(topics []string, zk *kafkazk.ZK, km *kafkametrics
 			},
 		}
 
-		err := zk.UpdateKafkaConfig(config)
+		changed, err := zk.UpdateKafkaConfig(config)
 		if err != nil {
 			log.Printf("Error setting throttle on broker %d: %s\n", b, err)
+		}
+
+		if changed {
+			log.Printf("Updated throttle to %.2fMB/s on broker %d\n", replicationHeadRoom, b)
 		}
 
 		// Hard coded sleep to reduce
@@ -399,7 +402,8 @@ func removeAllThrottles(zk *kafkazk.ZK, events *EventGenerator) error {
 			},
 		}
 
-		err := zk.UpdateKafkaConfig(config)
+		// Update the config.
+		_, err := zk.UpdateKafkaConfig(config)
 		if err != nil {
 			log.Printf("Error removing throttle config on topic %s: %s\n", topic, err)
 		}
@@ -424,7 +428,6 @@ func removeAllThrottles(zk *kafkazk.ZK, events *EventGenerator) error {
 	// Unset throttles.
 	for b := range brokers {
 		allBrokers = append(allBrokers, b)
-		log.Printf("Removing throttle on broker %d\n", b)
 		config := kafkazk.KafkaConfig{
 			Type: "broker",
 			Name: strconv.Itoa(b),
@@ -434,9 +437,13 @@ func removeAllThrottles(zk *kafkazk.ZK, events *EventGenerator) error {
 			},
 		}
 
-		err := zk.UpdateKafkaConfig(config)
+		changed, err := zk.UpdateKafkaConfig(config)
 		if err != nil {
 			log.Printf("Error removing throttle on broker %d: %s\n", b, err)
+		}
+
+		if changed {
+			log.Printf("Throttle removed on broker %d\n", b)
 		}
 
 		// Hardcoded sleep to reduce

@@ -367,17 +367,20 @@ func (z *ZK) Exists(p string) (bool, error) {
 // a persistent sequential znode is also written to
 // propagate changes (via watches) to all Kafka brokers.
 // This is a Kafka specific behavior; further references
-// are available from the Kafka codebase.
+// are available from the Kafka codebase. A bool is returned
+// indicating whether the config was changed (if a config is
+// updated to the existing value, 'false' is returned) along
+// with any errors encountered.
 // If a config value is set to an empty string (""),
 // the entire config key itself is deleted. This was
 // an easy way to merge update/delete into a single func.
-func (z *ZK) UpdateKafkaConfig(c KafkaConfig) error {
+func (z *ZK) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
 	if z.rclient == nil {
-		return ErrRawClientRequired
+		return false, ErrRawClientRequired
 	}
 
 	if _, valid := validKafkaConfigTypes[c.Type]; !valid {
-		return ErrInvalidKafkaConfigType
+		return false, ErrInvalidKafkaConfigType
 	}
 
 	// Get current config from the
@@ -391,7 +394,7 @@ func (z *ZK) UpdateKafkaConfig(c KafkaConfig) error {
 
 	data, _, err := z.rclient.Get(path)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	config := &KafkaConfigData{}
@@ -414,17 +417,23 @@ func (z *ZK) UpdateKafkaConfig(c KafkaConfig) error {
 		}
 	}
 
-	// Write the config back.
+	// Write the config back
+	// if it's different from
+	// what was already set.
 	if changed {
 		newConfig, err := json.Marshal(config)
 		if err != nil {
 			errS := fmt.Sprintf("Error marshalling config: %s", err)
-			return errors.New(errS)
+			return false, errors.New(errS)
 		}
 		_, err = z.rclient.Set(path, newConfig, -1)
 		if err != nil {
-			return err
+			return false, err
 		}
+	} else {
+		// Return if there's no change.
+		// No need to write back the config.
+		return false, err
 	}
 
 	// If there were any config changes,
@@ -435,15 +444,17 @@ func (z *ZK) UpdateKafkaConfig(c KafkaConfig) error {
 		cpath = "/" + z.Prefix + cpath
 	}
 
-	if changed {
-		cdata := fmt.Sprintf(`{"version":2,"entity_path":"%ss/%s"}`, c.Type, c.Name)
-		err := z.CreateSequential(cpath, cdata)
-		if err != nil {
-			return err
-		}
+	cdata := fmt.Sprintf(`{"version":2,"entity_path":"%ss/%s"}`, c.Type, c.Name)
+	err = z.CreateSequential(cpath, cdata)
+	if err != nil {
+		// If we're here, this would
+		// actually be a partial write since
+		// the config was updated but we're
+		// failing at the watch entry.
+		return false, err
 	}
 
-	return nil
+	return true, nil
 }
 
 func (z *ZK) InitRawClient() error {
