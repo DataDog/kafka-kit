@@ -61,10 +61,10 @@ type BrokerMeta struct {
 // field is retrieved.
 type BrokerMetaMap map[int]*BrokerMeta
 
-// topicState is used for unmarshing
+// TopicState is used for unmarshing
 // ZooKeeper json data from a topic:
 // e.g. `get /brokers/topics/some-topic`.
-type topicState struct {
+type TopicState struct {
 	Partitions map[string][]int `json:"partitions"`
 }
 
@@ -84,12 +84,13 @@ type reassignConfig struct {
 }
 
 // TopicConfig is used for unmarshalling
-// /config/topics/<topic> data.
+// /config/topics/<topic>.
 type TopicConfig struct {
 	Version int               `json:"version"`
 	Config  map[string]string `json:"config"`
 }
 
+// KafkaConfig
 type KafkaConfig struct {
 	Type    string      // Topic or broker.
 	Name    string      // Entity name.
@@ -97,6 +98,7 @@ type KafkaConfig struct {
 
 }
 
+// KafkaConfigData
 type KafkaConfigData struct {
 	Version int               `json:"version"`
 	Config  map[string]string `json:"config"`
@@ -257,7 +259,7 @@ func (z *ZK) GetAllBrokerMeta() (BrokerMetaMap, error) {
 	return bmm, nil
 }
 
-func (z *ZK) getPartitionMap(t string) (*PartitionMap, error) {
+func (z *ZK) GetTopicState(t string) (*TopicState, error) {
 	var path string
 	if z.Prefix != "" {
 		path = fmt.Sprintf("%s/brokers/topics/%s", z.Prefix, t)
@@ -265,11 +267,8 @@ func (z *ZK) getPartitionMap(t string) (*PartitionMap, error) {
 		path = fmt.Sprintf("brokers/topics/%s", t)
 	}
 
-	// Get current reassign_partitions.
-	re := z.GetReassignments()
-
 	// Fetch topic data from z.
-	ts := &topicState{}
+	ts := &TopicState{}
 	m, err := z.client.Get(path)
 	switch err {
 	case store.ErrKeyNotFound:
@@ -285,6 +284,19 @@ func (z *ZK) getPartitionMap(t string) (*PartitionMap, error) {
 		return nil, err
 	}
 
+	return ts, nil
+}
+
+func (z *ZK) getPartitionMap(t string) (*PartitionMap, error) {
+	// Get current topic state.
+	ts, err := z.GetTopicState(t)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get current reassign_partitions.
+	re := z.GetReassignments()
+
 	// Update with partitions in reassignment.
 	// We might have this in /admin/reassign_partitions:
 	// {"version":1,"partitions":[{"topic":"myTopic","partition":14,"replicas":[1039,1044]}]}
@@ -299,7 +311,7 @@ func (z *ZK) getPartitionMap(t string) (*PartitionMap, error) {
 		}
 	}
 
-	// Map topicState to a
+	// Map TopicState to a
 	// PartitionMap.
 	pm := NewPartitionMap()
 	pl := partitionList{}
