@@ -8,6 +8,7 @@ import (
 	"log"
 	"math"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -62,6 +63,10 @@ type Limits map[string]float64
 // and returns the headroom / free capacity. A minimum
 // value of 10MB/s is returned.
 func (l Limits) headroom(b *kafkametrics.Broker) (float64, error) {
+	if b == nil {
+		return l["mininum"], errors.New("Nil broker provided")
+	}
+
 	if k, exists := l[b.InstanceType]; exists {
 		return math.Max(k-b.NetTX, l["mininum"]), nil
 	}
@@ -69,12 +74,12 @@ func (l Limits) headroom(b *kafkametrics.Broker) (float64, error) {
 	return l["mininum"], errors.New("Unknown instance type")
 }
 
-// ThrottledReplicas is a list of brokers
+// ReassigningBrokers is a list of brokers
 // with a throttle applied for an ongoing
 // reassignment.
-type ThrottledReplicas struct {
-	Leaders   []*kafkametrics.Broker
-	Followers []*kafkametrics.Broker
+type ReassigningBrokers struct {
+	Src []*kafkametrics.Broker
+	Dst []*kafkametrics.Broker
 }
 
 // EventGenerator wraps a channel
@@ -99,6 +104,17 @@ func (e *EventGenerator) Write(t string, m string) {
 	}
 }
 
+// UpdateReplicationThrottleRequest holds all types
+// needed to call the updateReplicationThrottle func.
+type UpdateReplicationThrottleRequest struct {
+	topics        []string
+	reassignments kafkazk.Reassignments
+	zk            *kafkazk.ZK
+	km            *kafkametrics.KafkaMetrics
+	override      string
+	events        *EventGenerator
+}
+
 func init() {
 	// log.SetOutput(ioutil.Discard)
 
@@ -119,6 +135,9 @@ func init() {
 
 func main() {
 	log.Println("Authrottle Running")
+	// Lazily prevent a tight restart
+	// loop from thrashing ZK.
+	time.Sleep(1 * time.Second)
 
 	// Init ZK.
 	zk, err := kafkazk.NewZK(&kafkazk.ZKConfig{
@@ -167,8 +186,7 @@ func main() {
 	echan := make(chan *kafkametrics.Event, 100)
 	go eventWriter(km, echan)
 
-	// Init an EventGenerator
-	// to pass around.
+	// Init an EventGenerator.
 	events := &EventGenerator{
 		c:           echan,
 		titlePrefix: eventTitlePrefix,
@@ -181,20 +199,27 @@ func main() {
 	// than the current one.
 	knownThrottles := true
 
-	var topics []string
 	var reassignments kafkazk.Reassignments
 	var replicatingPreviously map[string]interface{}
 	var replicatingNow map[string]interface{}
 	var done []string
 
+	// Params for the updateReplicationThrottle
+	// request.
+	updateParams := &UpdateReplicationThrottleRequest{
+		zk:     zk,
+		km:     km,
+		events: events,
+	}
+
 	// Run.
 	for {
+		updateParams.topics = updateParams.topics[:0]
 		// Get topics undergoing reassignment.
 		reassignments = zk.GetReassignments() // TODO This needs to return an error.
-		topics = topics[:0]
 		replicatingNow = make(map[string]interface{})
 		for t := range reassignments {
-			topics = append(topics, t)
+			updateParams.topics = append(updateParams.topics, t)
 			replicatingNow[t] = nil
 		}
 
@@ -225,8 +250,8 @@ func main() {
 
 		// If topics are being reassigned, update
 		// the replication throttle.
-		if len(topics) > 0 {
-			log.Printf("Topics with ongoing reassignments: %s\n", topics)
+		if len(updateParams.topics) > 0 {
+			log.Printf("Topics with ongoing reassignments: %s\n", updateParams.topics)
 
 			// Check if a throttle override is set.
 			// If so, apply that static throttle.
@@ -236,7 +261,11 @@ func main() {
 				log.Printf("Error fetching override: %s\n", err)
 			}
 
-			err = updateReplicationThrottle(topics, zk, km, string(override), events)
+			// Update the updateParams.
+			updateParams.override = string(override)
+			updateParams.reassignments = reassignments
+
+			err = updateReplicationThrottle(updateParams)
 			if err != nil {
 				log.Println(err)
 			}
@@ -264,86 +293,127 @@ func main() {
 
 }
 
-// updateReplicationThrottle takes a list of topics undergoing
-// replication, a *kafkazk.ZK and an override param. Metrics for brokers participating
-// in any ongoing replication are fetched to determine replication headroom.
+// updateReplicationThrottle takes a UpdateReplicationThrottleRequest
+// that holds topics being replicated, any clients, throttle override params,
+// and other required metadata.
+// Metrics for brokers participating in any ongoing replication
+// are fetched to determine replication headroom.
 // The replication throttle is then adjusted accordingly.
 // If a non-empty override is provided, that static value is used instead
 // of a dynamically determined value.
-func updateReplicationThrottle(topics []string, zk *kafkazk.ZK, km *kafkametrics.KafkaMetrics, override string, events *EventGenerator) error {
-	// Populate the topic configs from ZK.
-	// Topic configs include a list of partitions
-	// undergoing replication and broker IDs being
-	// replicated to and from.
-	topicConfigs := map[string]*kafkazk.TopicConfig{}
+func updateReplicationThrottle(params *UpdateReplicationThrottleRequest) error {
+	srcBrokers := map[int]interface{}{}
+	dstBrokers := map[int]interface{}{}
+	allBrokers := map[int]interface{}{}
+	srcBrokersList := []int{}
+	dstBrokersList := []int{}
 
-	for _, t := range topics {
-		config, err := zk.GetTopicConfig(t)
+	// Get topic data for each topic
+	// undergoing a reassignment.
+	for t := range params.reassignments {
+		tstate, err := params.zk.GetTopicState(t)
 		if err != nil {
-			errS := fmt.Sprintf("Error fetching topic config: %s\n", err.Error())
+			errS := fmt.Sprintf("Error fetching topic data: %s\n", err.Error())
 			return errors.New(errS)
 		}
 
-		topicConfigs[t] = config
+		// For each partition in the current topic
+		// state, check if this partition exists
+		// in the reassignments data. If so, the
+		// brokers from the current state are src
+		// and those in the reassignments are dst.
+		for p := range tstate.Partitions {
+			part, _ := strconv.Atoi(p)
+			if reassigning, exists := params.reassignments[t][part]; exists {
+				// Src.
+				for _, b := range tstate.Partitions[p] {
+					srcBrokers[b] = nil
+					allBrokers[b] = nil
+				}
+				// Dst.
+				for _, b := range reassigning {
+					dstBrokers[b] = nil
+					allBrokers[b] = nil
+				}
+			}
+		}
 	}
 
-	// Get broker metrics.
-	brokerMetrics, err := km.GetMetrics()
-	if err != nil {
-		return err
+	// Creates lists from the maps.
+	allBrokersList := []int{}
+	for n, m := range []map[int]interface{}{srcBrokers, dstBrokers} {
+		for b := range m {
+			if n == 0 {
+				srcBrokersList = append(srcBrokersList, b)
+			} else {
+				dstBrokersList = append(dstBrokersList, b)
+			}
+			allBrokersList = append(allBrokersList, b)
+		}
 	}
 
-	// Get a ThrottledReplicas from the
-	// topic configs retrieved.
-	brokers, errs := replicasFromTopicConfigs(brokerMetrics, topicConfigs)
-	if len(errs) > 0 {
-		return errors.New(fmt.Sprint("Broker lookup error(s): %s", errs))
-	}
+	// Sort.
+	sort.Ints(srcBrokersList)
+	sort.Ints(dstBrokersList)
+	sort.Ints(allBrokersList)
 
-	var leaders []int
-	var followers []int
-	allBrokers := map[int]interface{}{}
-
-	for _, b := range brokers.Leaders {
-		leaders = append(leaders, b.ID)
-		allBrokers[b.ID] = nil
-	}
-
-	for _, b := range brokers.Followers {
-		followers = append(followers, b.ID)
-		allBrokers[b.ID] = nil
-	}
-
-	log.Printf("Leaders participating in replication: %v\n", leaders)
-	log.Printf("Followers participating in replication: %v\n", followers)
+	log.Printf("Source brokers participating in replication: %v\n", srcBrokersList)
+	log.Printf("Destination brokers participating in replication: %v\n", dstBrokersList)
 
 	// Use the throttle override if set. Otherwise, use metrics.
 	var tvalue float64
 	var replicationHeadRoom float64
-	if override != "" {
-		log.Printf("A throttle override is set: %sMB/s\n", override)
-		o, _ := strconv.Atoi(override)
+
+	if params.override != "" {
+		log.Printf("A throttle override is set: %sMB/s\n", params.override)
+		o, _ := strconv.Atoi(params.override)
 		tvalue = float64(o) * 1000000.00
 		// For log output.
 		replicationHeadRoom = float64(o)
 	} else {
-		constrainingLeader := brokers.highestLeaderNetTX()
-		replicationHeadRoom, err = BWLimits.headroom(constrainingLeader)
+		// Get broker metrics.
+		brokerMetrics, err := params.km.GetMetrics()
+		if err != nil {
+			return err
+		}
+
+		// Map src/dst broker IDs to a *ReassigningBrokers.
+		participatingBrokers := &ReassigningBrokers{}
+
+		// Source brokers.
+		for b := range srcBrokers {
+			if broker, exists := brokerMetrics[b]; exists {
+				participatingBrokers.Src = append(participatingBrokers.Src, broker)
+			} else {
+				return fmt.Errorf("Broker %d not found in broker metrics", b)
+			}
+		}
+
+		// Destination brokers.
+		for b := range dstBrokers {
+			if broker, exists := brokerMetrics[b]; exists {
+				participatingBrokers.Dst = append(participatingBrokers.Dst, broker)
+			} else {
+				return fmt.Errorf("Broker %d not found in broker metrics", b)
+			}
+		}
+
+		constrainingSrc := participatingBrokers.highestSrcNetTX()
+		replicationHeadRoom, err = BWLimits.headroom(constrainingSrc)
 		if err != nil {
 			return err
 		}
 
 		tvalue = replicationHeadRoom * 1000000.00
 
-		log.Printf("Broker %d has the highest outbound network throughput of %.2fMB/s\n",
-			constrainingLeader.ID, constrainingLeader.NetTX)
+		log.Printf("Source broker %d has the highest outbound network throughput of %.2fMB/s\n",
+			constrainingSrc.ID, constrainingSrc.NetTX)
 		log.Printf("Replication headroom: %.2fMB/s\n", replicationHeadRoom)
 	}
 
-	// Apply replication limit to all brokers.
+	// Generate a throttle config.
 	rateString := fmt.Sprintf("%.0f", tvalue)
 	for b := range allBrokers {
-		log.Printf("Setting throttle %.2fMB/s on broker %d\n", replicationHeadRoom, b)
 		config := kafkazk.KafkaConfig{
 			Type: "broker",
 			Name: strconv.Itoa(b),
@@ -353,9 +423,14 @@ func updateReplicationThrottle(topics []string, zk *kafkazk.ZK, km *kafkametrics
 			},
 		}
 
-		err := zk.UpdateKafkaConfig(config)
+		// Write the throttle config.
+		changed, err := params.zk.UpdateKafkaConfig(config)
 		if err != nil {
 			log.Printf("Error setting throttle on broker %d: %s\n", b, err)
+		}
+
+		if changed {
+			log.Printf("Updated throttle to %.2fMB/s on broker %d\n", replicationHeadRoom, b)
 		}
 
 		// Hard coded sleep to reduce
@@ -364,16 +439,11 @@ func updateReplicationThrottle(topics []string, zk *kafkazk.ZK, km *kafkametrics
 	}
 
 	// Write event.
-	var allBrokersList []int
-	for b := range allBrokers {
-		allBrokersList = append(allBrokersList, b)
-	}
-
 	var b bytes.Buffer
 	b.WriteString(fmt.Sprintf("Replication throttle of %.2fMB/s set on the following brokers: %v\n",
 		replicationHeadRoom, allBrokersList))
-	b.WriteString(fmt.Sprintf("Topics currently undergoing replication: %v", topics))
-	events.Write("Broker replication throttle set", b.String())
+	b.WriteString(fmt.Sprintf("Topics currently undergoing replication: %v", params.topics))
+	params.events.Write("Broker replication throttle set", b.String())
 
 	return nil
 }
@@ -399,7 +469,8 @@ func removeAllThrottles(zk *kafkazk.ZK, events *EventGenerator) error {
 			},
 		}
 
-		err := zk.UpdateKafkaConfig(config)
+		// Update the config.
+		_, err := zk.UpdateKafkaConfig(config)
 		if err != nil {
 			log.Printf("Error removing throttle config on topic %s: %s\n", topic, err)
 		}
@@ -424,7 +495,6 @@ func removeAllThrottles(zk *kafkazk.ZK, events *EventGenerator) error {
 	// Unset throttles.
 	for b := range brokers {
 		allBrokers = append(allBrokers, b)
-		log.Printf("Removing throttle on broker %d\n", b)
 		config := kafkazk.KafkaConfig{
 			Type: "broker",
 			Name: strconv.Itoa(b),
@@ -434,9 +504,13 @@ func removeAllThrottles(zk *kafkazk.ZK, events *EventGenerator) error {
 			},
 		}
 
-		err := zk.UpdateKafkaConfig(config)
+		changed, err := zk.UpdateKafkaConfig(config)
 		if err != nil {
 			log.Printf("Error removing throttle on broker %d: %s\n", b, err)
+		}
+
+		if changed {
+			log.Printf("Throttle removed on broker %d\n", b)
 		}
 
 		// Hardcoded sleep to reduce
@@ -458,37 +532,13 @@ func removeAllThrottles(zk *kafkazk.ZK, events *EventGenerator) error {
 	return nil
 }
 
-// replicasFromTopicConfigs takes a map of kafkametrics.BrokerMetrics and
-// kafkazk.TopicConfigs fetched from ZK and returns a ThrottledReplicas
-// with lists of leader / follower brokers participating in a replication.
-func replicasFromTopicConfigs(b kafkametrics.BrokerMetrics, c map[string]*kafkazk.TopicConfig) (ThrottledReplicas, []error) {
-	t := ThrottledReplicas{}
-	var errs []error
-	for topic := range c {
-		// Convert the config leader.replication.throttled.replicas
-		// and follower.replication.throttled.replicas lists
-		// to *[]Brokers. An array is returned where index 0
-		// is the leaders list, index 1 is the followers list.
-		brokers, err := brokersFromConfig(b, c[topic])
-		if err != nil {
-			errs = append(errs, err...)
-		}
-
-		// Append the leader/followers.
-		t.Leaders = append(t.Leaders, brokers[0]...)
-		t.Followers = append(t.Followers, brokers[1]...)
-	}
-
-	return t, errs
-}
-
-// highestLeaderNetTX takes a ThrottledReplicas and returns
+// highestSrcNetTX takes a ReassigningBrokers and returns
 // the leader with the highest outbound network throughput.
-func (t ThrottledReplicas) highestLeaderNetTX() *kafkametrics.Broker {
+func (t ReassigningBrokers) highestSrcNetTX() *kafkametrics.Broker {
 	hwm := 0.00
 	var broker *kafkametrics.Broker
 
-	for _, b := range t.Leaders {
+	for _, b := range t.Src {
 		if b.NetTX > hwm {
 			hwm = b.NetTX
 			broker = b
@@ -496,100 +546,6 @@ func (t ThrottledReplicas) highestLeaderNetTX() *kafkametrics.Broker {
 	}
 
 	return broker
-}
-
-// brokersFromThrottleList takes a string list of throttled
-// replicas and returns a []int of broker IDs from
-// the list.
-func brokersFromThrottleList(l string) ([]int, error) {
-	brokers := []int{}
-	// Split the [partitionID]-[brokerID]
-	// replica strings.
-	rs := strings.Split(l, ",")
-	// For each replica string,
-	// get the broker ID.
-	for _, r := range rs {
-		p := strings.Split(r, ":")
-		if len(p) != 2 {
-			errS := fmt.Sprintf("Malformed throttle entry %s", r)
-			return brokers, errors.New(errS)
-		}
-		ids := p[1]
-		id, err := strconv.Atoi(ids)
-		if err != nil {
-			errS := fmt.Sprintf("Bad broker ID %s", ids)
-			return brokers, errors.New(errS)
-		}
-
-		brokers = append(brokers, id)
-	}
-
-	return brokers, nil
-}
-
-// brokersFromConfig takes a *kafkazk.TopicConfig and maps the
-// leader.replication.throttled.replicas and follower.replication.throttled.replicas
-// fields to a [2][]*kafkametrics.Broker.
-func brokersFromConfig(b kafkametrics.BrokerMetrics, c *kafkazk.TopicConfig) ([2][]*kafkametrics.Broker, []error) {
-	brokers := [2][]*kafkametrics.Broker{
-		// Leaders.
-		[]*kafkametrics.Broker{},
-		// Followers.
-		[]*kafkametrics.Broker{},
-	}
-
-	var errs []error
-
-	// Brokers is a map of leader and follower
-	// broker IDs found in the TopicConfig.
-	// Using a map rather than appending to the
-	// lists directly to avoid duplicates.
-	bids := map[string]map[int]interface{}{
-		"leader":   map[int]interface{}{},
-		"follower": map[int]interface{}{},
-	}
-
-	// Get leaders and followers from each
-	// list of throttled replicas in the
-	// topic config.
-	for _, t := range []string{"leader", "follower"} {
-		if l, exists := c.Config[t+".replication.throttled.replicas"]; exists {
-			blist, err := brokersFromThrottleList(l)
-			if err != nil {
-				errs = append(errs, err)
-			}
-			// Ad each broker to the bids map.
-			for _, id := range blist {
-				bids[t][id] = nil
-			}
-		}
-	}
-
-	if len(errs) > 0 {
-		return brokers, errs
-	}
-
-	// For each broker in the leaders and followers
-	// lists, lookup in the BrokerMetrics. If a
-	// corresponding BrokerMetrics exists,
-	// append it to the final brokers sublist.
-	for list := range bids {
-		for id := range bids[list] {
-			if broker, exists := b[id]; exists {
-				if list == "leader" {
-					brokers[0] = append(brokers[0], broker)
-				} else {
-					brokers[1] = append(brokers[1], broker)
-				}
-			} else {
-				errS := fmt.Sprintf("Broker %d from the topic config not found in the broker metrics map", id)
-				errs = append(errs, errors.New(errS))
-				return brokers, errs
-			}
-		}
-	}
-
-	return brokers, nil
 }
 
 // eventWriter reads from a channel of

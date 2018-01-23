@@ -61,10 +61,10 @@ type BrokerMeta struct {
 // field is retrieved.
 type BrokerMetaMap map[int]*BrokerMeta
 
-// topicState is used for unmarshing
+// TopicState is used for unmarshing
 // ZooKeeper json data from a topic:
 // e.g. `get /brokers/topics/some-topic`.
-type topicState struct {
+type TopicState struct {
 	Partitions map[string][]int `json:"partitions"`
 }
 
@@ -84,12 +84,13 @@ type reassignConfig struct {
 }
 
 // TopicConfig is used for unmarshalling
-// /config/topics/<topic> data.
+// /config/topics/<topic>.
 type TopicConfig struct {
 	Version int               `json:"version"`
 	Config  map[string]string `json:"config"`
 }
 
+// KafkaConfig
 type KafkaConfig struct {
 	Type    string      // Topic or broker.
 	Name    string      // Entity name.
@@ -97,6 +98,7 @@ type KafkaConfig struct {
 
 }
 
+// KafkaConfigData
 type KafkaConfigData struct {
 	Version int               `json:"version"`
 	Config  map[string]string `json:"config"`
@@ -257,7 +259,7 @@ func (z *ZK) GetAllBrokerMeta() (BrokerMetaMap, error) {
 	return bmm, nil
 }
 
-func (z *ZK) getPartitionMap(t string) (*PartitionMap, error) {
+func (z *ZK) GetTopicState(t string) (*TopicState, error) {
 	var path string
 	if z.Prefix != "" {
 		path = fmt.Sprintf("%s/brokers/topics/%s", z.Prefix, t)
@@ -265,11 +267,8 @@ func (z *ZK) getPartitionMap(t string) (*PartitionMap, error) {
 		path = fmt.Sprintf("brokers/topics/%s", t)
 	}
 
-	// Get current reassign_partitions.
-	re := z.GetReassignments()
-
 	// Fetch topic data from z.
-	ts := &topicState{}
+	ts := &TopicState{}
 	m, err := z.client.Get(path)
 	switch err {
 	case store.ErrKeyNotFound:
@@ -285,6 +284,19 @@ func (z *ZK) getPartitionMap(t string) (*PartitionMap, error) {
 		return nil, err
 	}
 
+	return ts, nil
+}
+
+func (z *ZK) getPartitionMap(t string) (*PartitionMap, error) {
+	// Get current topic state.
+	ts, err := z.GetTopicState(t)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get current reassign_partitions.
+	re := z.GetReassignments()
+
 	// Update with partitions in reassignment.
 	// We might have this in /admin/reassign_partitions:
 	// {"version":1,"partitions":[{"topic":"myTopic","partition":14,"replicas":[1039,1044]}]}
@@ -299,7 +311,7 @@ func (z *ZK) getPartitionMap(t string) (*PartitionMap, error) {
 		}
 	}
 
-	// Map topicState to a
+	// Map TopicState to a
 	// PartitionMap.
 	pm := NewPartitionMap()
 	pl := partitionList{}
@@ -367,17 +379,20 @@ func (z *ZK) Exists(p string) (bool, error) {
 // a persistent sequential znode is also written to
 // propagate changes (via watches) to all Kafka brokers.
 // This is a Kafka specific behavior; further references
-// are available from the Kafka codebase.
+// are available from the Kafka codebase. A bool is returned
+// indicating whether the config was changed (if a config is
+// updated to the existing value, 'false' is returned) along
+// with any errors encountered.
 // If a config value is set to an empty string (""),
 // the entire config key itself is deleted. This was
 // an easy way to merge update/delete into a single func.
-func (z *ZK) UpdateKafkaConfig(c KafkaConfig) error {
+func (z *ZK) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
 	if z.rclient == nil {
-		return ErrRawClientRequired
+		return false, ErrRawClientRequired
 	}
 
 	if _, valid := validKafkaConfigTypes[c.Type]; !valid {
-		return ErrInvalidKafkaConfigType
+		return false, ErrInvalidKafkaConfigType
 	}
 
 	// Get current config from the
@@ -391,7 +406,7 @@ func (z *ZK) UpdateKafkaConfig(c KafkaConfig) error {
 
 	data, _, err := z.rclient.Get(path)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	config := &KafkaConfigData{}
@@ -414,17 +429,23 @@ func (z *ZK) UpdateKafkaConfig(c KafkaConfig) error {
 		}
 	}
 
-	// Write the config back.
+	// Write the config back
+	// if it's different from
+	// what was already set.
 	if changed {
 		newConfig, err := json.Marshal(config)
 		if err != nil {
 			errS := fmt.Sprintf("Error marshalling config: %s", err)
-			return errors.New(errS)
+			return false, errors.New(errS)
 		}
 		_, err = z.rclient.Set(path, newConfig, -1)
 		if err != nil {
-			return err
+			return false, err
 		}
+	} else {
+		// Return if there's no change.
+		// No need to write back the config.
+		return false, err
 	}
 
 	// If there were any config changes,
@@ -435,15 +456,17 @@ func (z *ZK) UpdateKafkaConfig(c KafkaConfig) error {
 		cpath = "/" + z.Prefix + cpath
 	}
 
-	if changed {
-		cdata := fmt.Sprintf(`{"version":2,"entity_path":"%ss/%s"}`, c.Type, c.Name)
-		err := z.CreateSequential(cpath, cdata)
-		if err != nil {
-			return err
-		}
+	cdata := fmt.Sprintf(`{"version":2,"entity_path":"%ss/%s"}`, c.Type, c.Name)
+	err = z.CreateSequential(cpath, cdata)
+	if err != nil {
+		// If we're here, this would
+		// actually be a partial write since
+		// the config was updated but we're
+		// failing at the watch entry.
+		return false, err
 	}
 
-	return nil
+	return true, nil
 }
 
 func (z *ZK) InitRawClient() error {
