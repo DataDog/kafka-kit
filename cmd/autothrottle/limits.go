@@ -27,16 +27,17 @@ var (
 // to network bandwidth limits.
 type Limits map[string]float64
 
-// headroom takes an instance type and utilization
-// and returns the headroom / free capacity. A minimum
-// value of 10MB/s is returned.
-func (l Limits) headroom(b *kafkametrics.Broker) (float64, error) {
+// headroom takes a *kafkametrics.Broker and last set
+// throttle rate and returns the headroom based on utilization
+// vs capacity. A minimum value of 10MB/s is returned.
+func (l Limits) headroom(b *kafkametrics.Broker, t float64) (float64, error) {
 	if b == nil {
 		return l["mininum"], errors.New("Nil broker provided")
 	}
 
 	if k, exists := l[b.InstanceType]; exists {
-		return math.Max(k-b.NetTX, l["mininum"]), nil
+		nonThrottleUtil := math.Max(b.NetTX-t, 0.00)
+		return math.Max((k-nonThrottleUtil)*0.90, l["mininum"]), nil
 	}
 
 	return l["mininum"], errors.New("Unknown instance type")

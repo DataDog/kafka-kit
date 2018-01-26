@@ -13,15 +13,17 @@ import (
 	"github.com/DataDog/topicmappr/kafkazk"
 )
 
-// UpdateReplicationThrottleRequest holds all types
+// ReplicationThrottleMeta holds all types
 // needed to call the updateReplicationThrottle func.
-type UpdateReplicationThrottleRequest struct {
+type ReplicationThrottleMeta struct {
 	topics        []string
 	reassignments kafkazk.Reassignments
 	zk            *kafkazk.ZK
 	km            *kafkametrics.KafkaMetrics
 	override      string
 	events        *EventGenerator
+	// Map of broker ID to last set throttle rate.
+	throttles map[int]float64
 }
 
 // ReassigningBrokers is a list of brokers
@@ -48,7 +50,7 @@ func (t ReassigningBrokers) highestSrcNetTX() *kafkametrics.Broker {
 	return broker
 }
 
-// updateReplicationThrottle takes a UpdateReplicationThrottleRequest
+// updateReplicationThrottle takes a ReplicationThrottleMeta
 // that holds topics being replicated, any clients, throttle override params,
 // and other required metadata.
 // Metrics for brokers participating in any ongoing replication
@@ -56,7 +58,7 @@ func (t ReassigningBrokers) highestSrcNetTX() *kafkametrics.Broker {
 // The replication throttle is then adjusted accordingly.
 // If a non-empty override is provided, that static value is used instead
 // of a dynamically determined value.
-func updateReplicationThrottle(params *UpdateReplicationThrottleRequest) error {
+func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 	// Maps of src and dst brokers
 	// used as sets.
 	srcBrokers := map[int]interface{}{}
@@ -138,7 +140,8 @@ func updateReplicationThrottle(params *UpdateReplicationThrottleRequest) error {
 	Determine throttle rates.
 	************************/
 
-	// Use the throttle override if set. Otherwise, use metrics.
+	// Use the throttle override if set.
+	// Otherwise, use metrics.
 	var tvalue float64
 	var replicationHeadRoom float64
 
@@ -176,16 +179,23 @@ func updateReplicationThrottle(params *UpdateReplicationThrottleRequest) error {
 			}
 		}
 
+		// Get the most constrained src broker and
+		// its current throttle, if applied.
 		constrainingSrc := participatingBrokers.highestSrcNetTX()
-		replicationHeadRoom, err = BWLimits.headroom(constrainingSrc)
+		currThrottle, exists := params.throttles[constrainingSrc.ID]
+		if !exists {
+			currThrottle = 0.0
+		}
+
+		replicationHeadRoom, err = BWLimits.headroom(constrainingSrc, currThrottle)
 		if err != nil {
 			return err
 		}
 
 		tvalue = replicationHeadRoom * 1000000.00
 
-		log.Printf("Source broker %d has the highest outbound network throughput of %.2fMB/s\n",
-			constrainingSrc.ID, constrainingSrc.NetTX)
+		log.Printf("Most utilized source broker: [%d] outbound net tx of %.2fMB/s (over %ds) with an existing throttle rate of %2.fMB/s\n",
+			constrainingSrc.ID, Config.MetricsWindow, constrainingSrc.NetTX, replicationHeadRoom)
 		log.Printf("Replication headroom: %.2fMB/s\n", replicationHeadRoom)
 	}
 
@@ -257,6 +267,10 @@ func updateReplicationThrottle(params *UpdateReplicationThrottleRequest) error {
 		}
 
 		if changed {
+			// Store the configured rate.
+			// We used the replicationHeadRoom, which
+			// is the tvalue in MB.
+			params.throttles[b] = replicationHeadRoom
 			log.Printf("Updated throttle to %.2fMB/s on broker %d\n", replicationHeadRoom, b)
 		}
 
@@ -275,7 +289,7 @@ func updateReplicationThrottle(params *UpdateReplicationThrottleRequest) error {
 	return nil
 }
 
-func removeAllThrottles(zk *kafkazk.ZK, events *EventGenerator) error {
+func removeAllThrottles(zk *kafkazk.ZK, params *ReplicationThrottleMeta) error {
 	/****************************
 	Clear topic throttle configs.
 	****************************/
@@ -347,13 +361,18 @@ func removeAllThrottles(zk *kafkazk.ZK, events *EventGenerator) error {
 
 	// Write event.
 	m := fmt.Sprintf("Replication throttle removed on the following brokers: %v", allBrokers)
-	events.Write("Broker replication throttle removed", m)
+	params.events.Write("Broker replication throttle removed", m)
 
 	// Lazily check if any
 	// errors were encountered,
 	// return a generic error.
 	if err != nil {
 		return errors.New("one or more throttles were not cleared")
+	}
+
+	// Unset all stored throttle rates.
+	for b := range params.throttles {
+		params.throttles[b] = 0.0
 	}
 
 	return nil
