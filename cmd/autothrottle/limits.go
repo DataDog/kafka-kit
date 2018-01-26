@@ -29,7 +29,13 @@ type Limits map[string]float64
 
 // headroom takes a *kafkametrics.Broker and last set
 // throttle rate and returns the headroom based on utilization
-// vs capacity. A minimum value of 10MB/s is returned.
+// vs capacity. Headroom is determined by subtracting the current
+// throttle rate from the current outbound network utilization.
+// This yields a crude approximation of how much non-replication
+// throughput is currently being demanded. The non-replication
+// throughput is then subtracted from the total network capacity available.
+// This value suggests what headroom is available for replication.
+// The greater of this value*0.9 and 10MB/s is returned.
 func (l Limits) headroom(b *kafkametrics.Broker, t float64) (float64, error) {
 	if b == nil {
 		return l["mininum"], errors.New("Nil broker provided")

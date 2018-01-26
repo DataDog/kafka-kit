@@ -39,7 +39,7 @@ func init() {
 	flag.StringVar(&Config.APIKey, "api-key", "", "Datadog API key")
 	flag.StringVar(&Config.AppKey, "app-key", "", "Datadog app key")
 	flag.StringVar(&Config.NetworkTXQuery, "net-tx-query", "avg:system.net.bytes_sent{service:kafka} by {host}", "Network query for broker outbound bandwidth by host")
-	flag.IntVar(&Config.MetricsWindow, "metrics-window", 300, "Time span of metrics to average")
+	flag.IntVar(&Config.MetricsWindow, "metrics-window", 60, "Time span of metrics to average")
 	flag.StringVar(&Config.ZKAddr, "zk-addr", "localhost:2181", "ZooKeeper connect string (for broker metadata or rebuild-topic lookups)")
 	flag.StringVar(&Config.ZKPrefix, "zk-prefix", "", "ZooKeeper namespace prefix")
 	flag.IntVar(&Config.Interval, "interval", 60, "Autothrottle check interval in seconds")
