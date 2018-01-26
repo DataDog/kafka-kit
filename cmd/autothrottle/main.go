@@ -39,7 +39,7 @@ func init() {
 	flag.StringVar(&Config.APIKey, "api-key", "", "Datadog API key")
 	flag.StringVar(&Config.AppKey, "app-key", "", "Datadog app key")
 	flag.StringVar(&Config.NetworkTXQuery, "net-tx-query", "avg:system.net.bytes_sent{service:kafka} by {host}", "Network query for broker outbound bandwidth by host")
-	flag.IntVar(&Config.MetricsWindow, "metrics-window", 300, "Time span of metrics to average")
+	flag.IntVar(&Config.MetricsWindow, "metrics-window", 60, "Time span of metrics to average")
 	flag.StringVar(&Config.ZKAddr, "zk-addr", "localhost:2181", "ZooKeeper connect string (for broker metadata or rebuild-topic lookups)")
 	flag.StringVar(&Config.ZKPrefix, "zk-prefix", "", "ZooKeeper namespace prefix")
 	flag.IntVar(&Config.Interval, "interval", 60, "Autothrottle check interval in seconds")
@@ -124,20 +124,21 @@ func main() {
 
 	// Params for the updateReplicationThrottle
 	// request.
-	updateParams := &UpdateReplicationThrottleRequest{
-		zk:     zk,
-		km:     km,
-		events: events,
+	throttleMeta := &ReplicationThrottleMeta{
+		zk:        zk,
+		km:        km,
+		events:    events,
+		throttles: make(map[int]float64),
 	}
 
 	// Run.
 	for {
-		updateParams.topics = updateParams.topics[:0]
+		throttleMeta.topics = throttleMeta.topics[:0]
 		// Get topics undergoing reassignment.
 		reassignments = zk.GetReassignments() // TODO This needs to return an error.
 		replicatingNow = make(map[string]interface{})
 		for t := range reassignments {
-			updateParams.topics = append(updateParams.topics, t)
+			throttleMeta.topics = append(throttleMeta.topics, t)
 			replicatingNow[t] = nil
 		}
 
@@ -168,8 +169,8 @@ func main() {
 
 		// If topics are being reassigned, update
 		// the replication throttle.
-		if len(updateParams.topics) > 0 {
-			log.Printf("Topics with ongoing reassignments: %s\n", updateParams.topics)
+		if len(throttleMeta.topics) > 0 {
+			log.Printf("Topics with ongoing reassignments: %s\n", throttleMeta.topics)
 
 			// Check if a throttle override is set.
 			// If so, apply that static throttle.
@@ -179,11 +180,11 @@ func main() {
 				log.Printf("Error fetching override: %s\n", err)
 			}
 
-			// Update the updateParams.
-			updateParams.override = string(override)
-			updateParams.reassignments = reassignments
+			// Update the throttleMeta.
+			throttleMeta.override = string(override)
+			throttleMeta.reassignments = reassignments
 
-			err = updateReplicationThrottle(updateParams)
+			err = updateReplicationThrottle(throttleMeta)
 			if err != nil {
 				log.Println(err)
 			}
@@ -193,7 +194,7 @@ func main() {
 			log.Println("No topics undergoing reassignment")
 			// Unset any throttles.
 			if knownThrottles {
-				err := removeAllThrottles(zk, events)
+				err := removeAllThrottles(zk, throttleMeta)
 				if err != nil {
 					log.Printf("Error removing throttles: %s\n", err.Error())
 				} else {
