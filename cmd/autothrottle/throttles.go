@@ -331,11 +331,10 @@ func removeAllThrottles(zk *kafkazk.ZK, params *ReplicationThrottleMeta) error {
 		return err
 	}
 
-	var allBrokers []int
+	var unthrottledBrokers []int
 
 	// Unset throttles.
 	for b := range brokers {
-		allBrokers = append(allBrokers, b)
 		config := kafkazk.KafkaConfig{
 			Type: "broker",
 			Name: strconv.Itoa(b),
@@ -351,6 +350,7 @@ func removeAllThrottles(zk *kafkazk.ZK, params *ReplicationThrottleMeta) error {
 		}
 
 		if changed {
+			unthrottledBrokers = append(unthrottledBrokers, b)
 			log.Printf("Throttle removed on broker %d\n", b)
 		}
 
@@ -360,8 +360,10 @@ func removeAllThrottles(zk *kafkazk.ZK, params *ReplicationThrottleMeta) error {
 	}
 
 	// Write event.
-	m := fmt.Sprintf("Replication throttle removed on the following brokers: %v", allBrokers)
-	params.events.Write("Broker replication throttle removed", m)
+	if len(unthrottledBrokers) > 0 {
+		m := fmt.Sprintf("Replication throttle removed on the following brokers: %v", unthrottledBrokers)
+		params.events.Write("Broker replication throttle removed", m)
+	}
 
 	// Lazily check if any
 	// errors were encountered,
