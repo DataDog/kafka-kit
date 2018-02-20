@@ -211,7 +211,7 @@ func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 
 		log.Printf("Most utilized source broker: [%d] outbound net tx of %.2fMB/s (over %ds) with an existing throttle rate of %2.fMB/s\n",
 			constrainingSrc.ID, constrainingSrc.NetTX, Config.MetricsWindow, replicationHeadRoom)
-		log.Printf("Replication headroom: %.2fMB/s\n", replicationHeadRoom)
+		log.Printf("Replication headroom (based on a %d%% max free capacity utilization): %.2fMB/s\n", replicationHeadRoom, params.limits["maximum"])
 	}
 
 	// Get a rate string based on the
