@@ -24,7 +24,7 @@ type ReplicationThrottleMeta struct {
 	events        *EventGenerator
 	// Map of broker ID to last set throttle rate.
 	throttles map[int]float64
-	limits    *Limits
+	limits    Limits
 }
 
 // ReassigningBrokers is a list of brokers

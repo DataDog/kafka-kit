@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"math"
 
 	"github.com/DataDog/topicmappr/kafkametrics"
@@ -11,19 +12,21 @@ import (
 // to network bandwidth limits.
 type Limits map[string]float64
 
-func NewLimits() *Limits {
-	return &Limits{
+// NewLimits takes a minimum float64 and a map
+// of instance-type to float64 network capacity values (in MB/s).
+func NewLimits(m float64, l map[string]float64) Limits {
+	lim := Limits{
 		// Min. config.
-		"mininum": 10.00,
-		// d2 class.
-		"d2.xlarge":  100.00,
-		"d2.2xlarge": 120.00,
-		"d2.4xlarge": 240.00,
-		// i3 class.
-		"i3.xlarge":  130.00,
-		"i3.2xlarge": 250.00,
-		"i3.4xlarge": 500.00,
+		"mininum": m,
 	}
+
+	// Update with provided
+	// capacity map.
+	for k, v := range l {
+		lim[k] = v
+	}
+
+	return lim
 }
 
 // headroom takes a *kafkametrics.Broker and last set

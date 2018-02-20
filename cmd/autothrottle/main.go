@@ -1,9 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -27,6 +29,8 @@ var (
 		APIListen      string
 		ConfigZKPrefix string
 		DDEventTags    string
+		MinRate        float64
+		CapMap         map[string]float64
 	}
 
 	// Misc.
@@ -46,9 +50,21 @@ func init() {
 	flag.StringVar(&Config.APIListen, "api-listen", "localhost:8080", "Admin API listen address:port")
 	flag.StringVar(&Config.ConfigZKPrefix, "zk-config-prefix", "autothrottle", "ZooKeeper prefix to store autothrottle configuration")
 	flag.StringVar(&Config.DDEventTags, "dd-event-tags", "", "Comma-delimited list of Datadog event tags")
+	flag.Float64Var(&Config.MinRate, "min-rate", 10, "Minimum replication throttle rate")
+	m := flag.String("cap-map", "", "JSON map of instance types to network capacity (in MB/s)")
 
 	envy.Parse("AUTOTHROTTLE")
 	flag.Parse()
+
+	// Decode instance-type capacity map.
+	Config.CapMap = map[string]float64{}
+	if len(*m) > 0 {
+		err := json.Unmarshal([]byte(*m), &Config.CapMap)
+		if err != nil {
+			fmt.Printf("Error parsing cap-map flag: %s\n", err)
+			os.Exit(1)
+		}
+	}
 }
 
 func main() {
@@ -129,7 +145,7 @@ func main() {
 		km:        km,
 		events:    events,
 		throttles: make(map[int]float64),
-		limits:    NewLimits(),
+		limits:    NewLimits(Config.MinRate, Config.CapMap),
 	}
 
 	// Run.
