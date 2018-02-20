@@ -145,6 +145,9 @@ func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 	// Otherwise, use metrics.
 	var tvalue float64
 	var replicationHeadRoom float64
+	var useMetrics bool
+	var err error
+	var brokerMetrics kafkametrics.BrokerMetrics
 
 	if params.override != "" {
 		log.Printf("A throttle override is set: %sMB/s\n", params.override)
@@ -153,12 +156,23 @@ func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 		// For log output.
 		replicationHeadRoom = float64(o)
 	} else {
+		useMetrics = true
 		// Get broker metrics.
-		brokerMetrics, err := params.km.GetMetrics()
+		brokerMetrics, err = params.km.GetMetrics()
 		if err != nil {
-			return err
+			// If there was a error fetching metrics,
+			// revert to the minimum replication rate
+			// configured.
+			log.Println(err)
+			log.Printf("Using minimum throttle of %dMB/s\n", params.limits["minimum"])
+			tvalue = params.limits["minimum"] * 1000000.00
 		}
+	}
 
+	// If we're using metrics and successfully
+	// fetched them, determine a tvalue based on
+	// the most-utilized path.
+	if useMetrics && err != nil {
 		// Map src/dst broker IDs to a *ReassigningBrokers.
 		participatingBrokers := &ReassigningBrokers{}
 
@@ -199,6 +213,10 @@ func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 			constrainingSrc.ID, constrainingSrc.NetTX, Config.MetricsWindow, replicationHeadRoom)
 		log.Printf("Replication headroom: %.2fMB/s\n", replicationHeadRoom)
 	}
+
+	// Get a rate string based on the
+	// final tvalue.
+	rateString := fmt.Sprintf("%.0f", tvalue)
 
 	/**************************
 	Set topic throttle configs.
@@ -250,7 +268,6 @@ func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 	***************************/
 
 	// Generate a broker throttle config.
-	rateString := fmt.Sprintf("%.0f", tvalue)
 	for b := range allBrokers {
 		config := kafkazk.KafkaConfig{
 			Type: "broker",

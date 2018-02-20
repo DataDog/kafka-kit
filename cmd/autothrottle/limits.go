@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"math"
 
 	"github.com/DataDog/topicmappr/kafkametrics"
