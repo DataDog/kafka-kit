@@ -1,9 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -27,6 +29,10 @@ var (
 		APIListen      string
 		ConfigZKPrefix string
 		DDEventTags    string
+		MinRate        float64
+		MaxRate        float64
+		CapMap         map[string]float64
+		CleanupAfter int64
 	}
 
 	// Misc.
@@ -38,7 +44,7 @@ func init() {
 
 	flag.StringVar(&Config.APIKey, "api-key", "", "Datadog API key")
 	flag.StringVar(&Config.AppKey, "app-key", "", "Datadog app key")
-	flag.StringVar(&Config.NetworkTXQuery, "net-tx-query", "avg:system.net.bytes_sent{service:kafka} by {host}", "Network query for broker outbound bandwidth by host")
+	flag.StringVar(&Config.NetworkTXQuery, "net-tx-query", "avg:system.net.bytes_sent{service:kafka} by {host}", "Datadog query for broker outbound bandwidth by host")
 	flag.IntVar(&Config.MetricsWindow, "metrics-window", 60, "Time span of metrics to average")
 	flag.StringVar(&Config.ZKAddr, "zk-addr", "localhost:2181", "ZooKeeper connect string (for broker metadata or rebuild-topic lookups)")
 	flag.StringVar(&Config.ZKPrefix, "zk-prefix", "", "ZooKeeper namespace prefix")
@@ -46,9 +52,23 @@ func init() {
 	flag.StringVar(&Config.APIListen, "api-listen", "localhost:8080", "Admin API listen address:port")
 	flag.StringVar(&Config.ConfigZKPrefix, "zk-config-prefix", "autothrottle", "ZooKeeper prefix to store autothrottle configuration")
 	flag.StringVar(&Config.DDEventTags, "dd-event-tags", "", "Comma-delimited list of Datadog event tags")
+	flag.Float64Var(&Config.MinRate, "min-rate", 10, "Minimum replication throttle rate in MB/s")
+	flag.Float64Var(&Config.MaxRate, "max-rate", 90, "Maximum replication throttle rate as a percentage of available capacity")
+	m := flag.String("cap-map", "", "JSON map of instance types to network capacity in MB/s")
+	flag.Int64Var(&Config.CleanupAfter, "cleanup-after", 180, "Number of intervals after which to issue a global throttle unset if no replication is running")
 
 	envy.Parse("AUTOTHROTTLE")
 	flag.Parse()
+
+	// Decode instance-type capacity map.
+	Config.CapMap = map[string]float64{}
+	if len(*m) > 0 {
+		err := json.Unmarshal([]byte(*m), &Config.CapMap)
+		if err != nil {
+			fmt.Printf("Error parsing cap-map flag: %s\n", err)
+			os.Exit(1)
+		}
+	}
 }
 
 func main() {
@@ -124,15 +144,26 @@ func main() {
 
 	// Params for the updateReplicationThrottle
 	// request.
+
+	newLimitsConfig := NewLimitsConfig{
+		Minimum:     Config.MinRate,
+		Maximum:     Config.MaxRate,
+		CapacityMap: Config.CapMap,
+	}
+
 	throttleMeta := &ReplicationThrottleMeta{
 		zk:        zk,
 		km:        km,
 		events:    events,
 		throttles: make(map[int]float64),
+		limits:    NewLimits(newLimitsConfig),
 	}
 
 	// Run.
+	var interval int64
 	for {
+		interval++
+
 		throttleMeta.topics = throttleMeta.topics[:0]
 		// Get topics undergoing reassignment.
 		reassignments = zk.GetReassignments() // TODO This needs to return an error.
@@ -193,7 +224,10 @@ func main() {
 		} else {
 			log.Println("No topics undergoing reassignment")
 			// Unset any throttles.
-			if knownThrottles {
+			if knownThrottles || interval == Config.CleanupAfter {
+				// Reset the interval.
+				interval = 0
+
 				err := removeAllThrottles(zk, throttleMeta)
 				if err != nil {
 					log.Printf("Error removing throttles: %s\n", err.Error())
