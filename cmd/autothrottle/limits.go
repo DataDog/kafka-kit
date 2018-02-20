@@ -27,7 +27,7 @@ type NewLimitsConfig struct {
 func NewLimits(c NewLimitsConfig) Limits {
 	lim := Limits{
 		// Min. config.
-		"mininum": c.Minimum,
+		"minimum": c.Minimum,
 		"maximum": c.Maximum,
 	}
 
@@ -53,13 +53,13 @@ func NewLimits(c NewLimitsConfig) Limits {
 // - the configured minimum replication rate in MB/s
 func (l Limits) headroom(b *kafkametrics.Broker, t float64) (float64, error) {
 	if b == nil {
-		return l["mininum"], errors.New("Nil broker provided")
+		return l["minimum"], errors.New("Nil broker provided")
 	}
 
 	if k, exists := l[b.InstanceType]; exists {
 		nonThrottleUtil := math.Max(b.NetTX-t, 0.00)
-		return math.Max((k-nonThrottleUtil)*(l["maximum"]/100), l["mininum"]), nil
+		return math.Max((k-nonThrottleUtil)*(l["maximum"]/100), l["minimum"]), nil
 	}
 
-	return l["mininum"], errors.New("Unknown instance type")
+	return l["minimum"], errors.New("Unknown instance type")
 }
