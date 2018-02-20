@@ -24,6 +24,7 @@ type ReplicationThrottleMeta struct {
 	events        *EventGenerator
 	// Map of broker ID to last set throttle rate.
 	throttles map[int]float64
+	limits    *Limits
 }
 
 // ReassigningBrokers is a list of brokers
@@ -187,7 +188,7 @@ func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 			currThrottle = 0.0
 		}
 
-		replicationHeadRoom, err = BWLimits.headroom(constrainingSrc, currThrottle)
+		replicationHeadRoom, err = params.limits.headroom(constrainingSrc, currThrottle)
 		if err != nil {
 			return err
 		}

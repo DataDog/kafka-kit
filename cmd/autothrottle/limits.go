@@ -7,9 +7,12 @@ import (
 	"github.com/DataDog/topicmappr/kafkametrics"
 )
 
-var (
-	// Hardcoded for now.
-	BWLimits = Limits{
+// Limits is a map of instance-type
+// to network bandwidth limits.
+type Limits map[string]float64
+
+func NewLimits() *Limits {
+	return &Limits{
 		// Min. config.
 		"mininum": 10.00,
 		// d2 class.
@@ -21,11 +24,7 @@ var (
 		"i3.2xlarge": 250.00,
 		"i3.4xlarge": 500.00,
 	}
-)
-
-// Limits is a map of instance-type
-// to network bandwidth limits.
-type Limits map[string]float64
+}
 
 // headroom takes a *kafkametrics.Broker and last set
 // throttle rate and returns the headroom based on utilization

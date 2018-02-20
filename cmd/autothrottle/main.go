@@ -129,6 +129,7 @@ func main() {
 		km:        km,
 		events:    events,
 		throttles: make(map[int]float64),
+		limits:    NewLimits(),
 	}
 
 	// Run.
