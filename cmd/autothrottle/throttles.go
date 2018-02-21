@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"sort"
 	"strconv"
 	"time"
@@ -209,9 +210,19 @@ func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 
 		tvalue = replicationHeadRoom * 1000000.00
 
-		log.Printf("Most utilized source broker: [%d] outbound net tx of %.2fMB/s (over %ds) with an existing throttle rate of %2.fMB/s\n",
-			constrainingSrc.ID, constrainingSrc.NetTX, Config.MetricsWindow, replicationHeadRoom)
+		log.Printf("Most utilized source broker: [%d] net tx of %.2fMB/s (over %ds) with an existing throttle rate of %2.fMB/s\n",
+			constrainingSrc.ID, constrainingSrc.NetTX, Config.MetricsWindow, currThrottle)
 		log.Printf("Replication headroom (based on a %.0f%% max free capacity utilization): %.2fMB/s\n", params.limits["maximum"], replicationHeadRoom)
+
+		// Check if the delta between the newly calculated
+		// throttle and the previous throttle exceeds the
+		// ChangeThreshold param.
+		d := math.Abs((currThrottle - replicationHeadRoom) / currThrottle*100)
+		if d < Config.ChangeThreshold {
+			log.Printf("Proposed throttle is within %.2f%% of the previous throttle (below %.2f%% threshold), skipping throttle update\n",
+				d, Config.ChangeThreshold)
+			return nil
+		}
 	}
 
 	// Get a rate string based on the

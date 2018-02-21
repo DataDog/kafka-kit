@@ -19,20 +19,21 @@ var (
 	// Config holds configuration
 	// parameters.
 	Config struct {
-		APIKey         string
-		AppKey         string
-		NetworkTXQuery string
-		MetricsWindow  int
-		ZKAddr         string
-		ZKPrefix       string
-		Interval       int
-		APIListen      string
-		ConfigZKPrefix string
-		DDEventTags    string
-		MinRate        float64
-		MaxRate        float64
-		CapMap         map[string]float64
-		CleanupAfter int64
+		APIKey          string
+		AppKey          string
+		NetworkTXQuery  string
+		MetricsWindow   int
+		ZKAddr          string
+		ZKPrefix        string
+		Interval        int
+		APIListen       string
+		ConfigZKPrefix  string
+		DDEventTags     string
+		MinRate         float64
+		MaxRate         float64
+		ChangeThreshold float64
+		CapMap          map[string]float64
+		CleanupAfter    int64
 	}
 
 	// Misc.
@@ -54,6 +55,7 @@ func init() {
 	flag.StringVar(&Config.DDEventTags, "dd-event-tags", "", "Comma-delimited list of Datadog event tags")
 	flag.Float64Var(&Config.MinRate, "min-rate", 10, "Minimum replication throttle rate in MB/s")
 	flag.Float64Var(&Config.MaxRate, "max-rate", 90, "Maximum replication throttle rate as a percentage of available capacity")
+	flag.Float64Var(&Config.ChangeThreshold, "change-threshold", 10, "Required change in percent of the replication throttle to apply an update")
 	m := flag.String("cap-map", "", "JSON map of instance types to network capacity in MB/s")
 	flag.Int64Var(&Config.CleanupAfter, "cleanup-after", 180, "Number of intervals after which to issue a global throttle unset if no replication is running")
 
