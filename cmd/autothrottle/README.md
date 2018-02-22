@@ -26,7 +26,7 @@ Once running, autothrottle should clearly log what it's doing:
 ```
 15:13:08 Authrottle Running
 15:13:09 Admin API: localhost:8080
-15:13:09 Topics with ongoing reassignments: [test-topic]
+15:13:09 Topics with ongoing reassignments: [test_topic]
 15:13:09 Source brokers participating in replication: [1002 1003 1004 1005 1006 1007]
 15:13:09 Destination brokers participating in replication: [1002 1003 1004]
 15:13:10 Most utilized source broker: [1003] net tx of 60.25MB/s (over 60s) with an existing throttle rate of 0.00MB/s
