@@ -217,7 +217,7 @@ func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 		// Check if the delta between the newly calculated
 		// throttle and the previous throttle exceeds the
 		// ChangeThreshold param.
-		d := math.Abs((currThrottle - replicationHeadRoom) / currThrottle*100)
+		d := math.Abs((currThrottle - replicationHeadRoom) / currThrottle * 100)
 		if d < Config.ChangeThreshold {
 			log.Printf("Proposed throttle is within %.2f%% of the previous throttle (below %.2f%% threshold), skipping throttle update\n",
 				d, Config.ChangeThreshold)
@@ -297,10 +297,9 @@ func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 
 		if changed {
 			// Store the configured rate.
-			// We used the replicationHeadRoom, which
-			// is the tvalue in MB.
-			params.throttles[b] = replicationHeadRoom
-			log.Printf("Updated throttle to %.2fMB/s on broker %d\n", replicationHeadRoom, b)
+			r := tvalue / 1000000
+			params.throttles[b] = r
+			log.Printf("Updated throttle to %.2fMB/s on broker %d\n", r, b)
 		}
 
 		// Hard coded sleep to reduce
@@ -311,7 +310,7 @@ func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 	// Write event.
 	var b bytes.Buffer
 	b.WriteString(fmt.Sprintf("Replication throttle of %.2fMB/s set on the following brokers: %v\n",
-		replicationHeadRoom, allBrokersList))
+		r, allBrokersList))
 	b.WriteString(fmt.Sprintf("Topics currently undergoing replication: %v", params.topics))
 	params.events.Write("Broker replication throttle set", b.String())
 
