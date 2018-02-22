@@ -297,9 +297,8 @@ func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 
 		if changed {
 			// Store the configured rate.
-			r := tvalue / 1000000
-			params.throttles[b] = r
-			log.Printf("Updated throttle to %.2fMB/s on broker %d\n", r, b)
+			params.throttles[b] = tvalue / 1000000
+			log.Printf("Updated throttle to %.2fMB/s on broker %d\n", tvalue/1000000, b)
 		}
 
 		// Hard coded sleep to reduce
@@ -310,7 +309,7 @@ func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 	// Write event.
 	var b bytes.Buffer
 	b.WriteString(fmt.Sprintf("Replication throttle of %.2fMB/s set on the following brokers: %v\n",
-		r, allBrokersList))
+		tvalue/1000000, allBrokersList))
 	b.WriteString(fmt.Sprintf("Topics currently undergoing replication: %v", params.topics))
 	params.events.Write("Broker replication throttle set", b.String())
 
