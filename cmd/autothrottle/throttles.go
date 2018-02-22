@@ -20,7 +20,7 @@ type ReplicationThrottleMeta struct {
 	topics        []string
 	reassignments kafkazk.Reassignments
 	zk            *kafkazk.ZK
-	km            *kafkametrics.KafkaMetrics
+	km            kafkametrics.KafkaMetrics
 	override      string
 	events        *EventGenerator
 	// Map of broker ID to last set throttle rate.

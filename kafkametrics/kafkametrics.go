@@ -30,9 +30,14 @@ type Config struct {
 	MetricsWindow int
 }
 
-// KafkaMetrics makes requests to the
-// Datadog API and returns broker metrics.
-type KafkaMetrics struct {
+// KafkaMetrics requests broker metrics
+// and submits events to the Datadog API.
+type KafkaMetrics interface {
+	GetMetrics() (BrokerMetrics, error)
+	PostEvent(*Event) error
+}
+
+type kafkaMetrics struct {
 	c             *dd.Client
 	netTXQuery    string
 	metricsWindow int
@@ -86,9 +91,9 @@ type Event struct {
 }
 
 // NewKafkaMetrics takes a *Config and
-// returns a *KafkaMetrics, along with
+// returns a *kafkaMetrics, along with
 // any credential validation errors.
-func NewKafkaMetrics(c *Config) (*KafkaMetrics, error) {
+func NewKafkaMetrics(c *Config) (*kafkaMetrics, error) {
 	client := dd.NewClient(c.APIKey, c.AppKey)
 
 	// Validate.
@@ -115,7 +120,7 @@ func NewKafkaMetrics(c *Config) (*KafkaMetrics, error) {
 	b.WriteString(fmt.Sprintf(".rollup(avg, %d)", c.MetricsWindow))
 	netQ := b.String()
 
-	k := &KafkaMetrics{
+	k := &kafkaMetrics{
 		c:             client,
 		netTXQuery:    netQ,
 		metricsWindow: c.MetricsWindow,
@@ -126,7 +131,7 @@ func NewKafkaMetrics(c *Config) (*KafkaMetrics, error) {
 
 // GetMetrics requests broker metrics and metadata
 // from the Datadog API and returns a BrokerMetrics.
-func (k *KafkaMetrics) GetMetrics() (BrokerMetrics, error) {
+func (k *kafkaMetrics) GetMetrics() (BrokerMetrics, error) {
 	brokers := BrokerMetrics{}
 
 	// Get series.
@@ -201,7 +206,7 @@ func (k *KafkaMetrics) GetMetrics() (BrokerMetrics, error) {
 
 // PostEvent posts an event to the
 // Datadog API.
-func (k *KafkaMetrics) PostEvent(e *Event) error {
+func (k *kafkaMetrics) PostEvent(e *Event) error {
 	m := &dd.Event{
 		Title: &e.Title,
 		Text:  &e.Text,
