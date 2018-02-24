@@ -36,7 +36,7 @@ func (e *EventGenerator) Write(t string, m string) {
 // kafkazk.Event and writes them to the
 // Datadog API. Errors are logged and
 // do not affect progression.
-func eventWriter(k *kafkametrics.KafkaMetrics, c chan *kafkametrics.Event) {
+func eventWriter(k kafkametrics.KafkaMetrics, c chan *kafkametrics.Event) {
 	for e := range c {
 		err := k.PostEvent(e)
 		if err != nil {
