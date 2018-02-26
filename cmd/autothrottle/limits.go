@@ -63,9 +63,14 @@ func (l Limits) headroom(b *kafkametrics.Broker, t float64) (float64, error) {
 		return l["minimum"], errors.New("Nil broker provided")
 	}
 
-	if k, exists := l[b.InstanceType]; exists {
+	if capacity, exists := l[b.InstanceType]; exists {
 		nonThrottleUtil := math.Max(b.NetTX-t, 0.00)
-		return math.Max((k-nonThrottleUtil)*(l["maximum"]/100), l["minimum"]), nil
+		// Determine if/how far over the target capacity
+		// we are. This is also subtracted from the available
+		// headroom.
+		overCap := math.Max(b.NetTX-capacity, 0.00)
+
+		return math.Max((capacity-nonThrottleUtil-overCap)*(l["maximum"]/100), l["minimum"]), nil
 	}
 
 	return l["minimum"], errors.New("Unknown instance type")
