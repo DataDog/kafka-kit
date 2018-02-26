@@ -24,7 +24,14 @@ type NewLimitsConfig struct {
 
 // NewLimits takes a minimum float64 and a map
 // of instance-type to float64 network capacity values (in MB/s).
-func NewLimits(c NewLimitsConfig) Limits {
+func NewLimits(c NewLimitsConfig) (Limits, error) {
+	switch {
+	case c.Minimum <= 0:
+		return nil, errors.New("minimum must be > 0")
+	case c.Maximum <= 0 || c.Maximum > 100:
+		return nil, errors.New("maximum must be > 0 and < 100")
+	}
+
 	lim := Limits{
 		// Min. config.
 		"minimum": c.Minimum,
@@ -37,7 +44,7 @@ func NewLimits(c NewLimitsConfig) Limits {
 		lim[k] = v
 	}
 
-	return lim
+	return lim, nil
 }
 
 // headroom takes a *kafkametrics.Broker and last set

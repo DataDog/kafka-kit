@@ -153,12 +153,17 @@ func main() {
 		CapacityMap: Config.CapMap,
 	}
 
+	lim, err := NewLimits(newLimitsConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	throttleMeta := &ReplicationThrottleMeta{
 		zk:        zk,
 		km:        km,
 		events:    events,
 		throttles: make(map[int]float64),
-		limits:    NewLimits(newLimitsConfig),
+		limits:    lim,
 	}
 
 	// Run.
