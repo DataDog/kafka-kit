@@ -11,7 +11,7 @@ import (
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
 	"github.com/docker/libkv/store/zookeeper"
-	zk "github.com/samuel/go-zookeeper/zk"
+	zkclient "github.com/samuel/go-zookeeper/zk"
 )
 
 var (
@@ -24,9 +24,9 @@ var (
 	}
 )
 
-type ZK struct {
+type zk struct {
 	client  store.Store
-	rclient *zk.Conn
+	rclient *zkclient.Conn
 	Connect string
 	Prefix  string
 }
@@ -36,7 +36,15 @@ type ZKConfig struct {
 	Prefix  string
 }
 
-type ZKHandler interface {
+type ZK interface {
+	InitRawClient() error // XXX temporary.
+	Exists(string) (bool, error)
+	Create(string, string) error
+	Set(string, string) error
+	Get(string) ([]byte, error)
+	Close()
+	GetTopicState(string) (*TopicState, error)
+	UpdateKafkaConfig(KafkaConfig) (bool, error)
 	GetReassignments() Reassignments
 	GetTopics([]*regexp.Regexp) ([]string, error)
 	GetTopicConfig(string) (*TopicConfig, error)
@@ -104,8 +112,8 @@ type KafkaConfigData struct {
 	Config  map[string]string `json:"config"`
 }
 
-func NewZK(c *ZKConfig) (*ZK, error) {
-	z := &ZK{
+func NewZK(c *ZKConfig) (*zk, error) {
+	z := &zk{
 		Connect: c.Connect,
 		Prefix:  c.Prefix,
 	}
@@ -126,11 +134,11 @@ func NewZK(c *ZKConfig) (*ZK, error) {
 	return z, nil
 }
 
-func (z *ZK) Close() {
+func (z *zk) Close() {
 	z.client.Close()
 }
 
-func (z *ZK) GetReassignments() Reassignments {
+func (z *zk) GetReassignments() Reassignments {
 	reassigns := Reassignments{}
 
 	var path string
@@ -161,7 +169,7 @@ func (z *ZK) GetReassignments() Reassignments {
 	return reassigns
 }
 
-func (z *ZK) GetTopics(ts []*regexp.Regexp) ([]string, error) {
+func (z *zk) GetTopics(ts []*regexp.Regexp) ([]string, error) {
 	matchingTopics := []string{}
 
 	var path string
@@ -196,7 +204,7 @@ func (z *ZK) GetTopics(ts []*regexp.Regexp) ([]string, error) {
 	return matchingTopics, nil
 }
 
-func (z *ZK) GetTopicConfig(t string) (*TopicConfig, error) {
+func (z *zk) GetTopicConfig(t string) (*TopicConfig, error) {
 	config := &TopicConfig{}
 
 	var path string
@@ -217,7 +225,7 @@ func (z *ZK) GetTopicConfig(t string) (*TopicConfig, error) {
 	return config, nil
 }
 
-func (z *ZK) GetAllBrokerMeta() (BrokerMetaMap, error) {
+func (z *zk) GetAllBrokerMeta() (BrokerMetaMap, error) {
 	var path string
 	if z.Prefix != "" {
 		path = fmt.Sprintf("%s/brokers/ids", z.Prefix)
@@ -259,7 +267,7 @@ func (z *ZK) GetAllBrokerMeta() (BrokerMetaMap, error) {
 	return bmm, nil
 }
 
-func (z *ZK) GetTopicState(t string) (*TopicState, error) {
+func (z *zk) GetTopicState(t string) (*TopicState, error) {
 	var path string
 	if z.Prefix != "" {
 		path = fmt.Sprintf("%s/brokers/topics/%s", z.Prefix, t)
@@ -287,7 +295,7 @@ func (z *ZK) GetTopicState(t string) (*TopicState, error) {
 	return ts, nil
 }
 
-func (z *ZK) getPartitionMap(t string) (*PartitionMap, error) {
+func (z *zk) getPartitionMap(t string) (*PartitionMap, error) {
 	// Get current topic state.
 	ts, err := z.GetTopicState(t)
 	if err != nil {
@@ -329,7 +337,7 @@ func (z *ZK) getPartitionMap(t string) (*PartitionMap, error) {
 	return pm, nil
 }
 
-func (z *ZK) Get(p string) ([]byte, error) {
+func (z *zk) Get(p string) ([]byte, error) {
 	if z.rclient == nil {
 		return nil, ErrRawClientRequired
 	}
@@ -338,7 +346,7 @@ func (z *ZK) Get(p string) ([]byte, error) {
 	return r, err
 }
 
-func (z *ZK) Set(p string, d string) error {
+func (z *zk) Set(p string, d string) error {
 	if z.rclient == nil {
 		return ErrRawClientRequired
 	}
@@ -347,25 +355,25 @@ func (z *ZK) Set(p string, d string) error {
 	return err
 }
 
-func (z *ZK) CreateSequential(p string, d string) error {
+func (z *zk) CreateSequential(p string, d string) error {
 	if z.rclient == nil {
 		return ErrRawClientRequired
 	}
 
-	_, err := z.rclient.Create(p, []byte(d), zk.FlagSequence, zk.WorldACL(31))
+	_, err := z.rclient.Create(p, []byte(d), zkclient.FlagSequence, zkclient.WorldACL(31))
 	return err
 }
 
-func (z *ZK) Create(p string, d string) error {
+func (z *zk) Create(p string, d string) error {
 	if z.rclient == nil {
 		return ErrRawClientRequired
 	}
 
-	_, err := z.rclient.Create(p, []byte(d), 0, zk.WorldACL(31))
+	_, err := z.rclient.Create(p, []byte(d), 0, zkclient.WorldACL(31))
 	return err
 }
 
-func (z *ZK) Exists(p string) (bool, error) {
+func (z *zk) Exists(p string) (bool, error) {
 	if z.rclient == nil {
 		return false, ErrRawClientRequired
 	}
@@ -386,7 +394,7 @@ func (z *ZK) Exists(p string) (bool, error) {
 // If a config value is set to an empty string (""),
 // the entire config key itself is deleted. This was
 // an easy way to merge update/delete into a single func.
-func (z *ZK) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
+func (z *zk) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
 	if z.rclient == nil {
 		return false, ErrRawClientRequired
 	}
@@ -469,10 +477,10 @@ func (z *ZK) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
 	return true, nil
 }
 
-func (z *ZK) InitRawClient() error {
+func (z *zk) InitRawClient() error {
 	if z.rclient == nil {
-		c, _, err := zk.Connect(
-			[]string{z.Connect}, 10*time.Second, zk.WithLogInfo(false))
+		c, _, err := zkclient.Connect(
+			[]string{z.Connect}, 10*time.Second, zkclient.WithLogInfo(false))
 		if err != nil {
 			return err
 		}

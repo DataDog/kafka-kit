@@ -19,7 +19,7 @@ import (
 type ReplicationThrottleMeta struct {
 	topics        []string
 	reassignments kafkazk.Reassignments
-	zk            *kafkazk.ZK
+	zk            kafkazk.ZK
 	km            kafkametrics.KafkaMetrics
 	override      string
 	events        *EventGenerator
@@ -206,7 +206,7 @@ func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 // a bmapBundle, which includes a broker list for source, destination,
 // and all brokers handling any ongoing reassignments. Additionally, a map
 // of throttled replicas by topic is included.
-func mapsFromReassigments(r kafkazk.Reassignments, zk *kafkazk.ZK) (bmapBundle, error) {
+func mapsFromReassigments(r kafkazk.Reassignments, zk kafkazk.ZK) (bmapBundle, error) {
 	lb := bmapBundle{
 		// Maps of src and dst brokers
 		// used as sets.
@@ -322,7 +322,7 @@ func repCapacityByMetrics(rtm *ReplicationThrottleMeta, bmb bmapBundle, bm kafka
 // (a throttle list is applied) when a topic is initially set
 // for reassignment and cleared by autothrottle as soon as
 // the reassignment is done).
-func applyTopicThrottles(throttled map[string]map[string][]string, zk *kafkazk.ZK) []string {
+func applyTopicThrottles(throttled map[string]map[string][]string, zk kafkazk.ZK) []string {
 	var errs []string
 
 	for t := range throttled {
@@ -356,10 +356,10 @@ func applyTopicThrottles(throttled map[string]map[string][]string, zk *kafkazk.Z
 }
 
 // applyBrokerThrottles take a list of brokers, a replication throttle rate string,
-// rate, map of applied throttles, and zk *kafkazk.ZK zookeeper client.
+// rate, map of applied throttles, and zk kafkazk.ZK zookeeper client.
 // For each broker, the throttle rate is applied and if successful, the rate
 // is stored in the throttles map for future reference.
-func applyBrokerThrottles(bs map[int]interface{}, ratestr string, r float64, ts map[int]float64, zk *kafkazk.ZK) []string {
+func applyBrokerThrottles(bs map[int]interface{}, ratestr string, r float64, ts map[int]float64, zk kafkazk.ZK) []string {
 	var errs []string
 
 	// Generate a broker throttle config.
@@ -395,7 +395,7 @@ func applyBrokerThrottles(bs map[int]interface{}, ratestr string, r float64, ts 
 
 // removeAllThrottles removes all topic and
 // broker throttle configs.
-func removeAllThrottles(zk *kafkazk.ZK, params *ReplicationThrottleMeta) error {
+func removeAllThrottles(zk kafkazk.ZK, params *ReplicationThrottleMeta) error {
 	/****************************
 	Clear topic throttle configs.
 	****************************/

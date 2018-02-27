@@ -96,7 +96,7 @@ func init() {
 
 func main() {
 	// ZooKeeper init.
-	var zk *kafkazk.ZK
+	var zk kafkazk.ZK
 	if Config.useMeta || len(Config.rebuildTopics) > 0 {
 		var err error
 		zk, err = kafkazk.NewZK(&kafkazk.ZKConfig{

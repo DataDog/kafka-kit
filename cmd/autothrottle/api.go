@@ -22,7 +22,7 @@ var (
 	incorrectMethod   string = "disallowed method\n"
 )
 
-func initAPI(c *APIConfig, zk *kafkazk.ZK) {
+func initAPI(c *APIConfig, zk kafkazk.ZK) {
 	c.RateSetting = rateSettingsZNode
 
 	p := fmt.Sprintf("/%s/%s", c.ZKPrefix, c.RateSetting)
@@ -62,7 +62,7 @@ func initAPI(c *APIConfig, zk *kafkazk.ZK) {
 	}()
 }
 
-func getThrottle(w http.ResponseWriter, req *http.Request, zk *kafkazk.ZK, p string) {
+func getThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.ZK, p string) {
 	logReq(req)
 	if req.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -86,7 +86,7 @@ func getThrottle(w http.ResponseWriter, req *http.Request, zk *kafkazk.ZK, p str
 	}
 }
 
-func setThrottle(w http.ResponseWriter, req *http.Request, zk *kafkazk.ZK, p string) {
+func setThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.ZK, p string) {
 	logReq(req)
 	if req.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -116,7 +116,7 @@ func setThrottle(w http.ResponseWriter, req *http.Request, zk *kafkazk.ZK, p str
 	}
 }
 
-func removeThrottle(w http.ResponseWriter, req *http.Request, zk *kafkazk.ZK, p string) {
+func removeThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.ZK, p string) {
 	logReq(req)
 	if req.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)

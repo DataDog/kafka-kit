@@ -5,7 +5,7 @@ import (
 	"regexp"
 )
 
-// ZKMock implements a mock ZKHandler.
+// ZKMock implements a mock ZK.
 type ZKMock struct{}
 
 func (z *ZKMock) GetReassignments() Reassignments {
@@ -16,6 +16,44 @@ func (z *ZKMock) GetReassignments() Reassignments {
 		},
 	}
 	return r
+}
+
+func (z *ZKMock) Create(a, b string) error {
+	_, _ = a, b
+	return nil
+}
+
+func (z *ZKMock) Exists(a string) (bool, error) {
+	_ = a
+	return true, nil
+}
+
+func (z *ZKMock) Set(a, b string) error {
+	_, _ = a, b
+	return nil
+}
+
+func (z *ZKMock) Get(a string) ([]byte, error) {
+	_ = a
+	return []byte{}, nil
+}
+
+func (z *ZKMock) GetTopicState(a string) (*TopicState, error) {
+	_ = a
+	return &TopicState{}, nil
+}
+
+func (z *ZKMock) Close() {
+	return
+}
+
+func (z *ZKMock) InitRawClient() error {
+	return nil
+}
+
+func (z *ZKMock) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
+	_ = c
+	return true, nil
 }
 
 func (z *ZKMock) GetTopics(ts []*regexp.Regexp) ([]string, error) {
