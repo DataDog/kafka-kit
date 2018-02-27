@@ -121,6 +121,7 @@ func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 	// using broker metrics and known
 	// capacity values.
 	var replicationCapacity float64
+	var currThrottle float64
 	var useMetrics bool
 	var brokerMetrics kafkametrics.BrokerMetrics
 
@@ -146,10 +147,11 @@ func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 	// fetched them, determine a tvalue based on
 	// the most-utilized path.
 	if useMetrics && err == nil {
-		replicationCapacity, currThrottle, err := repCapacityByMetrics(params, bmaps, brokerMetrics)
+		replicationCapacity, currThrottle, err = repCapacityByMetrics(params, bmaps, brokerMetrics)
 		if err != nil {
 			return err
 		}
+
 		// Check if the delta between the newly calculated
 		// throttle and the previous throttle exceeds the
 		// ChangeThreshold param.
@@ -234,7 +236,7 @@ func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 		if changed {
 			// Store the configured rate.
 			params.throttles[b] = replicationCapacity
-			log.Printf("Updated throttle to %.2fMB/s on broker %d\n", replicationCapacity/1000000.00, b)
+			log.Printf("Updated throttle to %0.2fMB/s on broker %d\n", replicationCapacity, b)
 		}
 
 		// Hard coded sleep to reduce
@@ -244,7 +246,7 @@ func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 
 	// Write event.
 	var b bytes.Buffer
-	b.WriteString(fmt.Sprintf("Replication throttle of %.2fMB/s set on the following brokers: %v\n",
+	b.WriteString(fmt.Sprintf("Replication throttle of %0.2fMB/s set on the following brokers: %v\n",
 		replicationCapacity, allBrokers))
 	b.WriteString(fmt.Sprintf("Topics currently undergoing replication: %v", params.topics))
 	params.events.Write("Broker replication throttle set", b.String())
@@ -342,7 +344,7 @@ func repCapacityByMetrics(params *ReplicationThrottleMeta, bmaps bmapBundle, bro
 	constrainingSrc := participatingBrokers.highestSrcNetTX()
 	currThrottle, exists := params.throttles[constrainingSrc.ID]
 	if !exists {
-		currThrottle = 0.0
+		currThrottle = 0.00
 	}
 
 	replicationCapacity, err := params.limits.headroom(constrainingSrc, currThrottle)
@@ -352,7 +354,7 @@ func repCapacityByMetrics(params *ReplicationThrottleMeta, bmaps bmapBundle, bro
 
 	log.Printf("Most utilized source broker: [%d] net tx of %.2fMB/s (over %ds) with an existing throttle rate of %.2fMB/s\n",
 		constrainingSrc.ID, constrainingSrc.NetTX, Config.MetricsWindow, currThrottle)
-	log.Printf("Replication headroom (based on a %.0f%% max free capacity utilization): %.2fMB/s\n", params.limits["maximum"], replicationCapacity)
+	log.Printf("Replication capacity (based on a %.0f%% max free capacity utilization): %0.2fMB/s\n", params.limits["maximum"], replicationCapacity)
 
 	return replicationCapacity, currThrottle, nil
 }

@@ -239,9 +239,9 @@ func (k *kafkaMetrics) getHostTagMap(l []*Broker) (map[*Broker][]string, error) 
 				request: "host tags",
 				err:     fmt.Sprintf("Error requesting host tags for %s", b.Host),
 			}
-
-			brokers[b] = ht
 		}
+
+		brokers[b] = ht
 	}
 
 	return brokers, nil
