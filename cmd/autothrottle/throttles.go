@@ -49,17 +49,45 @@ func (t ReassigningBrokers) highestSrcNetTX() *kafkametrics.Broker {
 		}
 	}
 
-	// bmapBundle holds several maps
-	// used as sets. Reduces return params
-	// for mapsFromReassigments.
-	type bmapBundle struct {
-		src       map[int]interface{}
-		dst       map[int]interface{}
-		all       map[int]interface{}
-		throttled map[string]map[string][]string
+	return broker
+}
+
+// bmapBundle holds several maps
+// used as sets. Reduces return params
+// for mapsFromReassigments.
+type bmapBundle struct {
+	src       map[int]interface{}
+	dst       map[int]interface{}
+	all       map[int]interface{}
+	throttled map[string]map[string][]string
+}
+
+// lists returns a []int of broker IDs for the
+// src, dst and all bmapBundle maps.
+func (bm bmapBundle) lists() ([]int, []int, []int) {
+	srcBrokers := []int{}
+	dstBrokers := []int{}
+	for n, m := range []map[int]interface{}{bm.src, bm.dst} {
+		for b := range m {
+			if n == 0 {
+				srcBrokers = append(srcBrokers, b)
+			} else {
+				dstBrokers = append(dstBrokers, b)
+			}
+		}
 	}
 
-	return broker
+	allBrokers := []int{}
+	for b := range bm.all {
+		allBrokers = append(allBrokers, b)
+	}
+
+	// Sort.
+	sort.Ints(srcBrokers)
+	sort.Ints(dstBrokers)
+	sort.Ints(allBrokers)
+
+	return srcBrokers, dstBrokers, allBrokers
 }
 
 // updateReplicationThrottle takes a ReplicationThrottleMeta
@@ -71,36 +99,18 @@ func (t ReassigningBrokers) highestSrcNetTX() *kafkametrics.Broker {
 // If a non-empty override is provided, that static value is used instead
 // of a dynamically determined value.
 func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
+	// Get the maps of brokers handling
+	// reassignments.
 	bmaps, err := mapsFromReassigments(params.reassignments, params.zk)
 	if err != nil {
 		return err
 	}
 
 	// Creates lists from maps.
-	srcBrokersList := []int{}
-	dstBrokersList := []int{}
-	for n, m := range []map[int]interface{}{bmaps.src, bmaps.dst} {
-		for b := range m {
-			if n == 0 {
-				srcBrokersList = append(srcBrokersList, b)
-			} else {
-				dstBrokersList = append(dstBrokersList, b)
-			}
-		}
-	}
+	srcBrokers, dstBrokers, allBrokers := bmaps.lists()
 
-	allBrokersList := []int{}
-	for b := range bmaps.all {
-		allBrokersList = append(allBrokersList, b)
-	}
-
-	// Sort.
-	sort.Ints(srcBrokersList)
-	sort.Ints(dstBrokersList)
-	sort.Ints(allBrokersList)
-
-	log.Printf("Source brokers participating in replication: %v\n", srcBrokersList)
-	log.Printf("Destination brokers participating in replication: %v\n", dstBrokersList)
+	log.Printf("Source brokers participating in replication: %v\n", srcBrokers)
+	log.Printf("Destination brokers participating in replication: %v\n", dstBrokers)
 
 	/************************
 	Determine throttle rates.
@@ -272,7 +282,7 @@ func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 	// Write event.
 	var b bytes.Buffer
 	b.WriteString(fmt.Sprintf("Replication throttle of %.2fMB/s set on the following brokers: %v\n",
-		tvalue/1000000, allBrokersList))
+		tvalue/1000000, allBrokers))
 	b.WriteString(fmt.Sprintf("Topics currently undergoing replication: %v", params.topics))
 	params.events.Write("Broker replication throttle set", b.String())
 
