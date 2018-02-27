@@ -178,33 +178,9 @@ func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 	/***************************
 	Set broker throttle configs.
 	***************************/
-
-	// Generate a broker throttle config.
-	for b := range bmaps.all {
-		config := kafkazk.KafkaConfig{
-			Type: "broker",
-			Name: strconv.Itoa(b),
-			Configs: [][2]string{
-				[2]string{"leader.replication.throttled.rate", rateString},
-				[2]string{"follower.replication.throttled.rate", rateString},
-			},
-		}
-
-		// Write the throttle config.
-		changed, err := params.zk.UpdateKafkaConfig(config)
-		if err != nil {
-			log.Printf("Error setting throttle on broker %d: %s\n", b, err)
-		}
-
-		if changed {
-			// Store the configured rate.
-			params.throttles[b] = replicationCapacity
-			log.Printf("Updated throttle to %0.2fMB/s on broker %d\n", replicationCapacity, b)
-		}
-
-		// Hard coded sleep to reduce
-		// ZK load.
-		time.Sleep(500 * time.Millisecond)
+	errs = applyBrokerThrottles(bmaps.all, rateString, replicationCapacity, params.throttles, params.zk)
+	for _, e := range errs {
+		log.Println(e)
 	}
 
 	/***********
@@ -366,6 +342,44 @@ func applyTopicThrottles(throttled map[string]map[string][]string, zk *kafkazk.Z
 		if err != nil {
 			errs = append(errs, fmt.Sprintf("Error setting throttle list on topic %s: %s\n", t, err))
 		}
+	}
+
+	return errs
+}
+
+// applyBrokerThrottles take a list of brokers, a replication throttle rate string,
+// rate, map of applied throttles, and zk *kafkazk.ZK zookeeper client.
+// For each broker, the throttle rate is applied and if successful, the rate
+// is stored in the throttles map for future reference.
+func applyBrokerThrottles(brokers map[int]interface{}, rateString string, rate float64, throttles map[int]float64, zk *kafkazk.ZK) []string {
+	var errs []string
+
+	// Generate a broker throttle config.
+	for b := range brokers {
+		config := kafkazk.KafkaConfig{
+			Type: "broker",
+			Name: strconv.Itoa(b),
+			Configs: [][2]string{
+				[2]string{"leader.replication.throttled.rate", rateString},
+				[2]string{"follower.replication.throttled.rate", rateString},
+			},
+		}
+
+		// Write the throttle config.
+		changed, err := zk.UpdateKafkaConfig(config)
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("Error setting throttle on broker %d: %s\n", b, err))
+		}
+
+		if changed {
+			// Store the configured rate.
+			throttles[b] = rate
+			log.Printf("Updated throttle to %0.2fMB/s on broker %d\n", rate, b)
+		}
+
+		// Hard coded sleep to reduce
+		// ZK load.
+		time.Sleep(500 * time.Millisecond)
 	}
 
 	return errs
