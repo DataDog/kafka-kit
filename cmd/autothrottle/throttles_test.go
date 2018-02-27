@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/DataDog/topicmappr/kafkametrics"
+	"github.com/DataDog/topicmappr/kafkazk"
 )
 
 func TestHighestSrcNetTX(t *testing.T) {
@@ -104,6 +105,7 @@ func mockBmapBundle() bmapBundle {
 }
 
 // func TestUpdateReplicationThrottle(t *testing.T) {}
+
 // func TestMapsFromReassigments(t *testing.T) {}
 // func TestRepCapacityByMetrics(t *testing.T) {}
 // func TestApplyTopicThrottles(t *testing.T) {}
@@ -111,3 +113,27 @@ func mockBmapBundle() bmapBundle {
 // func TestRemoveAllThrottles(t *testing.T) {}
 // func TestMergeMaps(t *testing.T) {}
 // func TestSliceToString(t *testing.T) {}
+
+// Temp mocks.
+
+type zkmock struct{}
+
+func (z *zkmock) GetReassignments() kafkazk.Reassignments {
+	r := kafkazk.Reassignments{
+		"test_topic": map[int][]int{
+			2: []int{1001, 1002},
+			3: []int{1005, 1006},
+		},
+	}
+	return r
+}
+
+func (zk *zkmock) GetTopicConfig(t string) (*kafkazk.TopicConfig, error) {
+	return &kafkazk.TopicConfig{
+		Version: 1,
+		Config: map[string]string{
+			"leader.replication.throttled.replicas":   "2:1001,2:1002",
+			"follower.replication.throttled.replicas": "3:1005,3:1006",
+		},
+	}, nil
+}
