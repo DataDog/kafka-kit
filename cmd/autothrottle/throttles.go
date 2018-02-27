@@ -157,7 +157,8 @@ func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 		// ChangeThreshold param.
 		d := math.Abs((currThrottle - replicationCapacity) / currThrottle * 100)
 		if d < Config.ChangeThreshold {
-			log.Printf("Proposed throttle is within %.2f%% of the previous throttle (below %.2f%% threshold), skipping throttle update\n",
+			log.Printf("Proposed throttle is within %.2f%% of the previous throttle "+
+				"(below %.2f%% threshold), skipping throttle update\n",
 				d, Config.ChangeThreshold)
 			return nil
 		}
@@ -178,7 +179,11 @@ func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 	/***************************
 	Set broker throttle configs.
 	***************************/
-	errs = applyBrokerThrottles(bmaps.all, rateString, replicationCapacity, params.throttles, params.zk)
+	errs = applyBrokerThrottles(bmaps.all,
+		rateString,
+		replicationCapacity,
+		params.throttles,
+		params.zk)
 	for _, e := range errs {
 		log.Println(e)
 	}
@@ -295,9 +300,12 @@ func repCapacityByMetrics(rtm *ReplicationThrottleMeta, bmb bmapBundle, bm kafka
 		return 0.00, 0.00, err
 	}
 
-	log.Printf("Most utilized source broker: [%d] net tx of %.2fMB/s (over %ds) with an existing throttle rate of %.2fMB/s\n",
+	log.Printf("Most utilized source broker: "+
+		"[%d] net tx of %.2fMB/s (over %ds) with an existing throttle rate of %.2fMB/s\n",
 		constrainingSrc.ID, constrainingSrc.NetTX, Config.MetricsWindow, currThrottle)
-	log.Printf("Replication capacity (based on a %.0f%% max free capacity utilization): %0.2fMB/s\n", rtm.limits["maximum"], replicationCapacity)
+
+	log.Printf("Replication capacity (based on a %.0f%% max free capacity utilization): %0.2fMB/s\n",
+		rtm.limits["maximum"], replicationCapacity)
 
 	return replicationCapacity, currThrottle, nil
 }
@@ -351,17 +359,17 @@ func applyTopicThrottles(throttled map[string]map[string][]string, zk *kafkazk.Z
 // rate, map of applied throttles, and zk *kafkazk.ZK zookeeper client.
 // For each broker, the throttle rate is applied and if successful, the rate
 // is stored in the throttles map for future reference.
-func applyBrokerThrottles(brokers map[int]interface{}, rateString string, rate float64, throttles map[int]float64, zk *kafkazk.ZK) []string {
+func applyBrokerThrottles(bs map[int]interface{}, ratestr string, r float64, ts map[int]float64, zk *kafkazk.ZK) []string {
 	var errs []string
 
 	// Generate a broker throttle config.
-	for b := range brokers {
+	for b := range bs {
 		config := kafkazk.KafkaConfig{
 			Type: "broker",
 			Name: strconv.Itoa(b),
 			Configs: [][2]string{
-				[2]string{"leader.replication.throttled.rate", rateString},
-				[2]string{"follower.replication.throttled.rate", rateString},
+				[2]string{"leader.replication.throttled.rate", ratestr},
+				[2]string{"follower.replication.throttled.rate", ratestr},
 			},
 		}
 
@@ -373,8 +381,8 @@ func applyBrokerThrottles(brokers map[int]interface{}, rateString string, rate f
 
 		if changed {
 			// Store the configured rate.
-			throttles[b] = rate
-			log.Printf("Updated throttle to %0.2fMB/s on broker %d\n", rate, b)
+			ts[b] = r
+			log.Printf("Updated throttle to %0.2fMB/s on broker %d\n", r, b)
 		}
 
 		// Hard coded sleep to reduce
@@ -385,6 +393,8 @@ func applyBrokerThrottles(brokers map[int]interface{}, rateString string, rate f
 	return errs
 }
 
+// removeAllThrottles removes all topic and
+// broker throttle configs.
 func removeAllThrottles(zk *kafkazk.ZK, params *ReplicationThrottleMeta) error {
 	/****************************
 	Clear topic throttle configs.
@@ -457,7 +467,8 @@ func removeAllThrottles(zk *kafkazk.ZK, params *ReplicationThrottleMeta) error {
 
 	// Write event.
 	if len(unthrottledBrokers) > 0 {
-		m := fmt.Sprintf("Replication throttle removed on the following brokers: %v", unthrottledBrokers)
+		m := fmt.Sprintf("Replication throttle removed on the following brokers: %v",
+			unthrottledBrokers)
 		params.events.Write("Broker replication throttle removed", m)
 	}
 
