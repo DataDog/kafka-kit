@@ -163,53 +163,16 @@ func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 		}
 	}
 
-	// Get a rate string based on the
-	// final tvalue.
+	// Get a rate string based on the final tvalue.
 	rateString := fmt.Sprintf("%.0f", replicationCapacity*1000000.00)
 
 	/**************************
 	Set topic throttle configs.
 	**************************/
 
-	// Update the throttled brokers list for
-	// all topics undergoing replication.
-	// TODO we need to avoid continously resetting
-	// this to reduce writes to ZK and subsequent
-	// config propagations to all brokers. We can either:
-	// - Ensure throttle lists are sorted so that
-	// if we provide the same list each iteration
-	// that it results in a no-op in the backend.
-	// - Keep track of topics that have already had
-	// a throttle list written and assume that it's
-	// not going to change (a throttle list is applied)
-	// when a topic is initially set for reassignment and
-	// cleared by autothrottle as soon as the reassignment
-	// is done).
-	for t := range bmaps.throttled {
-		// Generate config.
-		config := kafkazk.KafkaConfig{
-			Type:    "topic",
-			Name:    t,
-			Configs: [][2]string{},
-		}
-
-		leaderList := sliceToString(bmaps.throttled[t]["leaders"])
-		if leaderList != "" {
-			c := [2]string{"leader.replication.throttled.replicas", leaderList}
-			config.Configs = append(config.Configs, c)
-		}
-
-		followerList := sliceToString(bmaps.throttled[t]["followers"])
-		if followerList != "" {
-			c := [2]string{"follower.replication.throttled.replicas", followerList}
-			config.Configs = append(config.Configs, c)
-		}
-
-		// Write the config.
-		_, err := params.zk.UpdateKafkaConfig(config)
-		if err != nil {
-			log.Printf("Error setting throttle list on topic %s: %s\n", t, err)
-		}
+	errs := applyTopicThrottles(bmaps.throttled, params.zk)
+	for _, e := range errs {
+		log.Println(e)
 	}
 
 	/***************************
@@ -243,6 +206,10 @@ func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 		// ZK load.
 		time.Sleep(500 * time.Millisecond)
 	}
+
+	/***********
+	Log success.
+	***********/
 
 	// Write event.
 	var b bytes.Buffer
@@ -317,13 +284,13 @@ func mapsFromReassigments(r kafkazk.Reassignments, zk *kafkazk.ZK) (bmapBundle, 
 // repCapacityByMetrics finds the most constrained src broker and returns
 // a calculated replication capacity, the currently applied throttle and
 // and any errors if encountered.
-func repCapacityByMetrics(params *ReplicationThrottleMeta, bmaps bmapBundle, brokerMetrics kafkametrics.BrokerMetrics) (float64, float64, error) {
+func repCapacityByMetrics(rtm *ReplicationThrottleMeta, bmb bmapBundle, bm kafkametrics.BrokerMetrics) (float64, float64, error) {
 	// Map src/dst broker IDs to a *ReassigningBrokers.
 	participatingBrokers := &ReassigningBrokers{}
 
 	// Source brokers.
-	for b := range bmaps.src {
-		if broker, exists := brokerMetrics[b]; exists {
+	for b := range bmb.src {
+		if broker, exists := bm[b]; exists {
 			participatingBrokers.Src = append(participatingBrokers.Src, broker)
 		} else {
 			return 0.00, 0.00, fmt.Errorf("Broker %d not found in broker metrics", b)
@@ -331,8 +298,8 @@ func repCapacityByMetrics(params *ReplicationThrottleMeta, bmaps bmapBundle, bro
 	}
 
 	// Destination brokers.
-	for b := range bmaps.dst {
-		if broker, exists := brokerMetrics[b]; exists {
+	for b := range bmb.dst {
+		if broker, exists := bm[b]; exists {
 			participatingBrokers.Dst = append(participatingBrokers.Dst, broker)
 		} else {
 			return 0.00, 0.00, fmt.Errorf("Broker %d not found in broker metrics", b)
@@ -342,21 +309,66 @@ func repCapacityByMetrics(params *ReplicationThrottleMeta, bmaps bmapBundle, bro
 	// Get the most constrained src broker and
 	// its current throttle, if applied.
 	constrainingSrc := participatingBrokers.highestSrcNetTX()
-	currThrottle, exists := params.throttles[constrainingSrc.ID]
+	currThrottle, exists := rtm.throttles[constrainingSrc.ID]
 	if !exists {
 		currThrottle = 0.00
 	}
 
-	replicationCapacity, err := params.limits.headroom(constrainingSrc, currThrottle)
+	replicationCapacity, err := rtm.limits.headroom(constrainingSrc, currThrottle)
 	if err != nil {
 		return 0.00, 0.00, err
 	}
 
 	log.Printf("Most utilized source broker: [%d] net tx of %.2fMB/s (over %ds) with an existing throttle rate of %.2fMB/s\n",
 		constrainingSrc.ID, constrainingSrc.NetTX, Config.MetricsWindow, currThrottle)
-	log.Printf("Replication capacity (based on a %.0f%% max free capacity utilization): %0.2fMB/s\n", params.limits["maximum"], replicationCapacity)
+	log.Printf("Replication capacity (based on a %.0f%% max free capacity utilization): %0.2fMB/s\n", rtm.limits["maximum"], replicationCapacity)
 
 	return replicationCapacity, currThrottle, nil
+}
+
+// applyTopicThrottles updates the throttled brokers list for
+// all topics undergoing replication.
+// TODO we need to avoid continously resetting this to reduce writes
+// to ZK and subsequent config propagations to all brokers.
+// We can either:
+// - Ensure throttle lists are sorted so that if we provide the
+// same list each iteration that it results in a no-op in the backend.
+// - Keep track of topics that have already had a throttle list
+// written and assume that it's not going to change
+// (a throttle list is applied) when a topic is initially set
+// for reassignment and cleared by autothrottle as soon as
+// the reassignment is done).
+func applyTopicThrottles(throttled map[string]map[string][]string, zk *kafkazk.ZK) []string {
+	var errs []string
+
+	for t := range throttled {
+		// Generate config.
+		config := kafkazk.KafkaConfig{
+			Type:    "topic",
+			Name:    t,
+			Configs: [][2]string{},
+		}
+
+		leaderList := sliceToString(throttled[t]["leaders"])
+		if leaderList != "" {
+			c := [2]string{"leader.replication.throttled.replicas", leaderList}
+			config.Configs = append(config.Configs, c)
+		}
+
+		followerList := sliceToString(throttled[t]["followers"])
+		if followerList != "" {
+			c := [2]string{"follower.replication.throttled.replicas", followerList}
+			config.Configs = append(config.Configs, c)
+		}
+
+		// Write the config.
+		_, err := zk.UpdateKafkaConfig(config)
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("Error setting throttle list on topic %s: %s\n", t, err))
+		}
+	}
+
+	return errs
 }
 
 func removeAllThrottles(zk *kafkazk.ZK, params *ReplicationThrottleMeta) error {
