@@ -10,9 +10,9 @@ type ZKMock struct{}
 
 func (z *ZKMock) GetReassignments() Reassignments {
 	r := Reassignments{
-		"test_topic": map[int][]int{
-			2: []int{1003, 1004},
-			3: []int{1004, 1003},
+		"mock": map[int][]int{
+			0: []int{1003, 1004},
+			1: []int{1005, 1006},
 		},
 	}
 	return r
@@ -38,9 +38,20 @@ func (z *ZKMock) Get(a string) ([]byte, error) {
 	return []byte{}, nil
 }
 
-func (z *ZKMock) GetTopicState(a string) (*TopicState, error) {
-	_ = a
-	return &TopicState{}, nil
+func (z *ZKMock) GetTopicState(t string) (*TopicState, error) {
+	_ = t
+
+	ts := &TopicState{
+		Partitions: map[string][]int{
+			"0": []int{1000,1001},
+			"1": []int{1002,1003},
+			"2": []int{1004,1005},
+			"3": []int{1006,1007},
+			"4": []int{1008,1009},
+		},
+	}
+
+	return ts, nil
 }
 
 func (z *ZKMock) Close() {
@@ -113,8 +124,3 @@ func (z *ZKMock) getPartitionMap(t string) (*PartitionMap, error) {
 
 	return p, nil
 }
-
-// func TestGetReassignments(t *testing.T) {}
-// func TestGetTopics(t *testing.T) {}
-// func TestGetAllBrokerMeta(t *testing.T) {}
-// func TestGetPartitionMap(t *testing.T) {}
