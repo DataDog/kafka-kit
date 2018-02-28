@@ -49,19 +49,19 @@ func TestLists(t *testing.T) {
 
 	for n := range src {
 		if src[n] != srcExpected[n] {
-			t.Errorf("Expected ID %d, got %d\n", srcExpected[n], src[n])
+			t.Errorf("Expected ID %d, got %d", srcExpected[n], src[n])
 		}
 	}
 
 	for n := range dst {
 		if dst[n] != dstExpected[n] {
-			t.Errorf("Expected ID %d, got %d\n", dstExpected[n], dst[n])
+			t.Errorf("Expected ID %d, got %d", dstExpected[n], dst[n])
 		}
 	}
 
 	for n := range all {
 		if all[n] != allExpected[n] {
-			t.Errorf("Expected ID %d, got %d\n", allExpected[n], all[n])
+			t.Errorf("Expected ID %d, got %d", allExpected[n], all[n])
 		}
 	}
 }
@@ -106,34 +106,70 @@ func mockBmapBundle() bmapBundle {
 
 // func TestUpdateReplicationThrottle(t *testing.T) {}
 
-// func TestMapsFromReassigments(t *testing.T) {}
+func TestMapsFromReassigments(t *testing.T) {
+	zk := &kafkazk.ZKMock{}
+
+	re := zk.GetReassignments()
+	bmaps, _ := mapsFromReassigments(re, zk)
+
+	srcExpected := []int{1000, 1001, 1002, 1003}
+	dstExpected := []int{1003, 1004, 1005, 1006}
+	allExpected := []int{1000, 1001, 1002, 1003, 1004, 1005, 1006}
+
+	for _, b := range srcExpected {
+		if _, exists := bmaps.src[b]; !exists {
+			t.Errorf("Expected ID %d not in map", b)
+		}
+	}
+
+	for _, b := range dstExpected {
+		if _, exists := bmaps.dst[b]; !exists {
+			t.Errorf("Expected ID %d not in map", b)
+		}
+	}
+
+	for _, b := range allExpected {
+		if _, exists := bmaps.all[b]; !exists {
+			t.Errorf("Expected ID %d not in map", b)
+		}
+	}
+
+	expectedThrottledLeaders := []string{"0:1000", "0:1001", "1:1002", "1:1003"}
+	expectedThrottledFollowers := []string{"0:1003", "0:1004", "1:1005", "1:1006"}
+
+	for n, s := range bmaps.throttled["mock"]["leaders"] {
+		if s != expectedThrottledLeaders[n] {
+			t.Errorf("Expected leader string '%s', got '%s'", expectedThrottledLeaders[n], s)
+		}
+	}
+
+	for n, s := range bmaps.throttled["mock"]["followers"] {
+		if s != expectedThrottledFollowers[n] {
+			t.Errorf("Expected follower string '%s', got '%s'", expectedThrottledFollowers[n], s)
+		}
+	}
+}
+
 // func TestRepCapacityByMetrics(t *testing.T) {}
 // func TestApplyTopicThrottles(t *testing.T) {}
 // func TestApplyBrokerThrottles(t *testing.T) {}
 // func TestRemoveAllThrottles(t *testing.T) {}
+
+// Covered in TestMapsFromReassigments
 // func TestMergeMaps(t *testing.T) {}
-// func TestSliceToString(t *testing.T) {}
 
-// Temp mocks.
+func TestSliceToString(t *testing.T) {
+	in := []string{}
+	out := sliceToString(in)
 
-type zkmock struct{}
-
-func (z *zkmock) GetReassignments() kafkazk.Reassignments {
-	r := kafkazk.Reassignments{
-		"test_topic": map[int][]int{
-			2: []int{1001, 1002},
-			3: []int{1005, 1006},
-		},
+	if out != "" {
+		t.Errorf("Expected empty string, got '%s'", out)
 	}
-	return r
-}
 
-func (zk *zkmock) GetTopicConfig(t string) (*kafkazk.TopicConfig, error) {
-	return &kafkazk.TopicConfig{
-		Version: 1,
-		Config: map[string]string{
-			"leader.replication.throttled.replicas":   "2:1001,2:1002",
-			"follower.replication.throttled.replicas": "3:1005,3:1006",
-		},
-	}, nil
+	in = []string{"one", "two"}
+	out = sliceToString(in)
+
+	if out != "one,two" {
+		t.Errorf("Expected string 'one,two', got '%s'", out)
+	}
 }

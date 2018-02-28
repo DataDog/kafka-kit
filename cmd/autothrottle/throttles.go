@@ -179,6 +179,7 @@ func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 	/***************************
 	Set broker throttle configs.
 	***************************/
+
 	errs = applyBrokerThrottles(bmaps.all,
 		rateString,
 		replicationCapacity,
