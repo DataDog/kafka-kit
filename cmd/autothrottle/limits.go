@@ -24,7 +24,14 @@ type NewLimitsConfig struct {
 
 // NewLimits takes a minimum float64 and a map
 // of instance-type to float64 network capacity values (in MB/s).
-func NewLimits(c NewLimitsConfig) Limits {
+func NewLimits(c NewLimitsConfig) (Limits, error) {
+	switch {
+	case c.Minimum <= 0:
+		return nil, errors.New("minimum must be > 0")
+	case c.Maximum <= 0 || c.Maximum > 100:
+		return nil, errors.New("maximum must be > 0 and < 100")
+	}
+
 	lim := Limits{
 		// Min. config.
 		"minimum": c.Minimum,
@@ -37,7 +44,7 @@ func NewLimits(c NewLimitsConfig) Limits {
 		lim[k] = v
 	}
 
-	return lim
+	return lim, nil
 }
 
 // headroom takes a *kafkametrics.Broker and last set
@@ -56,9 +63,14 @@ func (l Limits) headroom(b *kafkametrics.Broker, t float64) (float64, error) {
 		return l["minimum"], errors.New("Nil broker provided")
 	}
 
-	if k, exists := l[b.InstanceType]; exists {
+	if capacity, exists := l[b.InstanceType]; exists {
 		nonThrottleUtil := math.Max(b.NetTX-t, 0.00)
-		return math.Max((k-nonThrottleUtil)*(l["maximum"]/100), l["minimum"]), nil
+		// Determine if/how far over the target capacity
+		// we are. This is also subtracted from the available
+		// headroom.
+		overCap := math.Max(b.NetTX-capacity, 0.00)
+
+		return math.Max((capacity-nonThrottleUtil-overCap)*(l["maximum"]/100), l["minimum"]), nil
 	}
 
 	return l["minimum"], errors.New("Unknown instance type")

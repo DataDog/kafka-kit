@@ -1,21 +1,69 @@
 package kafkazk
 
 import (
-	//"testing"
 	"regexp"
 )
 
-// ZKMock implements a mock ZKHandler.
+// ZKMock implements a mock ZK.
 type ZKMock struct{}
 
 func (z *ZKMock) GetReassignments() Reassignments {
 	r := Reassignments{
-		"test_topic": map[int][]int{
-			2: []int{1003, 1004},
-			3: []int{1004, 1003},
+		"mock": map[int][]int{
+			0: []int{1003, 1004},
+			1: []int{1005, 1006},
 		},
 	}
 	return r
+}
+
+func (z *ZKMock) Create(a, b string) error {
+	_, _ = a, b
+	return nil
+}
+
+func (z *ZKMock) Exists(a string) (bool, error) {
+	_ = a
+	return true, nil
+}
+
+func (z *ZKMock) Set(a, b string) error {
+	_, _ = a, b
+	return nil
+}
+
+func (z *ZKMock) Get(a string) ([]byte, error) {
+	_ = a
+	return []byte{}, nil
+}
+
+func (z *ZKMock) GetTopicState(t string) (*TopicState, error) {
+	_ = t
+
+	ts := &TopicState{
+		Partitions: map[string][]int{
+			"0": []int{1000, 1001},
+			"1": []int{1002, 1003},
+			"2": []int{1004, 1005},
+			"3": []int{1006, 1007},
+			"4": []int{1008, 1009},
+		},
+	}
+
+	return ts, nil
+}
+
+func (z *ZKMock) Close() {
+	return
+}
+
+func (z *ZKMock) InitRawClient() error {
+	return nil
+}
+
+func (z *ZKMock) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
+	_ = c
+	return true, nil
 }
 
 func (z *ZKMock) GetTopics(ts []*regexp.Regexp) ([]string, error) {
@@ -75,8 +123,3 @@ func (z *ZKMock) getPartitionMap(t string) (*PartitionMap, error) {
 
 	return p, nil
 }
-
-// func TestGetReassignments(t *testing.T) {}
-// func TestGetTopics(t *testing.T) {}
-// func TestGetAllBrokerMeta(t *testing.T) {}
-// func TestGetPartitionMap(t *testing.T) {}
