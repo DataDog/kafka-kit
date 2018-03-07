@@ -15,18 +15,6 @@ var (
 	errNoBrokers = errors.New("No additional brokers that meet constraints")
 )
 
-type constraints struct {
-	locality map[string]bool
-	id       map[int]bool
-}
-
-func NewConstraints() *constraints {
-	return &constraints{
-		locality: make(map[string]bool),
-		id:       make(map[int]bool),
-	}
-}
-
 // whatChanged takes a before and after broker
 // replica set and returns a string describing
 // what changed.

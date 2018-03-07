@@ -75,7 +75,10 @@ func mockSeriesWithoutPoints() []dd.Series {
 	return ss
 }
 
+// This is essentially tested via TestGetHostTagMap
+// and TestPopulateFromTagMap.
 // func TestBrokerMetricsFromList(t *testing.T) {}
+
 // func TestGetHostTagMap(t *testing.T) {}
 
 func TestPopulateFromTagMap(t *testing.T) {
