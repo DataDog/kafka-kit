@@ -175,7 +175,7 @@ func TestRepCapacityByMetrics(t *testing.T) {
 	bm, _ := km.GetMetrics()
 
 	// Test normal scenario.
-	cap, curr, _ := repCapacityByMetrics(rtm, bmb, bm)
+	cap, curr, _, _ := repCapacityByMetrics(rtm, bmb, bm)
 	if cap != 86.40 {
 		t.Errorf("Expected capacity of 86.40, got %.2f", cap)
 	}

@@ -147,10 +147,15 @@ func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 	// fetched them, determine a tvalue based on
 	// the most-utilized path.
 	if useMetrics && err == nil {
-		replicationCapacity, currThrottle, err = repCapacityByMetrics(params, bmaps, brokerMetrics)
+		var e string
+		replicationCapacity, currThrottle, e, err = repCapacityByMetrics(params, bmaps, brokerMetrics)
 		if err != nil {
 			return err
 		}
+
+		log.Println(e)
+		log.Printf("Replication capacity (based on a %.0f%% max free capacity utilization): %0.2fMB/s\n",
+			params.limits["maximum"], replicationCapacity)
 
 		// Check if the delta between the newly calculated
 		// throttle and the previous throttle exceeds the
@@ -264,18 +269,20 @@ func mapsFromReassigments(r kafkazk.Reassignments, zk kafkazk.ZK) (bmapBundle, e
 }
 
 // repCapacityByMetrics finds the most constrained src broker and returns
-// a calculated replication capacity, the currently applied throttle and
-// and any errors if encountered.
-func repCapacityByMetrics(rtm *ReplicationThrottleMeta, bmb bmapBundle, bm kafkametrics.BrokerMetrics) (float64, float64, error) {
+// a calculated replication capacity, the currently applied throttle, a slice
+// of event strings and any errors if encountered.
+func repCapacityByMetrics(rtm *ReplicationThrottleMeta, bmb bmapBundle, bm kafkametrics.BrokerMetrics) (float64, float64, string, error) {
 	// Map src/dst broker IDs to a *ReassigningBrokers.
 	participatingBrokers := &ReassigningBrokers{}
+
+	var event string
 
 	// Source brokers.
 	for b := range bmb.src {
 		if broker, exists := bm[b]; exists {
 			participatingBrokers.Src = append(participatingBrokers.Src, broker)
 		} else {
-			return 0.00, 0.00, fmt.Errorf("Broker %d not found in broker metrics", b)
+			return 0.00, 0.00, event, fmt.Errorf("Broker %d not found in broker metrics", b)
 		}
 	}
 
@@ -284,7 +291,7 @@ func repCapacityByMetrics(rtm *ReplicationThrottleMeta, bmb bmapBundle, bm kafka
 		if broker, exists := bm[b]; exists {
 			participatingBrokers.Dst = append(participatingBrokers.Dst, broker)
 		} else {
-			return 0.00, 0.00, fmt.Errorf("Broker %d not found in broker metrics", b)
+			return 0.00, 0.00, event, fmt.Errorf("Broker %d not found in broker metrics", b)
 		}
 	}
 
@@ -298,17 +305,14 @@ func repCapacityByMetrics(rtm *ReplicationThrottleMeta, bmb bmapBundle, bm kafka
 
 	replicationCapacity, err := rtm.limits.headroom(constrainingSrc, currThrottle)
 	if err != nil {
-		return 0.00, 0.00, err
+		return 0.00, 0.00, event, err
 	}
 
-	log.Printf("Most utilized source broker: "+
+	event = fmt.Sprintf("Most utilized source broker: "+
 		"[%d] net tx of %.2fMB/s (over %ds) with an existing throttle rate of %.2fMB/s\n",
 		constrainingSrc.ID, constrainingSrc.NetTX, Config.MetricsWindow, currThrottle)
 
-	log.Printf("Replication capacity (based on a %.0f%% max free capacity utilization): %0.2fMB/s\n",
-		rtm.limits["maximum"], replicationCapacity)
-
-	return replicationCapacity, currThrottle, nil
+	return replicationCapacity, currThrottle, event, nil
 }
 
 // applyTopicThrottles updates the throttled brokers list for
