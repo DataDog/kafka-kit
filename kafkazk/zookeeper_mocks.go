@@ -105,6 +105,7 @@ func (z *ZKMock) GetAllBrokerMeta() (BrokerMetaMap, error) {
 		1002: &BrokerMeta{Rack: "b"},
 		1003: &BrokerMeta{Rack: "c"},
 		1004: &BrokerMeta{Rack: "a"},
+		1005: &BrokerMeta{Rack: "b"},
 	}
 
 	return b, nil
