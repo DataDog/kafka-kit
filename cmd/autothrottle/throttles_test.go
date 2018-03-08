@@ -150,7 +150,55 @@ func TestMapsFromReassigments(t *testing.T) {
 	}
 }
 
-// func TestRepCapacityByMetrics(t *testing.T) {}
+func TestRepCapacityByMetrics(t *testing.T) {
+	// Setup.
+	c := NewLimitsConfig{
+		Minimum: 20,
+		Maximum: 90,
+		CapacityMap: map[string]float64{
+			"mock": 120.00,
+		},
+	}
+
+	l, _ := NewLimits(c)
+
+	rtm := &ReplicationThrottleMeta{
+		limits: l,
+		throttles: map[int]float64{
+			1004: 80.00,
+		},
+	}
+
+	bmb := mockBmapBundle()
+
+	km := &kafkametrics.KafkaMetricsMock{}
+	bm, _ := km.GetMetrics()
+
+	// Test normal scenario.
+	cap, curr, _, _ := repCapacityByMetrics(rtm, bmb, bm)
+	if cap != 86.40 {
+		t.Errorf("Expected capacity of 86.40, got %.2f", cap)
+	}
+
+	if curr != 80.00 {
+		t.Errorf("Expected current capacity of 80.00, got %.2f", curr)
+	}
+
+	// Test with missing instance type.
+	delete(rtm.limits, "mock")
+	_, _, _, err := repCapacityByMetrics(rtm, bmb, bm)
+	if err.Error() != "Unknown instance type" {
+		t.Errorf("Expected error 'Unknown instance type', got '%s'", err.Error())
+	}
+
+	// Test with a missing broker in the broker metrics.
+	delete(bm, 1004)
+	_, _, _, err = repCapacityByMetrics(rtm, bmb, bm)
+	if err.Error() != "Broker 1004 not found in broker metrics" {
+		t.Errorf("Expected error 'Broker 1004 not found in broker metrics', got '%s'", err.Error())
+	}
+}
+
 // func TestApplyTopicThrottles(t *testing.T) {}
 // func TestApplyBrokerThrottles(t *testing.T) {}
 // func TestRemoveAllThrottles(t *testing.T) {}
