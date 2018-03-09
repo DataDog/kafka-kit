@@ -98,12 +98,6 @@ func main() {
 	}
 	defer zk.Close()
 
-	// Eh.
-	err = zk.InitRawClient()
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	// Init a Kafka metrics fetcher.
 	km, err := kafkametrics.NewKafkaMetrics(&kafkametrics.Config{
 		APIKey:         Config.APIKey,
