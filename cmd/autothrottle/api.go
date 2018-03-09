@@ -28,11 +28,6 @@ func initAPI(c *APIConfig, zk kafkazk.ZK) {
 	p := fmt.Sprintf("/%s/%s", c.ZKPrefix, c.RateSetting)
 	m := http.NewServeMux()
 
-	err := zk.InitRawClient()
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	// Check ZK for znode.
 	exists, err := zk.Exists(p)
 	if err != nil {

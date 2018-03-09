@@ -8,14 +8,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/docker/libkv"
-	"github.com/docker/libkv/store"
-	"github.com/docker/libkv/store/zookeeper"
 	zkclient "github.com/samuel/go-zookeeper/zk"
 )
 
 var (
-	ErrRawClientRequired      = errors.New("Raw client not initialized")
 	ErrInvalidKafkaConfigType = errors.New("Invalid Kafka config type")
 
 	validKafkaConfigTypes = map[string]interface{}{
@@ -25,8 +21,7 @@ var (
 )
 
 type zk struct {
-	client  store.Store
-	rclient *zkclient.Conn
+	client  *zkclient.Conn
 	Connect string
 	Prefix  string
 }
@@ -37,7 +32,6 @@ type ZKConfig struct {
 }
 
 type ZK interface {
-	InitRawClient() error // XXX temporary.
 	Exists(string) (bool, error)
 	Create(string, string) error
 	Set(string, string) error
@@ -50,10 +44,6 @@ type ZK interface {
 	GetTopicConfig(string) (*TopicConfig, error)
 	GetAllBrokerMeta() (BrokerMetaMap, error)
 	getPartitionMap(string) (*PartitionMap, error)
-}
-
-func init() {
-	zookeeper.Register()
 }
 
 // BrokerMeta holds metadata that
@@ -119,14 +109,7 @@ func NewZK(c *ZKConfig) (*zk, error) {
 	}
 
 	var err error
-	z.client, err = libkv.NewStore(
-		store.ZK,
-		[]string{z.Connect},
-		&store.Config{
-		// DisableLogging: true, // Pending merge upstream.
-		},
-	)
-
+	z.client, _, err = zkclient.Connect([]string{z.Connect}, 10*time.Second, zkclient.WithLogInfo(false))
 	if err != nil {
 		return nil, err
 	}
@@ -143,19 +126,19 @@ func (z *zk) GetReassignments() Reassignments {
 
 	var path string
 	if z.Prefix != "" {
-		path = fmt.Sprintf("%s/admin/reassign_partitions", z.Prefix)
+		path = fmt.Sprintf("/%s/admin/reassign_partitions", z.Prefix)
 	} else {
-		path = "admin/reassign_partitions"
+		path = "/admin/reassign_partitions"
 	}
 
 	// Get reassignment config.
-	c, err := z.client.Get(path)
+	data, err := z.Get(path)
 	if err != nil {
 		return reassigns
 	}
 
 	rec := &reassignPartitions{}
-	json.Unmarshal(c.Value, rec)
+	json.Unmarshal(data, rec)
 
 	// Map reassignment config to a
 	// Reassignments.
@@ -174,13 +157,13 @@ func (z *zk) GetTopics(ts []*regexp.Regexp) ([]string, error) {
 
 	var path string
 	if z.Prefix != "" {
-		path = fmt.Sprintf("%s/brokers/topics", z.Prefix)
+		path = fmt.Sprintf("/%s/brokers/topics", z.Prefix)
 	} else {
-		path = "brokers/topics"
+		path = "/brokers/topics"
 	}
 
-	// Find all topics in z.
-	entries, err := z.client.List(path)
+	// Find all topics in zk.
+	entries, _, err := z.client.Children(path)
 	if err != nil {
 		return nil, err
 	}
@@ -190,8 +173,8 @@ func (z *zk) GetTopics(ts []*regexp.Regexp) ([]string, error) {
 	// provided topic regexps.
 	for _, topicRe := range ts {
 		for _, topic := range entries {
-			if topicRe.MatchString(topic.Key) {
-				matched[topic.Key] = true
+			if topicRe.MatchString(topic) {
+				matched[topic] = true
 			}
 		}
 	}
@@ -209,18 +192,18 @@ func (z *zk) GetTopicConfig(t string) (*TopicConfig, error) {
 
 	var path string
 	if z.Prefix != "" {
-		path = fmt.Sprintf("%s/config/topics/%s", z.Prefix, t)
+		path = fmt.Sprintf("/%s/config/topics/%s", z.Prefix, t)
 	} else {
-		path = fmt.Sprintf("config/topics/%s", t)
+		path = fmt.Sprintf("/config/topics/%s", t)
 	}
 
 	// Get topic config.
-	c, err := z.client.Get(path)
+	data, err := z.Get(path)
 	if err != nil {
 		return nil, err
 	}
 
-	json.Unmarshal(c.Value, config)
+	json.Unmarshal(data, config)
 
 	return config, nil
 }
@@ -228,35 +211,39 @@ func (z *zk) GetTopicConfig(t string) (*TopicConfig, error) {
 func (z *zk) GetAllBrokerMeta() (BrokerMetaMap, error) {
 	var path string
 	if z.Prefix != "" {
-		path = fmt.Sprintf("%s/brokers/ids", z.Prefix)
+		path = fmt.Sprintf("/%s/brokers/ids", z.Prefix)
 	} else {
-		path = "brokers/ids"
+		path = "/brokers/ids"
 	}
 
 	// Get all brokers.
-	entries, err := z.client.List(path)
+	entries, _, err := z.client.Children(path)
 	if err != nil {
-		if err.Error() == "Key not found in store" {
-			return nil, errors.New("No brokers registered")
-		}
 		return nil, err
 	}
 
 	bmm := BrokerMetaMap{}
 
 	// Map each broker.
-	for _, pair := range entries {
+	for _, b := range entries {
 		bm := &BrokerMeta{}
 		// In case we encounter non-ints
 		// (broker IDs) for whatever reason,
 		// just continue.
-		bid, err := strconv.Atoi(pair.Key)
+		bid, err := strconv.Atoi(b)
 		if err != nil {
 			continue
 		}
 
-		// Same with unmarshalling json meta.
-		err = json.Unmarshal(pair.Value, bm)
+		// Fetch & unmarshal the data for each broker.
+		bpath := fmt.Sprintf("%s/%s", path, b)
+		data, err := z.Get(bpath)
+		// XXX do something else.
+		if err != nil {
+			continue
+		}
+
+		err = json.Unmarshal(data, bm)
 		if err != nil {
 			continue
 		}
@@ -270,14 +257,19 @@ func (z *zk) GetAllBrokerMeta() (BrokerMetaMap, error) {
 func (z *zk) GetTopicState(t string) (*TopicState, error) {
 	var path string
 	if z.Prefix != "" {
-		path = fmt.Sprintf("%s/brokers/topics/%s", z.Prefix, t)
+		path = fmt.Sprintf("/%s/brokers/topics/%s", z.Prefix, t)
 	} else {
-		path = fmt.Sprintf("brokers/topics/%s", t)
+		path = fmt.Sprintf("/brokers/topics/%s", t)
 	}
 
 	// Fetch topic data from z.
 	ts := &TopicState{}
-	m, err := z.client.Get(path)
+	data, err := z.Get(path)
+	if err != nil {
+		return nil, err
+	}
+	/* Error handling pattern with
+	// previous client.
 	switch err {
 	case store.ErrKeyNotFound:
 		return nil, fmt.Errorf("Topic %s not found in ZooKeeper", t)
@@ -286,8 +278,9 @@ func (z *zk) GetTopicState(t string) (*TopicState, error) {
 	default:
 		return nil, err
 	}
+	*/
 
-	err = json.Unmarshal(m.Value, ts)
+	err = json.Unmarshal(data, ts)
 	if err != nil {
 		return nil, err
 	}
@@ -338,47 +331,27 @@ func (z *zk) getPartitionMap(t string) (*PartitionMap, error) {
 }
 
 func (z *zk) Get(p string) ([]byte, error) {
-	if z.rclient == nil {
-		return nil, ErrRawClientRequired
-	}
-
-	r, _, err := z.rclient.Get(p)
+	r, _, err := z.client.Get(p)
 	return r, err
 }
 
 func (z *zk) Set(p string, d string) error {
-	if z.rclient == nil {
-		return ErrRawClientRequired
-	}
-
-	_, err := z.rclient.Set(p, []byte(d), -1)
+	_, err := z.client.Set(p, []byte(d), -1)
 	return err
 }
 
 func (z *zk) CreateSequential(p string, d string) error {
-	if z.rclient == nil {
-		return ErrRawClientRequired
-	}
-
-	_, err := z.rclient.Create(p, []byte(d), zkclient.FlagSequence, zkclient.WorldACL(31))
+	_, err := z.client.Create(p, []byte(d), zkclient.FlagSequence, zkclient.WorldACL(31))
 	return err
 }
 
 func (z *zk) Create(p string, d string) error {
-	if z.rclient == nil {
-		return ErrRawClientRequired
-	}
-
-	_, err := z.rclient.Create(p, []byte(d), 0, zkclient.WorldACL(31))
+	_, err := z.client.Create(p, []byte(d), 0, zkclient.WorldACL(31))
 	return err
 }
 
 func (z *zk) Exists(p string) (bool, error) {
-	if z.rclient == nil {
-		return false, ErrRawClientRequired
-	}
-
-	e, _, err := z.rclient.Exists(p)
+	e, _, err := z.client.Exists(p)
 	return e, err
 }
 
@@ -395,10 +368,6 @@ func (z *zk) Exists(p string) (bool, error) {
 // the entire config key itself is deleted. This was
 // an easy way to merge update/delete into a single func.
 func (z *zk) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
-	if z.rclient == nil {
-		return false, ErrRawClientRequired
-	}
-
 	if _, valid := validKafkaConfigTypes[c.Type]; !valid {
 		return false, ErrInvalidKafkaConfigType
 	}
@@ -412,7 +381,7 @@ func (z *zk) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
 		path = fmt.Sprintf("/config/%ss/%s", c.Type, c.Name)
 	}
 
-	data, _, err := z.rclient.Get(path)
+	data, err := z.Get(path)
 	if err != nil {
 		return false, err
 	}
@@ -446,7 +415,7 @@ func (z *zk) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
 			errS := fmt.Sprintf("Error marshalling config: %s", err)
 			return false, errors.New(errS)
 		}
-		_, err = z.rclient.Set(path, newConfig, -1)
+		_, err = z.client.Set(path, newConfig, -1)
 		if err != nil {
 			return false, err
 		}
@@ -475,17 +444,4 @@ func (z *zk) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
 	}
 
 	return true, nil
-}
-
-func (z *zk) InitRawClient() error {
-	if z.rclient == nil {
-		c, _, err := zkclient.Connect(
-			[]string{z.Connect}, 10*time.Second, zkclient.WithLogInfo(false))
-		if err != nil {
-			return err
-		}
-		z.rclient = c
-	}
-
-	return nil
 }
