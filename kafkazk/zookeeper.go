@@ -20,17 +20,6 @@ var (
 	}
 )
 
-// ZKConfig holds initialization
-// paramaters for a ZK. Connect
-// is a ZooKeeper connect string.
-// Prefix should reflect any prefix
-// used for Kafka on the reference
-// ZooKeeper cluster (excluding slashes).
-type ZKConfig struct {
-	Connect string
-	Prefix  string
-}
-
 // ZK exposes basic ZooKeeper operations
 // along with additional methods that return
 // kafkazk package specific types, populated
@@ -113,6 +102,17 @@ type KafkaConfigData struct {
 // for real ZooKeeper clusters.
 type zk struct {
 	client  *zkclient.Conn
+	Connect string
+	Prefix  string
+}
+
+// ZKConfig holds initialization
+// paramaters for a ZK. Connect
+// is a ZooKeeper connect string.
+// Prefix should reflect any prefix
+// used for Kafka on the reference
+// ZooKeeper cluster (excluding slashes).
+type ZKConfig struct {
 	Connect string
 	Prefix  string
 }
