@@ -22,6 +22,11 @@ func (z *ZKMock) Create(a, b string) error {
 	return nil
 }
 
+func (z *ZKMock) CreateSequential(a, b string) error {
+	_, _ = a, b
+	return nil
+}
+
 func (z *ZKMock) Exists(a string) (bool, error) {
 	_ = a
 	return true, nil

@@ -27,6 +27,7 @@ var (
 type ZK interface {
 	Exists(string) (bool, error)
 	Create(string, string) error
+	CreateSequential(string, string) error
 	Set(string, string) error
 	Get(string) ([]byte, error)
 	Close()
