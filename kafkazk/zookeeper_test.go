@@ -2,6 +2,7 @@ package kafkazk
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"testing"
 	"time"
@@ -50,7 +51,18 @@ func TestSetup(t *testing.T) {
 		}
 
 		// Populate test data.
-		zkc.Create("/"+zkprefix, []byte{}, 0, zkclient.WorldACL(31))
+
+		// Create paths.
+		paths := []string{"", "/brokers", "/brokers/topics"}
+		for _, p := range paths {
+			zkc.Create("/"+zkprefix+p, []byte{}, 0, zkclient.WorldACL(31))
+		}
+
+		// Create mock data.
+		for i := 0; i < 5; i++ {
+			topic := fmt.Sprintf("/%s/brokers/topics/topic%d", zkprefix, i)
+			zkc.Create(topic, []byte{}, 0, zkclient.WorldACL(31))
+		}
 
 		// Init a ZooKeeper based ZK.
 		zki, err = NewZK(&ZKConfig{
@@ -149,7 +161,36 @@ func TestExists(t *testing.T) {
 }
 
 // func TestGetReassignments(t *testing.T) {}
-// func TestGetTopics(t *testing.T) {}
+
+func TestGetTopics(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	rs := []*regexp.Regexp{
+		regexp.MustCompile("topic[0-2]"),
+	}
+
+	ts, err := zki.GetTopics(rs)
+	if err != nil {
+		t.Error(err)
+	}
+
+	sort.Strings(ts)
+
+	expected := []string{"topic0", "topic1", "topic2"}
+
+	if len(ts) != 3 {
+		t.Errorf("Expected topic list len of 3, got %d", len(ts))
+	}
+
+	for i, n := range ts {
+		if n != expected[i] {
+			t.Errorf("Expected topic '%s', got '%s'", n, expected[i])
+		}
+	}
+}
+
 // func TestGetTopicConfig(t *testing.T) {}
 // func TestGetAllBrokerMeta(t *testing.T) {}
 // func TestGetTopicState(t *testing.T) {}
@@ -170,6 +211,14 @@ func TestTearDown(t *testing.T) {
 		"/test/seq0000000001",
 		"/test/seq0000000002",
 		"/test",
+		"/kafka/brokers/topics/topic0",
+		"/kafka/brokers/topics/topic1",
+		"/kafka/brokers/topics/topic2",
+		"/kafka/brokers/topics/topic3",
+		"/kafka/brokers/topics/topic4",
+		"/kafka/brokers/topics",
+		"/kafka/brokers",
+		"/kafka",
 	} {
 		_, s, err := zkc.Get(p)
 		if err != nil {
@@ -190,4 +239,6 @@ func TestTearDown(t *testing.T) {
 		t.Fail()
 	}
 
+	zki.Close()
+	zkc.Close()
 }
