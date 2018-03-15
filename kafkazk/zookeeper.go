@@ -20,17 +20,21 @@ var (
 	}
 )
 
-type zk struct {
-	client  *zkclient.Conn
-	Connect string
-	Prefix  string
-}
-
+// ZKConfig holds initialization
+// paramaters for a ZK. Connect
+// is a ZooKeeper connect string.
+// Prefix should reflect any prefix
+// used for Kafka on the reference
+// ZooKeeper cluster (excluding slashes).
 type ZKConfig struct {
 	Connect string
 	Prefix  string
 }
 
+// ZK exposes basic ZooKeeper operations
+// along with additional methods that return
+// kafkazk package specific types, populated
+// with data fetched from ZooKeeper.
 type ZK interface {
 	Exists(string) (bool, error)
 	Create(string, string) error
@@ -82,13 +86,15 @@ type reassignConfig struct {
 }
 
 // TopicConfig is used for unmarshalling
-// /config/topics/<topic>.
+// /config/topics/<topic> from ZooKeeper.
 type TopicConfig struct {
 	Version int               `json:"version"`
 	Config  map[string]string `json:"config"`
 }
 
-// KafkaConfig
+// KafkaConfig is used to issue configuration
+// updates to either topics or brokers in
+// ZooKeeper.
 type KafkaConfig struct {
 	Type    string      // Topic or broker.
 	Name    string      // Entity name.
@@ -96,12 +102,23 @@ type KafkaConfig struct {
 
 }
 
-// KafkaConfigData
+// KafkaConfigData is used for unmarshalling
+// /config/<type>/<name> data from ZooKeeper.
 type KafkaConfigData struct {
 	Version int               `json:"version"`
 	Config  map[string]string `json:"config"`
 }
 
+// zk implements the ZK interface
+// for real ZooKeeper clusters.
+type zk struct {
+	client  *zkclient.Conn
+	Connect string
+	Prefix  string
+}
+
+// NewZK takes a *ZKConfig, performs
+// and initialization and returns a *zk.
 func NewZK(c *ZKConfig) (*zk, error) {
 	z := &zk{
 		Connect: c.Connect,
@@ -117,10 +134,56 @@ func NewZK(c *ZKConfig) (*zk, error) {
 	return z, nil
 }
 
+// Close calls close on
+// the *zk. Any additional
+// shutdown cleanup or other
+// tasks should be performed here.
 func (z *zk) Close() {
 	z.client.Close()
 }
 
+// Get gets the provided path p and returns
+// the data from the path and an error if encountered.
+func (z *zk) Get(p string) ([]byte, error) {
+	r, _, err := z.client.Get(p)
+	return r, err
+}
+
+// Set sets the provided path p data to the
+// provided string d and returns an error
+// if encountered.
+func (z *zk) Set(p string, d string) error {
+	_, err := z.client.Set(p, []byte(d), -1)
+	return err
+}
+
+// CreateSequential takes a path p and data d and
+// creates a sequential znode at p with data d.
+// An error is returned if encountered.
+func (z *zk) CreateSequential(p string, d string) error {
+	_, err := z.client.Create(p, []byte(d), zkclient.FlagSequence, zkclient.WorldACL(31))
+	return err
+}
+
+// Create creates the provided path p with the data
+// from the provided string d and returns an error
+// if encountered.
+func (z *zk) Create(p string, d string) error {
+	_, err := z.client.Create(p, []byte(d), 0, zkclient.WorldACL(31))
+	return err
+}
+
+// Exists takes a path p and returns a bool
+// as to whether the path exists and an error
+// if encountered.
+func (z *zk) Exists(p string) (bool, error) {
+	e, _, err := z.client.Exists(p)
+	return e, err
+}
+
+// GetReassignments looks up any ongoing
+// topic reassignments and returns the data
+// as a Reassignments type.
 func (z *zk) GetReassignments() Reassignments {
 	reassigns := Reassignments{}
 
@@ -152,6 +215,9 @@ func (z *zk) GetReassignments() Reassignments {
 	return reassigns
 }
 
+// GetTopics takes a []*regexp.Regexp and returns
+// a []string of all topic names that match any of the
+// provided regex.
 func (z *zk) GetTopics(ts []*regexp.Regexp) ([]string, error) {
 	matchingTopics := []string{}
 
@@ -187,6 +253,9 @@ func (z *zk) GetTopics(ts []*regexp.Regexp) ([]string, error) {
 	return matchingTopics, nil
 }
 
+// GetTopicConfig takes a topic name. If the
+// topic exists, the topic config is returned
+// as a *TopicConfig.
 func (z *zk) GetTopicConfig(t string) (*TopicConfig, error) {
 	config := &TopicConfig{}
 
@@ -208,6 +277,8 @@ func (z *zk) GetTopicConfig(t string) (*TopicConfig, error) {
 	return config, nil
 }
 
+// GetAllBrokerMeta looks up all registered Kafka
+// brokers and returns their metadata as a BrokerMetaMap.
 func (z *zk) GetAllBrokerMeta() (BrokerMetaMap, error) {
 	var path string
 	if z.Prefix != "" {
@@ -254,6 +325,8 @@ func (z *zk) GetAllBrokerMeta() (BrokerMetaMap, error) {
 	return bmm, nil
 }
 
+// GetTopicState takes a topic name. If the topic exists,
+// the topic state is returned as a *TopicState.
 func (z *zk) GetTopicState(t string) (*TopicState, error) {
 	var path string
 	if z.Prefix != "" {
@@ -288,6 +361,9 @@ func (z *zk) GetTopicState(t string) (*TopicState, error) {
 	return ts, nil
 }
 
+// getPartitionMap takes a topic name. If the topic
+// exists, the state of the topic is fetched and
+// translated into a *PartitionMap.
 func (z *zk) getPartitionMap(t string) (*PartitionMap, error) {
 	// Get current topic state.
 	ts, err := z.GetTopicState(t)
@@ -328,31 +404,6 @@ func (z *zk) getPartitionMap(t string) (*PartitionMap, error) {
 	pm.Partitions = pl
 
 	return pm, nil
-}
-
-func (z *zk) Get(p string) ([]byte, error) {
-	r, _, err := z.client.Get(p)
-	return r, err
-}
-
-func (z *zk) Set(p string, d string) error {
-	_, err := z.client.Set(p, []byte(d), -1)
-	return err
-}
-
-func (z *zk) CreateSequential(p string, d string) error {
-	_, err := z.client.Create(p, []byte(d), zkclient.FlagSequence, zkclient.WorldACL(31))
-	return err
-}
-
-func (z *zk) Create(p string, d string) error {
-	_, err := z.client.Create(p, []byte(d), 0, zkclient.WorldACL(31))
-	return err
-}
-
-func (z *zk) Exists(p string) (bool, error) {
-	e, _, err := z.client.Exists(p)
-	return e, err
 }
 
 // UpdateKafkaConfig takes a KafkaConfig with key
