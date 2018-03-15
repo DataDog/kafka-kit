@@ -12,13 +12,37 @@ import (
 
 const (
 	zkaddr   = "localhost:2181"
-	zkprefix = "kafka"
+	zkprefix = "/kafka"
 )
 
 var (
 	zkc *zkclient.Conn
 	zki ZK
+	// Create paths.
+	paths = []string{
+		zkprefix,
+		zkprefix + "/brokers",
+		zkprefix + "/brokers/topics",
+		zkprefix + "/admin",
+		zkprefix + "/admin/reassign_partitions",
+	}
 )
+
+// Sort by string length.
+
+type byLen []string
+
+func (a byLen) Len() int {
+	return len(a)
+}
+
+func (a byLen) Less(i, j int) bool {
+	return len(a[i]) > len(a[j])
+}
+
+func (a byLen) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
 
 // TestSetup is used for long tests that
 // rely on a blank ZooKeeper server listening
@@ -52,22 +76,34 @@ func TestSetup(t *testing.T) {
 
 		// Populate test data.
 
-		// Create paths.
-		paths := []string{"", "/brokers", "/brokers/topics"}
 		for _, p := range paths {
-			zkc.Create("/"+zkprefix+p, []byte{}, 0, zkclient.WorldACL(31))
+			_, err := zkc.Create(p, []byte{}, 0, zkclient.WorldACL(31))
+			if err != nil {
+				t.Error(err)
+			}
 		}
 
 		// Create mock data.
 		for i := 0; i < 5; i++ {
-			topic := fmt.Sprintf("/%s/brokers/topics/topic%d", zkprefix, i)
-			zkc.Create(topic, []byte{}, 0, zkclient.WorldACL(31))
+			topic := fmt.Sprintf("%s/brokers/topics/topic%d", zkprefix, i)
+			paths = append(paths, topic)
+			_, err := zkc.Create(topic, []byte{}, 0, zkclient.WorldACL(31))
+			if err != nil {
+				t.Error(err)
+			}
 		}
 
 		// Init a ZooKeeper based ZK.
+		var configPrefix string
+		if len(zkprefix) > 0 {
+			configPrefix = zkprefix[1:]
+		} else {
+			configPrefix = ""
+		}
+
 		zki, err = NewZK(&ZKConfig{
 			Connect: zkaddr,
-			Prefix:  zkprefix,
+			Prefix:  configPrefix,
 		})
 		if err != nil {
 			t.Errorf("Error initializing ZooKeeper client: %s", err.Error())
@@ -88,6 +124,7 @@ func TestCreateSetGet(t *testing.T) {
 	}
 
 	err := zki.Create("/test", "")
+	paths = append(paths, "/test")
 	if err != nil {
 		t.Error(err)
 	}
@@ -105,7 +142,6 @@ func TestCreateSetGet(t *testing.T) {
 	if string(v) != "test data" {
 		t.Errorf("Expected string 'test data', got '%s'", v)
 	}
-
 }
 
 func TestCreateSequential(t *testing.T) {
@@ -139,6 +175,7 @@ func TestCreateSequential(t *testing.T) {
 	}
 
 	for i, z := range c {
+		paths = append(paths, "/test/"+expected[i])
 		if z != expected[i] {
 			t.Errorf("Expected znode '%s', got '%s'", expected[i], z)
 		}
@@ -205,21 +242,14 @@ func TestTearDown(t *testing.T) {
 
 	errors := []error{}
 
+	// We sort the paths by descending
+	// length. This ensures that we're always
+	// deleting children first.
+	sort.Sort(byLen(paths))
+
 	// Test data to be removed.
-	for _, p := range []string{
-		"/test/seq0000000000",
-		"/test/seq0000000001",
-		"/test/seq0000000002",
-		"/test",
-		"/kafka/brokers/topics/topic0",
-		"/kafka/brokers/topics/topic1",
-		"/kafka/brokers/topics/topic2",
-		"/kafka/brokers/topics/topic3",
-		"/kafka/brokers/topics/topic4",
-		"/kafka/brokers/topics",
-		"/kafka/brokers",
-		"/kafka",
-	} {
+
+	for _, p := range paths {
 		_, s, err := zkc.Get(p)
 		if err != nil {
 			errors = append(errors, err)
