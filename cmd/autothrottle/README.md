@@ -52,6 +52,10 @@ Once running, autothrottle should clearly log what it's doing:
 2018/03/16 18:33:32 No topics undergoing reassignment
 ```
 
+Overlaying autothrottle Datadog events on a recovery dashboard:
+
+![img](https://user-images.githubusercontent.com/4108044/37539923-c9c39e06-291a-11e8-97cf-cd3d06416929.png)
+
 Flags:
 
 ```
