@@ -35,11 +35,11 @@ func initAPI(c *APIConfig, zk kafkazk.ZK) {
 	}
 
 	if !exists {
-		err = zk.Create("/"+c.ZKPrefix, "null")
+		err = zk.Create("/"+c.ZKPrefix, "")
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = zk.Create(p, "null")
+		err = zk.Create(p, "")
 		if err != nil {
 			log.Fatal(err)
 		}
