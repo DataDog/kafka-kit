@@ -1,6 +1,6 @@
 ## Overview
 
-topicmappr was created as a replacement for Kafka's provided `kafka-reassign-partition.sh` tool, providing additional enhancements:
+Topicmappr was created as a replacement for Kafka's provided `kafka-reassign-partition.sh` tool, providing additional enhancements:
 
 ### Deterministic Output
 Given the same input, topicmappr will always provide the same output map.
@@ -49,7 +49,7 @@ Usage of topicmappr:
         ZooKeeper namespace prefix
 ```
 
-### How Mapping Work
+### How Mapping Works
 Topicmappr primarily takes two inputs: a topic map (either looked up in ZooKeeper with `--rebuild-topics` or provided literally with `--rebuild-map`) and a list of brokers. Topicmappr builds a map that ensures the referenced topics are mapped to the listed brokers.
 
 Subsequent executions should always produce the same output map (\*provided the same input; a change in topic state in ZooKeeper yields a different input). In order to uphold the intent of "minimal partition movement", topicmappr only maps a partition to a new broker if an existing broker isn't provided in the broker list.
@@ -113,7 +113,7 @@ Partitions assigned:
 
 Essentially, if all brokers handling a topic are a subset of the provided list, nothing changes. The default action is to only fix what's broken.
 
-This can be overriden with the `--force-rebuild` option, tells topicmappr to rebuild an ideal map from the broker list, disregarding the state of the topic:
+This can be overridden with the `--force-rebuild` option, tells topicmappr to rebuild an ideal map from the broker list, disregarding the state of the topic:
 
 > $ topicmappr -rebuild-map '{"version":1,"partitions":[{"topic":"test_topic","partition":0,"replicas":[1001,1002]},{"topic":"test_topic","partition":1,"replicas":[1002,1001]},{"topic":"test_topic","partition":2,"replicas":[1001,1002]},{"topic":"test_topic","partition":3,"replicas":[1002,1001]}]}' -brokers=1001,1002,1003,1004 -use-meta=false --force-rebuild
 
@@ -235,7 +235,7 @@ New parition maps:
 
 #### Up
 
-Based on the maping mechanics described in the "How Mapping Work" section, topicmappr provides two ways to scale a topic over more brokers.
+Based on the mapping mechanics described in the "How Mapping Works" section, topicmappr provides two ways to scale a topic over more brokers.
 
 Full rebuild: Provide topicmappr a completely new list of brokers (e.g. none of the provided brokers are any of those already hosting the topic). The disadvantage of this method is that 100% of the data must be moved. The advantage is a reduced risk of running a broker out of storage (compared to an in place scaling) and more total bandwidth will be available for the resize (original+new brokers).
 
