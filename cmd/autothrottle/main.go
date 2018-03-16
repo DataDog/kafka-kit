@@ -74,7 +74,7 @@ func init() {
 }
 
 func main() {
-	log.Println("Authrottle Running")
+	log.Println("Autothrottle Running")
 	// Lazily prevent a tight restart
 	// loop from thrashing ZK.
 	time.Sleep(1 * time.Second)
