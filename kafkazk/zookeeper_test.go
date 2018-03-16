@@ -393,7 +393,31 @@ func TestGetTopicState(t *testing.T) {
 	}
 }
 
-// func TestGetPartitionMap(t *testing.T) {}
+func TestGetPartitionMap(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	pm, err := zki.GetPartitionMap("topic0")
+	if err != nil {
+		t.Error(err)
+	}
+
+	expected := &PartitionMap{
+		Version: 1,
+		Partitions: partitionList{
+			Partition{Topic: "topic0", Partition: 0, Replicas: []int{1003, 1004}}, // Via the mock reassign_partitions data.
+			Partition{Topic: "topic0", Partition: 1, Replicas: []int{1002, 1001}},
+			Partition{Topic: "topic0", Partition: 2, Replicas: []int{1003, 1004}},
+			Partition{Topic: "topic0", Partition: 3, Replicas: []int{1004, 1003}},
+		},
+	}
+
+	if matches, err := pm.equal(expected); !matches {
+		t.Errorf("Unexpected PartitionMap inequality: %s", err.Error())
+	}
+}
+
 // func TestUpdateKafkaConfig(t *testing.T) {}
 
 // TestTearDown does any tear down cleanup.

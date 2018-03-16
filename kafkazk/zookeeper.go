@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
 	"time"
 
@@ -403,6 +404,8 @@ func (z *zk) GetPartitionMap(t string) (*PartitionMap, error) {
 		})
 	}
 	pm.Partitions = pl
+
+	sort.Sort(pm.Partitions)
 
 	return pm, nil
 }
