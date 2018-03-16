@@ -62,7 +62,7 @@ func (a byLen) Swap(i, j int) {
 // subsequent test runs will likely produce errors.
 func TestSetup(t *testing.T) {
 	if !testing.Short() {
-		// Dial and test direct client.
+		// Init a direct client.
 		var err error
 		zkc, _, err = zkclient.Connect([]string{zkaddr}, time.Second, zkclient.WithLogInfo(false))
 		if err != nil {
@@ -72,25 +72,6 @@ func TestSetup(t *testing.T) {
 		_, _, _ = zkc.Get("/")
 		if s := zkc.State(); s != 100|101 {
 			t.Errorf("ZooKeeper client not in a connected state (state=%d)", s)
-		}
-
-		// Populate test data.
-
-		for _, p := range paths {
-			_, err := zkc.Create(p, []byte{}, 0, zkclient.WorldACL(31))
-			if err != nil {
-				t.Error(err)
-			}
-		}
-
-		// Create mock data.
-		for i := 0; i < 5; i++ {
-			topic := fmt.Sprintf("%s/brokers/topics/topic%d", zkprefix, i)
-			paths = append(paths, topic)
-			_, err := zkc.Create(topic, []byte{}, 0, zkclient.WorldACL(31))
-			if err != nil {
-				t.Error(err)
-			}
 		}
 
 		// Init a ZooKeeper based ZK.
@@ -107,6 +88,35 @@ func TestSetup(t *testing.T) {
 		})
 		if err != nil {
 			t.Errorf("Error initializing ZooKeeper client: %s", err.Error())
+		}
+
+		/*****************
+		  Populate test data
+		  *****************/
+
+		// Create paths.
+		for _, p := range paths {
+			_, err := zkc.Create(p, []byte{}, 0, zkclient.WorldACL(31))
+			if err != nil {
+				t.Error(err)
+			}
+		}
+
+		// Create topics.
+		for i := 0; i < 5; i++ {
+			topic := fmt.Sprintf("%s/brokers/topics/topic%d", zkprefix, i)
+			paths = append(paths, topic)
+			_, err := zkc.Create(topic, []byte{}, 0, zkclient.WorldACL(31))
+			if err != nil {
+				t.Error(err)
+			}
+		}
+
+		// Create reassignments data.
+		data := []byte(`{"version":1,"partitions":[{"topic":"topic0","partition":0,"replicas":[1001,1002]}]}`)
+		_, err = zkc.Set(zkprefix+"/admin/reassign_partitions", data, -1)
+		if err != nil {
+			t.Error(err)
 		}
 
 	} else {
@@ -197,7 +207,31 @@ func TestExists(t *testing.T) {
 	}
 }
 
-// func TestGetReassignments(t *testing.T) {}
+func TestGetReassignments(t *testing.T) {
+	re := zki.GetReassignments()
+
+	if len(re) != 1 {
+		t.Errorf("Expected 1 reassignment, got %d", len(re))
+	}
+
+	if _, exist := re["topic0"]; !exist {
+		t.Error("Expected 'topic0' in reassignments")
+	}
+
+	replicas, exist := re["topic0"][0]
+	if !exist {
+		t.Error("Expected topic0 partition 0 in reassignments")
+	}
+
+	sort.Ints(replicas)
+
+	expected := []int{1001, 1002}
+	for i, r := range replicas {
+		if r != expected[i] {
+			t.Errorf("Expected replica '%d', got '%d'", expected[i], r)
+		}
+	}
+}
 
 func TestGetTopics(t *testing.T) {
 	if testing.Short() {
