@@ -22,6 +22,7 @@ var (
 	paths = []string{
 		zkprefix,
 		zkprefix + "/brokers",
+		zkprefix + "/brokers/ids",
 		zkprefix + "/brokers/topics",
 		zkprefix + "/admin",
 		zkprefix + "/admin/reassign_partitions",
@@ -128,6 +129,24 @@ func TestSetup(t *testing.T) {
 		_, err = zkc.Create(zkprefix+"/config/topics/topic0", data, 0, zkclient.WorldACL(31))
 		if err != nil {
 			t.Error(err)
+		}
+
+		//{"listener_security_protocol_map":{"PLAINTEXT":"PLAINTEXT"},"endpoints":["PLAINTEXT://172.21.52.195:9092"],"rack":"us-east-1a","jmx_port":9999,"host":"172.21.52.195","timestamp":"1519911707766","port":9092,"version":4}
+		// Create brokers.
+		rack := []string{"a", "b", "c"}
+		for i := 0; i < 10; i++ {
+			// Create data.
+			data := fmt.Sprintf(`{"listener_security_protocol_map":{"PLAINTEXT":"PLAINTEXT"},"endpoints":["PLAINTEXT://10.0.1.%d:9092"],"rack":"%s","jmx_port":9999,"host":"10.0.1.%d","timestamp":"%d","port":9092,"version":4}`,
+				100+i, rack[i%3], 100+i, time.Now().Unix())
+			p := fmt.Sprintf("%s/brokers/ids/%d", zkprefix, 1001+i)
+
+			paths = append(paths, p)
+
+			// Add.
+			_, err = zkc.Create(p, []byte(data), 0, zkclient.WorldACL(31))
+			if err != nil {
+				t.Error(err)
+			}
 		}
 
 	} else {
@@ -301,7 +320,40 @@ func TestGetTopicConfig(t *testing.T) {
 	}
 }
 
-// func TestGetAllBrokerMeta(t *testing.T) {}
+func TestGetAllBrokerMeta(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	bm, err := zki.GetAllBrokerMeta()
+	if err != nil {
+		t.Error(err)
+	}
+
+	if len(bm) != 10 {
+		t.Errorf("Expected BrokerMetaMap len of 10, got %d", len(bm))
+	}
+
+	expected := map[int]string{
+		1001: "a",
+		1002: "b",
+		1003: "c",
+		1004: "a",
+		1005: "b",
+		1006: "c",
+		1007: "a",
+		1008: "b",
+		1009: "c",
+		1010: "a",
+	}
+
+	for b, r := range bm {
+		if r.Rack != expected[b] {
+			t.Errorf("Expected rack '%s' for %d, got '%s'", expected[b], b, r.Rack)
+		}
+	}
+}
+
 // func TestGetTopicState(t *testing.T) {}
 // func TestGetPartitionMap(t *testing.T) {}
 // func TestUpdateKafkaConfig(t *testing.T) {}
