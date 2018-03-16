@@ -25,6 +25,8 @@ var (
 		zkprefix + "/brokers/topics",
 		zkprefix + "/admin",
 		zkprefix + "/admin/reassign_partitions",
+		zkprefix + "/config",
+		zkprefix + "/config/topics",
 	}
 )
 
@@ -103,18 +105,27 @@ func TestSetup(t *testing.T) {
 		}
 
 		// Create topics.
+		data := []byte(`{"version":1,"partitions":{"0":[1001,1002],"1":[1002,1001],"2":[1003,1004],"3":[1004,1003]}}`)
 		for i := 0; i < 5; i++ {
 			topic := fmt.Sprintf("%s/brokers/topics/topic%d", zkprefix, i)
 			paths = append(paths, topic)
-			_, err := zkc.Create(topic, []byte{}, 0, zkclient.WorldACL(31))
+			_, err := zkc.Create(topic, data, 0, zkclient.WorldACL(31))
 			if err != nil {
 				t.Error(err)
 			}
 		}
 
 		// Create reassignments data.
-		data := []byte(`{"version":1,"partitions":[{"topic":"topic0","partition":0,"replicas":[1001,1002]}]}`)
+		data = []byte(`{"version":1,"partitions":[{"topic":"topic0","partition":0,"replicas":[1003,1004]}]}`)
 		_, err = zkc.Set(zkprefix+"/admin/reassign_partitions", data, -1)
+		if err != nil {
+			t.Error(err)
+		}
+
+		// Create topic config.
+		data = []byte(`{"version":1,"config":{"retention.ms":"129600000"}}`)
+		paths = append(paths, zkprefix+"/config/topics/topic0")
+		_, err = zkc.Create(zkprefix+"/config/topics/topic0", data, 0, zkclient.WorldACL(31))
 		if err != nil {
 			t.Error(err)
 		}
@@ -208,6 +219,10 @@ func TestExists(t *testing.T) {
 }
 
 func TestGetReassignments(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
 	re := zki.GetReassignments()
 
 	if len(re) != 1 {
@@ -225,7 +240,7 @@ func TestGetReassignments(t *testing.T) {
 
 	sort.Ints(replicas)
 
-	expected := []int{1001, 1002}
+	expected := []int{1003, 1004}
 	for i, r := range replicas {
 		if r != expected[i] {
 			t.Errorf("Expected replica '%d', got '%d'", expected[i], r)
@@ -262,7 +277,30 @@ func TestGetTopics(t *testing.T) {
 	}
 }
 
-// func TestGetTopicConfig(t *testing.T) {}
+func TestGetTopicConfig(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	c, err := zki.GetTopicConfig("topic0")
+	if err != nil {
+		t.Error(err)
+	}
+
+	if c == nil {
+		t.Error("Unexpectedly nil TopicConfig")
+	}
+
+	v, exist := c.Config["retention.ms"]
+	if !exist {
+		t.Error("Expected 'retention.ms' config key to exist")
+	}
+
+	if v != "129600000" {
+		t.Errorf("Expected config value '129600000', got '%s'", v)
+	}
+}
+
 // func TestGetAllBrokerMeta(t *testing.T) {}
 // func TestGetTopicState(t *testing.T) {}
 // func TestGetPartitionMap(t *testing.T) {}
