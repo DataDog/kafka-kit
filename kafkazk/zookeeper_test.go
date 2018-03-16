@@ -28,6 +28,8 @@ var (
 		zkprefix + "/admin/reassign_partitions",
 		zkprefix + "/config",
 		zkprefix + "/config/topics",
+		zkprefix + "/config/brokers",
+		zkprefix + "/config/changes",
 	}
 )
 
@@ -131,7 +133,6 @@ func TestSetup(t *testing.T) {
 			t.Error(err)
 		}
 
-		//{"listener_security_protocol_map":{"PLAINTEXT":"PLAINTEXT"},"endpoints":["PLAINTEXT://172.21.52.195:9092"],"rack":"us-east-1a","jmx_port":9999,"host":"172.21.52.195","timestamp":"1519911707766","port":9092,"version":4}
 		// Create brokers.
 		rack := []string{"a", "b", "c"}
 		for i := 0; i < 10; i++ {
@@ -144,6 +145,15 @@ func TestSetup(t *testing.T) {
 
 			// Add.
 			_, err = zkc.Create(p, []byte(data), 0, zkclient.WorldACL(31))
+			if err != nil {
+				t.Error(err)
+			}
+
+			// Create broker config path.
+			p = fmt.Sprintf("%s/config/brokers/%d", zkprefix, 1001+i)
+			fmt.Println(p)
+			paths = append(paths, p)
+			_, err = zkc.Create(p, []byte{}, 0, zkclient.WorldACL(31))
 			if err != nil {
 				t.Error(err)
 			}
@@ -418,7 +428,59 @@ func TestGetPartitionMap(t *testing.T) {
 	}
 }
 
-// func TestUpdateKafkaConfig(t *testing.T) {}
+func TestUpdateKafkaConfigBroker(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	c := KafkaConfig{
+		Type: "broker",
+		Name: "1001",
+		Configs: [][2]string{
+			[2]string{"leader.replication.throttled.rate", "100000"},
+			[2]string{"follower.replication.throttled.rate", "100000"},
+		},
+	}
+
+	_, err := zki.UpdateKafkaConfig(c)
+	if err != nil {
+		t.Error(err)
+	}
+
+	paths = append(paths, zkprefix+"/config/changes/config_change_0000000000")
+
+	// Re-running the same config should
+	// be a no-op.
+	changed, err := zki.UpdateKafkaConfig(c)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if changed {
+		t.Error("Unexpected config update change status")
+	}
+
+	// Validate the config.
+	d, _, err := zkc.Get(zkprefix + "/config/changes/config_change_0000000000")
+	if err != nil {
+		t.Error(err)
+	}
+
+	expected := `{"version":2,"entity_path":"brokers/1001"}`
+	if string(d) != expected {
+		t.Errorf("Expected config '%s', got '%s'", expected, string(d))
+	}
+
+	d, _, err = zkc.Get(zkprefix + "/config/brokers/1001")
+	if err != nil {
+		t.Error(err)
+	}
+
+	expected = `{"version":0,"config":{"follower.replication.throttled.rate":"100000","leader.replication.throttled.rate":"100000"}}`
+	if string(d) != expected {
+		t.Errorf("Expected config '%s', got '%s'", expected, string(d))
+	}
+}
 
 // TestTearDown does any tear down cleanup.
 func TestTearDown(t *testing.T) {
@@ -426,7 +488,7 @@ func TestTearDown(t *testing.T) {
 		t.Skip()
 	}
 
-	errors := []error{}
+	errors := []string{}
 
 	// We sort the paths by descending
 	// length. This ensures that we're always
@@ -438,17 +500,17 @@ func TestTearDown(t *testing.T) {
 	for _, p := range paths {
 		_, s, err := zkc.Get(p)
 		if err != nil {
-			errors = append(errors, err)
+			errors = append(errors, fmt.Sprintf("path %s: %s", p, err.Error()))
 		} else {
 			err = zkc.Delete(p, s.Version)
 			if err != nil {
-				errors = append(errors, err)
+				errors = append(errors, fmt.Sprintf("path %s: %s", p, err.Error()))
 			}
 		}
 	}
 
 	for _, e := range errors {
-		fmt.Println(e.Error())
+		fmt.Println(e)
 	}
 
 	if len(errors) > 0 {

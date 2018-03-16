@@ -100,6 +100,13 @@ type KafkaConfigData struct {
 	Config  map[string]string `json:"config"`
 }
 
+// NewKafkaConfigData creates a KafkaConfigData.
+func NewKafkaConfigData() KafkaConfigData {
+	return KafkaConfigData{
+		Config: make(map[string]string),
+	}
+}
+
 // zk implements the ZK interface
 // for real ZooKeeper clusters.
 type zk struct {
@@ -441,7 +448,7 @@ func (z *zk) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
 		return false, err
 	}
 
-	config := &KafkaConfigData{}
+	config := NewKafkaConfigData()
 	json.Unmarshal(data, &config)
 
 	// Populate configs.
