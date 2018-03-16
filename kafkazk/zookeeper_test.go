@@ -482,6 +482,60 @@ func TestUpdateKafkaConfigBroker(t *testing.T) {
 	}
 }
 
+func TestUpdateKafkaConfigTopic(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	c := KafkaConfig{
+		Type: "topic",
+		Name: "topic0",
+		Configs: [][2]string{
+			[2]string{"leader.replication.throttled.replicas", "1003,1004"},
+			[2]string{"follower.replication.throttled.replicas", "1003,1004"},
+		},
+	}
+
+	_, err := zki.UpdateKafkaConfig(c)
+	if err != nil {
+		t.Error(err)
+	}
+
+	paths = append(paths, zkprefix+"/config/changes/config_change_0000000001")
+
+	// Re-running the same config should
+	// be a no-op.
+	changed, err := zki.UpdateKafkaConfig(c)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if changed {
+		t.Error("Unexpected config update change status")
+	}
+
+	// Validate the config.
+	d, _, err := zkc.Get(zkprefix + "/config/changes/config_change_0000000001")
+	if err != nil {
+		t.Error(err)
+	}
+
+	expected := `{"version":2,"entity_path":"topics/topic0"}`
+	if string(d) != expected {
+		t.Errorf("Expected config '%s', got '%s'", expected, string(d))
+	}
+
+	d, _, err = zkc.Get(zkprefix + "/config/topics/topic0")
+	if err != nil {
+		t.Error(err)
+	}
+
+	expected = `{"version":1,"config":{"follower.replication.throttled.replicas":"1003,1004","leader.replication.throttled.replicas":"1003,1004","retention.ms":"129600000"}}`
+	if string(d) != expected {
+		t.Errorf("Expected config '%s', got '%s'", expected, string(d))
+	}
+}
+
 // TestTearDown does any tear down cleanup.
 func TestTearDown(t *testing.T) {
 	if testing.Short() {
