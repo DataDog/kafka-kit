@@ -22,6 +22,11 @@ func (z *ZKMock) Create(a, b string) error {
 	return nil
 }
 
+func (z *ZKMock) CreateSequential(a, b string) error {
+	_, _ = a, b
+	return nil
+}
+
 func (z *ZKMock) Exists(a string) (bool, error) {
 	_ = a
 	return true, nil
@@ -111,7 +116,7 @@ func (z *ZKMock) GetAllBrokerMeta() (BrokerMetaMap, error) {
 	return b, nil
 }
 
-func (z *ZKMock) getPartitionMap(t string) (*PartitionMap, error) {
+func (z *ZKMock) GetPartitionMap(t string) (*PartitionMap, error) {
 	p := &PartitionMap{
 		Version: 1,
 		Partitions: partitionList{

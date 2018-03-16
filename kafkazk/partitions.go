@@ -178,7 +178,7 @@ func PartitionMapFromZK(t []*regexp.Regexp, zk ZK) (*PartitionMap, error) {
 	// Get a partition map for each topic.
 	pmapMerged := NewPartitionMap()
 	for _, t := range topicsToRebuild {
-		pmap, err := zk.getPartitionMap(t)
+		pmap, err := zk.GetPartitionMap(t)
 		if err != nil {
 			return nil, err
 		}
