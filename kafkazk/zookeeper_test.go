@@ -354,7 +354,45 @@ func TestGetAllBrokerMeta(t *testing.T) {
 	}
 }
 
-// func TestGetTopicState(t *testing.T) {}
+func TestGetTopicState(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	ts, err := zki.GetTopicState("topic0")
+	if err != nil {
+		t.Error(err)
+	}
+
+	if len(ts.Partitions) != 4 {
+		t.Errorf("Expected TopicState.Partitions len of 4, got %d", len(ts.Partitions))
+	}
+
+	expected := map[string][]int{
+		"0": []int{1001, 1002},
+		"1": []int{1002, 1001},
+		"2": []int{1003, 1004},
+		"3": []int{1004, 1003},
+	}
+
+	for p, rs := range ts.Partitions {
+		v, exists := expected[p]
+		if !exists {
+			t.Errorf("Expected partition %d in TopicState", p)
+		}
+
+		if len(rs) != len(v) {
+			t.Errorf("Unexpected replica set length")
+		}
+
+		for n := range rs {
+			if rs[n] != v[n] {
+				t.Errorf("Expected ID %d, got %d", v[n], rs[n])
+			}
+		}
+	}
+}
+
 // func TestGetPartitionMap(t *testing.T) {}
 // func TestUpdateKafkaConfig(t *testing.T) {}
 
