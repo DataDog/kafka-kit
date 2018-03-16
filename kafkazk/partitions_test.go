@@ -50,7 +50,7 @@ func TestCopy(t *testing.T) {
 func TestPartitionMapFromString(t *testing.T) {
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 	zk := &ZKMock{}
-	pm2, _ := zk.getPartitionMap("test_topic")
+	pm2, _ := zk.GetPartitionMap("test_topic")
 
 	// We expect equality here.
 	if same, _ := pm.equal(pm2); !same {

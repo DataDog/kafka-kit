@@ -37,7 +37,7 @@ type ZK interface {
 	GetTopics([]*regexp.Regexp) ([]string, error)
 	GetTopicConfig(string) (*TopicConfig, error)
 	GetAllBrokerMeta() (BrokerMetaMap, error)
-	getPartitionMap(string) (*PartitionMap, error)
+	GetPartitionMap(string) (*PartitionMap, error)
 }
 
 // BrokerMeta holds metadata that
@@ -362,10 +362,10 @@ func (z *zk) GetTopicState(t string) (*TopicState, error) {
 	return ts, nil
 }
 
-// getPartitionMap takes a topic name. If the topic
+// GetPartitionMap takes a topic name. If the topic
 // exists, the state of the topic is fetched and
 // translated into a *PartitionMap.
-func (z *zk) getPartitionMap(t string) (*PartitionMap, error) {
+func (z *zk) GetPartitionMap(t string) (*PartitionMap, error) {
 	// Get current topic state.
 	ts, err := z.GetTopicState(t)
 	if err != nil {

@@ -116,7 +116,7 @@ func (z *ZKMock) GetAllBrokerMeta() (BrokerMetaMap, error) {
 	return b, nil
 }
 
-func (z *ZKMock) getPartitionMap(t string) (*PartitionMap, error) {
+func (z *ZKMock) GetPartitionMap(t string) (*PartitionMap, error) {
 	p := &PartitionMap{
 		Version: 1,
 		Partitions: partitionList{
