@@ -7,12 +7,16 @@ import (
 	"strings"
 )
 
+// BrokerUseStats holds counts
+// of partition ownership.
 type BrokerUseStats struct {
 	Leader   int
 	Follower int
 }
 
-type brokerStatus struct {
+// BrokerStatus summarizes change counts
+// from an input and output broker list.
+type BrokerStatus struct {
 	New        int
 	Missing    int
 	OldMissing int
@@ -28,9 +32,9 @@ type broker struct {
 	replace  bool
 }
 
-// brokerMap holds a mapping of
+// BrokerMap holds a mapping of
 // broker IDs to *broker.
-type brokerMap map[int]*broker
+type BrokerMap map[int]*broker
 
 // brokerList is a slice of
 // brokers for sorting by used count.
@@ -51,13 +55,13 @@ func (b brokerList) Less(i, j int) bool {
 	return b[i].id < b[j].id
 }
 
-// Update takes a brokerMap and a []int
-// of broker IDs and adds them to the brokerMap,
+// Update takes a BrokerMap and a []int
+// of broker IDs and adds them to the BrokerMap,
 // returning the count of marked for replacement,
 // newly included, and brokers that weren't found
 // in ZooKeeper.
-func (b brokerMap) Update(bl []int, bm BrokerMetaMap) *brokerStatus {
-	bs := &brokerStatus{}
+func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) *BrokerStatus {
+	bs := &BrokerStatus{}
 
 	// Build a map from the new broker list.
 	newBrokers := map[int]bool{}
@@ -144,9 +148,9 @@ func (b brokerMap) Update(bl []int, bm BrokerMetaMap) *brokerStatus {
 	return bs
 }
 
-// filteredList converts a brokerMap to a brokerList,
+// filteredList converts a BrokerMap to a brokerList,
 // excluding nodes marked for replacement.
-func (b brokerMap) filteredList() brokerList {
+func (b BrokerMap) filteredList() brokerList {
 	bl := brokerList{}
 
 	for broker := range b {
@@ -158,11 +162,11 @@ func (b brokerMap) filteredList() brokerList {
 	return bl
 }
 
-// BrokerMapFromTopicMap creates a brokerMap
+// BrokerMapFromTopicMap creates a BrokerMap
 // from a topicMap. Counts occurance is counted.
 // TODO can we remove marked for replacement here too?
-func BrokerMapFromTopicMap(pm *PartitionMap, bm BrokerMetaMap, force bool) brokerMap {
-	bmap := brokerMap{}
+func BrokerMapFromTopicMap(pm *PartitionMap, bm BrokerMetaMap, force bool) BrokerMap {
+	bmap := BrokerMap{}
 	// For each partition.
 	for _, partition := range pm.Partitions {
 		// For each broker in the

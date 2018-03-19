@@ -8,7 +8,7 @@ import (
 )
 
 // func TestPostEvent(t *testing.T)  {}
-// func TestNewKafkaMetrics(t *testing.T) {}
+// func TestNewHandler(t *testing.T) {}
 
 func TestCreateNetTXQuery(t *testing.T) {
 	s := createNetTXQuery("avg:system.net.bytes_sent{service:kafka} by {host}", 300)

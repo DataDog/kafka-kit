@@ -4,12 +4,15 @@ import (
 	"sort"
 )
 
+// Constraints holds a map of
+// IDs and locality key-values.
 type constraints struct {
 	locality map[string]bool
 	id       map[int]bool
 }
 
-func NewConstraints() *constraints {
+// newConstraints returns an empty *constraints.
+func newConstraints() *constraints {
 	return &constraints{
 		locality: make(map[string]bool),
 		id:       make(map[int]bool),
@@ -69,7 +72,7 @@ func (c *constraints) passes(b *broker) bool {
 // builds a *constraints by merging the
 // attributes of all brokers from the supplied list.
 func mergeConstraints(bl brokerList) *constraints {
-	c := NewConstraints()
+	c := newConstraints()
 
 	for _, b := range bl {
 		// Don't merge in attributes

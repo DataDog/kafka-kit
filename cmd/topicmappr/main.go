@@ -96,10 +96,10 @@ func init() {
 
 func main() {
 	// ZooKeeper init.
-	var zk kafkazk.ZK
+	var zk kafkazk.Handler
 	if Config.useMeta || len(Config.rebuildTopics) > 0 {
 		var err error
-		zk, err = kafkazk.NewZK(&kafkazk.ZKConfig{
+		zk, err = kafkazk.NewHandler(&kafkazk.Config{
 			Connect: Config.zkAddr,
 			Prefix:  Config.zkPrefix,
 		})
@@ -113,11 +113,11 @@ func main() {
 
 	// General flow:
 	// 1) partitionMap formed from topic data (provided or via zk).
-	// brokerMap is build from brokers found in input
+	// BrokerMap is build from brokers found in input
 	// partitionMap + any new brokers provided from the
 	// --brokers param.
 	// 2) New partitionMap from origial map rebuild with updated
-	// the updated brokerMap; marked brokers are removed and newly
+	// the updated BrokerMap; marked brokers are removed and newly
 	// provided brokers are swapped in where possible.
 	// 3) New map is possibly expanded/rebalanced.
 	// 4) Final map output.

@@ -1,6 +1,6 @@
-// package kafkametrics fetches Kafka
-// broker metrics and posts events via
-// the Datadog API.
+// Package kafkametrics fetches Kafka
+// broker metrics and posts events to
+// supported metrics backends.
 package kafkametrics
 
 import (
@@ -13,16 +13,16 @@ import (
 	dd "github.com/zorkian/go-datadog-api"
 )
 
-// Config holds KafkaMetrics
+// Config holds Handler
 // configuration parameters.
 type Config struct {
 	// Datadog API key.
 	APIKey string
 	// Datadog app key.
 	AppKey string
-	// NetworkTXQuery is a Datadog query that should
+	// NetworkTXQuery is a query that should
 	// return a series per broker of outbound network
-	// metrics. For example: avg:system.net.bytes_sent{service:kafka} by {host}".
+	// metrics. For example (Datadog): avg:system.net.bytes_sent{service:kafka} by {host}".
 	NetworkTXQuery string
 	// MetricsWindow specifies the window size of
 	// timeseries data to evaluate in seconds.
@@ -30,14 +30,14 @@ type Config struct {
 	MetricsWindow int
 }
 
-// KafkaMetrics requests broker metrics
+// Handler requests broker metrics
 // and posts events.
-type KafkaMetrics interface {
+type Handler interface {
 	GetMetrics() (BrokerMetrics, error)
 	PostEvent(*Event) error
 }
 
-type kafkaMetrics struct {
+type ddHandler struct {
 	c             *dd.Client
 	netTXQuery    string
 	metricsWindow int
@@ -56,8 +56,8 @@ type Broker struct {
 	NetTX        float64
 }
 
-// APIError types are returned
-// with Datadog API errors.
+// APIError wraps backend
+// metric system errors.
 type APIError struct {
 	request string
 	err     string
@@ -82,8 +82,8 @@ func (e *PartialResults) Error() string {
 	return e.err
 }
 
-// Event is used to post Datadog
-// events.
+// Event is used to post autothrottle
+// events to the backend metrics system.
 type Event struct {
 	Title string
 	Text  string
@@ -92,7 +92,7 @@ type Event struct {
 
 // PostEvent posts an event to the
 // Datadog API.
-func (k *kafkaMetrics) PostEvent(e *Event) error {
+func (k *ddHandler) PostEvent(e *Event) error {
 	m := &dd.Event{
 		Title: &e.Title,
 		Text:  &e.Text,
@@ -103,10 +103,12 @@ func (k *kafkaMetrics) PostEvent(e *Event) error {
 	return err
 }
 
-// NewKafkaMetrics takes a *Config and
-// returns a *kafkaMetrics, along with
+// NewHandler takes a *Config and
+// returns a Handler, along with
 // any credential validation errors.
-func NewKafkaMetrics(c *Config) (*kafkaMetrics, error) {
+// Further backends can be supported with
+// a type switch and some other changes.
+func NewHandler(c *Config) (Handler, error) {
 	client := dd.NewClient(c.APIKey, c.AppKey)
 
 	// Validate.
@@ -127,7 +129,7 @@ func NewKafkaMetrics(c *Config) (*kafkaMetrics, error) {
 
 	netQ := createNetTXQuery(c.NetworkTXQuery, c.MetricsWindow)
 
-	k := &kafkaMetrics{
+	k := &ddHandler{
 		c:             client,
 		netTXQuery:    netQ,
 		metricsWindow: c.MetricsWindow,
@@ -136,7 +138,7 @@ func NewKafkaMetrics(c *Config) (*kafkaMetrics, error) {
 	return k, nil
 }
 
-// createNetTXQuery takes a Datadog metric query
+// createNetTXQuery takes a metric query
 // with no aggs plus a window in seconds. A full
 // metric query is returned with an avg rollup
 // for the provided window.
@@ -149,7 +151,7 @@ func createNetTXQuery(q string, w int) string {
 
 // GetMetrics requests broker metrics and metadata
 // from the Datadog API and returns a BrokerMetrics.
-func (k *kafkaMetrics) GetMetrics() (BrokerMetrics, error) {
+func (k *ddHandler) GetMetrics() (BrokerMetrics, error) {
 	// Get series.
 	start := time.Now().Add(-time.Duration(k.metricsWindow) * time.Second).Unix()
 	o, err := k.c.QueryMetrics(start, time.Now().Unix(), k.netTXQuery)
@@ -207,7 +209,7 @@ func brokersFromSeries(s []dd.Series) ([]*Broker, error) {
 // brokerMetricsFromList takes a *[]Broker and fetches
 // relevant host tags for all brokers in the list, returning
 // a BrokerMetrics.
-func (k *kafkaMetrics) brokerMetricsFromList(l []*Broker) (BrokerMetrics, error) {
+func (k *ddHandler) brokerMetricsFromList(l []*Broker) (BrokerMetrics, error) {
 	// Get host tags for brokers
 	// in the list.
 	tags, err := k.getHostTagMap(l)
@@ -228,7 +230,7 @@ func (k *kafkaMetrics) brokerMetricsFromList(l []*Broker) (BrokerMetrics, error)
 // host tags for each. If no errors are encountered,
 // a map[*Broker][]string holding the received tags
 // is returned.
-func (k *kafkaMetrics) getHostTagMap(l []*Broker) (map[*Broker][]string, error) {
+func (k *ddHandler) getHostTagMap(l []*Broker) (map[*Broker][]string, error) {
 	brokers := map[*Broker][]string{}
 	// Get broker IDs for each host,
 	// populate into a BrokerMetrics.

@@ -80,7 +80,7 @@ func main() {
 	time.Sleep(1 * time.Second)
 
 	// Init ZK.
-	zk, err := kafkazk.NewZK(&kafkazk.ZKConfig{
+	zk, err := kafkazk.NewHandler(&kafkazk.Config{
 		Connect: Config.ZKAddr,
 		Prefix:  Config.ZKPrefix,
 	})
@@ -99,7 +99,7 @@ func main() {
 	defer zk.Close()
 
 	// Init a Kafka metrics fetcher.
-	km, err := kafkametrics.NewKafkaMetrics(&kafkametrics.Config{
+	km, err := kafkametrics.NewHandler(&kafkametrics.Config{
 		APIKey:         Config.APIKey,
 		AppKey:         Config.AppKey,
 		NetworkTXQuery: Config.NetworkTXQuery,

@@ -4,10 +4,14 @@ import (
 	"regexp"
 )
 
-// ZKMock implements a mock ZK.
-type ZKMock struct{}
+// Mock mocks the Handler interface.
+type Mock struct{}
 
-func (z *ZKMock) GetReassignments() Reassignments {
+// Many of these methods aren't complete
+// mocks as they haven't been needed.
+
+// GetReassignments mocks GetReassignments.
+func (zk *Mock) GetReassignments() Reassignments {
 	r := Reassignments{
 		"mock": map[int][]int{
 			0: []int{1003, 1004},
@@ -17,32 +21,38 @@ func (z *ZKMock) GetReassignments() Reassignments {
 	return r
 }
 
-func (z *ZKMock) Create(a, b string) error {
+// Create mocks Create.
+func (zk *Mock) Create(a, b string) error {
 	_, _ = a, b
 	return nil
 }
 
-func (z *ZKMock) CreateSequential(a, b string) error {
+// CreateSequential mocks CreateSequential.
+func (zk *Mock) CreateSequential(a, b string) error {
 	_, _ = a, b
 	return nil
 }
 
-func (z *ZKMock) Exists(a string) (bool, error) {
+// Exists mocks Exists.
+func (zk *Mock) Exists(a string) (bool, error) {
 	_ = a
 	return true, nil
 }
 
-func (z *ZKMock) Set(a, b string) error {
+// Set mocks Set.
+func (zk *Mock) Set(a, b string) error {
 	_, _ = a, b
 	return nil
 }
 
-func (z *ZKMock) Get(a string) ([]byte, error) {
+// Get mocks Get.
+func (zk *Mock) Get(a string) ([]byte, error) {
 	_ = a
 	return []byte{}, nil
 }
 
-func (z *ZKMock) GetTopicState(t string) (*TopicState, error) {
+// GetTopicState mocks GetTopicState.
+func (zk *Mock) GetTopicState(t string) (*TopicState, error) {
 	_ = t
 
 	ts := &TopicState{
@@ -58,20 +68,24 @@ func (z *ZKMock) GetTopicState(t string) (*TopicState, error) {
 	return ts, nil
 }
 
-func (z *ZKMock) Close() {
+// Close mocks Close.
+func (zk *Mock) Close() {
 	return
 }
 
-func (z *ZKMock) InitRawClient() error {
+// InitRawClient mocks InitRawClient.
+func (zk *Mock) InitRawClient() error {
 	return nil
 }
 
-func (z *ZKMock) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
+// UpdateKafkaConfig mocks UpdateKafkaConfig.
+func (zk *Mock) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
 	_ = c
 	return true, nil
 }
 
-func (z *ZKMock) GetTopics(ts []*regexp.Regexp) ([]string, error) {
+// GetTopics mocks GetTopics.
+func (zk *Mock) GetTopics(ts []*regexp.Regexp) ([]string, error) {
 	t := []string{"test_topic", "test_topic2"}
 
 	match := map[string]bool{}
@@ -94,7 +108,8 @@ func (z *ZKMock) GetTopics(ts []*regexp.Regexp) ([]string, error) {
 	return matched, nil
 }
 
-func (zk *ZKMock) GetTopicConfig(t string) (*TopicConfig, error) {
+// GetTopicConfig mocks GetTopicConfig.
+func (zk *Mock) GetTopicConfig(t string) (*TopicConfig, error) {
 	return &TopicConfig{
 		Version: 1,
 		Config: map[string]string{
@@ -104,7 +119,8 @@ func (zk *ZKMock) GetTopicConfig(t string) (*TopicConfig, error) {
 	}, nil
 }
 
-func (z *ZKMock) GetAllBrokerMeta() (BrokerMetaMap, error) {
+// GetAllBrokerMeta mocks GetAllBrokerMeta.
+func (zk *Mock) GetAllBrokerMeta() (BrokerMetaMap, error) {
 	b := BrokerMetaMap{
 		1001: &BrokerMeta{Rack: "a"},
 		1002: &BrokerMeta{Rack: "b"},
@@ -116,7 +132,8 @@ func (z *ZKMock) GetAllBrokerMeta() (BrokerMetaMap, error) {
 	return b, nil
 }
 
-func (z *ZKMock) GetPartitionMap(t string) (*PartitionMap, error) {
+// GetPartitionMap mocks GetPartitionMap.
+func (zk *Mock) GetPartitionMap(t string) (*PartitionMap, error) {
 	p := &PartitionMap{
 		Version: 1,
 		Partitions: partitionList{

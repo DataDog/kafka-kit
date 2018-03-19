@@ -15,7 +15,7 @@ var (
 	errNoBrokers = errors.New("No additional brokers that meet constraints")
 )
 
-// whatChanged takes a before and after broker
+// WhatChanged takes a before and after broker
 // replica set and returns a string describing
 // what changed.
 func WhatChanged(s1 []int, s2 []int) string {

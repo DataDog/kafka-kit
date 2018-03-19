@@ -18,7 +18,7 @@ func TestBestCandidate(t *testing.T) {
 		bl = append(bl, b)
 	}
 
-	c := NewConstraints()
+	c := newConstraints()
 	// Removes ID 1000 as a candidate.
 	c.id[1000] = true
 	// Removes any brokers with locality
@@ -65,7 +65,7 @@ func TestConstraintsAdd(t *testing.T) {
 }
 
 func TestConstraintsPasses(t *testing.T) {
-	c := NewConstraints()
+	c := newConstraints()
 	c.locality["a"] = true
 	c.id[1000] = true
 
