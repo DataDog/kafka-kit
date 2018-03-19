@@ -107,7 +107,7 @@ func mockBmapBundle() bmapBundle {
 // func TestUpdateReplicationThrottle(t *testing.T) {}
 
 func TestMapsFromReassigments(t *testing.T) {
-	zk := &kafkazk.ZKMock{}
+	zk := &kafkazk.Mock{}
 
 	re := zk.GetReassignments()
 	bmaps, _ := mapsFromReassigments(re, zk)
@@ -171,7 +171,7 @@ func TestRepCapacityByMetrics(t *testing.T) {
 
 	bmb := mockBmapBundle()
 
-	km := &kafkametrics.KafkaMetricsMock{}
+	km := &kafkametrics.Mock{}
 	bm, _ := km.GetMetrics()
 
 	// Test normal scenario.

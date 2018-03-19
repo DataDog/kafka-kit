@@ -13,19 +13,21 @@ import (
 )
 
 var (
+	// ErrInvalidKafkaConfigType indicates invalid Kafka config types.
 	ErrInvalidKafkaConfigType = errors.New("Invalid Kafka config type")
-
+	// validKafkaConfigTypes is used as a set
+	// to define valid configuration type names.
 	validKafkaConfigTypes = map[string]interface{}{
 		"broker": nil,
 		"topic":  nil,
 	}
 )
 
-// ZK exposes basic ZooKeeper operations
+// Handler exposes basic ZooKeeper operations
 // along with additional methods that return
 // kafkazk package specific types, populated
 // with data fetched from ZooKeeper.
-type ZK interface {
+type Handler interface {
 	Exists(string) (bool, error)
 	Create(string, string) error
 	CreateSequential(string, string) error
@@ -107,29 +109,29 @@ func NewKafkaConfigData() KafkaConfigData {
 	}
 }
 
-// zk implements the ZK interface
+// zkHandler implements the Handler interface
 // for real ZooKeeper clusters.
-type zk struct {
+type zkHandler struct {
 	client  *zkclient.Conn
 	Connect string
 	Prefix  string
 }
 
-// ZKConfig holds initialization
-// paramaters for a ZK. Connect
+// Config holds initialization
+// paramaters for a Handler. Connect
 // is a ZooKeeper connect string.
 // Prefix should reflect any prefix
 // used for Kafka on the reference
 // ZooKeeper cluster (excluding slashes).
-type ZKConfig struct {
+type Config struct {
 	Connect string
 	Prefix  string
 }
 
-// NewZK takes a *ZKConfig, performs
-// and initialization and returns a *zk.
-func NewZK(c *ZKConfig) (*zk, error) {
-	z := &zk{
+// NewHandler takes a *Config, performs
+// any initialization and returns a Handler.
+func NewHandler(c *Config) (Handler, error) {
+	z := &zkHandler{
 		Connect: c.Connect,
 		Prefix:  c.Prefix,
 	}
@@ -144,16 +146,16 @@ func NewZK(c *ZKConfig) (*zk, error) {
 }
 
 // Close calls close on
-// the *zk. Any additional
+// the *zkHandler. Any additional
 // shutdown cleanup or other
 // tasks should be performed here.
-func (z *zk) Close() {
+func (z *zkHandler) Close() {
 	z.client.Close()
 }
 
 // Get gets the provided path p and returns
 // the data from the path and an error if encountered.
-func (z *zk) Get(p string) ([]byte, error) {
+func (z *zkHandler) Get(p string) ([]byte, error) {
 	r, _, err := z.client.Get(p)
 	return r, err
 }
@@ -161,7 +163,7 @@ func (z *zk) Get(p string) ([]byte, error) {
 // Set sets the provided path p data to the
 // provided string d and returns an error
 // if encountered.
-func (z *zk) Set(p string, d string) error {
+func (z *zkHandler) Set(p string, d string) error {
 	_, err := z.client.Set(p, []byte(d), -1)
 	return err
 }
@@ -169,7 +171,7 @@ func (z *zk) Set(p string, d string) error {
 // CreateSequential takes a path p and data d and
 // creates a sequential znode at p with data d.
 // An error is returned if encountered.
-func (z *zk) CreateSequential(p string, d string) error {
+func (z *zkHandler) CreateSequential(p string, d string) error {
 	_, err := z.client.Create(p, []byte(d), zkclient.FlagSequence, zkclient.WorldACL(31))
 	return err
 }
@@ -177,7 +179,7 @@ func (z *zk) CreateSequential(p string, d string) error {
 // Create creates the provided path p with the data
 // from the provided string d and returns an error
 // if encountered.
-func (z *zk) Create(p string, d string) error {
+func (z *zkHandler) Create(p string, d string) error {
 	_, err := z.client.Create(p, []byte(d), 0, zkclient.WorldACL(31))
 	return err
 }
@@ -185,7 +187,7 @@ func (z *zk) Create(p string, d string) error {
 // Exists takes a path p and returns a bool
 // as to whether the path exists and an error
 // if encountered.
-func (z *zk) Exists(p string) (bool, error) {
+func (z *zkHandler) Exists(p string) (bool, error) {
 	e, _, err := z.client.Exists(p)
 	return e, err
 }
@@ -193,7 +195,7 @@ func (z *zk) Exists(p string) (bool, error) {
 // GetReassignments looks up any ongoing
 // topic reassignments and returns the data
 // as a Reassignments type.
-func (z *zk) GetReassignments() Reassignments {
+func (z *zkHandler) GetReassignments() Reassignments {
 	reassigns := Reassignments{}
 
 	var path string
@@ -227,7 +229,7 @@ func (z *zk) GetReassignments() Reassignments {
 // GetTopics takes a []*regexp.Regexp and returns
 // a []string of all topic names that match any of the
 // provided regex.
-func (z *zk) GetTopics(ts []*regexp.Regexp) ([]string, error) {
+func (z *zkHandler) GetTopics(ts []*regexp.Regexp) ([]string, error) {
 	matchingTopics := []string{}
 
 	var path string
@@ -265,7 +267,7 @@ func (z *zk) GetTopics(ts []*regexp.Regexp) ([]string, error) {
 // GetTopicConfig takes a topic name. If the
 // topic exists, the topic config is returned
 // as a *TopicConfig.
-func (z *zk) GetTopicConfig(t string) (*TopicConfig, error) {
+func (z *zkHandler) GetTopicConfig(t string) (*TopicConfig, error) {
 	config := &TopicConfig{}
 
 	var path string
@@ -288,7 +290,7 @@ func (z *zk) GetTopicConfig(t string) (*TopicConfig, error) {
 
 // GetAllBrokerMeta looks up all registered Kafka
 // brokers and returns their metadata as a BrokerMetaMap.
-func (z *zk) GetAllBrokerMeta() (BrokerMetaMap, error) {
+func (z *zkHandler) GetAllBrokerMeta() (BrokerMetaMap, error) {
 	var path string
 	if z.Prefix != "" {
 		path = fmt.Sprintf("/%s/brokers/ids", z.Prefix)
@@ -336,7 +338,7 @@ func (z *zk) GetAllBrokerMeta() (BrokerMetaMap, error) {
 
 // GetTopicState takes a topic name. If the topic exists,
 // the topic state is returned as a *TopicState.
-func (z *zk) GetTopicState(t string) (*TopicState, error) {
+func (z *zkHandler) GetTopicState(t string) (*TopicState, error) {
 	var path string
 	if z.Prefix != "" {
 		path = fmt.Sprintf("/%s/brokers/topics/%s", z.Prefix, t)
@@ -373,7 +375,7 @@ func (z *zk) GetTopicState(t string) (*TopicState, error) {
 // GetPartitionMap takes a topic name. If the topic
 // exists, the state of the topic is fetched and
 // translated into a *PartitionMap.
-func (z *zk) GetPartitionMap(t string) (*PartitionMap, error) {
+func (z *zkHandler) GetPartitionMap(t string) (*PartitionMap, error) {
 	// Get current topic state.
 	ts, err := z.GetTopicState(t)
 	if err != nil {
@@ -429,7 +431,7 @@ func (z *zk) GetPartitionMap(t string) (*PartitionMap, error) {
 // If a config value is set to an empty string (""),
 // the entire config key itself is deleted. This was
 // an easy way to merge update/delete into a single func.
-func (z *zk) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
+func (z *zkHandler) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
 	if _, valid := validKafkaConfigTypes[c.Type]; !valid {
 		return false, ErrInvalidKafkaConfigType
 	}

@@ -17,7 +17,7 @@ const (
 
 var (
 	zkc *zkclient.Conn
-	zki ZK
+	zki Handler
 	// Create paths.
 	paths = []string{
 		zkprefix,
@@ -53,8 +53,8 @@ func (a byLen) Swap(i, j int) {
 // rely on a blank ZooKeeper server listening
 // on localhost:2181. A direct ZooKeeper client
 // is initialized to write test data into ZooKeeper
-// that a ZK interface implementation may be
-// tested against. Any ZK to be tested should
+// that a Handler interface implementation may be
+// tested against. Any Handler to be tested should
 // also be instantiated here.
 // A usable setup can be done with the official
 // ZooKeeper docker image:
@@ -79,7 +79,7 @@ func TestSetup(t *testing.T) {
 			t.Errorf("ZooKeeper client not in a connected state (state=%d)", s)
 		}
 
-		// Init a ZooKeeper based ZK.
+		// Init a ZooKeeper based Handler.
 		var configPrefix string
 		if len(zkprefix) > 0 {
 			configPrefix = zkprefix[1:]
@@ -87,7 +87,7 @@ func TestSetup(t *testing.T) {
 			configPrefix = ""
 		}
 
-		zki, err = NewZK(&ZKConfig{
+		zki, err = NewHandler(&Config{
 			Connect: zkaddr,
 			Prefix:  configPrefix,
 		})
@@ -165,7 +165,7 @@ func TestSetup(t *testing.T) {
 }
 
 // This is tested in TestSetup.
-// func TestNewZK(t *testing.T) {}
+// func TestNewHandler(t *testing.T) {}
 // func TestClose(t *testing.T) {}
 
 func TestCreateSetGet(t *testing.T) {

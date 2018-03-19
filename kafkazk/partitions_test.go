@@ -49,7 +49,7 @@ func TestCopy(t *testing.T) {
 
 func TestPartitionMapFromString(t *testing.T) {
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
-	zk := &ZKMock{}
+	zk := &Mock{}
 	pm2, _ := zk.GetPartitionMap("test_topic")
 
 	// We expect equality here.
@@ -59,7 +59,7 @@ func TestPartitionMapFromString(t *testing.T) {
 }
 
 func TestPartitionMapFromZK(t *testing.T) {
-	zk := &ZKMock{}
+	zk := &Mock{}
 
 	r := []*regexp.Regexp{}
 	r = append(r, regexp.MustCompile("/^null$/"))
@@ -166,7 +166,7 @@ func TestUseStats(t *testing.T) {
 }
 
 func TestRebuild(t *testing.T) {
-	zk := &ZKMock{}
+	zk := &Mock{}
 	bm, _ := zk.GetAllBrokerMeta()
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 	forceRebuild := false

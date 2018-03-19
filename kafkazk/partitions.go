@@ -41,14 +41,15 @@ func (p partitionList) Less(i, j int) bool {
 	return p[i].Partition < p[j].Partition
 }
 
+// NewPartitionMap returns an empty *PartitionMap.
 func NewPartitionMap() *PartitionMap {
 	return &PartitionMap{Version: 1}
 }
 
-// Rebuild takes a brokerMap and traverses
+// Rebuild takes a BrokerMap and traverses
 // the partition map, replacing brokers marked removal
 // with the best available candidate.
-func (pm *PartitionMap) Rebuild(bm brokerMap) (*PartitionMap, []string) {
+func (pm *PartitionMap) Rebuild(bm BrokerMap) (*PartitionMap, []string) {
 	sort.Sort(pm.Partitions)
 
 	newMap := NewPartitionMap()
@@ -161,8 +162,8 @@ func PartitionMapFromString(s string) (*PartitionMap, error) {
 // and finds all matching topics for each. A
 // merged *PartitionMap of all matching topic
 // maps is returned.
-func PartitionMapFromZK(t []*regexp.Regexp, zk ZK) (*PartitionMap, error) {
-	// Get a list of topic names from ZK
+func PartitionMapFromZK(t []*regexp.Regexp, zk Handler) (*PartitionMap, error) {
+	// Get a list of topic names from Handler
 	// matching the provided list.
 	topicsToRebuild, err := zk.GetTopics(t)
 	if err != nil {
@@ -293,7 +294,7 @@ func (pm *PartitionMap) Strip() *PartitionMap {
 	return Stripped
 }
 
-// writeMap takes a *PartitionMap and writes a JSON
+// WriteMap takes a *PartitionMap and writes a JSON
 // text file to the provided path.
 func WriteMap(pm *PartitionMap, path string) error {
 	// Marshal.

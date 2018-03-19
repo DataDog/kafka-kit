@@ -4,9 +4,12 @@ import (
 	"fmt"
 )
 
-type KafkaMetricsMock struct{}
+// Mock mocks tshe
+// Handler interface.
+type Mock struct{}
 
-func (k *KafkaMetricsMock) GetMetrics() (BrokerMetrics, error) {
+// GetMetrics mocks the GetMetrics function.
+func (k *Mock) GetMetrics() (BrokerMetrics, error) {
 	bm := BrokerMetrics{}
 	for i := 0; i < 10; i++ {
 		bm[1000+i] = &Broker{
@@ -20,7 +23,8 @@ func (k *KafkaMetricsMock) GetMetrics() (BrokerMetrics, error) {
 	return bm, nil
 }
 
-func (k *KafkaMetricsMock) PostEvent(e *Event) error {
+// PostEvent mocks the PostEvent function.
+func (k *Mock) PostEvent(e *Event) error {
 	_ = e
 	return nil
 }

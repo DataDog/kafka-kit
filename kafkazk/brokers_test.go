@@ -5,7 +5,7 @@ import (
 )
 
 func TestBrokerMapFromTopicMap(t *testing.T) {
-	zk := &ZKMock{}
+	zk := &Mock{}
 	bmm, _ := zk.GetAllBrokerMeta()
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 	forceRebuild := false
@@ -32,7 +32,7 @@ func TestBrokerMapFromTopicMap(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
-	zk := &ZKMock{}
+	zk := &Mock{}
 	bmm, _ := zk.GetAllBrokerMeta()
 	bm := newMockBrokerMap()
 	// 1001 isn't in the list, should
@@ -95,8 +95,8 @@ func TestBrokerStringToSlice(t *testing.T) {
 	}
 }
 
-func newMockBrokerMap() brokerMap {
-	return brokerMap{
+func newMockBrokerMap() BrokerMap {
+	return BrokerMap{
 		0:    &broker{id: 0, replace: true},
 		1001: &broker{id: 1001, locality: "a", used: 3, replace: false},
 		1002: &broker{id: 1002, locality: "b", used: 3, replace: false},
