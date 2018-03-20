@@ -169,10 +169,11 @@ func TestRebuild(t *testing.T) {
 	zk := &Mock{}
 	bm, _ := zk.GetAllBrokerMeta()
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
+	pmm := NewPartitionMetaMap()
 	forceRebuild := false
 
 	brokers := BrokerMapFromTopicMap(pm, bm, forceRebuild)
-	out, errs := pm.Rebuild(brokers, "count")
+	out, errs := pm.Rebuild(brokers, pmm, "count")
 	if errs != nil {
 		t.Errorf("Unexpected error(s): %s", errs)
 	}
@@ -186,7 +187,7 @@ func TestRebuild(t *testing.T) {
 
 	// Mark 1004 for replacement.
 	brokers[1004].replace = true
-	out, errs = pm.Rebuild(brokers, "count")
+	out, errs = pm.Rebuild(brokers, pmm, "count")
 	if errs != nil {
 		t.Errorf("Unexpected error(s): %s", errs)
 	}
@@ -205,7 +206,7 @@ func TestRebuild(t *testing.T) {
 	pm.SetReplication(2)
 	expected.SetReplication(2)
 
-	out, _ = pm.Rebuild(brokers, "count")
+	out, _ = pm.Rebuild(brokers, pmm, "count")
 
 	if same, _ := out.equal(expected); !same {
 		t.Error("Unexpected inequality after replication factor change -> rebuild")
@@ -213,7 +214,7 @@ func TestRebuild(t *testing.T) {
 
 	// Test a force rebuild.
 	pmStripped := pm.Strip()
-	out, _ = pmStripped.Rebuild(brokers, "count")
+	out, _ = pmStripped.Rebuild(brokers, pmm, "count")
 
 	same, _ := pm.equal(out)
 	if same {

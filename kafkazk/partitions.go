@@ -26,6 +26,11 @@ type PartitionMap struct {
 	Partitions partitionList `json:"partitions"`
 }
 
+// NewPartitionMap returns an empty *PartitionMap.
+func NewPartitionMap() *PartitionMap {
+	return &PartitionMap{Version: 1}
+}
+
 // Satisfy the sort interface for partitionList.
 
 func (p partitionList) Len() int      { return len(p) }
@@ -41,9 +46,18 @@ func (p partitionList) Less(i, j int) bool {
 	return p[i].Partition < p[j].Partition
 }
 
-// NewPartitionMap returns an empty *PartitionMap.
-func NewPartitionMap() *PartitionMap {
-	return &PartitionMap{Version: 1}
+// PartitionMeta holds partition metadata.
+type PartitionMeta struct {
+	size float64 // In bytes.
+}
+
+// PartitionMetaMap is a mapping of topic name to
+// partition number to PartitionMeta.
+type PartitionMetaMap map[string]map[int]*PartitionMeta
+
+// NewPartitionMetaMap returns an empty PartitionMetaMap.
+func NewPartitionMetaMap() PartitionMetaMap {
+	return map[string]map[int]*PartitionMeta{}
 }
 
 // Rebuild takes a BrokerMap and rebuild strategy.
@@ -51,7 +65,7 @@ func NewPartitionMap() *PartitionMap {
 // with the best available candidate based on the selected
 // rebuild strategy. A rebuilt *PartitionMap and []string of
 // errors is returned.
-func (pm *PartitionMap) Rebuild(bm BrokerMap, strategy string) (*PartitionMap, []string) {
+func (pm *PartitionMap) Rebuild(bm BrokerMap, pmm PartitionMetaMap, strategy string) (*PartitionMap, []string) {
 	if strategy != "count" && strategy != "storage" {
 		return nil, []string{
 			fmt.Sprintf("Invalid rebuild strategy '%s'", strategy),
@@ -94,6 +108,10 @@ pass:
 			replicaSet = append(replicaSet, bm[bid])
 		}
 
+		// XXX Use the PartitionMetaMap data here
+		// to lookup the partition size, set as the
+		// constraints requestSize.
+		_ = pmm
 		constraints := mergeConstraints(replicaSet)
 
 		// The number of needed passes may vary;

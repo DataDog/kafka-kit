@@ -138,6 +138,12 @@ func main() {
 		}
 	}
 
+	// Fetch partition metadata.
+	var partitionMeta kafkazk.PartitionMetaMap
+	if Config.placement == "storage" {
+		partitionMeta = kafkazk.NewPartitionMetaMap()
+	}
+
 	// Build a topic map with either
 	// explicit input or by fetching the
 	// map data from ZooKeeper.
@@ -231,9 +237,9 @@ func main() {
 	// must have all brokers stripped out.
 	if Config.forceRebuild {
 		partitionMapInStripped := partitionMapIn.Strip()
-		partitionMapOut, warns = partitionMapInStripped.Rebuild(brokers, Config.placement)
+		partitionMapOut, warns = partitionMapInStripped.Rebuild(brokers, partitionMeta, Config.placement)
 	} else {
-		partitionMapOut, warns = partitionMapIn.Rebuild(brokers, Config.placement)
+		partitionMapOut, warns = partitionMapIn.Rebuild(brokers, partitionMeta, Config.placement)
 	}
 
 	// Sort by topic, partition.
