@@ -46,13 +46,21 @@ func NewPartitionMap() *PartitionMap {
 	return &PartitionMap{Version: 1}
 }
 
-// Rebuild takes a BrokerMap and traverses
-// the partition map, replacing brokers marked removal
-// with the best available candidate.
-func (pm *PartitionMap) Rebuild(bm BrokerMap) (*PartitionMap, []string) {
-	sort.Sort(pm.Partitions)
+// Rebuild takes a BrokerMap and rebuild strategy.
+// We then traverses the partition map, replacing brokers marked removal
+// with the best available candidate based on the selected
+// rebuild strategy. A rebuilt *PartitionMap and []string of
+// errors is returned.
+func (pm *PartitionMap) Rebuild(bm BrokerMap, strategy string) (*PartitionMap, []string) {
+	if strategy != "count" && strategy != "size" {
+		return nil, []string{
+			fmt.Sprintf("Invalid rebuild strategy '%s'", strategy),
+		}
+	}
 
+	sort.Sort(pm.Partitions)
 	newMap := NewPartitionMap()
+
 	// We need a filtered list for
 	// usage sorting and exclusion
 	// of nodes marked for removal.

@@ -35,6 +35,7 @@ var (
 		ignoreWarns   bool
 		forceRebuild  bool
 		replication   int
+		placement     string
 	}
 )
 
@@ -52,6 +53,7 @@ func init() {
 	flag.BoolVar(&Config.ignoreWarns, "ignore-warns", false, "Whether a map should be produced if warnings are emitted")
 	flag.BoolVar(&Config.forceRebuild, "force-rebuild", false, "Forces a rebuild even if all existing brokers are provided")
 	flag.IntVar(&Config.replication, "replication", 0, "Change the replication factor")
+	flag.StringVar(&Config.placement, "placement", "count", "Partition placement type: [count, size]")
 	brokers := flag.String("brokers", "", "Broker list to rebuild topic partition map with")
 
 	flag.Parse()
@@ -62,7 +64,10 @@ func init() {
 		fmt.Println("Must specify either -rebuild-map or -rebuild-topics")
 		defaultsAndExit()
 	case len(*brokers) == 0:
-		fmt.Println("Broker list cannot be empty")
+		fmt.Println("--brokers cannot be empty")
+		defaultsAndExit()
+	case Config.placement != "count" && Config.placement != "size":
+		fmt.Println("--placement must be either 'count' or 'size'")
 		defaultsAndExit()
 	}
 
@@ -226,9 +231,9 @@ func main() {
 	// must have all brokers stripped out.
 	if Config.forceRebuild {
 		partitionMapInStripped := partitionMapIn.Strip()
-		partitionMapOut, warns = partitionMapInStripped.Rebuild(brokers)
+		partitionMapOut, warns = partitionMapInStripped.Rebuild(brokers, Config.placement)
 	} else {
-		partitionMapOut, warns = partitionMapIn.Rebuild(brokers)
+		partitionMapOut, warns = partitionMapIn.Rebuild(brokers, Config.placement)
 	}
 
 	// Sort by topic, partition.
