@@ -81,81 +81,78 @@ func (pm *PartitionMap) Rebuild(bm BrokerMap, pmm PartitionMetaMap, strategy str
 	bl := bm.filteredList()
 
 	var errs []string
+	var pass int
 
-	pass := 0
-	// For each partition partn in the
-	// partitions list:
-pass:
-	skipped := 0
-	for n, partn := range pm.Partitions {
-		// If this is the first pass, create
-		// the new partition.
-		if pass == 0 {
-			newP := Partition{Partition: partn.Partition, Topic: partn.Topic}
-			newMap.Partitions = append(newMap.Partitions, newP)
-		}
-
-		// Build a brokerList from the
-		// IDs in the old replica set to
-		// get a *constraints.
-		replicaSet := brokerList{}
-		for _, bid := range partn.Replicas {
-			replicaSet = append(replicaSet, bm[bid])
-		}
-		// Add existing brokers in the
-		// new replica set as well.
-		for _, bid := range newMap.Partitions[n].Replicas {
-			replicaSet = append(replicaSet, bm[bid])
-		}
-
-		// XXX Use the PartitionMetaMap data here
-		// to lookup the partition size, set as the
-		// constraints requestSize.
-		_ = pmm
-		constraints := mergeConstraints(replicaSet)
-
-		// The number of needed passes may vary;
-		// e.g. if most replica sets have a len
-		// of 2 and a few with a len of 3, we have
-		// to do 3 passes while skipping some
-		// on final passes.
-		if pass > len(partn.Replicas)-1 {
-			skipped++
-			continue
-		}
-
-		// Get the broker ID we're
-		// either going to move into
-		// the new map or replace.
-		bid := partn.Replicas[pass]
-
-		// If the broker ID is marked as replace
-		// in the broker map, get a new ID.
-		if bm[bid].replace {
-			// Fetch the best candidate and append.
-			newBroker, err := bl.bestCandidate(constraints, strategy)
-			if err != nil {
-				// Append any caught errors.
-				errString := fmt.Sprintf("%s p%d: %s", partn.Topic, partn.Partition, err.Error())
-				errs = append(errs, errString)
-				continue
-			}
-
-			newMap.Partitions[n].Replicas = append(newMap.Partitions[n].Replicas, newBroker.id)
-		} else {
-			// Otherwise keep the broker where it is.
-			newMap.Partitions[n].Replicas = append(newMap.Partitions[n].Replicas, bid)
-		}
-
-	}
-
-	pass++
 	// Check if we need more passes.
 	// If we've just counted as many skips
 	// as there are partitions to handle,
 	// we have nothing left to do.
-	if skipped < len(pm.Partitions) {
-		goto pass
+	for skipped := 0; skipped < len(pm.Partitions); {
+		for n, partn := range pm.Partitions {
+			// If this is the first pass, create
+			// the new partition.
+			if pass == 0 {
+				newP := Partition{Partition: partn.Partition, Topic: partn.Topic}
+				newMap.Partitions = append(newMap.Partitions, newP)
+			}
+
+			// The number of needed passes may vary;
+			// e.g. if most replica sets have a len
+			// of 2 and a few with a len of 3, we have
+			// to do 3 passes while skipping some
+			// on final passes.
+			if pass > len(partn.Replicas)-1 {
+				skipped++
+				continue
+			}
+
+			// Get the current Broker ID
+			// for the current pass.
+			bid := partn.Replicas[pass]
+
+			// If the current broker isn't
+			// marked for removal, just add it
+			// to the same position in the new map.
+			if !bm[bid].replace {
+				newMap.Partitions[n].Replicas = append(newMap.Partitions[n].Replicas, bid)
+			} else {
+				// Otherwise, we need to find a replacement.
+
+				// Build a brokerList from the
+				// IDs in the old replica set to
+				// get a *constraints.
+				replicaSet := brokerList{}
+				for _, bid := range partn.Replicas {
+					replicaSet = append(replicaSet, bm[bid])
+				}
+				// Add existing brokers in the
+				// new replica set as well.
+				for _, bid := range newMap.Partitions[n].Replicas {
+					replicaSet = append(replicaSet, bm[bid])
+				}
+
+				// XXX Use the PartitionMetaMap data here
+				// to lookup the partition size, set as the
+				// constraints requestSize.
+				_ = pmm
+				constraints := mergeConstraints(replicaSet)
+
+				// Fetch the best candidate and append.
+				newBroker, err := bl.bestCandidate(constraints, strategy)
+				if err != nil {
+					// Append any caught errors.
+					errString := fmt.Sprintf("%s p%d: %s", partn.Topic, partn.Partition, err.Error())
+					errs = append(errs, errString)
+					continue
+				}
+
+				newMap.Partitions[n].Replicas = append(newMap.Partitions[n].Replicas, newBroker.id)
+			}
+		}
+
+		// Increment the pass.
+		pass++
+
 	}
 
 	// Final check to ensure that no
