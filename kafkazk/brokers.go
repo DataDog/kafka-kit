@@ -26,10 +26,11 @@ type BrokerStatus struct {
 // broker is used for internal
 // metadata / accounting.
 type broker struct {
-	id       int
-	locality string
-	used     int
-	replace  bool
+	id          int
+	locality    string
+	used        int
+	storageFree float64
+	replace     bool
 }
 
 // BrokerMap holds a mapping of
@@ -40,15 +41,35 @@ type BrokerMap map[int]*broker
 // brokers for sorting by used count.
 type brokerList []*broker
 
-// Satisfy the sort interface for brokerList.
+// Wrapper types for sort by
+// methods.
+type byCount brokerList
+type byStorage brokerList
 
-func (b brokerList) Len() int      { return len(b) }
-func (b brokerList) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
-func (b brokerList) Less(i, j int) bool {
+// Satisfy the sort interface for brokerList types.
+
+// By used field value.
+func (b byCount) Len() int      { return len(b) }
+func (b byCount) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
+func (b byCount) Less(i, j int) bool {
 	if b[i].used < b[j].used {
 		return true
 	}
 	if b[i].used > b[j].used {
+		return false
+	}
+
+	return b[i].id < b[j].id
+}
+
+// By storageFree value.
+func (b byStorage) Len() int      { return len(b) }
+func (b byStorage) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
+func (b byStorage) Less(i, j int) bool {
+	if b[i].storageFree < b[j].storageFree {
+		return true
+	}
+	if b[i].storageFree > b[j].storageFree {
 		return false
 	}
 

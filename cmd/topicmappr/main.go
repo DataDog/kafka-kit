@@ -53,7 +53,7 @@ func init() {
 	flag.BoolVar(&Config.ignoreWarns, "ignore-warns", false, "Whether a map should be produced if warnings are emitted")
 	flag.BoolVar(&Config.forceRebuild, "force-rebuild", false, "Forces a rebuild even if all existing brokers are provided")
 	flag.IntVar(&Config.replication, "replication", 0, "Change the replication factor")
-	flag.StringVar(&Config.placement, "placement", "count", "Partition placement type: [count, size]")
+	flag.StringVar(&Config.placement, "placement", "count", "Partition placement type: [count, storage]")
 	brokers := flag.String("brokers", "", "Broker list to rebuild topic partition map with")
 
 	flag.Parse()
@@ -66,8 +66,8 @@ func init() {
 	case len(*brokers) == 0:
 		fmt.Println("--brokers cannot be empty")
 		defaultsAndExit()
-	case Config.placement != "count" && Config.placement != "size":
-		fmt.Println("--placement must be either 'count' or 'size'")
+	case Config.placement != "count" && Config.placement != "storage":
+		fmt.Println("--placement must be either 'count' or 'storage'")
 		defaultsAndExit()
 	}
 

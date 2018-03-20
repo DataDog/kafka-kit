@@ -22,12 +22,19 @@ func newConstraints() *constraints {
 // bestCandidate takes a *constraints
 // and returns the *broker with the lowest used
 // count that satisfies all constraints.
-func (b brokerList) bestCandidate(c *constraints) (*broker, error) {
-	sort.Sort(b)
+func (b brokerList) bestCandidate(c *constraints, by string) (*broker, error) {
+	// Sort type based on the
+	// desired placement criteria.
+	switch by {
+	case "count":
+		sort.Sort(byCount(b))
+	case "storage":
+		sort.Sort(byStorage(b))
+	}
 
 	var candidate *broker
 
-	// Iterate over candidates.
+	// Iterate over candidates.j
 	for _, candidate = range b {
 		// Candidate passes, return.
 		if c.passes(candidate) {

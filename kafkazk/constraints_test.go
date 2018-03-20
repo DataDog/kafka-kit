@@ -25,19 +25,19 @@ func TestBestCandidate(t *testing.T) {
 	// "b" as candidates.
 	c.locality["b"] = true
 
-	b, _ := bl.bestCandidate(c)
+	b, _ := bl.bestCandidate(c, "count")
 	// 1002 should be the first available.
 	if b.id != 1002 {
 		t.Errorf("Expected candidate with ID 1002, got %d", b.id)
 	}
 
-	b, _ = bl.bestCandidate(c)
+	b, _ = bl.bestCandidate(c, "count")
 	// 1003 should be next available.
 	if b.id != 1003 {
 		t.Errorf("Expected candidate with ID 1003, got %d", b.id)
 	}
 
-	_, err := bl.bestCandidate(c)
+	_, err := bl.bestCandidate(c, "count")
 	if err == nil {
 		t.Errorf("Expected exhausted candidate list")
 	}

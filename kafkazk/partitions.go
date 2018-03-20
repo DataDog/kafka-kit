@@ -47,12 +47,12 @@ func NewPartitionMap() *PartitionMap {
 }
 
 // Rebuild takes a BrokerMap and rebuild strategy.
-// We then traverses the partition map, replacing brokers marked removal
+// It then traverses the partition map, replacing brokers marked removal
 // with the best available candidate based on the selected
 // rebuild strategy. A rebuilt *PartitionMap and []string of
 // errors is returned.
 func (pm *PartitionMap) Rebuild(bm BrokerMap, strategy string) (*PartitionMap, []string) {
-	if strategy != "count" && strategy != "size" {
+	if strategy != "count" && strategy != "storage" {
 		return nil, []string{
 			fmt.Sprintf("Invalid rebuild strategy '%s'", strategy),
 		}
@@ -115,7 +115,7 @@ pass:
 		// in the broker map, get a new ID.
 		if bm[bid].replace {
 			// Fetch the best candidate and append.
-			newBroker, err := bl.bestCandidate(constraints)
+			newBroker, err := bl.bestCandidate(constraints, strategy)
 			if err != nil {
 				// Append any caught errors.
 				errString := fmt.Sprintf("%s p%d: %s", partn.Topic, partn.Partition, err.Error())
