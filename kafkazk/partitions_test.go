@@ -167,7 +167,7 @@ func TestUseStats(t *testing.T) {
 
 func TestRebuild(t *testing.T) {
 	zk := &Mock{}
-	bm, _ := zk.GetAllBrokerMeta()
+	bm, _ := zk.GetAllBrokerMeta(false)
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 	pmm := NewPartitionMetaMap()
 	forceRebuild := false

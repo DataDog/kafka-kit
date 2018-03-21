@@ -334,7 +334,7 @@ func TestGetAllBrokerMeta(t *testing.T) {
 		t.Skip()
 	}
 
-	bm, err := zki.GetAllBrokerMeta()
+	bm, err := zki.GetAllBrokerMeta(false)
 	if err != nil {
 		t.Error(err)
 	}

@@ -6,7 +6,7 @@ import (
 
 func TestBrokerMapFromTopicMap(t *testing.T) {
 	zk := &Mock{}
-	bmm, _ := zk.GetAllBrokerMeta()
+	bmm, _ := zk.GetAllBrokerMeta(false)
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 	forceRebuild := false
 
@@ -33,7 +33,7 @@ func TestBrokerMapFromTopicMap(t *testing.T) {
 
 func TestUpdate(t *testing.T) {
 	zk := &Mock{}
-	bmm, _ := zk.GetAllBrokerMeta()
+	bmm, _ := zk.GetAllBrokerMeta(false)
 	bm := newMockBrokerMap()
 	// 1001 isn't in the list, should
 	// add to the Missing count.

@@ -437,7 +437,7 @@ func removeAllThrottles(zk kafkazk.Handler, params *ReplicationThrottleMeta) err
 	**********************/
 
 	// Fetch brokers.
-	brokers, err := zk.GetAllBrokerMeta()
+	brokers, err := zk.GetAllBrokerMeta(false)
 	if err != nil {
 		return err
 	}

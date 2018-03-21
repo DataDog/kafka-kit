@@ -39,7 +39,8 @@ type Handler interface {
 	GetReassignments() Reassignments
 	GetTopics([]*regexp.Regexp) ([]string, error)
 	GetTopicConfig(string) (*TopicConfig, error)
-	GetAllBrokerMeta() (BrokerMetaMap, error)
+	GetAllBrokerMeta(bool) (BrokerMetaMap, error)
+	GetAllPartitionMeta() (PartitionMetaMap, error)
 	GetPartitionMap(string) (*PartitionMap, error)
 }
 
@@ -290,7 +291,11 @@ func (z *zkHandler) GetTopicConfig(t string) (*TopicConfig, error) {
 
 // GetAllBrokerMeta looks up all registered Kafka
 // brokers and returns their metadata as a BrokerMetaMap.
-func (z *zkHandler) GetAllBrokerMeta() (BrokerMetaMap, error) {
+// An withMetrics bool param determines whether we additionally
+// want to fetch stored broker metrics.
+func (z *zkHandler) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, error) {
+	_ = withMetrics
+
 	var path string
 	if z.Prefix != "" {
 		path = fmt.Sprintf("/%s/brokers/ids", z.Prefix)
@@ -334,6 +339,11 @@ func (z *zkHandler) GetAllBrokerMeta() (BrokerMetaMap, error) {
 	}
 
 	return bmm, nil
+}
+
+// GetAllPartitionMeta
+func (z *zkHandler) GetAllPartitionMeta() (PartitionMetaMap, error) {
+	return nil, nil
 }
 
 // GetTopicState takes a topic name. If the topic exists,

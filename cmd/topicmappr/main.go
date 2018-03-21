@@ -69,6 +69,9 @@ func init() {
 	case Config.placement != "count" && Config.placement != "storage":
 		fmt.Println("--placement must be either 'count' or 'storage'")
 		defaultsAndExit()
+	case Config.useMeta && Config.placement == "storage":
+		fmt.Println("--placement=storage requires that --use-meta canot be false")
+		defaultsAndExit()
 	}
 
 	// Append trailing slash if not included.
@@ -102,7 +105,7 @@ func init() {
 func main() {
 	// ZooKeeper init.
 	var zk kafkazk.Handler
-	if Config.useMeta || len(Config.rebuildTopics) > 0 {
+	if Config.useMeta || len(Config.rebuildTopics) > 0 || Config.placement == "storage" {
 		var err error
 		zk, err = kafkazk.NewHandler(&kafkazk.Config{
 			Connect: Config.zkAddr,
@@ -117,12 +120,12 @@ func main() {
 	}
 
 	// General flow:
-	// 1) partitionMap formed from topic data (provided or via zk).
-	// BrokerMap is build from brokers found in input
-	// partitionMap + any new brokers provided from the
+	// 1) PartitionMap formed from topic data (provided or via zk).
+	// A BrokerMap is built from brokers found in the input
+	// PartitionMap + any new brokers provided from the
 	// --brokers param.
-	// 2) New partitionMap from origial map rebuild with updated
-	// the updated BrokerMap; marked brokers are removed and newly
+	// 2) New PartitionMap from the origial map is rebuilt with
+	// the BrokerMap; marked brokers are removed and newly
 	// provided brokers are swapped in where possible.
 	// 3) New map is possibly expanded/rebalanced.
 	// 4) Final map output.
@@ -131,7 +134,15 @@ func main() {
 	var brokerMetadata kafkazk.BrokerMetaMap
 	if Config.useMeta {
 		var err error
-		brokerMetadata, err = zk.GetAllBrokerMeta()
+
+		// Whether or not we want to include
+		// additional broker metrics metadata.
+		var withMetrics bool
+		if Config.placement == "storage" {
+			withMetrics = true
+		}
+
+		brokerMetadata, err = zk.GetAllBrokerMeta(withMetrics)
 		if err != nil {
 			fmt.Printf("Error fetching broker metadata: %s\n", err)
 			os.Exit(1)
@@ -145,10 +156,11 @@ func main() {
 	}
 
 	// Build a topic map with either
-	// explicit input or by fetching the
+	// text input or by fetching the
 	// map data from ZooKeeper.
 	partitionMapIn := kafkazk.NewPartitionMap()
 	switch {
+	// Provided as text.
 	case Config.rebuildMap != "":
 		pm, err := kafkazk.PartitionMapFromString(Config.rebuildMap)
 		if err != nil {
@@ -156,6 +168,7 @@ func main() {
 			os.Exit(1)
 		}
 		partitionMapIn = pm
+	// Fetch from ZK.
 	case len(Config.rebuildTopics) > 0:
 		pm, err := kafkazk.PartitionMapFromZK(Config.rebuildTopics, zk)
 		if err != nil {
