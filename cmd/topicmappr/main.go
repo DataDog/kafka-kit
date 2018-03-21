@@ -30,6 +30,7 @@ var (
 		useMeta       bool
 		zkAddr        string
 		zkPrefix      string
+		zkMetricsPrefix string
 		outPath       string
 		outFile       string
 		ignoreWarns   bool
@@ -47,7 +48,8 @@ func init() {
 	topics := flag.String("rebuild-topics", "", "Rebuild topics (comma delim list) by lookup in ZooKeeper")
 	flag.BoolVar(&Config.useMeta, "use-meta", true, "Use broker metadata as constraints")
 	flag.StringVar(&Config.zkAddr, "zk-addr", "localhost:2181", "ZooKeeper connect string (for broker metadata or rebuild-topic lookups)")
-	flag.StringVar(&Config.zkPrefix, "zk-prefix", "", "ZooKeeper namespace prefix")
+	flag.StringVar(&Config.zkPrefix, "zk-prefix", "", "ZooKeeper namespace prefix (for Kafka)")
+	flag.StringVar(&Config.zkMetricsPrefix, "zk-metrics-prefix", "topicmappr", "ZooKeeper namespace prefix (for Kafka metrics)")
 	flag.StringVar(&Config.outPath, "out-path", "", "Path to write output map files to")
 	flag.StringVar(&Config.outFile, "out-file", "", "If defined, write a combined map of all topics to a file")
 	flag.BoolVar(&Config.ignoreWarns, "ignore-warns", false, "Whether a map should be produced if warnings are emitted")
@@ -110,6 +112,7 @@ func main() {
 		zk, err = kafkazk.NewHandler(&kafkazk.Config{
 			Connect: Config.zkAddr,
 			Prefix:  Config.zkPrefix,
+			MetricsPrefix: Config.zkMetricsPrefix,
 		})
 		if err != nil {
 			fmt.Printf("Error connecting to ZooKeeper: %s\n", err)

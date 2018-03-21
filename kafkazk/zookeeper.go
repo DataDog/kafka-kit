@@ -103,6 +103,7 @@ type zkHandler struct {
 	client  *zkclient.Conn
 	Connect string
 	Prefix  string
+	MetricsPrefix string
 }
 
 // Config holds initialization
@@ -111,9 +112,13 @@ type zkHandler struct {
 // Prefix should reflect any prefix
 // used for Kafka on the reference
 // ZooKeeper cluster (excluding slashes).
+// MetricsPrefix is the prefix used for
+// broker metrics metadata persisted in
+// ZooKeeper.
 type Config struct {
 	Connect string
 	Prefix  string
+	MetricsPrefix string
 }
 
 // NewHandler takes a *Config, performs
@@ -122,6 +127,7 @@ func NewHandler(c *Config) (Handler, error) {
 	z := &zkHandler{
 		Connect: c.Connect,
 		Prefix:  c.Prefix,
+		MetricsPrefix: c.MetricsPrefix,
 	}
 
 	var err error
@@ -144,7 +150,12 @@ func (z *zkHandler) Close() {
 // Get gets the provided path p and returns
 // the data from the path and an error if encountered.
 func (z *zkHandler) Get(p string) ([]byte, error) {
-	r, _, err := z.client.Get(p)
+	r, _, e := z.client.Get(p)
+	var err error
+	if e != nil {
+		err = errors.New(fmt.Sprintf("[%s] %s", p, e.Error()))
+	}
+
 	return r, err
 }
 
@@ -152,7 +163,12 @@ func (z *zkHandler) Get(p string) ([]byte, error) {
 // provided string d and returns an error
 // if encountered.
 func (z *zkHandler) Set(p string, d string) error {
-	_, err := z.client.Set(p, []byte(d), -1)
+	_, e := z.client.Set(p, []byte(d), -1)
+	var err error
+	if e != nil {
+		err = errors.New(fmt.Sprintf("[%s] %s", p, e.Error()))
+	}
+
 	return err
 }
 
@@ -160,7 +176,12 @@ func (z *zkHandler) Set(p string, d string) error {
 // creates a sequential znode at p with data d.
 // An error is returned if encountered.
 func (z *zkHandler) CreateSequential(p string, d string) error {
-	_, err := z.client.Create(p, []byte(d), zkclient.FlagSequence, zkclient.WorldACL(31))
+	_, e := z.client.Create(p, []byte(d), zkclient.FlagSequence, zkclient.WorldACL(31))
+	var err error
+	if e != nil {
+		err = errors.New(fmt.Sprintf("[%s] %s", p, e.Error()))
+	}
+
 	return err
 }
 
@@ -168,7 +189,12 @@ func (z *zkHandler) CreateSequential(p string, d string) error {
 // from the provided string d and returns an error
 // if encountered.
 func (z *zkHandler) Create(p string, d string) error {
-	_, err := z.client.Create(p, []byte(d), 0, zkclient.WorldACL(31))
+	_, e := z.client.Create(p, []byte(d), 0, zkclient.WorldACL(31))
+	var err error
+	if e != nil {
+		err = errors.New(fmt.Sprintf("[%s] %s", p, e.Error()))
+	}
+
 	return err
 }
 
@@ -176,8 +202,13 @@ func (z *zkHandler) Create(p string, d string) error {
 // as to whether the path exists and an error
 // if encountered.
 func (z *zkHandler) Exists(p string) (bool, error) {
-	e, _, err := z.client.Exists(p)
-	return e, err
+	b, _, e := z.client.Exists(p)
+	var err error
+	if e != nil {
+		err = errors.New(fmt.Sprintf("[%s] %s", p, e.Error()))
+	}
+
+	return b, err
 }
 
 // GetReassignments looks up any ongoing
@@ -325,7 +356,7 @@ func (z *zkHandler) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, error) {
 
 	// Fetch and populate in metrics.
 	if withMetrics {
-		bmetrics, err := z.GetBrokerMetrics()
+		bmetrics, err := z.getBrokerMetrics()
 		if err != nil {
 			errS := fmt.Sprintf("Error fetching broker metrics: %s", err.Error())
 			return nil, errors.New(errS)
@@ -349,8 +380,29 @@ func (z *zkHandler) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, error) {
 }
 
 // GetBrokerMetrics
-func (z *zkHandler) GetBrokerMetrics() (BrokerMetricsMap, error) {
-	return BrokerMetricsMap{}, nil
+func (z *zkHandler) getBrokerMetrics() (BrokerMetricsMap, error) {
+	var path string
+	if z.MetricsPrefix != "" {
+		path = fmt.Sprintf("/%s/brokermetrics", z.MetricsPrefix)
+	} else {
+		path = "/brokermetrics"
+	}
+
+	// Fetch the metrics object.
+	data, err := z.Get(path)
+	if err != nil {
+		errS := fmt.Sprintf("Error fetching broker metrics: %s", err.Error())
+		return nil, errors.New(errS)
+	}
+
+	bmm := BrokerMetricsMap{}
+	err = json.Unmarshal(data, &bmm)
+	if err != nil {
+		errS := fmt.Sprintf("Error unmarshalling broker metrics: %s", err.Error())
+		return nil, errors.New(errS)
+	}
+
+	return bmm, nil
 }
 
 // GetAllPartitionMeta
