@@ -143,11 +143,11 @@ func (zk *Mock) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, error) {
 // GetBrokerMetrics mocks GetBrokerMetrics.
 func (zk *Mock) GetBrokerMetrics() (BrokerMetricsMap, error) {
 	bm := BrokerMetricsMap{
-		1001: &BrokerMetrics{StorageFree: 1000.00},
-		1002: &BrokerMetrics{StorageFree: 2000.00},
-		1003: &BrokerMetrics{StorageFree: 3000.00},
-		1004: &BrokerMetrics{StorageFree: 4000.00},
-		1005: &BrokerMetrics{StorageFree: 5000.00},
+		1001: &BrokerMetrics{StorageFree: 2000.00},
+		1002: &BrokerMetrics{StorageFree: 4000.00},
+		1003: &BrokerMetrics{StorageFree: 6000.00},
+		1004: &BrokerMetrics{StorageFree: 8000.00},
+		1005: &BrokerMetrics{StorageFree: 10000.00},
 	}
 
 	return bm, nil
@@ -156,11 +156,13 @@ func (zk *Mock) GetBrokerMetrics() (BrokerMetricsMap, error) {
 // GetAllPartitionMeta mocks GetAllPartitionMeta.
 func (zk *Mock) GetAllPartitionMeta() (PartitionMetaMap, error) {
 	pm := NewPartitionMetaMap()
+	pm["test_topic"] = map[int]*PartitionMeta{}
+
 	pm["test_topic"][0] = &PartitionMeta{Size: 1000.00}
-	pm["test_topic"][1] = &PartitionMeta{Size: 2000.00}
-	pm["test_topic"][2] = &PartitionMeta{Size: 3000.00}
-	pm["test_topic"][3] = &PartitionMeta{Size: 4000.00}
-	pm["test_topic"][4] = &PartitionMeta{Size: 5000.00}
+	pm["test_topic"][1] = &PartitionMeta{Size: 1500.00}
+	pm["test_topic"][2] = &PartitionMeta{Size: 2000.00}
+	pm["test_topic"][3] = &PartitionMeta{Size: 2500.00}
+	pm["test_topic"][4] = &PartitionMeta{Size: 3000.00}
 
 	return pm, nil
 }

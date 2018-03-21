@@ -183,11 +183,11 @@ func TestSetup(t *testing.T) {
 
 		// Create broker metrics.
 		data = []byte(`{
-			"1001": {"StorageFree": 1000.00},
-			"1002": {"StorageFree": 2000.00},
-			"1003": {"StorageFree": 3000.00},
-			"1004": {"StorageFree": 4000.00},
-			"1005": {"StorageFree": 5000.00}}`)
+			"1001": {"StorageFree": 10000.00},
+			"1002": {"StorageFree": 20000.00},
+			"1003": {"StorageFree": 30000.00},
+			"1004": {"StorageFree": 40000.00},
+			"1005": {"StorageFree": 50000.00}}`)
 		_, err = zkc.Set("/topicmappr/brokermetrics", data, -1)
 		if err != nil {
 			t.Error(err)
@@ -405,11 +405,11 @@ func TestGetBrokerMetrics(t *testing.T) {
 	}
 
 	expected := map[int]float64{
-		1001: 1000.00,
-		1002: 2000.00,
-		1003: 3000.00,
-		1004: 4000.00,
-		1005: 5000.00,
+		1001: 10000.00,
+		1002: 20000.00,
+		1003: 30000.00,
+		1004: 40000.00,
+		1005: 50000.00,
 	}
 
 	for b, v := range bm {

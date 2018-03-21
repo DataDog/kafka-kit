@@ -236,6 +236,7 @@ func BrokerMapFromTopicMap(pm *PartitionMap, bm BrokerMetaMap, force bool) Broke
 			// Add metadata if we have it.
 			if meta, exists := bm[id]; exists {
 				bmap[id].locality = meta.Rack
+				bmap[id].storageFree = meta.StorageFree
 			}
 		}
 	}

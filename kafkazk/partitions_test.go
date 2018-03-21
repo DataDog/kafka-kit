@@ -166,11 +166,13 @@ func TestUseStats(t *testing.T) {
 }
 
 func TestRebuild(t *testing.T) {
+	forceRebuild := true
+	withMetrics := false
+
 	zk := &Mock{}
-	bm, _ := zk.GetAllBrokerMeta(false)
+	bm, _ := zk.GetAllBrokerMeta(withMetrics)
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 	pmm := NewPartitionMetaMap()
-	forceRebuild := false
 
 	brokers := BrokerMapFromTopicMap(pm, bm, forceRebuild)
 	out, errs := pm.Rebuild(brokers, pmm, "count")
@@ -213,11 +215,37 @@ func TestRebuild(t *testing.T) {
 	}
 
 	// Test a force rebuild.
+	forceRebuild = true
 	pmStripped := pm.Strip()
+	brokers = BrokerMapFromTopicMap(pm, bm, forceRebuild)
 	out, _ = pmStripped.Rebuild(brokers, pmm, "count")
 
 	same, _ := pm.equal(out)
-	if same {
+	if !same {
 		t.Error("Unexpected inequality after force rebuild")
+	}
+}
+
+func TestRebuildByStorage(t *testing.T) {
+	forceRebuild := true
+	withMetrics := true
+
+	zk := &Mock{}
+	bm, _ := zk.GetAllBrokerMeta(withMetrics)
+	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
+	pmm, _ := zk.GetAllPartitionMeta()
+
+	pm.SetReplication(2)
+	pmStripped := pm.Strip()
+
+	brokers := BrokerMapFromTopicMap(pm, bm, forceRebuild)
+	out, errs := pmStripped.Rebuild(brokers, pmm, "storage")
+	if errs != nil {
+		t.Errorf("Unexpected error(s): %s", errs)
+	}
+
+	fmt.Println(out)
+	for _, b := range brokers {
+		fmt.Printf("%d %f\n", b.id, b.storageFree)
 	}
 }
