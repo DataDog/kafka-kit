@@ -156,11 +156,11 @@ func (zk *Mock) GetBrokerMetrics() (BrokerMetricsMap, error) {
 // GetAllPartitionMeta mocks GetAllPartitionMeta.
 func (zk *Mock) GetAllPartitionMeta() (PartitionMetaMap, error) {
 	pm := NewPartitionMetaMap()
-	pm["test_topic"][0] = &PartitionMeta{size: 1000.00}
-	pm["test_topic"][1] = &PartitionMeta{size: 2000.00}
-	pm["test_topic"][2] = &PartitionMeta{size: 3000.00}
-	pm["test_topic"][3] = &PartitionMeta{size: 4000.00}
-	pm["test_topic"][4] = &PartitionMeta{size: 5000.00}
+	pm["test_topic"][0] = &PartitionMeta{Size: 1000.00}
+	pm["test_topic"][1] = &PartitionMeta{Size: 2000.00}
+	pm["test_topic"][2] = &PartitionMeta{Size: 3000.00}
+	pm["test_topic"][3] = &PartitionMeta{Size: 4000.00}
+	pm["test_topic"][4] = &PartitionMeta{Size: 5000.00}
 
 	return pm, nil
 }

@@ -1,6 +1,7 @@
 package kafkazk
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"sort"
@@ -33,6 +34,7 @@ var (
 		// Topicmappr specific.
 		"/topicmappr",
 		"/topicmappr/brokermetrics",
+		"/topicmappr/partitionmeta",
 	}
 )
 
@@ -113,14 +115,30 @@ func TestSetup(t *testing.T) {
 		}
 
 		// Create topics.
+		partitionMeta := NewPartitionMetaMap()
 		data := []byte(`{"version":1,"partitions":{"0":[1001,1002],"1":[1002,1001],"2":[1003,1004],"3":[1004,1003]}}`)
 		for i := 0; i < 5; i++ {
-			topic := fmt.Sprintf("%s/brokers/topics/topic%d", zkprefix, i)
-			paths = append(paths, topic)
-			_, err := zkc.Create(topic, data, 0, zkclient.WorldACL(31))
+			topic := fmt.Sprintf("topic%d", i)
+			p := fmt.Sprintf("%s/brokers/topics/%s", zkprefix, topic)
+			paths = append(paths, p)
+			_, err := zkc.Create(p, data, 0, zkclient.WorldACL(31))
 			if err != nil {
 				t.Error(err)
 			}
+			// Create partition meta.
+			partitionMeta[topic] = map[int]*PartitionMeta{
+				0: &PartitionMeta{Size: 1000.00},
+				1: &PartitionMeta{Size: 2000.00},
+				2: &PartitionMeta{Size: 3000.00},
+				3: &PartitionMeta{Size: 4000.00},
+			}
+		}
+
+		// Store partition meta.
+		data, _ = json.Marshal(partitionMeta)
+		_, err = zkc.Set("/topicmappr/partitionmeta", data, -1)
+		if err != nil {
+			t.Error(err)
 		}
 
 		// Create reassignments data.
@@ -401,6 +419,39 @@ func TestGetBrokerMetrics(t *testing.T) {
 	}
 }
 
+func TestGetAllPartitionMeta(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	pm, err := zki.GetAllPartitionMeta()
+	if err != nil {
+		t.Error(err)
+	}
+
+	expected := map[int]float64{
+		0: 1000.00,
+		1: 2000.00,
+		2: 3000.00,
+		3: 4000.00,
+	}
+
+	for i := 0; i < 5; i++ {
+		topic := fmt.Sprintf("topic%d", i)
+		meta, exists := pm[topic]
+		if !exists {
+			t.Errorf("Expected topic '%s' in partition meta", topic)
+		}
+
+		for partn, m := range meta {
+			if m.Size != expected[partn] {
+				t.Errorf("Expected size %f for %s %d, got %f", expected[partn], topic, partn, m.Size)
+			}
+		}
+	}
+
+}
+
 func TestGetTopicState(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
@@ -579,7 +630,7 @@ func TestTearDown(t *testing.T) {
 		t.Skip()
 	}
 
-	errors := []error{}
+	errors := []string{}
 
 	// We sort the paths by descending
 	// length. This ensures that we're always
@@ -591,11 +642,11 @@ func TestTearDown(t *testing.T) {
 	for _, p := range paths {
 		_, s, err := zkc.Get(p)
 		if err != nil {
-			errors = append(errors, err)
+			errors = append(errors, fmt.Sprintf("[%s] %s", p, err.Error()))
 		} else {
 			err = zkc.Delete(p, s.Version)
 			if err != nil {
-				errors = append(errors, err)
+				errors = append(errors, fmt.Sprintf("[%s] %s", p, err.Error()))
 			}
 		}
 	}

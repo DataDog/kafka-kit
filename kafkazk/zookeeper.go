@@ -407,9 +407,34 @@ func (z *zkHandler) getBrokerMetrics() (BrokerMetricsMap, error) {
 	return bmm, nil
 }
 
-// GetAllPartitionMeta
+// GetAllPartitionMeta fetches partition metadata stored in Zookeeper.
 func (z *zkHandler) GetAllPartitionMeta() (PartitionMetaMap, error) {
-	return nil, nil
+	var path string
+	if z.MetricsPrefix != "" {
+		path = fmt.Sprintf("/%s/partitionmeta", z.MetricsPrefix)
+	} else {
+		path = "/partitionmeta"
+	}
+
+	// Fetch the metrics object.
+	data, err := z.Get(path)
+	if err != nil {
+		errS := fmt.Sprintf("Error fetching partition meta: %s", err.Error())
+		return nil, errors.New(errS)
+	}
+
+	if string(data) == "" {
+		return nil, errors.New("No partition meta")
+	}
+
+	pmm := NewPartitionMetaMap()
+	err = json.Unmarshal(data, &pmm)
+	if err != nil {
+		errS := fmt.Sprintf("Error unmarshalling partition meta: %s", err.Error())
+		return nil, errors.New(errS)
+	}
+
+	return pmm, nil
 }
 
 // GetTopicState takes a topic name. If the topic exists,

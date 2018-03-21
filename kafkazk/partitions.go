@@ -48,7 +48,7 @@ func (p partitionList) Less(i, j int) bool {
 
 // PartitionMeta holds partition metadata.
 type PartitionMeta struct {
-	size float64 // In bytes.
+	Size float64 // In bytes.
 }
 
 // PartitionMetaMap is a mapping of topic,
@@ -78,7 +78,7 @@ func (pmm PartitionMetaMap) Size(p Partition) (float64, error) {
 		return 0.00, errors.New(errS)
 	}
 
-	return partn.size, nil
+	return partn.Size, nil
 }
 
 // Rebuild takes a BrokerMap and rebuild strategy.
