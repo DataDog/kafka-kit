@@ -1,7 +1,13 @@
 package kafkazk
 
 import (
+	"errors"
 	"sort"
+)
+
+var (
+	errNoBrokers              = errors.New("No additional brokers that meet constraints")
+	errInvalidSelectionMethod = errors.New("Invalid selection method")
 )
 
 // Constraints holds a map of
@@ -20,9 +26,8 @@ func newConstraints() *constraints {
 	}
 }
 
-// bestCandidate takes a *constraints
-// and returns the *broker with the lowest used
-// count that satisfies all constraints.
+// bestCandidate takes a *constraints and selection
+// method and returns the most suitable broker.
 func (b brokerList) bestCandidate(c *constraints, by string) (*broker, error) {
 	// Sort type based on the
 	// desired placement criteria.
@@ -31,6 +36,8 @@ func (b brokerList) bestCandidate(c *constraints, by string) (*broker, error) {
 		sort.Sort(byCount(b))
 	case "storage":
 		sort.Sort(byStorage(b))
+	default:
+		return nil, errInvalidSelectionMethod
 	}
 
 	var candidate *broker

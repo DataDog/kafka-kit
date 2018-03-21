@@ -151,7 +151,6 @@ func TestSetup(t *testing.T) {
 
 			// Create broker config path.
 			p = fmt.Sprintf("%s/config/brokers/%d", zkprefix, 1001+i)
-			fmt.Println(p)
 			paths = append(paths, p)
 			_, err = zkc.Create(p, []byte{}, 0, zkclient.WorldACL(31))
 			if err != nil {

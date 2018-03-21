@@ -66,10 +66,10 @@ func (b byCount) Less(i, j int) bool {
 func (b byStorage) Len() int      { return len(b) }
 func (b byStorage) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
 func (b byStorage) Less(i, j int) bool {
-	if b[i].storageFree < b[j].storageFree {
+	if b[i].storageFree > b[j].storageFree {
 		return true
 	}
-	if b[i].storageFree > b[j].storageFree {
+	if b[i].storageFree < b[j].storageFree {
 		return false
 	}
 
