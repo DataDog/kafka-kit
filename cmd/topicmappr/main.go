@@ -24,19 +24,19 @@ var (
 	// Config holds configuration
 	// parameters.
 	Config struct {
-		rebuildMap    string
-		rebuildTopics []*regexp.Regexp
-		brokers       []int
-		useMeta       bool
-		zkAddr        string
-		zkPrefix      string
+		rebuildMap      string
+		rebuildTopics   []*regexp.Regexp
+		brokers         []int
+		useMeta         bool
+		zkAddr          string
+		zkPrefix        string
 		zkMetricsPrefix string
-		outPath       string
-		outFile       string
-		ignoreWarns   bool
-		forceRebuild  bool
-		replication   int
-		placement     string
+		outPath         string
+		outFile         string
+		ignoreWarns     bool
+		forceRebuild    bool
+		replication     int
+		placement       string
 	}
 )
 
@@ -110,8 +110,8 @@ func main() {
 	if Config.useMeta || len(Config.rebuildTopics) > 0 || Config.placement == "storage" {
 		var err error
 		zk, err = kafkazk.NewHandler(&kafkazk.Config{
-			Connect: Config.zkAddr,
-			Prefix:  Config.zkPrefix,
+			Connect:       Config.zkAddr,
+			Prefix:        Config.zkPrefix,
 			MetricsPrefix: Config.zkMetricsPrefix,
 		})
 		if err != nil {

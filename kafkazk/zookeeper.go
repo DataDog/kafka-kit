@@ -100,9 +100,9 @@ func NewKafkaConfigData() KafkaConfigData {
 // zkHandler implements the Handler interface
 // for real ZooKeeper clusters.
 type zkHandler struct {
-	client  *zkclient.Conn
-	Connect string
-	Prefix  string
+	client        *zkclient.Conn
+	Connect       string
+	Prefix        string
 	MetricsPrefix string
 }
 
@@ -116,8 +116,8 @@ type zkHandler struct {
 // broker metrics metadata persisted in
 // ZooKeeper.
 type Config struct {
-	Connect string
-	Prefix  string
+	Connect       string
+	Prefix        string
 	MetricsPrefix string
 }
 
@@ -125,8 +125,8 @@ type Config struct {
 // any initialization and returns a Handler.
 func NewHandler(c *Config) (Handler, error) {
 	z := &zkHandler{
-		Connect: c.Connect,
-		Prefix:  c.Prefix,
+		Connect:       c.Connect,
+		Prefix:        c.Prefix,
 		MetricsPrefix: c.MetricsPrefix,
 	}
 
@@ -379,7 +379,9 @@ func (z *zkHandler) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, error) {
 	return bmm, nil
 }
 
-// GetBrokerMetrics
+// GetBrokerMetrics fetches broker metrics stored
+// in ZooKeeper and returns a BrokerMetricsMap and
+// an error if encountered.
 func (z *zkHandler) getBrokerMetrics() (BrokerMetricsMap, error) {
 	var path string
 	if z.MetricsPrefix != "" {

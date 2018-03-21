@@ -30,6 +30,9 @@ var (
 		zkprefix + "/config/topics",
 		zkprefix + "/config/brokers",
 		zkprefix + "/config/changes",
+		// Topicmappr specific.
+		"/topicmappr",
+		"/topicmappr/brokermetrics",
 	}
 )
 
@@ -88,8 +91,9 @@ func TestSetup(t *testing.T) {
 		}
 
 		zki, err = NewHandler(&Config{
-			Connect: zkaddr,
-			Prefix:  configPrefix,
+			Connect:       zkaddr,
+			Prefix:        configPrefix,
+			MetricsPrefix: "topicmappr",
 		})
 		if err != nil {
 			t.Errorf("Error initializing ZooKeeper client: %s", err.Error())
@@ -103,7 +107,8 @@ func TestSetup(t *testing.T) {
 		for _, p := range paths {
 			_, err := zkc.Create(p, []byte{}, 0, zkclient.WorldACL(31))
 			if err != nil {
-				t.Error(err)
+				errS := fmt.Sprintf("path %s: %s", p, err.Error())
+				t.Error(errS)
 			}
 		}
 
@@ -135,7 +140,7 @@ func TestSetup(t *testing.T) {
 
 		// Create brokers.
 		rack := []string{"a", "b", "c"}
-		for i := 0; i < 10; i++ {
+		for i := 0; i < 5; i++ {
 			// Create data.
 			data := fmt.Sprintf(`{"listener_security_protocol_map":{"PLAINTEXT":"PLAINTEXT"},"endpoints":["PLAINTEXT://10.0.1.%d:9092"],"rack":"%s","jmx_port":9999,"host":"10.0.1.%d","timestamp":"%d","port":9092,"version":4}`,
 				100+i, rack[i%3], 100+i, time.Now().Unix())
@@ -156,6 +161,18 @@ func TestSetup(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
+		}
+
+		// Create broker metrics.
+		data = []byte(`{
+			"1001": {"StorageFree": 1000.00},
+			"1002": {"StorageFree": 2000.00},
+			"1003": {"StorageFree": 3000.00},
+			"1004": {"StorageFree": 4000.00},
+			"1005": {"StorageFree": 5000.00}}`)
+		_, err = zkc.Set("/topicmappr/brokermetrics", data, -1)
+		if err != nil {
+			t.Error(err)
 		}
 
 	} else {
@@ -339,8 +356,8 @@ func TestGetAllBrokerMeta(t *testing.T) {
 		t.Error(err)
 	}
 
-	if len(bm) != 10 {
-		t.Errorf("Expected BrokerMetaMap len of 10, got %d", len(bm))
+	if len(bm) != 5 {
+		t.Errorf("Expected BrokerMetaMap len of 5, got %d", len(bm))
 	}
 
 	expected := map[int]string{
@@ -349,16 +366,37 @@ func TestGetAllBrokerMeta(t *testing.T) {
 		1003: "c",
 		1004: "a",
 		1005: "b",
-		1006: "c",
-		1007: "a",
-		1008: "b",
-		1009: "c",
-		1010: "a",
 	}
 
 	for b, r := range bm {
 		if r.Rack != expected[b] {
 			t.Errorf("Expected rack '%s' for %d, got '%s'", expected[b], b, r.Rack)
+		}
+	}
+}
+
+func TestGetBrokerMetrics(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	// Get broker meta withMetrics.
+	bm, err := zki.GetAllBrokerMeta(true)
+	if err != nil {
+		t.Error(err)
+	}
+
+	expected := map[int]float64{
+		1001: 1000.00,
+		1002: 2000.00,
+		1003: 3000.00,
+		1004: 4000.00,
+		1005: 5000.00,
+	}
+
+	for b, v := range bm {
+		if v.StorageFree != expected[b] {
+			t.Errorf("Unexpected StorageFree metric for broker %d", b)
 		}
 	}
 }
@@ -541,7 +579,7 @@ func TestTearDown(t *testing.T) {
 		t.Skip()
 	}
 
-	errors := []string{}
+	errors := []error{}
 
 	// We sort the paths by descending
 	// length. This ensures that we're always
@@ -553,17 +591,17 @@ func TestTearDown(t *testing.T) {
 	for _, p := range paths {
 		_, s, err := zkc.Get(p)
 		if err != nil {
-			errors = append(errors, fmt.Sprintf("path %s: %s", p, err.Error()))
+			errors = append(errors, err)
 		} else {
 			err = zkc.Delete(p, s.Version)
 			if err != nil {
-				errors = append(errors, fmt.Sprintf("path %s: %s", p, err.Error()))
+				errors = append(errors, err)
 			}
 		}
 	}
 
-	for _, e := range errors {
-		fmt.Println(e)
+	for _, err := range errors {
+		fmt.Println(err)
 	}
 
 	if len(errors) > 0 {
