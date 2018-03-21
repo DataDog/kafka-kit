@@ -242,7 +242,23 @@ func main() {
 		partitionMapOut, warns = partitionMapIn.Rebuild(brokers, partitionMeta, Config.placement)
 	}
 
+	// XXX If we use the storage placement strategy,
+	// we can call an optimize pass in a separate
+	// stage here. Rebuild is complex enough;
+	// introducing single-pass optimization there
+	// might not be the best. It's likely OK that
+	// rebuild handles replacements and initial
+	// storage based placement while honoring the
+	// locality / replication constraints.
+	// A dedicated optimization function can focus
+	// on optimizations within a given locality.
+	// For example, we can arbitrarily shuffle all
+	// partitions within a rack.id value, then perform
+	// an optimization for each value.
+
 	// Sort by topic, partition.
+	// XXX Partitions should now be sorted
+	// at their origins. Confirm this.
 	sort.Sort(partitionMapIn.Partitions)
 	sort.Sort(partitionMapOut.Partitions)
 
@@ -263,7 +279,7 @@ func main() {
 		fmt.Printf("%s[none]\n", indent)
 	}
 
-	// TODO scan partition lists
+	// XXX scan partition lists
 	// and ensure they're the same
 	// topic, partition.
 

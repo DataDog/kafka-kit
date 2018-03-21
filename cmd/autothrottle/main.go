@@ -167,7 +167,7 @@ func main() {
 
 		throttleMeta.topics = throttleMeta.topics[:0]
 		// Get topics undergoing reassignment.
-		reassignments = zk.GetReassignments() // TODO This needs to return an error.
+		reassignments = zk.GetReassignments() // XXX This needs to return an error.
 		replicatingNow = make(map[string]interface{})
 		for t := range reassignments {
 			throttleMeta.topics = append(throttleMeta.topics, t)

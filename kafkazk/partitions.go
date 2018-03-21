@@ -17,7 +17,7 @@ type Partition struct {
 	Replicas  []int  `json:"replicas"`
 }
 
-type partitionList []Partition
+type partitionList []Partition // XXX pointers.
 
 // PartitionMap maps the
 // Kafka topic mapping syntax.
@@ -51,13 +51,34 @@ type PartitionMeta struct {
 	size float64 // In bytes.
 }
 
-// PartitionMetaMap is a mapping of topic name to
+// PartitionMetaMap is a mapping of topic,
 // partition number to PartitionMeta.
 type PartitionMetaMap map[string]map[int]*PartitionMeta
 
 // NewPartitionMetaMap returns an empty PartitionMetaMap.
 func NewPartitionMetaMap() PartitionMetaMap {
 	return map[string]map[int]*PartitionMeta{}
+}
+
+// Size takes a Partition and returns the
+// size. An error is returned if the partition
+// isn't in the PartitionMetaMap.
+func (pmm PartitionMetaMap) Size(p Partition) (float64, error) {
+	// Check for the topic.
+	t, exists := pmm[p.Topic]
+	if !exists {
+		errS := fmt.Sprintf("Topic %s not found in partition metadata", p.Topic)
+		return 0.00, errors.New(errS)
+	}
+
+	// Check for the partition.
+	partn, exists := t[p.Partition]
+	if !exists {
+		errS := fmt.Sprintf("Partition %d not found in partition metadata", p.Partition)
+		return 0.00, errors.New(errS)
+	}
+
+	return partn.size, nil
 }
 
 // Rebuild takes a BrokerMap and rebuild strategy.
@@ -131,11 +152,21 @@ func (pm *PartitionMap) Rebuild(bm BrokerMap, pmm PartitionMetaMap, strategy str
 					replicaSet = append(replicaSet, bm[bid])
 				}
 
-				// XXX Use the PartitionMetaMap data here
-				// to lookup the partition size, set as the
-				// constraints requestSize.
-				_ = pmm
+				// Populate a constraints.
 				constraints := mergeConstraints(replicaSet)
+
+				// Add any necessary meta from current partition
+				// to the constraints.
+				if strategy == "storage" {
+					s, err := pmm.Size(partn)
+					if err != nil {
+						errString := fmt.Sprintf("%s p%d: %s", partn.Topic, partn.Partition, err.Error())
+						errs = append(errs, errString)
+						continue
+					}
+
+					constraints.requestSize = s
+				}
 
 				// Fetch the best candidate and append.
 				newBroker, err := bl.bestCandidate(constraints, strategy)

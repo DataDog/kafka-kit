@@ -317,7 +317,7 @@ func repCapacityByMetrics(rtm *ReplicationThrottleMeta, bmb bmapBundle, bm kafka
 
 // applyTopicThrottles updates the throttled brokers list for
 // all topics undergoing replication.
-// TODO we need to avoid continously resetting this to reduce writes
+// XXX we need to avoid continously resetting this to reduce writes
 // to ZK and subsequent config propagations to all brokers.
 // We can either:
 // - Ensure throttle lists are sorted so that if we provide the

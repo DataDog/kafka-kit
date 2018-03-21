@@ -185,7 +185,7 @@ func (b BrokerMap) filteredList() brokerList {
 
 // BrokerMapFromTopicMap creates a BrokerMap
 // from a topicMap. Counts occurance is counted.
-// TODO can we remove marked for replacement here too?
+// XXX can we remove marked for replacement here too?
 func BrokerMapFromTopicMap(pm *PartitionMap, bm BrokerMetaMap, force bool) BrokerMap {
 	bmap := BrokerMap{}
 	// For each partition.

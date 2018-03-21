@@ -35,9 +35,12 @@ func (b brokerList) bestCandidate(c *constraints, by string) (*broker, error) {
 
 	var candidate *broker
 
-	// Iterate over candidates.j
+	// Iterate over candidates.
 	for _, candidate = range b {
 		// Candidate passes, return.
+		// XXX Passes should check if
+		// a storage placement is going
+		// to run a broker over capacity.
 		if c.passes(candidate) {
 			c.add(candidate)
 			candidate.used++
