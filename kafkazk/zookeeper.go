@@ -44,19 +44,6 @@ type Handler interface {
 	GetPartitionMap(string) (*PartitionMap, error)
 }
 
-// BrokerMeta holds metadata that
-// describes a broker, used in satisfying
-// constraints.
-type BrokerMeta struct {
-	Rack string `json:"rack"`
-}
-
-// BrokerMetaMap is a map of broker IDs
-// to BrokerMeta metadata fetched from
-// ZooKeeper. Currently, just the rack
-// field is retrieved.
-type BrokerMetaMap map[int]*BrokerMeta
-
 // TopicState is used for unmarshing
 // ZooKeeper json data from a topic:
 // e.g. `get /brokers/topics/some-topic`.
@@ -294,8 +281,6 @@ func (z *zkHandler) GetTopicConfig(t string) (*TopicConfig, error) {
 // An withMetrics bool param determines whether we additionally
 // want to fetch stored broker metrics.
 func (z *zkHandler) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, error) {
-	_ = withMetrics
-
 	var path string
 	if z.Prefix != "" {
 		path = fmt.Sprintf("/%s/brokers/ids", z.Prefix)
@@ -338,7 +323,34 @@ func (z *zkHandler) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, error) {
 		bmm[bid] = bm
 	}
 
+	// Fetch and populate in metrics.
+	if withMetrics {
+		bmetrics, err := z.GetBrokerMetrics()
+		if err != nil {
+			errS := fmt.Sprintf("Error fetching broker metrics: %s", err.Error())
+			return nil, errors.New(errS)
+		}
+
+		// Populate each broker with
+		// metric data.
+		for bid := range bmm {
+			m, exists := bmetrics[bid]
+			if !exists {
+				errS := fmt.Sprintf("Metrics not found for broker %d", bid)
+				return nil, errors.New(errS)
+			}
+
+			bmm[bid].StorageFree = m.StorageFree
+		}
+
+	}
+
 	return bmm, nil
+}
+
+// GetBrokerMetrics
+func (z *zkHandler) GetBrokerMetrics() (BrokerMetricsMap, error) {
+	return BrokerMetricsMap{}, nil
 }
 
 // GetAllPartitionMeta
@@ -362,6 +374,7 @@ func (z *zkHandler) GetTopicState(t string) (*TopicState, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	/* Error handling pattern with
 	// previous client.
 	switch err {

@@ -7,6 +7,30 @@ import (
 	"strings"
 )
 
+// BrokerMeta holds metadata that
+// describes a broker, used in satisfying
+// constraints.
+type BrokerMeta struct {
+	Rack        string  `json:"rack"`
+	StorageFree float64 // In bytes.
+}
+
+// BrokerMetaMap is a map of broker IDs
+// to BrokerMeta metadata fetched from
+// ZooKeeper. Currently, just the rack
+// field is retrieved.
+type BrokerMetaMap map[int]*BrokerMeta
+
+// BrokerMetricsMap holds a mapping of broker ID
+// to BrokerMetrics.
+type BrokerMetricsMap map[int]*BrokerMetrics
+
+// BrokerMetrics holds broker metric
+// data fetched from ZK.
+type BrokerMetrics struct {
+	StorageFree float64
+}
+
 // BrokerUseStats holds counts
 // of partition ownership.
 type BrokerUseStats struct {
