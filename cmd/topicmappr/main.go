@@ -24,17 +24,19 @@ var (
 	// Config holds configuration
 	// parameters.
 	Config struct {
-		rebuildMap    string
-		rebuildTopics []*regexp.Regexp
-		brokers       []int
-		useMeta       bool
-		zkAddr        string
-		zkPrefix      string
-		outPath       string
-		outFile       string
-		ignoreWarns   bool
-		forceRebuild  bool
-		replication   int
+		rebuildMap      string
+		rebuildTopics   []*regexp.Regexp
+		brokers         []int
+		useMeta         bool
+		zkAddr          string
+		zkPrefix        string
+		zkMetricsPrefix string
+		outPath         string
+		outFile         string
+		ignoreWarns     bool
+		forceRebuild    bool
+		replication     int
+		placement       string
 	}
 )
 
@@ -46,12 +48,14 @@ func init() {
 	topics := flag.String("rebuild-topics", "", "Rebuild topics (comma delim list) by lookup in ZooKeeper")
 	flag.BoolVar(&Config.useMeta, "use-meta", true, "Use broker metadata as constraints")
 	flag.StringVar(&Config.zkAddr, "zk-addr", "localhost:2181", "ZooKeeper connect string (for broker metadata or rebuild-topic lookups)")
-	flag.StringVar(&Config.zkPrefix, "zk-prefix", "", "ZooKeeper namespace prefix")
+	flag.StringVar(&Config.zkPrefix, "zk-prefix", "", "ZooKeeper namespace prefix (for Kafka)")
+	flag.StringVar(&Config.zkMetricsPrefix, "zk-metrics-prefix", "topicmappr", "ZooKeeper namespace prefix (for Kafka metrics)")
 	flag.StringVar(&Config.outPath, "out-path", "", "Path to write output map files to")
 	flag.StringVar(&Config.outFile, "out-file", "", "If defined, write a combined map of all topics to a file")
 	flag.BoolVar(&Config.ignoreWarns, "ignore-warns", false, "Whether a map should be produced if warnings are emitted")
 	flag.BoolVar(&Config.forceRebuild, "force-rebuild", false, "Forces a rebuild even if all existing brokers are provided")
 	flag.IntVar(&Config.replication, "replication", 0, "Change the replication factor")
+	flag.StringVar(&Config.placement, "placement", "count", "Partition placement type: [count, storage]")
 	brokers := flag.String("brokers", "", "Broker list to rebuild topic partition map with")
 
 	flag.Parse()
@@ -59,10 +63,16 @@ func init() {
 	// Sanity check params.
 	switch {
 	case Config.rebuildMap == "" && *topics == "":
-		fmt.Println("Must specify either -rebuild-map or -rebuild-topics")
+		fmt.Println("[ERROR] Must specify either -rebuild-map or -rebuild-topics\n")
 		defaultsAndExit()
 	case len(*brokers) == 0:
-		fmt.Println("Broker list cannot be empty")
+		fmt.Println("[ERROR] --brokers cannot be empty\n")
+		defaultsAndExit()
+	case Config.placement != "count" && Config.placement != "storage":
+		fmt.Println("[ERROR] --placement must be either 'count' or 'storage'\n")
+		defaultsAndExit()
+	case !Config.useMeta && Config.placement == "storage":
+		fmt.Println("[ERROR] --placement=storage requires --use-meta=true\n")
 		defaultsAndExit()
 	}
 
@@ -97,11 +107,12 @@ func init() {
 func main() {
 	// ZooKeeper init.
 	var zk kafkazk.Handler
-	if Config.useMeta || len(Config.rebuildTopics) > 0 {
+	if Config.useMeta || len(Config.rebuildTopics) > 0 || Config.placement == "storage" {
 		var err error
 		zk, err = kafkazk.NewHandler(&kafkazk.Config{
-			Connect: Config.zkAddr,
-			Prefix:  Config.zkPrefix,
+			Connect:       Config.zkAddr,
+			Prefix:        Config.zkPrefix,
+			MetricsPrefix: Config.zkMetricsPrefix,
 		})
 		if err != nil {
 			fmt.Printf("Error connecting to ZooKeeper: %s\n", err)
@@ -112,12 +123,12 @@ func main() {
 	}
 
 	// General flow:
-	// 1) partitionMap formed from topic data (provided or via zk).
-	// BrokerMap is build from brokers found in input
-	// partitionMap + any new brokers provided from the
+	// 1) PartitionMap formed from topic data (provided or via zk).
+	// A BrokerMap is built from brokers found in the input
+	// PartitionMap + any new brokers provided from the
 	// --brokers param.
-	// 2) New partitionMap from origial map rebuild with updated
-	// the updated BrokerMap; marked brokers are removed and newly
+	// 2) New PartitionMap from the origial map is rebuilt with
+	// the BrokerMap; marked brokers are removed and newly
 	// provided brokers are swapped in where possible.
 	// 3) New map is possibly expanded/rebalanced.
 	// 4) Final map output.
@@ -126,18 +137,38 @@ func main() {
 	var brokerMetadata kafkazk.BrokerMetaMap
 	if Config.useMeta {
 		var err error
-		brokerMetadata, err = zk.GetAllBrokerMeta()
+
+		// Whether or not we want to include
+		// additional broker metrics metadata.
+		var withMetrics bool
+		if Config.placement == "storage" {
+			withMetrics = true
+		}
+
+		brokerMetadata, err = zk.GetAllBrokerMeta(withMetrics)
 		if err != nil {
 			fmt.Printf("Error fetching broker metadata: %s\n", err)
 			os.Exit(1)
 		}
 	}
 
+	// Fetch partition metadata.
+	var partitionMeta kafkazk.PartitionMetaMap
+	if Config.placement == "storage" {
+		var err error
+		partitionMeta, err = zk.GetAllPartitionMeta()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	}
+
 	// Build a topic map with either
-	// explicit input or by fetching the
+	// text input or by fetching the
 	// map data from ZooKeeper.
 	partitionMapIn := kafkazk.NewPartitionMap()
 	switch {
+	// Provided as text.
 	case Config.rebuildMap != "":
 		pm, err := kafkazk.PartitionMapFromString(Config.rebuildMap)
 		if err != nil {
@@ -145,6 +176,7 @@ func main() {
 			os.Exit(1)
 		}
 		partitionMapIn = pm
+	// Fetch from ZK.
 	case len(Config.rebuildTopics) > 0:
 		pm, err := kafkazk.PartitionMapFromZK(Config.rebuildTopics, zk)
 		if err != nil {
@@ -183,6 +215,9 @@ func main() {
 	// the provided broker list.
 	bs := brokers.Update(Config.brokers, brokerMetadata)
 	change := bs.New - bs.Replace
+
+	// Store a copy.
+	brokersOrig := brokers.Copy()
 
 	// Print change summary.
 	fmt.Printf("%sReplacing %d, added %d, missing %d, total count changed by %d\n",
@@ -224,14 +259,53 @@ func main() {
 
 	// If we're doing a force rebuild, the input map
 	// must have all brokers stripped out.
+	// A few notes about doing force rebuilds:
+	//	- Map rebuilds should always be called on a stripped PartitionMap copy.
+	//  - The BrokerMap provided in the Rebuild call should have
+	//		been built from the original PartitionMap, not the stripped map.
+	//  - A force rebuild assumes that all partitions will be lifted from
+	// 		all brokers and repositioned. This means you should call the
+	// 		SubStorage method on the BrokerMap if we're doing a "storage" placement strategy.
+	//		The SubStorage takes a PartitionMap and PartitionMetaMap. The PartitionMap is
+	// 		used to find partition to broker relationships so that the storage used can
+	//		be readded to the broker's StorageFree value. The amount to be readded, the
+	//		size of the partition, is referenced from the PartitionMetaMap.
 	if Config.forceRebuild {
+		// Get a stripped map that we'll call rebuild on.
 		partitionMapInStripped := partitionMapIn.Strip()
-		partitionMapOut, warns = partitionMapInStripped.Rebuild(brokers)
+		// If the storage placement strategy is being used,
+		// update the broker StorageFree values.
+		if Config.placement == "storage" {
+			err := brokers.SubStorage(partitionMapIn, partitionMeta)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+		}
+		// Rebuild.
+		partitionMapOut, warns = partitionMapInStripped.Rebuild(brokers, partitionMeta, Config.placement)
 	} else {
-		partitionMapOut, warns = partitionMapIn.Rebuild(brokers)
+		// Rebuild directly on the input map.
+		partitionMapOut, warns = partitionMapIn.Rebuild(brokers, partitionMeta, Config.placement)
 	}
 
+	// XXX If we use the storage placement strategy,
+	// we can call an optimize pass in a separate
+	// stage here. Rebuild is complex enough;
+	// introducing single-pass optimization there
+	// might not be the best. It's likely OK that
+	// rebuild handles replacements and initial
+	// storage based placement while honoring the
+	// locality / replication constraints.
+	// A dedicated optimization function can focus
+	// on optimizations within a given locality.
+	// For example, we can arbitrarily shuffle all
+	// partitions within a rack.id value, then perform
+	// an optimization for each value.
+
 	// Sort by topic, partition.
+	// XXX Partitions should now be sorted
+	// at their origins. Confirm this.
 	sort.Sort(partitionMapIn.Partitions)
 	sort.Sort(partitionMapOut.Partitions)
 
@@ -252,7 +326,7 @@ func main() {
 		fmt.Printf("%s[none]\n", indent)
 	}
 
-	// TODO scan partition lists
+	// XXX scan partition lists
 	// and ensure they're the same
 	// topic, partition.
 
@@ -278,6 +352,25 @@ func main() {
 	for id, use := range UseStats {
 		fmt.Printf("%sBroker %d - leader: %d, follower: %d, total: %d\n",
 			indent, id, use.Leader, use.Follower, use.Leader+use.Follower)
+	}
+
+	// If we're using the storage placement strategy,
+	// write anticipated storage changes.
+	div := 1073741824.00
+	if Config.placement == "storage" {
+		fmt.Println("\nStorage free change estimations:")
+		storageDiffs := brokersOrig.StorageDiff(brokers)
+		for id, diff := range storageDiffs {
+			if id == 0 {
+				continue
+			}
+			var sign string
+			if diff[0] > 0 {
+				sign = "+"
+			}
+			fmt.Printf("%sBroker %d - %.2f -> %.2f (%s%.2fGB, %.2f%%)\n",
+				indent, id, brokersOrig[id].StorageFree/div, brokers[id].StorageFree/div, sign, diff[0]/div, diff[1])
+		}
 	}
 
 	// Don't write the output if ignoreWarns is set.

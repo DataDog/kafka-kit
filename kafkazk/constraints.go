@@ -1,14 +1,21 @@
 package kafkazk
 
 import (
+	"errors"
 	"sort"
+)
+
+var (
+	errNoBrokers              = errors.New("No additional brokers that meet constraints")
+	errInvalidSelectionMethod = errors.New("Invalid selection method")
 )
 
 // Constraints holds a map of
 // IDs and locality key-values.
 type constraints struct {
-	locality map[string]bool
-	id       map[int]bool
+	requestSize float64
+	locality    map[string]bool
+	id          map[int]bool
 }
 
 // newConstraints returns an empty *constraints.
@@ -19,17 +26,28 @@ func newConstraints() *constraints {
 	}
 }
 
-// bestCandidate takes a *constraints
-// and returns the *broker with the lowest used
-// count that satisfies all constraints.
-func (b brokerList) bestCandidate(c *constraints) (*broker, error) {
-	sort.Sort(b)
+// bestCandidate takes a *constraints and selection
+// method and returns the most suitable broker.
+func (b brokerList) bestCandidate(c *constraints, by string) (*broker, error) {
+	// Sort type based on the
+	// desired placement criteria.
+	switch by {
+	case "count":
+		sort.Sort(byCount(b))
+	case "storage":
+		sort.Sort(byStorage(b))
+	default:
+		return nil, errInvalidSelectionMethod
+	}
 
 	var candidate *broker
 
 	// Iterate over candidates.
 	for _, candidate = range b {
 		// Candidate passes, return.
+		// XXX Passes should check if
+		// a storage placement is going
+		// to run a broker over capacity.
 		if c.passes(candidate) {
 			c.add(candidate)
 			candidate.used++
@@ -44,7 +62,11 @@ func (b brokerList) bestCandidate(c *constraints) (*broker, error) {
 
 // add takes a *broker and adds its
 // attributes to the *constraints.
+// The requestSize is also subtracted
+// from the *broker.StorageFree.
 func (c *constraints) add(b *broker) {
+	b.StorageFree -= c.requestSize
+
 	if b.locality != "" {
 		c.locality[b.locality] = true
 	}

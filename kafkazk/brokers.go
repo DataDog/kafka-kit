@@ -1,11 +1,36 @@
 package kafkazk
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
 )
+
+// BrokerMetaMap is a map of broker IDs
+// to BrokerMeta metadata fetched from
+// ZooKeeper. Currently, just the rack
+// field is retrieved.
+type BrokerMetaMap map[int]*BrokerMeta
+
+// BrokerMeta holds metadata that
+// describes a broker, used in satisfying
+// constraints.
+type BrokerMeta struct {
+	Rack        string  `json:"rack"`
+	StorageFree float64 // In bytes.
+}
+
+// BrokerMetricsMap holds a mapping of broker
+// ID to BrokerMetrics.
+type BrokerMetricsMap map[int]*BrokerMetrics
+
+// BrokerMetrics holds broker metric
+// data fetched from ZK.
+type BrokerMetrics struct {
+	StorageFree float64
+}
 
 // BrokerUseStats holds counts
 // of partition ownership.
@@ -26,10 +51,11 @@ type BrokerStatus struct {
 // broker is used for internal
 // metadata / accounting.
 type broker struct {
-	id       int
-	locality string
-	used     int
-	replace  bool
+	id          int
+	locality    string
+	used        int
+	StorageFree float64
+	replace     bool
 }
 
 // BrokerMap holds a mapping of
@@ -40,15 +66,35 @@ type BrokerMap map[int]*broker
 // brokers for sorting by used count.
 type brokerList []*broker
 
-// Satisfy the sort interface for brokerList.
+// Wrapper types for sort by
+// methods.
+type byCount brokerList
+type byStorage brokerList
 
-func (b brokerList) Len() int      { return len(b) }
-func (b brokerList) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
-func (b brokerList) Less(i, j int) bool {
+// Satisfy the sort interface for brokerList types.
+
+// By used field value.
+func (b byCount) Len() int      { return len(b) }
+func (b byCount) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
+func (b byCount) Less(i, j int) bool {
 	if b[i].used < b[j].used {
 		return true
 	}
 	if b[i].used > b[j].used {
+		return false
+	}
+
+	return b[i].id < b[j].id
+}
+
+// By StorageFree value.
+func (b byStorage) Len() int      { return len(b) }
+func (b byStorage) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
+func (b byStorage) Less(i, j int) bool {
+	if b[i].StorageFree > b[j].StorageFree {
+		return true
+	}
+	if b[i].StorageFree < b[j].StorageFree {
 		return false
 	}
 
@@ -148,6 +194,34 @@ func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) *BrokerStatus {
 	return bs
 }
 
+// SubStorage takes a PartitionMap + PartitionMetaMap and adds
+// the size of each partition back to the StorageFree value
+// of any broker it was originally mapped to.
+// This is used in a force rebuild where the assumption
+// is that partitions will be lifted and repositioned.
+func (b BrokerMap) SubStorage(pm *PartitionMap, pmm PartitionMetaMap) error {
+	// Get the size of each partition.
+	for _, partn := range pm.Partitions {
+		size, err := pmm.Size(partn)
+		if err != nil {
+			return err
+		}
+
+		// Add this size back to the
+		// StorageFree for all mapped brokers.
+		for _, bid := range partn.Replicas {
+			if b, exists := b[bid]; exists {
+				b.StorageFree += size
+			} else {
+				errS := fmt.Sprintf("Broker %d not found in broker map", bid)
+				return errors.New(errS)
+			}
+		}
+	}
+
+	return nil
+}
+
 // filteredList converts a BrokerMap to a brokerList,
 // excluding nodes marked for replacement.
 func (b BrokerMap) filteredList() brokerList {
@@ -164,7 +238,7 @@ func (b BrokerMap) filteredList() brokerList {
 
 // BrokerMapFromTopicMap creates a BrokerMap
 // from a topicMap. Counts occurance is counted.
-// TODO can we remove marked for replacement here too?
+// XXX can we remove marked for replacement here too?
 func BrokerMapFromTopicMap(pm *PartitionMap, bm BrokerMetaMap, force bool) BrokerMap {
 	bmap := BrokerMap{}
 	// For each partition.
@@ -191,6 +265,7 @@ func BrokerMapFromTopicMap(pm *PartitionMap, bm BrokerMetaMap, force bool) Broke
 			// Add metadata if we have it.
 			if meta, exists := bm[id]; exists {
 				bmap[id].locality = meta.Rack
+				bmap[id].StorageFree = meta.StorageFree
 			}
 		}
 	}
@@ -202,6 +277,41 @@ func BrokerMapFromTopicMap(pm *PartitionMap, bm BrokerMetaMap, force bool) Broke
 	bmap[0] = &broker{used: 0, id: 0, replace: true}
 
 	return bmap
+}
+
+// StorageDiff takes two BrokerMaps and returns
+// a per broker ID diff in storage as a [2]float64:
+// [absolute, percentage] diff.
+func (b BrokerMap) StorageDiff(b2 BrokerMap) map[int][2]float64 {
+	d := map[int][2]float64{}
+
+	for bid := range b {
+		if _, exist := b2[bid]; !exist {
+			continue
+		}
+
+		diff := b2[bid].StorageFree - b[bid].StorageFree
+		p := diff / b[bid].StorageFree * 100
+		d[bid] = [2]float64{diff, p}
+	}
+
+	return d
+}
+
+// Copy returns a copy of a BrokerMap.
+func (b BrokerMap) Copy() BrokerMap {
+	c := BrokerMap{}
+	for id, br := range b {
+		c[id] = &broker{
+			id:          br.id,
+			locality:    br.locality,
+			used:        br.used,
+			StorageFree: br.StorageFree,
+			replace:     br.replace,
+		}
+	}
+
+	return c
 }
 
 // BrokerStringToSlice takes a broker list

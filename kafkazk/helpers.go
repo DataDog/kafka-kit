@@ -2,17 +2,12 @@ package kafkazk
 
 import (
 	"bytes"
-	"errors"
 	"math"
 	"sort"
 )
 
 const (
 	indent = "  "
-)
-
-var (
-	errNoBrokers = errors.New("No additional brokers that meet constraints")
 )
 
 // WhatChanged takes a before and after broker

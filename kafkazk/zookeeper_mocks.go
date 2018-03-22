@@ -120,7 +120,7 @@ func (zk *Mock) GetTopicConfig(t string) (*TopicConfig, error) {
 }
 
 // GetAllBrokerMeta mocks GetAllBrokerMeta.
-func (zk *Mock) GetAllBrokerMeta() (BrokerMetaMap, error) {
+func (zk *Mock) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, error) {
 	b := BrokerMetaMap{
 		1001: &BrokerMeta{Rack: "a"},
 		1002: &BrokerMeta{Rack: "b"},
@@ -129,7 +129,42 @@ func (zk *Mock) GetAllBrokerMeta() (BrokerMetaMap, error) {
 		1005: &BrokerMeta{Rack: "b"},
 	}
 
+	if withMetrics {
+		m, _ := zk.GetBrokerMetrics()
+
+		for bid := range b {
+			b[bid].StorageFree = m[bid].StorageFree
+		}
+	}
+
 	return b, nil
+}
+
+// GetBrokerMetrics mocks GetBrokerMetrics.
+func (zk *Mock) GetBrokerMetrics() (BrokerMetricsMap, error) {
+	bm := BrokerMetricsMap{
+		1001: &BrokerMetrics{StorageFree: 2000.00},
+		1002: &BrokerMetrics{StorageFree: 4000.00},
+		1003: &BrokerMetrics{StorageFree: 6000.00},
+		1004: &BrokerMetrics{StorageFree: 8000.00},
+		1005: &BrokerMetrics{StorageFree: 10000.00},
+	}
+
+	return bm, nil
+}
+
+// GetAllPartitionMeta mocks GetAllPartitionMeta.
+func (zk *Mock) GetAllPartitionMeta() (PartitionMetaMap, error) {
+	pm := NewPartitionMetaMap()
+	pm["test_topic"] = map[int]*PartitionMeta{}
+
+	pm["test_topic"][0] = &PartitionMeta{Size: 1000.00}
+	pm["test_topic"][1] = &PartitionMeta{Size: 1500.00}
+	pm["test_topic"][2] = &PartitionMeta{Size: 2000.00}
+	pm["test_topic"][3] = &PartitionMeta{Size: 2500.00}
+	pm["test_topic"][4] = &PartitionMeta{Size: 3000.00}
+
+	return pm, nil
 }
 
 // GetPartitionMap mocks GetPartitionMap.

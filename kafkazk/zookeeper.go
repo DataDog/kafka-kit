@@ -39,22 +39,10 @@ type Handler interface {
 	GetReassignments() Reassignments
 	GetTopics([]*regexp.Regexp) ([]string, error)
 	GetTopicConfig(string) (*TopicConfig, error)
-	GetAllBrokerMeta() (BrokerMetaMap, error)
+	GetAllBrokerMeta(bool) (BrokerMetaMap, error)
+	GetAllPartitionMeta() (PartitionMetaMap, error)
 	GetPartitionMap(string) (*PartitionMap, error)
 }
-
-// BrokerMeta holds metadata that
-// describes a broker, used in satisfying
-// constraints.
-type BrokerMeta struct {
-	Rack string `json:"rack"`
-}
-
-// BrokerMetaMap is a map of broker IDs
-// to BrokerMeta metadata fetched from
-// ZooKeeper. Currently, just the rack
-// field is retrieved.
-type BrokerMetaMap map[int]*BrokerMeta
 
 // TopicState is used for unmarshing
 // ZooKeeper json data from a topic:
@@ -112,9 +100,10 @@ func NewKafkaConfigData() KafkaConfigData {
 // zkHandler implements the Handler interface
 // for real ZooKeeper clusters.
 type zkHandler struct {
-	client  *zkclient.Conn
-	Connect string
-	Prefix  string
+	client        *zkclient.Conn
+	Connect       string
+	Prefix        string
+	MetricsPrefix string
 }
 
 // Config holds initialization
@@ -123,17 +112,22 @@ type zkHandler struct {
 // Prefix should reflect any prefix
 // used for Kafka on the reference
 // ZooKeeper cluster (excluding slashes).
+// MetricsPrefix is the prefix used for
+// broker metrics metadata persisted in
+// ZooKeeper.
 type Config struct {
-	Connect string
-	Prefix  string
+	Connect       string
+	Prefix        string
+	MetricsPrefix string
 }
 
 // NewHandler takes a *Config, performs
 // any initialization and returns a Handler.
 func NewHandler(c *Config) (Handler, error) {
 	z := &zkHandler{
-		Connect: c.Connect,
-		Prefix:  c.Prefix,
+		Connect:       c.Connect,
+		Prefix:        c.Prefix,
+		MetricsPrefix: c.MetricsPrefix,
 	}
 
 	var err error
@@ -156,7 +150,12 @@ func (z *zkHandler) Close() {
 // Get gets the provided path p and returns
 // the data from the path and an error if encountered.
 func (z *zkHandler) Get(p string) ([]byte, error) {
-	r, _, err := z.client.Get(p)
+	r, _, e := z.client.Get(p)
+	var err error
+	if e != nil {
+		err = errors.New(fmt.Sprintf("[%s] %s", p, e.Error()))
+	}
+
 	return r, err
 }
 
@@ -164,7 +163,12 @@ func (z *zkHandler) Get(p string) ([]byte, error) {
 // provided string d and returns an error
 // if encountered.
 func (z *zkHandler) Set(p string, d string) error {
-	_, err := z.client.Set(p, []byte(d), -1)
+	_, e := z.client.Set(p, []byte(d), -1)
+	var err error
+	if e != nil {
+		err = errors.New(fmt.Sprintf("[%s] %s", p, e.Error()))
+	}
+
 	return err
 }
 
@@ -172,7 +176,12 @@ func (z *zkHandler) Set(p string, d string) error {
 // creates a sequential znode at p with data d.
 // An error is returned if encountered.
 func (z *zkHandler) CreateSequential(p string, d string) error {
-	_, err := z.client.Create(p, []byte(d), zkclient.FlagSequence, zkclient.WorldACL(31))
+	_, e := z.client.Create(p, []byte(d), zkclient.FlagSequence, zkclient.WorldACL(31))
+	var err error
+	if e != nil {
+		err = errors.New(fmt.Sprintf("[%s] %s", p, e.Error()))
+	}
+
 	return err
 }
 
@@ -180,7 +189,12 @@ func (z *zkHandler) CreateSequential(p string, d string) error {
 // from the provided string d and returns an error
 // if encountered.
 func (z *zkHandler) Create(p string, d string) error {
-	_, err := z.client.Create(p, []byte(d), 0, zkclient.WorldACL(31))
+	_, e := z.client.Create(p, []byte(d), 0, zkclient.WorldACL(31))
+	var err error
+	if e != nil {
+		err = errors.New(fmt.Sprintf("[%s] %s", p, e.Error()))
+	}
+
 	return err
 }
 
@@ -188,8 +202,13 @@ func (z *zkHandler) Create(p string, d string) error {
 // as to whether the path exists and an error
 // if encountered.
 func (z *zkHandler) Exists(p string) (bool, error) {
-	e, _, err := z.client.Exists(p)
-	return e, err
+	b, _, e := z.client.Exists(p)
+	var err error
+	if e != nil {
+		err = errors.New(fmt.Sprintf("[%s] %s", p, e.Error()))
+	}
+
+	return b, err
 }
 
 // GetReassignments looks up any ongoing
@@ -290,7 +309,9 @@ func (z *zkHandler) GetTopicConfig(t string) (*TopicConfig, error) {
 
 // GetAllBrokerMeta looks up all registered Kafka
 // brokers and returns their metadata as a BrokerMetaMap.
-func (z *zkHandler) GetAllBrokerMeta() (BrokerMetaMap, error) {
+// An withMetrics bool param determines whether we additionally
+// want to fetch stored broker metrics.
+func (z *zkHandler) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, error) {
 	var path string
 	if z.Prefix != "" {
 		path = fmt.Sprintf("/%s/brokers/ids", z.Prefix)
@@ -333,7 +354,87 @@ func (z *zkHandler) GetAllBrokerMeta() (BrokerMetaMap, error) {
 		bmm[bid] = bm
 	}
 
+	// Fetch and populate in metrics.
+	if withMetrics {
+		bmetrics, err := z.getBrokerMetrics()
+		if err != nil {
+			errS := fmt.Sprintf("Error fetching broker metrics: %s", err.Error())
+			return nil, errors.New(errS)
+		}
+
+		// Populate each broker with
+		// metric data.
+		for bid := range bmm {
+			m, exists := bmetrics[bid]
+			if !exists {
+				errS := fmt.Sprintf("Metrics not found for broker %d", bid)
+				return nil, errors.New(errS)
+			}
+
+			bmm[bid].StorageFree = m.StorageFree
+		}
+
+	}
+
 	return bmm, nil
+}
+
+// GetBrokerMetrics fetches broker metrics stored
+// in ZooKeeper and returns a BrokerMetricsMap and
+// an error if encountered.
+func (z *zkHandler) getBrokerMetrics() (BrokerMetricsMap, error) {
+	var path string
+	if z.MetricsPrefix != "" {
+		path = fmt.Sprintf("/%s/brokermetrics", z.MetricsPrefix)
+	} else {
+		path = "/brokermetrics"
+	}
+
+	// Fetch the metrics object.
+	data, err := z.Get(path)
+	if err != nil {
+		errS := fmt.Sprintf("Error fetching broker metrics: %s", err.Error())
+		return nil, errors.New(errS)
+	}
+
+	bmm := BrokerMetricsMap{}
+	err = json.Unmarshal(data, &bmm)
+	if err != nil {
+		errS := fmt.Sprintf("Error unmarshalling broker metrics: %s", err.Error())
+		return nil, errors.New(errS)
+	}
+
+	return bmm, nil
+}
+
+// GetAllPartitionMeta fetches partition metadata stored in Zookeeper.
+func (z *zkHandler) GetAllPartitionMeta() (PartitionMetaMap, error) {
+	var path string
+	if z.MetricsPrefix != "" {
+		path = fmt.Sprintf("/%s/partitionmeta", z.MetricsPrefix)
+	} else {
+		path = "/partitionmeta"
+	}
+
+	// Fetch the metrics object.
+	data, err := z.Get(path)
+	if err != nil {
+		errS := fmt.Sprintf("Error fetching partition meta: %s", err.Error())
+		return nil, errors.New(errS)
+	}
+
+	if string(data) == "" {
+		return nil, errors.New("No partition meta")
+	}
+
+	pmm := NewPartitionMetaMap()
+	err = json.Unmarshal(data, &pmm)
+	if err != nil {
+		errS := fmt.Sprintf("Error unmarshalling partition meta: %s", err.Error())
+		return nil, errors.New(errS)
+	}
+
+	return pmm, nil
 }
 
 // GetTopicState takes a topic name. If the topic exists,
@@ -352,6 +453,7 @@ func (z *zkHandler) GetTopicState(t string) (*TopicState, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	/* Error handling pattern with
 	// previous client.
 	switch err {

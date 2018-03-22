@@ -1,6 +1,7 @@
 package kafkazk
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"sort"
@@ -30,6 +31,10 @@ var (
 		zkprefix + "/config/topics",
 		zkprefix + "/config/brokers",
 		zkprefix + "/config/changes",
+		// Topicmappr specific.
+		"/topicmappr",
+		"/topicmappr/brokermetrics",
+		"/topicmappr/partitionmeta",
 	}
 )
 
@@ -88,8 +93,9 @@ func TestSetup(t *testing.T) {
 		}
 
 		zki, err = NewHandler(&Config{
-			Connect: zkaddr,
-			Prefix:  configPrefix,
+			Connect:       zkaddr,
+			Prefix:        configPrefix,
+			MetricsPrefix: "topicmappr",
 		})
 		if err != nil {
 			t.Errorf("Error initializing ZooKeeper client: %s", err.Error())
@@ -103,19 +109,36 @@ func TestSetup(t *testing.T) {
 		for _, p := range paths {
 			_, err := zkc.Create(p, []byte{}, 0, zkclient.WorldACL(31))
 			if err != nil {
-				t.Error(err)
+				errS := fmt.Sprintf("path %s: %s", p, err.Error())
+				t.Error(errS)
 			}
 		}
 
 		// Create topics.
+		partitionMeta := NewPartitionMetaMap()
 		data := []byte(`{"version":1,"partitions":{"0":[1001,1002],"1":[1002,1001],"2":[1003,1004],"3":[1004,1003]}}`)
 		for i := 0; i < 5; i++ {
-			topic := fmt.Sprintf("%s/brokers/topics/topic%d", zkprefix, i)
-			paths = append(paths, topic)
-			_, err := zkc.Create(topic, data, 0, zkclient.WorldACL(31))
+			topic := fmt.Sprintf("topic%d", i)
+			p := fmt.Sprintf("%s/brokers/topics/%s", zkprefix, topic)
+			paths = append(paths, p)
+			_, err := zkc.Create(p, data, 0, zkclient.WorldACL(31))
 			if err != nil {
 				t.Error(err)
 			}
+			// Create partition meta.
+			partitionMeta[topic] = map[int]*PartitionMeta{
+				0: &PartitionMeta{Size: 1000.00},
+				1: &PartitionMeta{Size: 2000.00},
+				2: &PartitionMeta{Size: 3000.00},
+				3: &PartitionMeta{Size: 4000.00},
+			}
+		}
+
+		// Store partition meta.
+		data, _ = json.Marshal(partitionMeta)
+		_, err = zkc.Set("/topicmappr/partitionmeta", data, -1)
+		if err != nil {
+			t.Error(err)
 		}
 
 		// Create reassignments data.
@@ -135,7 +158,7 @@ func TestSetup(t *testing.T) {
 
 		// Create brokers.
 		rack := []string{"a", "b", "c"}
-		for i := 0; i < 10; i++ {
+		for i := 0; i < 5; i++ {
 			// Create data.
 			data := fmt.Sprintf(`{"listener_security_protocol_map":{"PLAINTEXT":"PLAINTEXT"},"endpoints":["PLAINTEXT://10.0.1.%d:9092"],"rack":"%s","jmx_port":9999,"host":"10.0.1.%d","timestamp":"%d","port":9092,"version":4}`,
 				100+i, rack[i%3], 100+i, time.Now().Unix())
@@ -151,12 +174,23 @@ func TestSetup(t *testing.T) {
 
 			// Create broker config path.
 			p = fmt.Sprintf("%s/config/brokers/%d", zkprefix, 1001+i)
-			fmt.Println(p)
 			paths = append(paths, p)
 			_, err = zkc.Create(p, []byte{}, 0, zkclient.WorldACL(31))
 			if err != nil {
 				t.Error(err)
 			}
+		}
+
+		// Create broker metrics.
+		data = []byte(`{
+			"1001": {"StorageFree": 10000.00},
+			"1002": {"StorageFree": 20000.00},
+			"1003": {"StorageFree": 30000.00},
+			"1004": {"StorageFree": 40000.00},
+			"1005": {"StorageFree": 50000.00}}`)
+		_, err = zkc.Set("/topicmappr/brokermetrics", data, -1)
+		if err != nil {
+			t.Error(err)
 		}
 
 	} else {
@@ -335,13 +369,13 @@ func TestGetAllBrokerMeta(t *testing.T) {
 		t.Skip()
 	}
 
-	bm, err := zki.GetAllBrokerMeta()
+	bm, err := zki.GetAllBrokerMeta(false)
 	if err != nil {
 		t.Error(err)
 	}
 
-	if len(bm) != 10 {
-		t.Errorf("Expected BrokerMetaMap len of 10, got %d", len(bm))
+	if len(bm) != 5 {
+		t.Errorf("Expected BrokerMetaMap len of 5, got %d", len(bm))
 	}
 
 	expected := map[int]string{
@@ -350,11 +384,6 @@ func TestGetAllBrokerMeta(t *testing.T) {
 		1003: "c",
 		1004: "a",
 		1005: "b",
-		1006: "c",
-		1007: "a",
-		1008: "b",
-		1009: "c",
-		1010: "a",
 	}
 
 	for b, r := range bm {
@@ -362,6 +391,65 @@ func TestGetAllBrokerMeta(t *testing.T) {
 			t.Errorf("Expected rack '%s' for %d, got '%s'", expected[b], b, r.Rack)
 		}
 	}
+}
+
+func TestGetBrokerMetrics(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	// Get broker meta withMetrics.
+	bm, err := zki.GetAllBrokerMeta(true)
+	if err != nil {
+		t.Error(err)
+	}
+
+	expected := map[int]float64{
+		1001: 10000.00,
+		1002: 20000.00,
+		1003: 30000.00,
+		1004: 40000.00,
+		1005: 50000.00,
+	}
+
+	for b, v := range bm {
+		if v.StorageFree != expected[b] {
+			t.Errorf("Unexpected StorageFree metric for broker %d", b)
+		}
+	}
+}
+
+func TestGetAllPartitionMeta(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	pm, err := zki.GetAllPartitionMeta()
+	if err != nil {
+		t.Error(err)
+	}
+
+	expected := map[int]float64{
+		0: 1000.00,
+		1: 2000.00,
+		2: 3000.00,
+		3: 4000.00,
+	}
+
+	for i := 0; i < 5; i++ {
+		topic := fmt.Sprintf("topic%d", i)
+		meta, exists := pm[topic]
+		if !exists {
+			t.Errorf("Expected topic '%s' in partition meta", topic)
+		}
+
+		for partn, m := range meta {
+			if m.Size != expected[partn] {
+				t.Errorf("Expected size %f for %s %d, got %f", expected[partn], topic, partn, m.Size)
+			}
+		}
+	}
+
 }
 
 func TestGetTopicState(t *testing.T) {
@@ -554,17 +642,17 @@ func TestTearDown(t *testing.T) {
 	for _, p := range paths {
 		_, s, err := zkc.Get(p)
 		if err != nil {
-			errors = append(errors, fmt.Sprintf("path %s: %s", p, err.Error()))
+			errors = append(errors, fmt.Sprintf("[%s] %s", p, err.Error()))
 		} else {
 			err = zkc.Delete(p, s.Version)
 			if err != nil {
-				errors = append(errors, fmt.Sprintf("path %s: %s", p, err.Error()))
+				errors = append(errors, fmt.Sprintf("[%s] %s", p, err.Error()))
 			}
 		}
 	}
 
-	for _, e := range errors {
-		fmt.Println(e)
+	for _, err := range errors {
+		fmt.Println(err)
 	}
 
 	if len(errors) > 0 {

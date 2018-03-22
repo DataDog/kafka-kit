@@ -2,11 +2,12 @@ package kafkazk
 
 import (
 	"testing"
+	"sort"
 )
 
 func TestBrokerMapFromTopicMap(t *testing.T) {
 	zk := &Mock{}
-	bmm, _ := zk.GetAllBrokerMeta()
+	bmm, _ := zk.GetAllBrokerMeta(false)
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 	forceRebuild := false
 
@@ -33,7 +34,7 @@ func TestBrokerMapFromTopicMap(t *testing.T) {
 
 func TestUpdate(t *testing.T) {
 	zk := &Mock{}
-	bmm, _ := zk.GetAllBrokerMeta()
+	bmm, _ := zk.GetAllBrokerMeta(false)
 	bm := newMockBrokerMap()
 	// 1001 isn't in the list, should
 	// add to the Missing count.
@@ -62,6 +63,8 @@ func TestUpdate(t *testing.T) {
 
 }
 
+// func TestSubStorage(t *testing.T) {} XXX Do.
+
 func TestFilteredList(t *testing.T) {
 	bm := newMockBrokerMap()
 	bm[1003].replace = true
@@ -76,6 +79,80 @@ func TestFilteredList(t *testing.T) {
 	for _, b := range nl {
 		if _, exist := expected[b.id]; !exist {
 			t.Errorf("Broker ID %d shouldn't exist", b.id)
+		}
+	}
+}
+
+func TestBrokerMapCopy(t *testing.T) {
+	bm1 := newMockBrokerMap()
+	bm2 := bm1.Copy()
+
+	if len(bm1) != len(bm2) {
+		t.Errorf("Unexpected length inequality")
+	}
+
+	for b := range bm1 {
+		switch {
+		case bm1[b].id != bm2[b].id:
+			t.Errorf("id field mismatch")
+		case bm1[b].locality != bm2[b].locality:
+			t.Errorf("locality field mismatch")
+		case bm1[b].used != bm2[b].used:
+			t.Errorf("used field mismatch")
+		case bm1[b].replace != bm2[b].replace:
+			t.Errorf("replace field mismatch")
+		case bm1[b].StorageFree != bm2[b].StorageFree:
+			t.Errorf("StorageFree field mismatch")
+		}
+	}
+}
+
+func TestBrokerMapStorageDiff(t *testing.T) {
+	bm1 := newMockBrokerMap()
+	bm2 := newMockBrokerMap()
+
+	bm2[1001].StorageFree = 200.00
+	bm2[1002].StorageFree = 100.00
+
+	diff := bm1.StorageDiff(bm2)
+
+	expected := map[int][2]float64{
+		1001: [2]float64{100.00, 100.00},
+		1002: [2]float64{-100, -50.00},
+	}
+
+	for bid, v := range expected {
+		if v[0] != diff[bid][0] {
+			t.Errorf("Expected diff value of %f, got %f\n", v[0], diff[bid][0])
+		}
+
+		if v[1] != diff[bid][1] {
+			t.Errorf("Expected diff percent of %f, got %f\n", v[1], diff[bid][1])
+		}
+	}
+}
+
+func TestBrokerListSort(t *testing.T) {
+	bl := newMockBrokerMap().filteredList()
+
+	// Test sort byStorage.
+	sort.Sort(byStorage(bl))
+
+	expected := []int{1004,1003,1002,1001}
+
+	for i, b := range bl {
+		if b.id != expected[i] {
+			t.Errorf("Expected broker %d, got %d", expected[i], b.id)
+		}
+	}
+	// Test sort byCount.
+	sort.Sort(byCount(bl))
+
+	expected = []int{1003,1004,1001,1002}
+
+	for i, b := range bl {
+		if b.id != expected[i] {
+			t.Errorf("Expected broker %d, got %d", expected[i], b.id)
 		}
 	}
 }
@@ -98,9 +175,9 @@ func TestBrokerStringToSlice(t *testing.T) {
 func newMockBrokerMap() BrokerMap {
 	return BrokerMap{
 		0:    &broker{id: 0, replace: true},
-		1001: &broker{id: 1001, locality: "a", used: 3, replace: false},
-		1002: &broker{id: 1002, locality: "b", used: 3, replace: false},
-		1003: &broker{id: 1003, locality: "c", used: 2, replace: false},
-		1004: &broker{id: 1004, locality: "a", used: 2, replace: false},
+		1001: &broker{id: 1001, locality: "a", used: 3, replace: false, StorageFree: 100.00},
+		1002: &broker{id: 1002, locality: "b", used: 3, replace: false, StorageFree: 200.00},
+		1003: &broker{id: 1003, locality: "c", used: 2, replace: false, StorageFree: 300.00},
+		1004: &broker{id: 1004, locality: "a", used: 2, replace: false, StorageFree: 400.00},
 	}
 }

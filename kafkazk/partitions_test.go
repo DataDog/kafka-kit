@@ -15,6 +15,8 @@ func testGetMapString(n string) string {
     {"topic":"%s","partition":3,"replicas":[1004,1003,1002]}]}`, n, n, n, n)
 }
 
+// func TestSize(t *testing.T) {} XXX Do.
+
 func TestEqual(t *testing.T) {
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 	pm2, _ := PartitionMapFromString(testGetMapString("test_topic"))
@@ -31,7 +33,7 @@ func TestEqual(t *testing.T) {
 	}
 }
 
-func TestCopy(t *testing.T) {
+func TestPartitionMapCopy(t *testing.T) {
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 	pm2 := pm.Copy()
 
@@ -166,13 +168,16 @@ func TestUseStats(t *testing.T) {
 }
 
 func TestRebuild(t *testing.T) {
+	forceRebuild := true
+	withMetrics := false
+
 	zk := &Mock{}
-	bm, _ := zk.GetAllBrokerMeta()
+	bm, _ := zk.GetAllBrokerMeta(withMetrics)
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
-	forceRebuild := false
+	pmm := NewPartitionMetaMap()
 
 	brokers := BrokerMapFromTopicMap(pm, bm, forceRebuild)
-	out, errs := pm.Rebuild(brokers)
+	out, errs := pm.Rebuild(brokers, pmm, "count")
 	if errs != nil {
 		t.Errorf("Unexpected error(s): %s", errs)
 	}
@@ -186,7 +191,7 @@ func TestRebuild(t *testing.T) {
 
 	// Mark 1004 for replacement.
 	brokers[1004].replace = true
-	out, errs = pm.Rebuild(brokers)
+	out, errs = pm.Rebuild(brokers, pmm, "count")
 	if errs != nil {
 		t.Errorf("Unexpected error(s): %s", errs)
 	}
@@ -205,18 +210,46 @@ func TestRebuild(t *testing.T) {
 	pm.SetReplication(2)
 	expected.SetReplication(2)
 
-	out, _ = pm.Rebuild(brokers)
+	out, _ = pm.Rebuild(brokers, pmm, "count")
 
 	if same, _ := out.equal(expected); !same {
 		t.Error("Unexpected inequality after replication factor change -> rebuild")
 	}
 
 	// Test a force rebuild.
+	forceRebuild = true
 	pmStripped := pm.Strip()
-	out, _ = pmStripped.Rebuild(brokers)
+	brokers = BrokerMapFromTopicMap(pm, bm, forceRebuild)
+	out, _ = pmStripped.Rebuild(brokers, pmm, "count")
 
 	same, _ := pm.equal(out)
-	if same {
+	if !same {
 		t.Error("Unexpected inequality after force rebuild")
+	}
+}
+
+func TestRebuildByStorage(t *testing.T) {
+	forceRebuild := true
+	withMetrics := true
+
+	zk := &Mock{}
+	bm, _ := zk.GetAllBrokerMeta(withMetrics)
+	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
+	pmm, _ := zk.GetAllPartitionMeta()
+
+	pm.SetReplication(2)
+	pmStripped := pm.Strip()
+
+	brokers := BrokerMapFromTopicMap(pm, bm, forceRebuild)
+	_ = brokers.SubStorage(pm, pmm)
+
+	out, errs := pmStripped.Rebuild(brokers, pmm, "storage")
+	if errs != nil {
+		t.Errorf("Unexpected error(s): %s", errs)
+	}
+
+	fmt.Println(out)
+	for _, b := range brokers {
+		fmt.Printf("%d %f\n", b.id, b.StorageFree)
 	}
 }
