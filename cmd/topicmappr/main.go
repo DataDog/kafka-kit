@@ -268,13 +268,13 @@ func main() {
 	// 		SubStorage method on the BrokerMap if we're doing a "storage" placement strategy.
 	//		The SubStorage takes a PartitionMap and PartitionMetaMap. The PartitionMap is
 	// 		used to find partition to broker relationships so that the storage used can
-	//		be readded to the broker's storageFree value. The amount to be readded, the
+	//		be readded to the broker's StorageFree value. The amount to be readded, the
 	//		size of the partition, is referenced from the PartitionMetaMap.
 	if Config.forceRebuild {
 		// Get a stripped map that we'll call rebuild on.
 		partitionMapInStripped := partitionMapIn.Strip()
 		// If the storage placement strategy is being used,
-		// update the broker storageFree values.
+		// update the broker StorageFree values.
 		if Config.placement == "storage" {
 			err := brokers.SubStorage(partitionMapIn, partitionMeta)
 			if err != nil {
@@ -356,10 +356,21 @@ func main() {
 
 	// If we're using the storage placement strategy,
 	// write anticipated storage changes.
+	div := 1073741824.00
 	if Config.placement == "storage" {
-		fmt.Println("\nStorage Estimations:")
+		fmt.Println("\nStorage change estimations:")
 		storageDiffs := brokersOrig.StorageDiff(brokers)
-		fmt.Println(storageDiffs)
+		for id, diff := range storageDiffs {
+			if id == 0 {
+				continue
+			}
+			var sign string
+			if diff[0] > 0 {
+				sign = "+"
+			}
+			fmt.Printf("%sBroker %d - %.2f -> %.2f (%s%.2fGB, %.2f%%)\n",
+				indent, id, brokersOrig[id].StorageFree/div, brokers[id].StorageFree/div, sign, diff[0]/div, diff[1])
+		}
 	}
 
 	// Don't write the output if ignoreWarns is set.

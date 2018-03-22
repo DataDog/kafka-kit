@@ -54,7 +54,7 @@ type broker struct {
 	id          int
 	locality    string
 	used        int
-	storageFree float64
+	StorageFree float64
 	replace     bool
 }
 
@@ -87,14 +87,14 @@ func (b byCount) Less(i, j int) bool {
 	return b[i].id < b[j].id
 }
 
-// By storageFree value.
+// By StorageFree value.
 func (b byStorage) Len() int      { return len(b) }
 func (b byStorage) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
 func (b byStorage) Less(i, j int) bool {
-	if b[i].storageFree > b[j].storageFree {
+	if b[i].StorageFree > b[j].StorageFree {
 		return true
 	}
-	if b[i].storageFree < b[j].storageFree {
+	if b[i].StorageFree < b[j].StorageFree {
 		return false
 	}
 
@@ -195,7 +195,7 @@ func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) *BrokerStatus {
 }
 
 // SubStorage takes a PartitionMap + PartitionMetaMap and adds
-// the size of each partition back to the storageFree value
+// the size of each partition back to the StorageFree value
 // of any broker it was originally mapped to.
 // This is used in a force rebuild where the assumption
 // is that partitions will be lifted and repositioned.
@@ -208,10 +208,10 @@ func (b BrokerMap) SubStorage(pm *PartitionMap, pmm PartitionMetaMap) error {
 		}
 
 		// Add this size back to the
-		// storageFree for all mapped brokers.
+		// StorageFree for all mapped brokers.
 		for _, bid := range partn.Replicas {
 			if b, exists := b[bid]; exists {
-				b.storageFree += size
+				b.StorageFree += size
 			} else {
 				errS := fmt.Sprintf("Broker %d not found in broker map", bid)
 				return errors.New(errS)
@@ -265,7 +265,7 @@ func BrokerMapFromTopicMap(pm *PartitionMap, bm BrokerMetaMap, force bool) Broke
 			// Add metadata if we have it.
 			if meta, exists := bm[id]; exists {
 				bmap[id].locality = meta.Rack
-				bmap[id].storageFree = meta.StorageFree
+				bmap[id].StorageFree = meta.StorageFree
 			}
 		}
 	}
@@ -290,8 +290,8 @@ func (b BrokerMap) StorageDiff(b2 BrokerMap) map[int][2]float64 {
 			continue
 		}
 
-		diff := b2[bid].storageFree - b[bid].storageFree
-		p := diff / b[bid].storageFree * 100
+		diff := b2[bid].StorageFree - b[bid].StorageFree
+		p := diff / b[bid].StorageFree * 100
 		d[bid] = [2]float64{diff, p}
 	}
 
@@ -306,7 +306,7 @@ func (b BrokerMap) Copy() BrokerMap {
 			id:          br.id,
 			locality:    br.locality,
 			used:        br.used,
-			storageFree: br.storageFree,
+			StorageFree: br.StorageFree,
 			replace:     br.replace,
 		}
 	}

@@ -250,6 +250,6 @@ func TestRebuildByStorage(t *testing.T) {
 
 	fmt.Println(out)
 	for _, b := range brokers {
-		fmt.Printf("%d %f\n", b.id, b.storageFree)
+		fmt.Printf("%d %f\n", b.id, b.StorageFree)
 	}
 }

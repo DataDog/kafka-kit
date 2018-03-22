@@ -100,8 +100,8 @@ func TestBrokerMapCopy(t *testing.T) {
 			t.Errorf("used field mismatch")
 		case bm1[b].replace != bm2[b].replace:
 			t.Errorf("replace field mismatch")
-		case bm1[b].storageFree != bm2[b].storageFree:
-			t.Errorf("storageFree field mismatch")
+		case bm1[b].StorageFree != bm2[b].StorageFree:
+			t.Errorf("StorageFree field mismatch")
 		}
 	}
 }
@@ -110,8 +110,8 @@ func TestBrokerMapStorageDiff(t *testing.T) {
 	bm1 := newMockBrokerMap()
 	bm2 := newMockBrokerMap()
 
-	bm2[1001].storageFree = 200.00
-	bm2[1002].storageFree = 100.00
+	bm2[1001].StorageFree = 200.00
+	bm2[1002].StorageFree = 100.00
 
 	diff := bm1.StorageDiff(bm2)
 
@@ -151,9 +151,9 @@ func TestBrokerStringToSlice(t *testing.T) {
 func newMockBrokerMap() BrokerMap {
 	return BrokerMap{
 		0:    &broker{id: 0, replace: true},
-		1001: &broker{id: 1001, locality: "a", used: 3, replace: false, storageFree: 100.00},
-		1002: &broker{id: 1002, locality: "b", used: 3, replace: false, storageFree: 200.00},
-		1003: &broker{id: 1003, locality: "c", used: 2, replace: false, storageFree: 300.00},
-		1004: &broker{id: 1004, locality: "a", used: 2, replace: false, storageFree: 400.00},
+		1001: &broker{id: 1001, locality: "a", used: 3, replace: false, StorageFree: 100.00},
+		1002: &broker{id: 1002, locality: "b", used: 3, replace: false, StorageFree: 200.00},
+		1003: &broker{id: 1003, locality: "c", used: 2, replace: false, StorageFree: 300.00},
+		1004: &broker{id: 1004, locality: "a", used: 2, replace: false, StorageFree: 400.00},
 	}
 }

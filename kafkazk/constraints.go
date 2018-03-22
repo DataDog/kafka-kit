@@ -63,9 +63,9 @@ func (b brokerList) bestCandidate(c *constraints, by string) (*broker, error) {
 // add takes a *broker and adds its
 // attributes to the *constraints.
 // The requestSize is also subtracted
-// from the *broker.storageFree.
+// from the *broker.StorageFree.
 func (c *constraints) add(b *broker) {
-	b.storageFree -= c.requestSize
+	b.StorageFree -= c.requestSize
 
 	if b.locality != "" {
 		c.locality[b.locality] = true

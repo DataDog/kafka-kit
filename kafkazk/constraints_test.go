@@ -52,7 +52,7 @@ func TestBestCandidateByStorage(t *testing.T) {
 			id:          1000 + i,
 			locality:    localities[i%3],
 			used:        i,
-			storageFree: float64(1000 * i),
+			StorageFree: float64(1000 * i),
 		}
 
 		bl = append(bl, b)
