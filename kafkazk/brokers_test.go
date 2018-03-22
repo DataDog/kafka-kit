@@ -2,6 +2,7 @@ package kafkazk
 
 import (
 	"testing"
+	"sort"
 )
 
 func TestBrokerMapFromTopicMap(t *testing.T) {
@@ -131,7 +132,30 @@ func TestBrokerMapStorageDiff(t *testing.T) {
 	}
 }
 
-// func TestSort(t *testing.T) {} // XXX Do.
+func TestBrokerListSort(t *testing.T) {
+	bl := newMockBrokerMap().filteredList()
+
+	// Test sort byStorage.
+	sort.Sort(byStorage(bl))
+
+	expected := []int{1004,1003,1002,1001}
+
+	for i, b := range bl {
+		if b.id != expected[i] {
+			t.Errorf("Expected broker %d, got %d", expected[i], b.id)
+		}
+	}
+	// Test sort byCount.
+	sort.Sort(byCount(bl))
+
+	expected = []int{1003,1004,1001,1002}
+
+	for i, b := range bl {
+		if b.id != expected[i] {
+			t.Errorf("Expected broker %d, got %d", expected[i], b.id)
+		}
+	}
+}
 
 func TestBrokerStringToSlice(t *testing.T) {
 	bs := BrokerStringToSlice("1001,1002,1003,1003")
