@@ -9,11 +9,10 @@ Given the same input, topicmappr will always provide the same output map.
 Avoids reassigning partitions where movement isn't necessary, greatly reducing reassignment times and resource load for simple recoveries.
 
 ### Balancing Partition Placement With Constraints
-For each broker pending replacement, topicmappr chooses the least-utilized candidate broker (based on a combination of topics held and leadership counts) that satisfies the following constraints:
+For each broker pending replacement, topicmappr chooses the least-utilized candidate broker (based on partition counts or storage available, configurable via the `-placement` param) that satisfies the following constraints:
 
 - the broker isn't already in the replica set
 - the broker isn't in any of the existing replica set localities (looks up the built in `rack-id` parameter)
-- [todo] arbitrary, user-supplied constraint keys
 
 Provided enough brokers, topicmapper determines the appropriate leadership, follower and failure domain balance.
 
@@ -26,30 +25,35 @@ Flags:
 ```
 Usage of topicmappr:
   -brokers string
-        Broker list to rebuild topic partition map with
+    	Broker list to rebuild topic partition map with
   -force-rebuild
-        Forces a rebuild even if all existing brokers are provided
+    	Forces a rebuild even if all existing brokers are provided
   -ignore-warns
-        Whether a map should be produced if warnings are emitted
+    	Whether a map should be produced if warnings are emitted
   -out-file string
-        If defined, write a combined map of all topics to a file
+    	If defined, write a combined map of all topics to a file
   -out-path string
-        Path to write output map files to
+    	Path to write output map files to
+  -placement string
+    	Partition placement type: [count, storage] (default "count")
   -rebuild-map string
-        Rebuild a topic map
+    	Rebuild a topic map
   -rebuild-topics string
-        Rebuild topics (comma delim list) by lookup in ZooKeeper
+    	Rebuild topics (comma delim list) by lookup in ZooKeeper
   -replication int
-        Change the replication factor
+    	Change the replication factor
   -use-meta
-        Use broker metadata as constraints (default true)
+    	Use broker metadata as constraints (default true)
   -zk-addr string
-        ZooKeeper connect string (for broker metadata or rebuild-topic lookups) (default "localhost:2181")
+    	ZooKeeper connect string (for broker metadata or rebuild-topic lookups) (default "localhost:2181")
+  -zk-metrics-prefix string
+    	ZooKeeper namespace prefix (for Kafka metrics) (default "topicmappr")
   -zk-prefix string
-        ZooKeeper namespace prefix
+    	ZooKeeper namespace prefix (for Kafka)
 ```
 
 ### How Mapping Works
+
 Topicmappr primarily takes two inputs: a topic map (either looked up in ZooKeeper with `--rebuild-topics` or provided literally with `--rebuild-map`) and a list of brokers. Topicmappr builds a map that ensures the referenced topics are mapped to the listed brokers.
 
 Subsequent executions should always produce the same output map (\*provided the same input; a change in topic state in ZooKeeper yields a different input). In order to uphold the intent of "minimal partition movement", topicmappr only maps a partition to a new broker if an existing broker isn't provided in the broker list.
@@ -230,6 +234,50 @@ Partitions assigned:
 New parition maps:
   test_topic.json
 ```
+
+### Placement Strategy
+
+The `-placement` parameter takes one of two values: `count` or `storage`. This determines how brokers are chosen in partition placement.
+
+#### Count
+
+The count strategy balances partitions in a way that results in the most even number across brokers. This is simple and reliable if imbalances in data volumes among partitions is not anticipated.
+
+#### Storage
+
+The storage strategy chooses brokers based on free space. In each placement decision, the broker with the most available free space that satisfies all other constraints is chosen. The storage strategy is best used if large imbalances among partitions is anticipated.
+
+When using the storage placement strategy, an estimate of changes in free storage is printed in the topicmappr summary output:
+
+```
+Partitions assigned:
+  Broker 1006 - leader: 9, follower: 12, total: 21
+  Broker 1003 - leader: 9, follower: 8, total: 17
+  Broker 1005 - leader: 12, follower: 11, total: 23
+  Broker 1007 - leader: 12, follower: 11, total: 23
+  Broker 1002 - leader: 13, follower: 10, total: 23
+  Broker 1004 - leader: 9, follower: 12, total: 21
+
+Storage free change estimations:
+  Broker 1006 - 1019.21 -> 1111.45 (+92.25GB, 9.05%)
+  Broker 1004 - 1067.73 -> 1102.47 (+34.74GB, 3.25%)
+  Broker 1005 - 1108.10 -> 1099.70 (-8.40GB, -0.76%)
+  Broker 1002 - 1173.95 -> 1088.83 (-85.13GB, -7.25%)
+  Broker 1007 - 1194.80 -> 1079.82 (-114.98GB, -9.62%)
+  Broker 1003 - 1020.79 -> 1102.31 (+81.52GB, 7.99%)
+```
+
+The storage strategy requires complete metrics data in order to operate. Topicmappr will check for the following znodes as children of `/topicmappr` (configurable via `-zk-metrics-prefix`):
+
+**/topicmappr/partitionmeta**
+
+The znode data must be formatted as JSON with the structure `{"<topic name>": {"<partition number>": {"Size": <bytes>}}}`. Metrics data for all topics being mapped must be present for all partitions.
+
+**/topicmappr/brokermetrics**
+
+The znode data must be formatted as JSON with the structure `{"<broker ID>": {"StorageFree": <bytes>}}`. Metrics data for all brokers participating brokers in a mapping operation must be present.
+
+This data can be populated from any metrics system as long as it conforms to these standards. A tool that populates this data using Datadog metrics is being developed.
 
 ### Scaling and Managing Topics
 
