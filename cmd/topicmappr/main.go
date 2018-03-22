@@ -63,16 +63,16 @@ func init() {
 	// Sanity check params.
 	switch {
 	case Config.rebuildMap == "" && *topics == "":
-		fmt.Println("Must specify either -rebuild-map or -rebuild-topics")
+		fmt.Println("[ERROR] Must specify either -rebuild-map or -rebuild-topics\n")
 		defaultsAndExit()
 	case len(*brokers) == 0:
-		fmt.Println("--brokers cannot be empty")
+		fmt.Println("[ERROR] --brokers cannot be empty\n")
 		defaultsAndExit()
 	case Config.placement != "count" && Config.placement != "storage":
-		fmt.Println("--placement must be either 'count' or 'storage'")
+		fmt.Println("[ERROR] --placement must be either 'count' or 'storage'\n")
 		defaultsAndExit()
-	case Config.useMeta && Config.placement == "storage":
-		fmt.Println("--placement=storage requires that --use-meta canot be false")
+	case !Config.useMeta && Config.placement == "storage":
+		fmt.Println("[ERROR] --placement=storage requires --use-meta=true\n")
 		defaultsAndExit()
 	}
 
@@ -158,7 +158,7 @@ func main() {
 		var err error
 		partitionMeta, err = zk.GetAllPartitionMeta()
 		if err != nil {
-			fmt.Printf("Error fetching partition metadata: %s\n", err)
+			fmt.Println(err)
 			os.Exit(1)
 		}
 	}
