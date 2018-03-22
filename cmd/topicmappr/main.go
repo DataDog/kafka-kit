@@ -358,7 +358,7 @@ func main() {
 	// write anticipated storage changes.
 	div := 1073741824.00
 	if Config.placement == "storage" {
-		fmt.Println("\nStorage change estimations:")
+		fmt.Println("\nStorage free change estimations:")
 		storageDiffs := brokersOrig.StorageDiff(brokers)
 		for id, diff := range storageDiffs {
 			if id == 0 {
