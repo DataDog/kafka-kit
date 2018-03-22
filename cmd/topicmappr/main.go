@@ -155,7 +155,12 @@ func main() {
 	// Fetch partition metadata.
 	var partitionMeta kafkazk.PartitionMetaMap
 	if Config.placement == "storage" {
-		partitionMeta = kafkazk.NewPartitionMetaMap()
+		var err error
+		partitionMeta, err = zk.GetAllPartitionMeta()
+		if err != nil {
+			fmt.Printf("Error fetching partition metadata: %s\n", err)
+			os.Exit(1)
+		}
 	}
 
 	// Build a topic map with either
@@ -251,10 +256,33 @@ func main() {
 
 	// If we're doing a force rebuild, the input map
 	// must have all brokers stripped out.
+	// A few notes about doing force rebuilds:
+	//	- Map rebuilds should always be called on a stripped PartitionMap copy.
+	//  - The BrokerMap provided in the Rebuild call should have
+	//		been built from the original PartitionMap, not the stripped map.
+	//  - A force rebuild assumes that all partitions will be lifted from
+	// 		all brokers and repositioned. This means you should call the
+	// 		SubStorage method on the BrokerMap if we're doing a "storage" placement strategy.
+	//		The SubStorage takes a PartitionMap and PartitionMetaMap. The PartitionMap is
+	// 		used to find partition to broker relationships so that the storage used can
+	//		be readded to the broker's storageFree value. The amount to be readded, the
+	//		size of the partition, is referenced from the PartitionMetaMap.
 	if Config.forceRebuild {
+		// Get a stripped map that we'll call rebuild on.
 		partitionMapInStripped := partitionMapIn.Strip()
+		// If the storage placement strategy is being used,
+		// update the broker storageFree values.
+		if Config.placement == "storage" {
+			err := brokers.SubStorage(partitionMapIn, partitionMeta)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+		}
+		// Rebuild.
 		partitionMapOut, warns = partitionMapInStripped.Rebuild(brokers, partitionMeta, Config.placement)
 	} else {
+		// Rebuild directly on the input map.
 		partitionMapOut, warns = partitionMapIn.Rebuild(brokers, partitionMeta, Config.placement)
 	}
 
