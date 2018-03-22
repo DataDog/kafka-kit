@@ -279,6 +279,22 @@ func BrokerMapFromTopicMap(pm *PartitionMap, bm BrokerMetaMap, force bool) Broke
 	return bmap
 }
 
+// Copy returns a copy of a BrokerMap.
+func (b BrokerMap) Copy() BrokerMap {
+	c := BrokerMap{}
+	for id, br := range b {
+		c[id] = &broker{
+			id:          br.id,
+			locality:    br.locality,
+			used:        br.used,
+			storageFree: br.storageFree,
+			replace:     br.replace,
+		}
+	}
+
+	return c
+}
+
 // BrokerStringToSlice takes a broker list
 // as a string and returns a []int of
 // broker IDs.

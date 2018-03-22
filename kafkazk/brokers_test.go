@@ -62,6 +62,8 @@ func TestUpdate(t *testing.T) {
 
 }
 
+// func TestSubStorage(t *testing.T) {} XXX Do.
+
 func TestFilteredList(t *testing.T) {
 	bm := newMockBrokerMap()
 	bm[1003].replace = true
@@ -79,6 +81,32 @@ func TestFilteredList(t *testing.T) {
 		}
 	}
 }
+
+func TestBrokerMapCopy(t *testing.T) {
+	bm1 := newMockBrokerMap()
+	bm2 := bm1.Copy()
+
+	if len(bm1) != len(bm2) {
+		t.Errorf("Unexpected length inequality")
+	}
+
+	for b := range bm1 {
+		switch {
+		case bm1[b].id != bm2[b].id:
+			t.Errorf("id field mismatch")
+		case bm1[b].locality != bm2[b].locality:
+			t.Errorf("locality field mismatch")
+		case bm1[b].used != bm2[b].used:
+			t.Errorf("used field mismatch")
+		case bm1[b].replace != bm2[b].replace:
+			t.Errorf("replace field mismatch")
+		case bm1[b].storageFree != bm2[b].storageFree:
+			t.Errorf("storageFree field mismatch")
+		}
+	}
+}
+
+// func TestSort(t *testing.T) {} // XXX Do.
 
 func TestBrokerStringToSlice(t *testing.T) {
 	bs := BrokerStringToSlice("1001,1002,1003,1003")
@@ -98,9 +126,9 @@ func TestBrokerStringToSlice(t *testing.T) {
 func newMockBrokerMap() BrokerMap {
 	return BrokerMap{
 		0:    &broker{id: 0, replace: true},
-		1001: &broker{id: 1001, locality: "a", used: 3, replace: false},
-		1002: &broker{id: 1002, locality: "b", used: 3, replace: false},
-		1003: &broker{id: 1003, locality: "c", used: 2, replace: false},
-		1004: &broker{id: 1004, locality: "a", used: 2, replace: false},
+		1001: &broker{id: 1001, locality: "a", used: 3, replace: false, storageFree: 100.00},
+		1002: &broker{id: 1002, locality: "b", used: 3, replace: false, storageFree: 200.00},
+		1003: &broker{id: 1003, locality: "c", used: 2, replace: false, storageFree: 300.00},
+		1004: &broker{id: 1004, locality: "a", used: 2, replace: false, storageFree: 400.00},
 	}
 }

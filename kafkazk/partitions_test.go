@@ -15,6 +15,8 @@ func testGetMapString(n string) string {
     {"topic":"%s","partition":3,"replicas":[1004,1003,1002]}]}`, n, n, n, n)
 }
 
+// func TestSize(t *testing.T) {} XXX Do.
+
 func TestEqual(t *testing.T) {
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 	pm2, _ := PartitionMapFromString(testGetMapString("test_topic"))
@@ -31,7 +33,7 @@ func TestEqual(t *testing.T) {
 	}
 }
 
-func TestCopy(t *testing.T) {
+func TestPartitionMapCopy(t *testing.T) {
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 	pm2 := pm.Copy()
 
