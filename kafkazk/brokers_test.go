@@ -106,6 +106,31 @@ func TestBrokerMapCopy(t *testing.T) {
 	}
 }
 
+func TestBrokerMapStorageDiff(t *testing.T) {
+	bm1 := newMockBrokerMap()
+	bm2 := newMockBrokerMap()
+
+	bm2[1001].storageFree = 200.00
+	bm2[1002].storageFree = 100.00
+
+	diff := bm1.StorageDiff(bm2)
+
+	expected := map[int][2]float64{
+		1001: [2]float64{100.00, 100.00},
+		1002: [2]float64{-100, -50.00},
+	}
+
+	for bid, v := range expected {
+		if v[0] != diff[bid][0] {
+			t.Errorf("Expected diff value of %f, got %f\n", v[0], diff[bid][0])
+		}
+
+		if v[1] != diff[bid][1] {
+			t.Errorf("Expected diff percent of %f, got %f\n", v[1], diff[bid][1])
+		}
+	}
+}
+
 // func TestSort(t *testing.T) {} // XXX Do.
 
 func TestBrokerStringToSlice(t *testing.T) {

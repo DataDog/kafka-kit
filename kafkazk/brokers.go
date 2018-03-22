@@ -279,6 +279,25 @@ func BrokerMapFromTopicMap(pm *PartitionMap, bm BrokerMetaMap, force bool) Broke
 	return bmap
 }
 
+// StorageDiff takes two BrokerMaps and returns
+// a per broker ID diff in storage as a [2]float64:
+// [absolute, percentage] diff.
+func (b BrokerMap) StorageDiff(b2 BrokerMap) map[int][2]float64 {
+	d := map[int][2]float64{}
+
+	for bid := range b {
+		if _, exist := b2[bid]; !exist {
+			continue
+		}
+
+		diff := b2[bid].storageFree - b[bid].storageFree
+		p := diff / b[bid].storageFree * 100
+		d[bid] = [2]float64{diff, p}
+	}
+
+	return d
+}
+
 // Copy returns a copy of a BrokerMap.
 func (b BrokerMap) Copy() BrokerMap {
 	c := BrokerMap{}

@@ -216,6 +216,9 @@ func main() {
 	bs := brokers.Update(Config.brokers, brokerMetadata)
 	change := bs.New - bs.Replace
 
+	// Store a copy.
+	brokersOrig := brokers.Copy()
+
 	// Print change summary.
 	fmt.Printf("%sReplacing %d, added %d, missing %d, total count changed by %d\n",
 		indent, bs.Replace, bs.New, bs.Missing+bs.OldMissing, change)
@@ -349,6 +352,14 @@ func main() {
 	for id, use := range UseStats {
 		fmt.Printf("%sBroker %d - leader: %d, follower: %d, total: %d\n",
 			indent, id, use.Leader, use.Follower, use.Leader+use.Follower)
+	}
+
+	// If we're using the storage placement strategy,
+	// write anticipated storage changes.
+	if Config.placement == "storage" {
+		fmt.Println("\nStorage Estimations:")
+		storageDiffs := brokersOrig.StorageDiff(brokers)
+		fmt.Println(storageDiffs)
 	}
 
 	// Don't write the output if ignoreWarns is set.
