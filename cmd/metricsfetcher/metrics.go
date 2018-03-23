@@ -6,7 +6,6 @@ import (
 )
 
 func partitionMetrics(c *Config) (map[string]map[string]map[string]float64, error) {
-	// Fetch d.
 	start := time.Now().Add(-time.Duration(c.Span) * time.Second).Unix()
 	o, err := c.Client.QueryMetrics(start, time.Now().Unix(), c.PartnQuery)
 	if err != nil {

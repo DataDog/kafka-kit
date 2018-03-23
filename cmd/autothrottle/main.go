@@ -12,6 +12,7 @@ import (
 
 	"github.com/DataDog/topicmappr/kafkametrics"
 	"github.com/DataDog/topicmappr/kafkazk"
+
 	"github.com/jamiealquiza/envy"
 )
 
