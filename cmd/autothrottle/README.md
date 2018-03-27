@@ -69,19 +69,19 @@ Usage of autothrottle:
   -cap-map string
     	JSON map of instance types to network capacity in MB/s [AUTOTHROTTLE_CAP_MAP]
   -change-threshold float
-    	Required change in percent of the replication throttle to apply an update [AUTOTHROTTLE_CHANGE_THRESHOLD] (default 10)
+    	Required change in replication throttle to trigger an update (percent) [AUTOTHROTTLE_CHANGE_THRESHOLD] (default 10)
   -cleanup-after int
     	Number of intervals after which to issue a global throttle unset if no replication is running [AUTOTHROTTLE_CLEANUP_AFTER] (default 180)
   -dd-event-tags string
     	Comma-delimited list of Datadog event tags [AUTOTHROTTLE_DD_EVENT_TAGS]
   -interval int
-    	Autothrottle check interval in seconds [AUTOTHROTTLE_INTERVAL] (default 60)
+    	Autothrottle check interval (seconds) [AUTOTHROTTLE_INTERVAL] (default 60)
   -max-rate float
-    	Maximum replication throttle rate as a percentage of available capacity [AUTOTHROTTLE_MAX_RATE] (default 90)
+    	Maximum replication throttle rate (as a percentage of available capacity) [AUTOTHROTTLE_MAX_RATE] (default 90)
   -metrics-window int
-    	Time span of metrics to average [AUTOTHROTTLE_METRICS_WINDOW] (default 60)
+    	Time span of metrics required (seconds) [AUTOTHROTTLE_METRICS_WINDOW] (default 60)
   -min-rate float
-    	Minimum replication throttle rate in MB/s [AUTOTHROTTLE_MIN_RATE] (default 10)
+    	Minimum replication throttle rate (MB/s) [AUTOTHROTTLE_MIN_RATE] (default 10)
   -net-tx-query string
     	Datadog query for broker outbound bandwidth by host [AUTOTHROTTLE_NET_TX_QUERY] (default "avg:system.net.bytes_sent{service:kafka} by {host}")
   -zk-addr string
