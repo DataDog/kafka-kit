@@ -1,26 +1,40 @@
-## Overview
-
+# Overview
 Topicmappr was created as a replacement for Kafka's provided `kafka-reassign-partition.sh` tool, providing additional enhancements:
 
-### Deterministic Output
+**Deterministic Output**
+
 Given the same input, topicmappr will always provide the same output map.
 
-### Minimal Partition Movement
+**Minimal Partition Movement**
+
 Avoids reassigning partitions where movement isn't necessary, greatly reducing reassignment times and resource load for simple recoveries.
 
-### Balancing Partition Placement With Constraints
-For each broker pending replacement, topicmappr chooses the least-utilized candidate broker (based on partition counts or storage available, configurable via the `-placement` param) that satisfies the following constraints:
+**Balancing Partition Placement With Constraints**
+
+For each partition placement, topicmappr chooses the least-utilized candidate broker (based on partition counts or storage available, configurable via the `-placement` param) that satisfies the following constraints:
 
 - the broker isn't already in the replica set
-- the broker isn't in any of the existing replica set localities (looks up the built in `rack-id` parameter)
+- the broker isn't in any of the existing replica set localities (using the Kafka `rack-id` parameter)
 
 Provided enough brokers, topicmapper determines the appropriate leadership, follower and failure domain balance.
 
-### Summary Output
-An output of what's changed along with advisory notices (e.g. insufficient broker counts supplied to satisfy all constraints at the desired partition/replica count).
+**Change Summaries**
 
-## Usage
-Flags:
+An output of what's changed along with advisory notices (e.g. insufficient broker counts supplied to satisfy all constraints at the desired partition/replica count) that helps users make clear decisions.
+
+# Installation
+- `go get github.com/DataDog/topicmappr`
+- `go install github.com/DataDog/topicmappr/cmd/topicmappr`
+
+Binary will be found at `$GOPATH/bin/topicmappr`
+
+**Compatibility**
+
+Tested with Go 1.9+, Kafka 0.10.x, ZooKeeper 3.4.x.
+
+# Usage
+
+## Flags
 
 ```
 Usage of topicmappr:
@@ -41,7 +55,7 @@ Usage of topicmappr:
   -rebuild-topics string
     	Rebuild topics (comma delim list) by lookup in ZooKeeper
   -replication int
-    	Change the replication factor
+    	Set the replication factor
   -use-meta
     	Use broker metadata as constraints (default true)
   -zk-addr string
@@ -52,14 +66,12 @@ Usage of topicmappr:
     	ZooKeeper namespace prefix (for Kafka)
 ```
 
-### How Mapping Works
+## How Mapping Works
+Topicmappr primarily takes two inputs: a topic map (either looked up in ZooKeeper by topic name via `--rebuild-topics` or provided explicitly as a string via `--rebuild-map`) and a list of brokers. Topicmappr builds a partition placement map that ensures that the referenced topics are mapped to the listed brokers.
 
-Topicmappr primarily takes two inputs: a topic map (either looked up in ZooKeeper with `--rebuild-topics` or provided literally with `--rebuild-map`) and a list of brokers. Topicmappr builds a map that ensures the referenced topics are mapped to the listed brokers.
+Subsequent executions should always produce the same output map (\*provided the same input; a change in topic state in ZooKeeper would be a different input). In order to minimize movement, topicmappr by default only maps a partition to a new broker if an existing broker isn't provided in the broker list or wasn't found in ZooKeeper.
 
-Subsequent executions should always produce the same output map (\*provided the same input; a change in topic state in ZooKeeper yields a different input). In order to uphold the intent of "minimal partition movement", topicmappr only maps a partition to a new broker if an existing broker isn't provided in the broker list.
-
-For instance, if `test_topic` were initially built on brokers `1001,1002`, a run with `1001,1002,1003,1004` would be a no-op. An example that can be tested locally using a mock map:
-
+For instance, if all partitions for `test_topic` exist on brokers `1001,1002`, running topicmappr with the provided broker list `1001,1002,1003,1004` would be a no-op. An example that can be tested locally using a mock map:
 
 > $ topicmappr -rebuild-map '{"version":1,"partitions":[{"topic":"test_topic","partition":0,"replicas":[1001,1002]},{"topic":"test_topic","partition":1,"replicas":[1002,1001]},{"topic":"test_topic","partition":2,"replicas":[1001,1002]},{"topic":"test_topic","partition":3,"replicas":[1002,1001]}]}' -brokers=1001,1002,1003,1004 -use-meta=false
 
@@ -84,7 +96,7 @@ Partition map changes:
 ...
 ```
 
-If broker `1002` failed, we would exclude it from the list, indicating that those positions be filled with the best fitting broker in the list:
+However if broker `1002` failed, we would exclude it from the list, indicating that those positions be filled with the best fitting broker in the list:
 
 > $ topicmappr -rebuild-map '{"version":1,"partitions":[{"topic":"test_topic","partition":0,"replicas":[1001,1002]},{"topic":"test_topic","partition":1,"replicas":[1002,1001]},{"topic":"test_topic","partition":2,"replicas":[1001,1002]},{"topic":"test_topic","partition":3,"replicas":[1002,1001]}]}' -brokers=1001,1003,1004 -use-meta=false
 
@@ -115,9 +127,9 @@ Partitions assigned:
 ...
 ```
 
-Essentially, if all brokers handling a topic are a subset of the provided list, nothing changes. The default action is to only fix what's broken.
+Essentially, if all brokers housing a topic are a subset of the provided list, nothing changes. The default action is to only fix what's broken.
 
-This can be overridden with the `--force-rebuild` option, tells topicmappr to rebuild an ideal map from the broker list, disregarding the state of the topic:
+This can be overridden with the `--force-rebuild` option. This tells topicmappr to rebuild an ideal map from the broker list, discarding the current state of the topic:
 
 > $ topicmappr -rebuild-map '{"version":1,"partitions":[{"topic":"test_topic","partition":0,"replicas":[1001,1002]},{"topic":"test_topic","partition":1,"replicas":[1002,1001]},{"topic":"test_topic","partition":2,"replicas":[1001,1002]},{"topic":"test_topic","partition":3,"replicas":[1002,1001]}]}' -brokers=1001,1002,1003,1004 -use-meta=false --force-rebuild
 
@@ -148,10 +160,14 @@ Partitions assigned:
 ...
 ```
 
-#### rebuild-topics
-Takes a comma delimited list of topic names and a list of target brokers. The broker map is fetched from ZooKeeper and rebuilt with the supplied broker list.
+In this scenario, the newly provided brokers `1003` and `1004` are mapped in alongside the previous `1001` and `1002`, providing perfect leader and follower balance.
+
+### rebuild-topics
+`--rebuild-topics` takes a comma delimited list of topic names and a list of target brokers. The current partition map is fetched from ZooKeeper and rebuilt with the supplied broker list.
 
 Topic name lookup with regex is supported\*. For instance, providing `--rebuild-topics="test_topic[0-9]"` might return `test_topic1`, `test_topic2`, and `test_topic3`. Name literals and regex can be combined: `--rebuild-topics="test_topic,numbered_topics[0-9]"`.
+
+**Example:**
 
 > $ topicmappr -rebuild-topics test_topic -brokers "0,2" -zk-addr "localhost:2181"
 
@@ -189,12 +205,12 @@ New parition maps:
 
 \*Take note of how regex is interpreted: all topics included in the `--rebuild-topics` list ultimately become regex. Topic names where all characters are those allowed by Kafka (`a-z`, `A-Z`, `0-9`, `_`, `-`, `.`) sans `.`, are assumed to be literal names and thus become the regex `/^topic$/`. The inclusion of a `.` or any other character assumes that the entry is to be interpreted as regex and is compiled as is. This means that if you want to rebuild the literal topic `my.topic`, it's best to provide `--rebuild-topics="my\.topic"`. Without escaping the `.` (`--rebuild-topics="my.topic"`), both `my.topic` and `my1topic` would be targeted.
 
-#### rebuild-map
-Takes an existing topic map and a list of target brokers. A topic initially built with the brokers `[1001,1002,1003]` that lost broker `1003` could be rebuilt by supplying the new broker list `[1001,1002,1004]`.
+### rebuild-map
+`--rebuild-map` takes a literal partition map string (this is the same format that Kafka uses, for example from `kafka-reassign-partitions`) and a list of target brokers. A topic where all partitions originally existed the brokers `1001,1002,1003` that lost broker `1003` could be rebuilt by supplying the new broker list `1001,1002,1004`.
 
 Multiple topics can be included in the topic map.
 
-Example:
+**Example:**
 
 > $ topicmappr -rebuild-map '{"version":1,"partitions":[{"topic":"test_topic","partition":0,"replicas":[1005,1006]},{"topic":"test_topic","partition":2,"replicas":[1007,1001]},{"topic":"test_topic","partition":7,"replicas":[1007,1002]},{"topic":"test_topic","partition":6,"replicas":[1006,1001]},{"topic":"test_topic","partition":4,"replicas":[1002,1005]},{"topic":"test_topic","partition":5,"replicas":[1005,1007]},{"topic":"test_topic","partition":3,"replicas":[1001,1002]},{"topic":"test_topic","partition":1,"replicas":[1006,1007]}]}' -brokers="1001,1002,1003,1004,1005,1006,1008" -use-meta=false
 
@@ -236,16 +252,13 @@ New parition maps:
 ```
 
 ### Placement Strategy
-
 The `-placement` parameter takes one of two values: `count` or `storage`. This determines how brokers are chosen in partition placement.
 
 #### Count
-
 The count strategy balances partitions in a way that results in the most even number across brokers. This is simple and reliable if imbalances in data volumes among partitions is not anticipated.
 
 #### Storage
-
-The storage strategy chooses brokers based on free space. In each placement decision, the broker with the most available free space that satisfies all other constraints is chosen. The storage strategy is best used if large imbalances among partitions is anticipated.
+The storage strategy chooses brokers based on free space and partition size. In each placement decision, the broker with the most available free space that satisfies all other constraints is chosen. The storage strategy is best used if large imbalances among partitions is anticipated.
 
 When using the storage placement strategy, an estimate of changes in free storage is printed in the topicmappr summary output:
 
@@ -277,23 +290,23 @@ The znode data must be formatted as JSON with the structure `{"<topic name>": {"
 
 The znode data must be formatted as JSON with the structure `{"<broker ID>": {"StorageFree": <bytes>}}`. Metrics data for all brokers participating brokers in a mapping operation must be present.
 
-This data can be populated from any metrics system as long as it conforms to these standards. A tool that populates this data using Datadog metrics is being developed.
+This data can be populated from any metrics system as long as it conforms to these standards. The provided [metricsfetcher](https://github.com/DataDog/topicmappr/tree/master/cmd/metricsfetcher) is a simple Datadog implementation.
 
-### Scaling and Managing Topics
+Ensure that recent data is being used. If stale metrics data is being used, a placement map could be built that's suboptimal.
+
+## Scaling Scenarios
 
 #### Up
-
 Based on the mapping mechanics described in the "How Mapping Works" section, topicmappr provides two ways to scale a topic over more brokers.
 
 Full rebuild: Provide topicmappr a completely new list of brokers (e.g. none of the provided brokers are any of those already hosting the topic). The disadvantage of this method is that 100% of the data must be moved. The advantage is a reduced risk of running a broker out of storage (compared to an in place scaling) and more total bandwidth will be available for the resize (original+new brokers).
 
-In place scaling: Provide topicmappr with a broker list that includes those already hosting the topic plus additional brokers. Run topicmappr with `--force-rebuild`. The potential advantage of this is possibly reduced data movement fewer new brokers than a full rebuild scale up.
+In place scaling: Provide topicmappr with a broker list that includes those already hosting the topic plus additional brokers. Run topicmappr with `--force-rebuild`. The potential advantage of this is possibly reduced data movement fewer new brokers than a full rebuild scale up. If possible, it's recommended to temporarily reduce topic retention when doing in place scaling.
 
 #### Down
-
 Topics can also be easily scaled down. Simply trim the desired of brokers from the broker list and topicmappr will rebalance the partitions over the remaining brokers.
 
-## Safeties Using ZooKeeper State
+# Safeties
 Topicmappr references cluster state from ZooKeeper, automatically enforcing the following:
 
 - The `broker.rack` Kafka attribute is used as a placement constraint. No replica set shall have brokers that share this attribute.

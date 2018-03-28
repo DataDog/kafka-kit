@@ -54,7 +54,7 @@ func init() {
 	flag.StringVar(&Config.outFile, "out-file", "", "If defined, write a combined map of all topics to a file")
 	flag.BoolVar(&Config.ignoreWarns, "ignore-warns", false, "Whether a map should be produced if warnings are emitted")
 	flag.BoolVar(&Config.forceRebuild, "force-rebuild", false, "Forces a rebuild even if all existing brokers are provided")
-	flag.IntVar(&Config.replication, "replication", 0, "Change the replication factor")
+	flag.IntVar(&Config.replication, "replication", 0, "Set the replication factor")
 	flag.StringVar(&Config.placement, "placement", "count", "Partition placement type: [count, storage]")
 	brokers := flag.String("brokers", "", "Broker list to rebuild topic partition map with")
 

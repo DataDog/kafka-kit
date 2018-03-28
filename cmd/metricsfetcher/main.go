@@ -94,7 +94,7 @@ func main() {
 	err = zk.Set(paths[1], string(brokerData))
 	exitOnErr(err)
 
-	fmt.Println("\nData succesfully written to ZooKeeper")
+	fmt.Println("\nData written to ZooKeeper")
 }
 
 func zkPaths(p string) []string {

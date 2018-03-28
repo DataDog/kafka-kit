@@ -1,12 +1,11 @@
 # Overview
-
 Autothrottle is a service that looks for reassigning partition events (as part of a recovery or routine data movement) and dynamically applies broker replication throttles. This is done to run replications as fast as possible without starving out bandwidth from Kafka consumer clients.
 
-It does this by running in a loop that looks up all topics undergoing replication, maps source vs destination broker involved, fetches metrics for each broker from the Datadog API, and calculates a throttle based on a map of known bandwidth limits specific to each instance type being observed. An updated throttle rate is determined at each loop interval and continuously applies the throttle to adapt to changes in workloads. Rather than wrapping CLI tools, the throttle is applied directly in ZooKeeper by autothrottle, mirroring the internal mechanics of Kafka's tooling (applying broker configs and firing off sequential znode notices in a config path watched by all brokers). When no replication is occurring, autothrottle will clear all throttles across the cluster.
+It does this by running in a loop that looks up all topics undergoing replication, maps source vs destination broker involved, fetches metrics for each broker from the Datadog API, and calculates a throttle based on a map of known bandwidth limits specific to each instance type being observed. An updated throttle rate is determined at each loop interval and continuously applies the throttle to adapt to changes in workloads. Rather than wrapping CLI tools, the throttle is applied directly in ZooKeeper by autothrottle, mirroring the internals of Kafka's tooling. When no replication is occurring, autothrottle will clear all throttles across the cluster.
 
 Additionally, autothrottle writes Datadog events at each check interval that detail what topics are undergoing replication, a list of all brokers involved, and throttle rates applied.
 
-Autothrottle is designed to work as a piggyback system that doesn't take ownership of your cluster, and can easily be overridden (through autothrottle via the admin API) or stopped safely at any time (allowing you to revert back to using of off-the-shelf Kafka tools).
+Autothrottle is designed to work as a piggyback system that doesn't take ownership of your cluster, and can easily be overridden (through autothrottle via the admin API) or stopped safely at any time (allowing you to revert back to using off-the-shelf Kafka tools).
 
 **Additional features**:
 - Configurable portion of free headroom available for use by replication (`--max-rate`)
@@ -14,9 +13,19 @@ Autothrottle is designed to work as a piggyback system that doesn't take ownersh
 - User-supplied map of instance type and capacity values (`--cap-map`)
 - Ability to dynamically set fixed replication rates (via the HTTP API)
 
+# Installation
+- `go get github.com/DataDog/topicmappr`
+- `go install github.com/DataDog/topicmappr/cmd/autothrottle`
+
+Binary will be found at `$GOPATH/bin/autothrottle`
+
+**Compatibility**
+
+Tested with Go 1.9+, Kafka 0.10.x, ZooKeeper 3.4.x.
+
 # Usage
 
-Besides basic configuration such as the cluster ZooKeeper address, Autothrottle requirements include:
+Autothrottle prerequisites include:
 
 - Datadog API and app key
 - A metric string that returns the `system.net.bytes_sent` metric per host, scoped to the cluster that's being managed
@@ -56,7 +65,9 @@ Overlaying autothrottle Datadog events on a recovery dashboard:
 
 ![img](https://user-images.githubusercontent.com/4108044/37539923-c9c39e06-291a-11e8-97cf-cd3d06416929.png)
 
-Flags:
+## Flags
+
+The variables in brackets are optional env var overrides.
 
 ```
 Usage of autothrottle:
@@ -92,7 +103,28 @@ Usage of autothrottle:
     	ZooKeeper namespace prefix [AUTOTHROTTLE_ZK_PREFIX]
 ```
 
-Admin API:
+## Rate Calculations, Applying Throttles
+
+The throttle rate is calculated by building a map of destination (brokers where partitions are being replicated to) and source brokers (brokers where partitions are being replicated from) and determining a suitable rate based on outbound network utilization on source brokers. The most saturated source broker is used to determine the throttle rate for all replicating brokers (this is done for simplicity as a per-path rate is more complex than it sounds). Autothrottle references the provided `-cap-map` to lookup the network capacity. Autothrottle compares the amount of ongoing network throughput against the capacity (subtracting any amount already allocated for replication) to determine headroom. If more headroom is available, the throttle will be raised to consume the `-max-rate` (defaults to 90%) percent of what's available. If it's negative (throughput exceeds the configured capacity), the throttle will be lowered.
+
+Autothrottle fetches metrics and performs this check every `-interval` seconds. In order to reduce propagating updated throttles to brokers too aggressively, a new throttle won't be applied unless it deviates more than `-change-threshold` (defaults to 10%) percent from the previous throttle. Any time a throttle change is applied, topics are done replicating, or throttle rates cleared, autothrottle will write Datadog events tagged with `name:autothrottle` along with any additionally defined tags (via the `-dd-event-tags` param).
+
+Autothrottle is also designed to fail-safe and avoid any unspecified decision modes. If fetching metrics fails or returns partial data, autothrottle will log what's missing and revert brokers to a safety throttle rate of `-min-rate` (defaults to 10MB/s).
+
+Some considerations:
+- This works best with clusters using a single instance type.
+- A single throttle rate that applies to an entire group of replicating brokers tends to work quite well, but per-path rates is planned as an eventual feature.
+
+## Operations Notes
+
+- Autothrottle currently assumes that exactly one instance is running per cluster. Multi-node / HA support is planned.
+- Autothrottle is safe to arbitrarily restart. If restarted, the first iteration may temporarily lower an existing throttle since it doesn't have a known rate to use as a compensation value in calculating headroom.
+- Autothrottle is safe to stop using at any time. All operations mimic existing internals/functionality of Kafka. Autothrottle intends to be a layer of metrics driven decision autonomy.
+- It's easy to accidentally leave throttles applied when performing manual reassignments. Autothrottle automatically clears previously applied throttles when no replications are running, and does a global throttle clearing every `-cleanup-after` iterations.
+
+## Admin API
+
+The administrative API allows overrides to be set. If an override is set, Datadog metrics will not be fetched.
 
 ```
 $ curl localhost:8080/get_throttle
@@ -108,12 +140,6 @@ $ curl -XPOST localhost:8080/remove_throttle
 Throttle successfully removed
 ```
 
-
-# Design diagram
+# Diagrams
 
 ![img_1623](https://user-images.githubusercontent.com/4108044/35110764-d2dd19b0-fc36-11e7-8086-9038a194a3ac.JPG)
-
-# Future improvements
-- Multi-node / HA coordination through ZooKeeper
-- Additional metrics (such as destination node flush latency)
-- Tuning hints
