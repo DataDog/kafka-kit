@@ -113,8 +113,10 @@ func TestMapsFromReassigments(t *testing.T) {
 	bmaps, _ := mapsFromReassigments(re, zk)
 
 	srcExpected := []int{1000, 1001, 1002, 1003}
-	dstExpected := []int{1003, 1004, 1005, 1006}
-	allExpected := []int{1000, 1001, 1002, 1003, 1004, 1005, 1006}
+	dstExpected := []int{1003, 1004, 1005, 1010}
+	allExpected := []int{1000, 1001, 1002, 1003, 1004, 1005, 1010}
+
+	// Inclusion checks.
 
 	for _, b := range srcExpected {
 		if _, exists := bmaps.src[b]; !exists {
@@ -134,8 +136,30 @@ func TestMapsFromReassigments(t *testing.T) {
 		}
 	}
 
+	// False inclusion checks.
+
+	for b := range bmaps.src {
+		if !inSlice(b, srcExpected) {
+			t.Errorf("Unexpected src ID %d", b)
+		}
+	}
+
+	for b := range bmaps.dst {
+		if !inSlice(b, dstExpected) {
+			t.Errorf("Unexpected dst ID %d", b)
+		}
+	}
+
+	for b := range bmaps.all {
+		if !inSlice(b, allExpected) {
+			t.Errorf("Unexpected all ID %d", b)
+		}
+	}
+
+	// Check throttled strings.
+
 	expectedThrottledLeaders := []string{"0:1000", "0:1001", "1:1002", "1:1003"}
-	expectedThrottledFollowers := []string{"0:1003", "0:1004", "1:1005", "1:1006"}
+	expectedThrottledFollowers := []string{"0:1003", "0:1004", "1:1005", "1:1010"}
 
 	for n, s := range bmaps.throttled["mock"]["leaders"] {
 		if s != expectedThrottledLeaders[n] {
@@ -148,6 +172,17 @@ func TestMapsFromReassigments(t *testing.T) {
 			t.Errorf("Expected follower string '%s', got '%s'", expectedThrottledFollowers[n], s)
 		}
 	}
+}
+
+func inSlice(id int, s []int) bool {
+	found := false
+	for _, i := range s {
+		if id == i {
+			found = true
+		}
+	}
+
+	return found
 }
 
 func TestRepCapacityByMetrics(t *testing.T) {
