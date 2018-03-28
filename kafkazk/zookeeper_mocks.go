@@ -15,7 +15,7 @@ func (zk *Mock) GetReassignments() Reassignments {
 	r := Reassignments{
 		"mock": map[int][]int{
 			0: []int{1003, 1004},
-			1: []int{1005, 1006},
+			1: []int{1005, 1010},
 		},
 	}
 	return r

@@ -1,8 +1,8 @@
 package kafkazk
 
 import (
-	"testing"
 	"sort"
+	"testing"
 )
 
 func TestBrokerMapFromTopicMap(t *testing.T) {
@@ -138,7 +138,7 @@ func TestBrokerListSort(t *testing.T) {
 	// Test sort byStorage.
 	sort.Sort(byStorage(bl))
 
-	expected := []int{1004,1003,1002,1001}
+	expected := []int{1004, 1003, 1002, 1001}
 
 	for i, b := range bl {
 		if b.id != expected[i] {
@@ -148,7 +148,7 @@ func TestBrokerListSort(t *testing.T) {
 	// Test sort byCount.
 	sort.Sort(byCount(bl))
 
-	expected = []int{1003,1004,1001,1002}
+	expected = []int{1003, 1004, 1001, 1002}
 
 	for i, b := range bl {
 		if b.id != expected[i] {
