@@ -85,6 +85,8 @@ Usage of autothrottle:
     	Number of intervals after which to issue a global throttle unset if no replication is running [AUTOTHROTTLE_CLEANUP_AFTER] (default 180)
   -dd-event-tags string
     	Comma-delimited list of Datadog event tags [AUTOTHROTTLE_DD_EVENT_TAGS]
+  -failure-threshold int
+    	Number of iterations that throttle determinations can fail before reverting to the min-rate [AUTOTHROTTLE_FAILURE_THRESHOLD] (default 1)
   -interval int
     	Autothrottle check interval (seconds) [AUTOTHROTTLE_INTERVAL] (default 60)
   -max-rate float
@@ -109,7 +111,7 @@ The throttle rate is calculated by building a map of destination (brokers where 
 
 Autothrottle fetches metrics and performs this check every `-interval` seconds. In order to reduce propagating updated throttles to brokers too aggressively, a new throttle won't be applied unless it deviates more than `-change-threshold` (defaults to 10%) percent from the previous throttle. Any time a throttle change is applied, topics are done replicating, or throttle rates cleared, autothrottle will write Datadog events tagged with `name:autothrottle` along with any additionally defined tags (via the `-dd-event-tags` param).
 
-Autothrottle is also designed to fail-safe and avoid any unspecified decision modes. If fetching metrics fails or returns partial data, autothrottle will log what's missing and revert brokers to a safety throttle rate of `-min-rate` (defaults to 10MB/s).
+Autothrottle is also designed to fail-safe and avoid any unspecified decision modes. If fetching metrics fails or returns partial data, autothrottle will log what's missing and revert brokers to a safety throttle rate of `-min-rate` (defaults to 10MB/s). In order to prevent flapping, a configurable number of sequential failures before reverting to the minimum rate can be set with the `-failure-threshold` param (defaults to 1).
 
 Some considerations:
 - This works best with clusters using a single instance type.
