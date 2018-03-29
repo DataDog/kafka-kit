@@ -162,10 +162,11 @@ func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 			// configured threshold.
 			over := params.Failure()
 			if over {
-				log.Printf("Reverting to minimum throttle of %.2fMB/s\n", params.limits["minimum"])
+				log.Printf("Metrics fetch failure count %d exceeds threshold %d, reverting to min-rate %.2fMB/s\n",
+					params.failures, params.failureThreshold, params.limits["minimum"])
 				replicationCapacity = params.limits["minimum"]
 			} else {
-				log.Printf("Metrics fetch failures count %d below threshold %d, retaining previous throttle",
+				log.Printf("Metrics fetch failure count %d doesn't exceed threshold %d, retaining previous throttle\n",
 					params.failures, params.failureThreshold)
 				return nil
 			}
