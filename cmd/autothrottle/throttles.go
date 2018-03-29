@@ -24,8 +24,28 @@ type ReplicationThrottleMeta struct {
 	override      string
 	events        *EventGenerator
 	// Map of broker ID to last set throttle rate.
-	throttles map[int]float64
-	limits    Limits
+	throttles        map[int]float64
+	limits           Limits
+	failureThreshold int
+	failures         int
+}
+
+// Failure increments the failures count
+// and returns true if the count exceeds
+// the failures threshold.
+func (r *ReplicationThrottleMeta) Failure() bool {
+	r.failures++
+
+	if r.failures > r.failureThreshold {
+		return true
+	}
+
+	return false
+}
+
+// ResetFailures resets the failures count.
+func (r *ReplicationThrottleMeta) ResetFailures() {
+	r.failures = 0
 }
 
 // ReassigningBrokers is a list of brokers
@@ -138,8 +158,23 @@ func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 			// revert to the minimum replication rate
 			// configured.
 			log.Println(err)
-			log.Printf("Reverting to minimum throttle of %.2fMB/s\n", params.limits["minimum"])
-			replicationCapacity = params.limits["minimum"]
+			// Check our failures against the
+			// configured threshold.
+			over := params.Failure()
+			if over {
+				log.Printf("Reverting to minimum throttle of %.2fMB/s\n", params.limits["minimum"])
+				replicationCapacity = params.limits["minimum"]
+			} else {
+				log.Printf("Metrics fetch failures count %d below threshold %d, retaining previous throttle",
+					params.failures, params.failureThreshold)
+				return nil
+			}
+		}
+
+		// Avoiding an else
+		// layer cake.
+		if err == nil {
+			params.ResetFailures()
 		}
 	}
 
