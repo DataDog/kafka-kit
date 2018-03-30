@@ -535,10 +535,8 @@ func TestGetTopicStateISR(t *testing.T) {
 		t.Error(err)
 	}
 
-	fmt.Println(ts)
-
-	if len(ts.Partitions) != 4 {
-		t.Errorf("Expected TopicState.Partitions len of 4, got %d", len(ts.Partitions))
+	if len(ts) != 4 {
+		t.Errorf("Expected TopicState.Partitions len of 4, got %d", len(ts))
 	}
 
 	expected := map[string][]int{
@@ -548,19 +546,19 @@ func TestGetTopicStateISR(t *testing.T) {
 		"3": []int{1004, 1003},
 	}
 
-	for p, rs := range ts.Partitions {
+	for p := range ts {
 		v, exists := expected[p]
 		if !exists {
 			t.Errorf("Expected partition %d in TopicState", p)
 		}
 
-		if len(rs) != len(v) {
+		if len(ts[p].ISR) != len(v) {
 			t.Errorf("Unexpected replica set length")
 		}
 
-		for n := range rs {
-			if rs[n] != v[n] {
-				t.Errorf("Expected ID %d, got %d", v[n], rs[n])
+		for n := range ts[p].ISR {
+			if ts[p].ISR[n] != v[n] {
+				t.Errorf("Expected ID %d, got %d", v[n], ts[p].ISR[n])
 			}
 		}
 	}

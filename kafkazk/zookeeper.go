@@ -35,7 +35,7 @@ type Handler interface {
 	Get(string) ([]byte, error)
 	Close()
 	GetTopicState(string) (*TopicState, error)
-	GetTopicStateISR(string) (*TopicState, error)
+	GetTopicStateISR(string) (TopicStateISR, error)
 	UpdateKafkaConfig(KafkaConfig) (bool, error)
 	GetReassignments() Reassignments
 	GetTopics([]*regexp.Regexp) ([]string, error)
@@ -51,6 +51,10 @@ type Handler interface {
 type TopicState struct {
 	Partitions map[string][]int `json:"partitions"`
 }
+
+// TopicStateISR is a map of partition numbers
+// to PartitionState.
+type TopicStateISR map[string]PartitionState
 
 // PartitionState is used for unmarshalling
 // json data from a partition state:
@@ -487,11 +491,11 @@ func (z *zkHandler) GetTopicState(t string) (*TopicState, error) {
 }
 
 // GetTopicStateCurrentISR takes a topic name. If the topic exists,
-// the topic state is returned as a *TopicState. GetTopicStateCurrentISR
+// the topic state is returned as a TopicStateISR. GetTopicStateCurrentISR
 // differs from GetTopicState in that the actual, current broker IDs
 // in the ISR are returned for each partition. This method is notably more
 // expensive due to the need for a call per partition to ZK.
-func (z *zkHandler) GetTopicStateISR(t string) (*TopicState, error) {
+func (z *zkHandler) GetTopicStateISR(t string) (TopicStateISR, error) {
 	var path string
 	if z.Prefix != "" {
 		path = fmt.Sprintf("/%s/brokers/topics/%s/partitions", z.Prefix, t)
@@ -499,9 +503,7 @@ func (z *zkHandler) GetTopicStateISR(t string) (*TopicState, error) {
 		path = fmt.Sprintf("/brokers/topics/%s/partitions", t)
 	}
 
-	ts := &TopicState{
-		Partitions: map[string][]int{},
-	}
+	ts := TopicStateISR{}
 
 	// Get partitions.
 	partitions, _, err := z.client.Children(path)
@@ -517,15 +519,14 @@ func (z *zkHandler) GetTopicStateISR(t string) (*TopicState, error) {
 			return nil, err
 		}
 
-		state := &PartitionState{}
-		err = json.Unmarshal(data, state)
+		state := PartitionState{}
+		err = json.Unmarshal(data, &state)
 		if err != nil {
 			return nil, err
 		}
 
 		// Populate into TopicState.
-		fmt.Println(string(data))
-		ts.Partitions[p] = state.ISR
+		ts[p] = state
 	}
 
 	return ts, nil
