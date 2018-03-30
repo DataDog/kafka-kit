@@ -134,6 +134,40 @@ func TestSetup(t *testing.T) {
 			}
 		}
 
+		// Create topic state for topic0.
+		statePaths := []string{
+			fmt.Sprintf("%s/brokers/topics/topic0/partitions", zkprefix),
+		}
+
+		for i := 0; i < 4; i++ {
+			statePaths = append(statePaths, fmt.Sprintf("%s/brokers/topics/topic0/partitions/%d", zkprefix, i))
+			statePaths = append(statePaths, fmt.Sprintf("%s/brokers/topics/topic0/partitions/%d/state", zkprefix, i))
+		}
+
+		for _, p := range statePaths {
+			_, err := zkc.Create(p, []byte{}, 0, zkclient.WorldACL(31))
+			if err != nil {
+				t.Error(err)
+			}
+		}
+
+		paths = append(paths, statePaths...)
+
+		states := []string{
+			`{"controller_epoch":1,"leader":1004,"version":1,"leader_epoch":1,"isr":[1001]}`,
+			`{"controller_epoch":1,"leader":1004,"version":1,"leader_epoch":1,"isr":[1002,1001]}`,
+			`{"controller_epoch":1,"leader":1004,"version":1,"leader_epoch":1,"isr":[1003,1004]}`,
+			`{"controller_epoch":1,"leader":1004,"version":1,"leader_epoch":1,"isr":[1004,1003]}`,
+		}
+
+		for n, s := range states {
+			path := fmt.Sprintf("%s/brokers/topics/topic0/partitions/%d/state", zkprefix, n)
+			_, err := zkc.Set(path, []byte(s), -1)
+			if err != nil {
+				t.Error(err)
+			}
+		}
+
 		// Store partition meta.
 		data, _ = json.Marshal(partitionMeta)
 		_, err = zkc.Set("/topicmappr/partitionmeta", data, -1)
@@ -468,6 +502,47 @@ func TestGetTopicState(t *testing.T) {
 
 	expected := map[string][]int{
 		"0": []int{1001, 1002},
+		"1": []int{1002, 1001},
+		"2": []int{1003, 1004},
+		"3": []int{1004, 1003},
+	}
+
+	for p, rs := range ts.Partitions {
+		v, exists := expected[p]
+		if !exists {
+			t.Errorf("Expected partition %d in TopicState", p)
+		}
+
+		if len(rs) != len(v) {
+			t.Errorf("Unexpected replica set length")
+		}
+
+		for n := range rs {
+			if rs[n] != v[n] {
+				t.Errorf("Expected ID %d, got %d", v[n], rs[n])
+			}
+		}
+	}
+}
+
+func TestGetTopicStateISR(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	ts, err := zki.GetTopicStateISR("topic0")
+	if err != nil {
+		t.Error(err)
+	}
+
+	fmt.Println(ts)
+
+	if len(ts.Partitions) != 4 {
+		t.Errorf("Expected TopicState.Partitions len of 4, got %d", len(ts.Partitions))
+	}
+
+	expected := map[string][]int{
+		"0": []int{1001},
 		"1": []int{1002, 1001},
 		"2": []int{1003, 1004},
 		"3": []int{1004, 1003},

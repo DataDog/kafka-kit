@@ -269,7 +269,7 @@ func mapsFromReassigments(r kafkazk.Reassignments, zk kafkazk.Handler) (bmapBund
 		lb.throttled[t] = make(map[string][]string)
 		lb.throttled[t]["leaders"] = []string{}
 		lb.throttled[t]["followers"] = []string{}
-		tstate, err := zk.GetTopicState(t)
+		tstate, err := zk.GetTopicStateISR(t)
 		if err != nil {
 			errS := fmt.Sprintf("Error fetching topic data: %s\n", err.Error())
 			return lb, errors.New(errS)
@@ -280,6 +280,8 @@ func mapsFromReassigments(r kafkazk.Reassignments, zk kafkazk.Handler) (bmapBund
 		// in the reassignments data. If so, the
 		// brokers from the current state are src
 		// and those in the reassignments are dst.
+		// XXX need to find those in reassigning that are
+		// not in the live state.
 		for p := range tstate.Partitions {
 			part, _ := strconv.Atoi(p)
 			if reassigning, exists := r[t][part]; exists {

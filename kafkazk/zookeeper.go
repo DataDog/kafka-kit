@@ -35,6 +35,7 @@ type Handler interface {
 	Get(string) ([]byte, error)
 	Close()
 	GetTopicState(string) (*TopicState, error)
+	GetTopicStateISR(string) (*TopicState, error)
 	UpdateKafkaConfig(KafkaConfig) (bool, error)
 	GetReassignments() Reassignments
 	GetTopics([]*regexp.Regexp) ([]string, error)
@@ -46,9 +47,20 @@ type Handler interface {
 
 // TopicState is used for unmarshing
 // ZooKeeper json data from a topic:
-// e.g. `get /brokers/topics/some-topic`.
+// e.g. /brokers/topics/some-topic
 type TopicState struct {
 	Partitions map[string][]int `json:"partitions"`
+}
+
+// PartitionState is used for unmarshalling
+// json data from a partition state:
+// e.g. /brokers/topics/some-topic/partitions/0/state
+type PartitionState struct {
+	Version         int   `json:"version"`
+	ControllerEpoch int   `json:"controller_epoch"`
+	Leader          int   `json:"leader"`
+	LeaderEpoch     int   `json:"leader_epoch"`
+	ISR             []int `json:"isr"`
 }
 
 // Reassignments is a map of topic:partition:brokers.
@@ -469,6 +481,51 @@ func (z *zkHandler) GetTopicState(t string) (*TopicState, error) {
 	err = json.Unmarshal(data, ts)
 	if err != nil {
 		return nil, err
+	}
+
+	return ts, nil
+}
+
+// GetTopicStateCurrentISR takes a topic name. If the topic exists,
+// the topic state is returned as a *TopicState. GetTopicStateCurrentISR
+// differs from GetTopicState in that the actual, current broker IDs
+// in the ISR are returned for each partition. This method is notably more
+// expensive due to the need for a call per partition to ZK.
+func (z *zkHandler) GetTopicStateISR(t string) (*TopicState, error) {
+	var path string
+	if z.Prefix != "" {
+		path = fmt.Sprintf("/%s/brokers/topics/%s/partitions", z.Prefix, t)
+	} else {
+		path = fmt.Sprintf("/brokers/topics/%s/partitions", t)
+	}
+
+	ts := &TopicState{
+		Partitions: map[string][]int{},
+	}
+
+	// Get partitions.
+	partitions, _, err := z.client.Children(path)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get partition data.
+	for _, p := range partitions {
+		ppath := fmt.Sprintf("%s/%s/state", path, p)
+		data, err := z.Get(ppath)
+		if err != nil {
+			return nil, err
+		}
+
+		state := &PartitionState{}
+		err = json.Unmarshal(data, state)
+		if err != nil {
+			return nil, err
+		}
+
+		// Populate into TopicState.
+		fmt.Println(string(data))
+		ts.Partitions[p] = state.ISR
 	}
 
 	return ts, nil

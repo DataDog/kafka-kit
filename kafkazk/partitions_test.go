@@ -248,6 +248,7 @@ func TestRebuildByStorage(t *testing.T) {
 		t.Errorf("Unexpected error(s): %s", errs)
 	}
 
+	// TODO
 	fmt.Println(out)
 	for _, b := range brokers {
 		fmt.Printf("%d %f\n", b.id, b.StorageFree)
