@@ -188,6 +188,8 @@ func main() {
 
 	// Order from ZooKeeper can be
 	// random.
+	// TODO review if this is still
+	// required. Methods should sort.
 	sort.Sort(partitionMapIn.Partitions)
 
 	// Store a copy of the
@@ -289,7 +291,7 @@ func main() {
 		partitionMapOut, warns = partitionMapIn.Rebuild(brokers, partitionMeta, Config.placement)
 	}
 
-	// XXX If we use the storage placement strategy,
+	// TODO If we use the storage placement strategy,
 	// we can call an optimize pass in a separate
 	// stage here. Rebuild is complex enough;
 	// introducing single-pass optimization there
@@ -304,7 +306,7 @@ func main() {
 	// an optimization for each value.
 
 	// Sort by topic, partition.
-	// XXX Partitions should now be sorted
+	// TODO Partitions should now be sorted
 	// at their origins. Confirm this.
 	sort.Sort(partitionMapIn.Partitions)
 	sort.Sort(partitionMapOut.Partitions)
