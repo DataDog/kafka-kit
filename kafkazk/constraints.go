@@ -45,9 +45,6 @@ func (b brokerList) bestCandidate(c *constraints, by string) (*broker, error) {
 	// Iterate over candidates.
 	for _, candidate = range b {
 		// Candidate passes, return.
-		// XXX Passes should check if
-		// a storage placement is going
-		// to run a broker over capacity.
 		if c.passes(candidate) {
 			c.add(candidate)
 			candidate.used++
@@ -86,7 +83,12 @@ func (c *constraints) passes(b *broker) bool {
 	// the existing replica set localities.
 	case c.locality[b.locality]:
 		return false
+	// Fail if the candidate would run
+	// out of storage.
+	case b.StorageFree-c.requestSize <= 0:
+		return false
 	}
+
 	return true
 }
 
