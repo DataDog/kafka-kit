@@ -227,6 +227,8 @@ func (pm *PartitionMap) Rebuild(bm BrokerMap, pmm PartitionMetaMap, strategy str
 		}
 	}
 
+	sort.Sort(newMap.Partitions)
+
 	return newMap, errs
 }
 
@@ -240,6 +242,8 @@ func PartitionMapFromString(s string) (*PartitionMap, error) {
 		errString := fmt.Sprintf("Error parsing topic map: %s", err.Error())
 		return nil, errors.New(errString)
 	}
+
+	sort.Sort(pm.Partitions)
 
 	return pm, nil
 }
@@ -273,6 +277,8 @@ func PartitionMapFromZK(t []*regexp.Regexp, zk Handler) (*PartitionMap, error) {
 		// Merge multiple maps.
 		pmapMerged.Partitions = append(pmapMerged.Partitions, pmap.Partitions...)
 	}
+
+	sort.Sort(pmapMerged.Partitions)
 
 	return pmapMerged, nil
 }

@@ -186,12 +186,6 @@ func main() {
 		partitionMapIn = pm
 	}
 
-	// Order from ZooKeeper can be
-	// random.
-	// TODO review if this is still
-	// required. Methods should sort.
-	sort.Sort(partitionMapIn.Partitions)
-
 	// Store a copy of the
 	// original map.
 	originalMap := partitionMapIn.Copy()
@@ -306,8 +300,9 @@ func main() {
 	// an optimization for each value.
 
 	// Sort by topic, partition.
-	// TODO Partitions should now be sorted
-	// at their origins. Confirm this.
+	// TODO all functions should return
+	// standard lex sorted partition maps.
+	// This could probably be removed.
 	sort.Sort(partitionMapIn.Partitions)
 	sort.Sort(partitionMapOut.Partitions)
 
