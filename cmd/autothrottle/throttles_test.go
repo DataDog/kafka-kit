@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"testing"
 
 	"github.com/DataDog/topicmappr/kafkametrics"
@@ -112,9 +113,9 @@ func TestMapsFromReassigments(t *testing.T) {
 	re := zk.GetReassignments()
 	bmaps, _ := mapsFromReassigments(re, zk)
 
-	srcExpected := []int{1000, 1001, 1002, 1003}
+	srcExpected := []int{1000, 1002}
 	dstExpected := []int{1003, 1004, 1005, 1010}
-	allExpected := []int{1000, 1001, 1002, 1003, 1004, 1005, 1010}
+	allExpected := []int{1000, 1002, 1003, 1004, 1005, 1010}
 
 	// Inclusion checks.
 
@@ -158,16 +159,20 @@ func TestMapsFromReassigments(t *testing.T) {
 
 	// Check throttled strings.
 
-	expectedThrottledLeaders := []string{"0:1000", "0:1001", "1:1002", "1:1003"}
+	expectedThrottledLeaders := []string{"0:1000", "1:1002"}
 	expectedThrottledFollowers := []string{"0:1003", "0:1004", "1:1005", "1:1010"}
 
-	for n, s := range bmaps.throttled["mock"]["leaders"] {
+	throttledList := bmaps.throttled["mock"]["leaders"]
+	sort.Strings(throttledList)
+	for n, s := range throttledList {
 		if s != expectedThrottledLeaders[n] {
 			t.Errorf("Expected leader string '%s', got '%s'", expectedThrottledLeaders[n], s)
 		}
 	}
 
-	for n, s := range bmaps.throttled["mock"]["followers"] {
+	throttledList = bmaps.throttled["mock"]["followers"]
+	sort.Strings(throttledList)
+	for n, s := range throttledList {
 		if s != expectedThrottledFollowers[n] {
 			t.Errorf("Expected follower string '%s', got '%s'", expectedThrottledFollowers[n], s)
 		}

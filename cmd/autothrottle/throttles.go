@@ -269,31 +269,32 @@ func mapsFromReassigments(r kafkazk.Reassignments, zk kafkazk.Handler) (bmapBund
 		lb.throttled[t] = make(map[string][]string)
 		lb.throttled[t]["leaders"] = []string{}
 		lb.throttled[t]["followers"] = []string{}
-		tstate, err := zk.GetTopicState(t)
+		tstate, err := zk.GetTopicStateISR(t)
 		if err != nil {
 			errS := fmt.Sprintf("Error fetching topic data: %s\n", err.Error())
 			return lb, errors.New(errS)
 		}
 
-		// For each partition in the current topic
-		// state, check if this partition exists
-		// in the reassignments data. If so, the
-		// brokers from the current state are src
-		// and those in the reassignments are dst.
-		for p := range tstate.Partitions {
+		// For each partition, compare the current
+		// ISR leader to the brokers being assigned
+		// in the reassignments. The current leaders
+		// will be sources, new brokers in the assignment
+		// list will be destinations.
+		for p := range tstate {
 			part, _ := strconv.Atoi(p)
 			if reassigning, exists := r[t][part]; exists {
-				// Src.
-				for _, b := range tstate.Partitions[p] {
-					// Add to the maps.
-					lb.src[b] = nil
-					// Append to the throttle list.
-					lb.throttled[t]["leaders"] = append(lb.throttled[t]["leaders"], fmt.Sprintf("%d:%d", part, b))
-				}
-				// Dst.
+				// Source brokers.
+				leader := tstate[p].Leader
+				lb.src[leader] = nil
+				// Append to the throttle list.
+				lb.throttled[t]["leaders"] = append(lb.throttled[t]["leaders"], fmt.Sprintf("%d:%d", part, leader))
+
+				// Dest brokers.
 				for _, b := range reassigning {
-					lb.dst[b] = nil
-					lb.throttled[t]["followers"] = append(lb.throttled[t]["followers"], fmt.Sprintf("%d:%d", part, b))
+					if b != leader {
+						lb.dst[b] = nil
+						lb.throttled[t]["followers"] = append(lb.throttled[t]["followers"], fmt.Sprintf("%d:%d", part, b))
+					}
 				}
 			}
 		}

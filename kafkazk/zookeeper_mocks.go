@@ -68,6 +68,21 @@ func (zk *Mock) GetTopicState(t string) (*TopicState, error) {
 	return ts, nil
 }
 
+// GetTopicStateISR mocks GetTopicStateISR.
+func (zk *Mock) GetTopicStateISR(t string) (TopicStateISR, error) {
+	_ = t
+
+	ts := TopicStateISR{
+		"0": PartitionState{Leader: 1000, ISR: []int{1000, 1002}},
+		"1": PartitionState{Leader: 1002, ISR: []int{1002, 1003}},
+		"2": PartitionState{Leader: 1004, ISR: []int{1004, 1005}},
+		"3": PartitionState{Leader: 1006, ISR: []int{1006, 1007}},
+		"4": PartitionState{Leader: 1008, ISR: []int{1008, 1009}},
+	}
+
+	return ts, nil
+}
+
 // Close mocks Close.
 func (zk *Mock) Close() {
 	return

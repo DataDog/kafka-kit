@@ -63,7 +63,7 @@ func TestUpdate(t *testing.T) {
 
 }
 
-// func TestSubStorage(t *testing.T) {} XXX Do.
+// func TestSubStorage(t *testing.T) {} // TODO
 
 func TestFilteredList(t *testing.T) {
 	bm := newMockBrokerMap()
