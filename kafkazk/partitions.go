@@ -46,6 +46,29 @@ func (p partitionList) Less(i, j int) bool {
 	return p[i].Partition < p[j].Partition
 }
 
+// PartitionMap sorty by partition size.
+
+type partitionsBySize struct {
+	pl partitionList
+	pm PartitionMetaMap
+}
+
+func (p partitionsBySize) Len() int      { return len(p.pl) }
+func (p partitionsBySize) Swap(i, j int) { p.pl[i], p.pl[j] = p.pl[j], p.pl[i] }
+func (p partitionsBySize) Less(i, j int) bool {
+	s1, _ := p.pm.Size(p.pl[i])
+	s2, _ := p.pm.Size(p.pl[j])
+
+	if s1 > s2 {
+		return true
+	}
+	if s1 < s2 {
+		return false
+	}
+
+	return p.pl[i].Partition < p.pl[j].Partition
+}
+
 // PartitionMeta holds partition metadata.
 type PartitionMeta struct {
 	Size float64 // In bytes.
@@ -87,13 +110,22 @@ func (pmm PartitionMetaMap) Size(p Partition) (float64, error) {
 // rebuild strategy. A rebuilt *PartitionMap and []string of
 // errors is returned.
 func (pm *PartitionMap) Rebuild(bm BrokerMap, pmm PartitionMetaMap, strategy string) (*PartitionMap, []string) {
-	if strategy != "count" && strategy != "storage" {
+	switch strategy {
+	// Standard sort.
+	case "count":
+		sort.Sort(pm.Partitions)
+	// Sort by size.
+	case "storage":
+		s := partitionsBySize{
+			pl: pm.Partitions,
+			pm: pmm,
+		}
+		sort.Sort(partitionsBySize(s))
+	default:
 		return nil, []string{
 			fmt.Sprintf("Invalid rebuild strategy '%s'", strategy),
 		}
 	}
-
-	sort.Sort(pm.Partitions)
 	newMap := NewPartitionMap()
 
 	// We need a filtered list for
