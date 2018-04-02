@@ -33,9 +33,9 @@ func (b brokerList) bestCandidate(c *constraints, by string) (*broker, error) {
 	// desired placement criteria.
 	switch by {
 	case "count":
-		sort.Sort(byCount(b))
+		sort.Sort(brokersByCount(b))
 	case "storage":
-		sort.Sort(byStorage(b))
+		sort.Sort(brokersByStorage(b))
 	default:
 		return nil, errInvalidSelectionMethod
 	}

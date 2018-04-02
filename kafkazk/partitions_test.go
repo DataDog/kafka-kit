@@ -17,6 +17,27 @@ func testGetMapString(n string) string {
 
 // func TestSize(t *testing.T) {} XXX Do.
 
+func TestSortBySize(t *testing.T) {
+	z := &Mock{}
+
+	partitionMap, _ := z.GetPartitionMap("test_topic")
+	partitionMetaMap, _ := z.GetAllPartitionMeta()
+
+	s := partitionsBySize{
+		pl: partitionMap.Partitions,
+		pm: partitionMetaMap,
+	}
+
+	sort.Sort(partitionsBySize(s))
+
+	expected := []int{3, 2, 1, 0}
+	for i, p := range partitionMap.Partitions {
+		if p.Partition != expected[i] {
+			t.Errorf("Expected partition %d, got %d", expected[i], p.Partition)
+		}
+	}
+}
+
 func TestEqual(t *testing.T) {
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 	pm2, _ := PartitionMapFromString(testGetMapString("test_topic"))

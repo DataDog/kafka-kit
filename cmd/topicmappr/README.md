@@ -258,7 +258,7 @@ The `-placement` parameter takes one of two values: `count` or `storage`. This d
 The count strategy balances partitions in a way that results in the most even number across brokers. This is simple and reliable if imbalances in data volumes among partitions is not anticipated.
 
 #### Storage
-The storage strategy chooses brokers based on free space and partition size. In each placement decision, the broker with the most available free space that satisfies all other constraints is chosen. The storage strategy is best used if large imbalances among partitions is anticipated.
+The storage strategy chooses brokers based on free space and partition size (using first-fit bin packing by descending partition size). In each placement decision, the broker with the most available free space that satisfies all other constraints is chosen. The storage strategy is best used if large imbalances among partitions is anticipated.
 
 When using the storage placement strategy, an estimate of changes in free storage is printed in the topicmappr summary output:
 

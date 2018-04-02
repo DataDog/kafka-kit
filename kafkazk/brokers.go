@@ -76,15 +76,15 @@ type brokerList []*broker
 
 // Wrapper types for sort by
 // methods.
-type byCount brokerList
-type byStorage brokerList
+type brokersByCount brokerList
+type brokersByStorage brokerList
 
 // Satisfy the sort interface for brokerList types.
 
 // By used field value.
-func (b byCount) Len() int      { return len(b) }
-func (b byCount) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
-func (b byCount) Less(i, j int) bool {
+func (b brokersByCount) Len() int      { return len(b) }
+func (b brokersByCount) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
+func (b brokersByCount) Less(i, j int) bool {
 	if b[i].used < b[j].used {
 		return true
 	}
@@ -96,9 +96,9 @@ func (b byCount) Less(i, j int) bool {
 }
 
 // By StorageFree value.
-func (b byStorage) Len() int      { return len(b) }
-func (b byStorage) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
-func (b byStorage) Less(i, j int) bool {
+func (b brokersByStorage) Len() int      { return len(b) }
+func (b brokersByStorage) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
+func (b brokersByStorage) Less(i, j int) bool {
 	if b[i].StorageFree > b[j].StorageFree {
 		return true
 	}

@@ -186,10 +186,6 @@ func main() {
 		partitionMapIn = pm
 	}
 
-	// Order from ZooKeeper can be
-	// random.
-	sort.Sort(partitionMapIn.Partitions)
-
 	// Store a copy of the
 	// original map.
 	originalMap := partitionMapIn.Copy()
@@ -289,7 +285,7 @@ func main() {
 		partitionMapOut, warns = partitionMapIn.Rebuild(brokers, partitionMeta, Config.placement)
 	}
 
-	// XXX If we use the storage placement strategy,
+	// TODO If we use the storage placement strategy,
 	// we can call an optimize pass in a separate
 	// stage here. Rebuild is complex enough;
 	// introducing single-pass optimization there
@@ -304,8 +300,9 @@ func main() {
 	// an optimization for each value.
 
 	// Sort by topic, partition.
-	// XXX Partitions should now be sorted
-	// at their origins. Confirm this.
+	// TODO all functions should return
+	// standard lex sorted partition maps.
+	// This could probably be removed.
 	sort.Sort(partitionMapIn.Partitions)
 	sort.Sort(partitionMapOut.Partitions)
 
@@ -326,9 +323,16 @@ func main() {
 		fmt.Printf("%s[none]\n", indent)
 	}
 
-	// XXX scan partition lists
-	// and ensure they're the same
-	// topic, partition.
+	// Ensure the topic name and partition
+	// order match.
+	for i := range originalMap.Partitions {
+		t1, t2 := originalMap.Partitions[i].Topic, partitionMapOut.Partitions[i].Topic
+		p1, p2 := originalMap.Partitions[i].Partition, partitionMapOut.Partitions[i].Partition
+		if t1 != t2 || p1 != p2 {
+			fmt.Println("Unexpected partition map order")
+			os.Exit(1)
+		}
+	}
 
 	// Get a status string of what's changed.
 	fmt.Println("\nPartition map changes:")
