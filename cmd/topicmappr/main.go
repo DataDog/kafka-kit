@@ -323,9 +323,16 @@ func main() {
 		fmt.Printf("%s[none]\n", indent)
 	}
 
-	// XXX scan partition lists
-	// and ensure they're the same
-	// topic, partition.
+	// Ensure the topic name and partition
+	// order match.
+	for i := range originalMap.Partitions {
+		t1, t2 := originalMap.Partitions[i].Topic, partitionMapOut.Partitions[i].Topic
+		p1, p2 := originalMap.Partitions[i].Partition, partitionMapOut.Partitions[i].Partition
+		if t1 != t2 || p1 != p2 {
+			fmt.Println("Unexpected partition map order")
+			os.Exit(1)
+		}
+	}
 
 	// Get a status string of what's changed.
 	fmt.Println("\nPartition map changes:")
