@@ -228,7 +228,7 @@ func main() {
 
 	switch {
 	case change >= 0 && bs.Replace > 0:
-		fmt.Printf("%sRebuild topic with %d broker(s) marked for removal\n",
+		fmt.Printf("%sRebuild topic with %d broker(s) marked for replacement\n",
 			indent, bs.Replace)
 	case change > 0 && bs.Replace == 0:
 		fmt.Printf("%sExpanding/rebalancing topic with %d additional broker(s) (this is a no-op unless --force-rebuild is specified)\n",
@@ -356,20 +356,34 @@ func main() {
 
 	// If we're using the storage placement strategy,
 	// write anticipated storage changes.
-	div := 1073741824.00
+	var div float64 = 1073741824.00
 	if Config.placement == "storage" {
 		fmt.Println("\nStorage free change estimations:")
 		storageDiffs := brokersOrig.StorageDiff(brokers)
 		for id, diff := range storageDiffs {
+			// Skip the internal reserved ID.
 			if id == 0 {
 				continue
 			}
+
+			// Explicitely set a
+			// positive sign.
 			var sign string
 			if diff[0] > 0 {
 				sign = "+"
 			}
-			fmt.Printf("%sBroker %d - %.2f -> %.2f (%s%.2fGB, %.2f%%)\n",
-				indent, id, brokersOrig[id].StorageFree/div, brokers[id].StorageFree/div, sign, diff[0]/div, diff[1])
+
+			// Indicate if the broker
+			// is a replacement.
+			var replace string
+			if brokers[id].Replace() {
+				replace = "*marked for replacement"
+			}
+
+			originalStorage := brokersOrig[id].StorageFree / div
+			newStorage := brokers[id].StorageFree / div
+			fmt.Printf("%sBroker %d - %.2f -> %.2f (%s%.2fGB, %.2f%%) %s\n",
+				indent, id, originalStorage, newStorage, sign, diff[0]/div, diff[1], replace)
 		}
 	}
 

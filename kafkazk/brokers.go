@@ -58,6 +58,14 @@ type broker struct {
 	replace     bool
 }
 
+// Replace returns whether the
+// broker was marked for replacement.
+// TODO the broker type should probably
+// just be exported.
+func (b *broker) Replace() bool {
+	return b.replace
+}
+
 // BrokerMap holds a mapping of
 // broker IDs to *broker.
 type BrokerMap map[int]*broker
