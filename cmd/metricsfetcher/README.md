@@ -50,7 +50,7 @@ Usage of metricsfetcher:
 
 `-broker-storage-query` should be scoped to your target Kafka cluster and storage device that Kafka partition data is stored on. Brokers should be tagged in Datadog with their broker IDs using  `broker_id` tag. No aggregations should be specified.
 
-`-partition-size-query` should be scoped to the same target Kafka cluster. No aggregations should be specified. If only a single topic is being used, the metric query can be simplified to reduce the amount of data to be fetched/stored. Example: `-partition-size-query="max:kafka.log.partition.size{service:kafka,topic:my_topic} by {topic,partition}"`.
+`-partition-size-query` should be scoped to the same target Kafka cluster. No aggregations should be specified. If only a single topic is being used, the metric query can be simplified to reduce the amount of data to be fetched/stored. Example (note the addition of the `topic` query tag): `-partition-size-query="max:kafka.log.partition.size{service:kafka,topic:my_topic} by {topic,partition}"`.
 
 `-span` specifies a duration in seconds that metric queries cover. All points in the series are rolled up as a single average value. This is automatically combined with the above flags to create complete rollup queries.
 

@@ -82,17 +82,17 @@ Usage of autothrottle:
   -change-threshold float
     	Required change in replication throttle to trigger an update (percent) [AUTOTHROTTLE_CHANGE_THRESHOLD] (default 10)
   -cleanup-after int
-    	Number of intervals after which to issue a global throttle unset if no replication is running [AUTOTHROTTLE_CLEANUP_AFTER] (default 180)
+    	Number of intervals after which to issue a global throttle unset if no replication is running [AUTOTHROTTLE_CLEANUP_AFTER] (default 60)
   -dd-event-tags string
     	Comma-delimited list of Datadog event tags [AUTOTHROTTLE_DD_EVENT_TAGS]
   -failure-threshold int
     	Number of iterations that throttle determinations can fail before reverting to the min-rate [AUTOTHROTTLE_FAILURE_THRESHOLD] (default 1)
   -interval int
-    	Autothrottle check interval (seconds) [AUTOTHROTTLE_INTERVAL] (default 60)
+    	Autothrottle check interval (seconds) [AUTOTHROTTLE_INTERVAL] (default 180)
   -max-rate float
     	Maximum replication throttle rate (as a percentage of available capacity) [AUTOTHROTTLE_MAX_RATE] (default 90)
   -metrics-window int
-    	Time span of metrics required (seconds) [AUTOTHROTTLE_METRICS_WINDOW] (default 60)
+    	Time span of metrics required (seconds) [AUTOTHROTTLE_METRICS_WINDOW] (default 120)
   -min-rate float
     	Minimum replication throttle rate (MB/s) [AUTOTHROTTLE_MIN_RATE] (default 10)
   -net-tx-query string
