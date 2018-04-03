@@ -211,7 +211,7 @@ func TestRebuild(t *testing.T) {
 	}
 
 	// Mark 1004 for replacement.
-	brokers[1004].replace = true
+	brokers[1004].Replace = true
 	out, errs = pm.Rebuild(brokers, pmm, "count")
 	if errs != nil {
 		t.Errorf("Unexpected error(s): %s", errs)
@@ -272,6 +272,6 @@ func TestRebuildByStorage(t *testing.T) {
 	// TODO
 	fmt.Println(out)
 	for _, b := range brokers {
-		fmt.Printf("%d %f\n", b.id, b.StorageFree)
+		fmt.Printf("%d %f\n", b.ID, b.StorageFree)
 	}
 }

@@ -372,6 +372,7 @@ func main() {
 	var div float64 = 1073741824.00
 	if Config.placement == "storage" {
 		fmt.Println("\nStorage free change estimations:")
+
 		storageDiffs := brokersOrig.StorageDiff(brokers)
 		for id, diff := range storageDiffs {
 			// Skip the internal reserved ID.
@@ -389,13 +390,13 @@ func main() {
 			// Indicate if the broker
 			// is a replacement.
 			var replace string
-			if brokers[id].Replace() {
+			if brokers[id].Replace {
 				replace = "*marked for replacement"
 			}
 
 			originalStorage := brokersOrig[id].StorageFree / div
 			newStorage := brokers[id].StorageFree / div
-			fmt.Printf("%sBroker %d - %.2f -> %.2f (%s%.2fGB, %.2f%%) %s\n",
+			fmt.Printf("%sBroker %d: %.2f -> %.2f (%s%.2fGB, %.2f%%) %s\n",
 				indent, id, originalStorage, newStorage, sign, diff[0]/div, diff[1], replace)
 		}
 	}

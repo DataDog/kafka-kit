@@ -9,10 +9,10 @@ func TestBestCandidateByCount(t *testing.T) {
 	bl := brokerList{}
 
 	for i := 0; i < 4; i++ {
-		b := &broker{
-			id:       1000 + i,
-			locality: localities[i%3],
-			used:     i,
+		b := &Broker{
+			ID:       1000 + i,
+			Locality: localities[i%3],
+			Used:     i,
 		}
 
 		bl = append(bl, b)
@@ -27,14 +27,14 @@ func TestBestCandidateByCount(t *testing.T) {
 
 	b, _ := bl.bestCandidate(c, "count")
 	// 1002 should be the first available.
-	if b.id != 1002 {
-		t.Errorf("Expected candidate with ID 1002, got %d", b.id)
+	if b.ID != 1002 {
+		t.Errorf("Expected candidate with ID 1002, got %d", b.ID)
 	}
 
 	b, _ = bl.bestCandidate(c, "count")
 	// 1003 should be next available.
-	if b.id != 1003 {
-		t.Errorf("Expected candidate with ID 1003, got %d", b.id)
+	if b.ID != 1003 {
+		t.Errorf("Expected candidate with ID 1003, got %d", b.ID)
 	}
 
 	_, err := bl.bestCandidate(c, "count")
@@ -48,10 +48,10 @@ func TestBestCandidateByStorage(t *testing.T) {
 	bl := brokerList{}
 
 	for i := 0; i < 4; i++ {
-		b := &broker{
-			id:          1000 + i,
-			locality:    localities[i%3],
-			used:        i,
+		b := &Broker{
+			ID:          1000 + i,
+			Locality:    localities[i%3],
+			Used:        i,
 			StorageFree: float64(1000 * i),
 		}
 
@@ -68,14 +68,14 @@ func TestBestCandidateByStorage(t *testing.T) {
 	b, _ := bl.bestCandidate(c, "storage")
 
 	// 1003 should be the first available.
-	if b.id != 1003 {
-		t.Errorf("Expected candidate with ID 1003, got %d", b.id)
+	if b.ID != 1003 {
+		t.Errorf("Expected candidate with ID 1003, got %d", b.ID)
 	}
 
 	b, _ = bl.bestCandidate(c, "storage")
 	// 1003 should be next available.
-	if b.id != 1001 {
-		t.Errorf("Expected candidate with ID 1001, got %d", b.id)
+	if b.ID != 1001 {
+		t.Errorf("Expected candidate with ID 1001, got %d", b.ID)
 	}
 
 	_, err := bl.bestCandidate(c, "storage")
@@ -85,8 +85,8 @@ func TestBestCandidateByStorage(t *testing.T) {
 }
 
 func TestConstraintsAdd(t *testing.T) {
-	b1 := &broker{id: 1000, locality: "a"}
-	b2 := &broker{id: 1001, locality: "b"}
+	b1 := &Broker{ID: 1000, Locality: "a"}
+	b2 := &Broker{ID: 1001, Locality: "b"}
 
 	bl := brokerList{b1}
 	c := mergeConstraints(bl)
@@ -95,11 +95,11 @@ func TestConstraintsAdd(t *testing.T) {
 	bl = append(bl, b2)
 
 	for _, b := range bl {
-		if _, exists := c.id[b.id]; !exists {
-			t.Errorf("Expected ID %d to exist", b.id)
+		if _, exists := c.id[b.ID]; !exists {
+			t.Errorf("Expected ID %d to exist", b.ID)
 		}
-		if _, exists := c.locality[b.locality]; !exists {
-			t.Errorf("Expected ID %d to exist", b.id)
+		if _, exists := c.locality[b.Locality]; !exists {
+			t.Errorf("Expected ID %d to exist", b.ID)
 		}
 	}
 }
@@ -110,13 +110,13 @@ func TestConstraintsPasses(t *testing.T) {
 	c.id[1000] = true
 
 	// Fail on ID and/or locality.
-	b1 := &broker{id: 1000, locality: "a"}
+	b1 := &Broker{ID: 1000, Locality: "a"}
 	// Fail on locality only.
-	b2 := &broker{id: 1001, locality: "a"}
+	b2 := &Broker{ID: 1001, Locality: "a"}
 	// Fail on ID only.
-	b3 := &broker{id: 1000, locality: "b"}
+	b3 := &Broker{ID: 1000, Locality: "b"}
 	// Pass.
-	b4 := &broker{id: 1001, locality: "c"}
+	b4 := &Broker{ID: 1001, Locality: "c"}
 
 	bl := brokerList{b1, b2, b3, b4}
 
@@ -134,15 +134,15 @@ func TestMergeConstraints(t *testing.T) {
 	bl := brokerList{}
 
 	for i := 0; i < 5; i++ {
-		b := &broker{
-			id:       1000 + i,
-			locality: localities[i%3],
+		b := &Broker{
+			ID:       1000 + i,
+			Locality: localities[i%3],
 		}
 
 		// Brokers marked for replacement
 		// don't get merged in.
 		if i == 4 {
-			b.replace = true
+			b.Replace = true
 		}
 
 		bl = append(bl, b)
