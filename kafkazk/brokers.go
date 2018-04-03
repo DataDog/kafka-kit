@@ -189,6 +189,7 @@ func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) *BrokerStatus {
 					id:       id,
 					replace:  false,
 					locality: meta.Rack,
+					StorageFree: meta.StorageFree,
 				}
 				bs.New++
 			} else {
