@@ -261,8 +261,8 @@ func main() {
 	//		been built from the original PartitionMap, not the stripped map.
 	//  - A force rebuild assumes that all partitions will be lifted from
 	// 		all brokers and repositioned. This means you should call the
-	// 		SubStorage method on the BrokerMap if we're doing a "storage" placement strategy.
-	//		The SubStorage takes a PartitionMap and PartitionMetaMap. The PartitionMap is
+	// 		SubStorageAll method on the BrokerMap if we're doing a "storage" placement strategy.
+	//		The SubStorageAll takes a PartitionMap and PartitionMetaMap. The PartitionMap is
 	// 		used to find partition to broker relationships so that the storage used can
 	//		be readded to the broker's StorageFree value. The amount to be readded, the
 	//		size of the partition, is referenced from the PartitionMetaMap.
@@ -272,7 +272,7 @@ func main() {
 		// If the storage placement strategy is being used,
 		// update the broker StorageFree values.
 		if Config.placement == "storage" {
-			err := brokers.SubStorage(partitionMapIn, partitionMeta)
+			err := brokers.SubStorageAll(partitionMapIn, partitionMeta)
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(1)
@@ -281,6 +281,15 @@ func main() {
 		// Rebuild.
 		partitionMapOut, warns = partitionMapInStripped.Rebuild(brokers, partitionMeta, Config.placement)
 	} else {
+		// Update the StorageFree only on brokers
+		// marked for replacement.
+		if Config.placement == "storage" {
+			err := brokers.SubStorageReplacements(partitionMapIn, partitionMeta)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+		}
 		// Rebuild directly on the input map.
 		partitionMapOut, warns = partitionMapIn.Rebuild(brokers, partitionMeta, Config.placement)
 	}
