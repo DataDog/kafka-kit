@@ -189,6 +189,7 @@ func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) *BrokerStatus {
 					id:       id,
 					replace:  false,
 					locality: meta.Rack,
+					StorageFree: meta.StorageFree,
 				}
 				bs.New++
 			} else {
@@ -202,12 +203,12 @@ func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) *BrokerStatus {
 	return bs
 }
 
-// SubStorage takes a PartitionMap + PartitionMetaMap and adds
+// SubStorageAll takes a PartitionMap + PartitionMetaMap and adds
 // the size of each partition back to the StorageFree value
 // of any broker it was originally mapped to.
 // This is used in a force rebuild where the assumption
 // is that partitions will be lifted and repositioned.
-func (b BrokerMap) SubStorage(pm *PartitionMap, pmm PartitionMetaMap) error {
+func (b BrokerMap) SubStorageAll(pm *PartitionMap, pmm PartitionMetaMap) error {
 	// Get the size of each partition.
 	for _, partn := range pm.Partitions {
 		size, err := pmm.Size(partn)
@@ -218,9 +219,36 @@ func (b BrokerMap) SubStorage(pm *PartitionMap, pmm PartitionMetaMap) error {
 		// Add this size back to the
 		// StorageFree for all mapped brokers.
 		for _, bid := range partn.Replicas {
-			if b, exists := b[bid]; exists {
-				b.StorageFree += size
+			if broker, exists := b[bid]; exists {
+				broker.StorageFree += size
 			} else {
+				errS := fmt.Sprintf("Broker %d not found in broker map", bid)
+				return errors.New(errS)
+			}
+		}
+	}
+
+	return nil
+}
+
+// SubStorageReplacements works similarly to SubStorageAll except
+// that storage usage is only subtraced from brokers marked for replacement.
+func (b BrokerMap) SubStorageReplacements(pm *PartitionMap, pmm PartitionMetaMap) error {
+	// Get the size of each partition.
+	for _, partn := range pm.Partitions {
+		size, err := pmm.Size(partn)
+		if err != nil {
+			return err
+		}
+
+		// Add this size back to the
+		// StorageFree for all mapped brokers.
+		for _, bid := range partn.Replicas {
+			broker, exists := b[bid]
+			if exists && broker.replace {
+				broker.StorageFree += size
+			}
+			if !exists {
 				errS := fmt.Sprintf("Broker %d not found in broker map", bid)
 				return errors.New(errS)
 			}

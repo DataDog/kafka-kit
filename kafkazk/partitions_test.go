@@ -262,7 +262,7 @@ func TestRebuildByStorage(t *testing.T) {
 	pmStripped := pm.Strip()
 
 	brokers := BrokerMapFromTopicMap(pm, bm, forceRebuild)
-	_ = brokers.SubStorage(pm, pmm)
+	_ = brokers.SubStorageAll(pm, pmm)
 
 	out, errs := pmStripped.Rebuild(brokers, pmm, "storage")
 	if errs != nil {
