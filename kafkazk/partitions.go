@@ -166,7 +166,7 @@ func (pm *PartitionMap) Rebuild(bm BrokerMap, pmm PartitionMetaMap, strategy str
 			// If the current broker isn't
 			// marked for removal, just add it
 			// to the same position in the new map.
-			if !bm[bid].replace {
+			if !bm[bid].Replace {
 				newMap.Partitions[n].Replicas = append(newMap.Partitions[n].Replicas, bid)
 			} else {
 				// Otherwise, we need to find a replacement.
@@ -209,7 +209,7 @@ func (pm *PartitionMap) Rebuild(bm BrokerMap, pmm PartitionMetaMap, strategy str
 					continue
 				}
 
-				newMap.Partitions[n].Replicas = append(newMap.Partitions[n].Replicas, newBroker.id)
+				newMap.Partitions[n].Replicas = append(newMap.Partitions[n].Replicas, newBroker.ID)
 			}
 		}
 

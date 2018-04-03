@@ -272,12 +272,12 @@ Partitions assigned:
   Broker 1004 - leader: 9, follower: 12, total: 21
 
 Storage free change estimations:
-  Broker 1006 - 1019.21 -> 1111.45 (+92.25GB, 9.05%)
-  Broker 1004 - 1067.73 -> 1102.47 (+34.74GB, 3.25%)
-  Broker 1005 - 1108.10 -> 1099.70 (-8.40GB, -0.76%)
-  Broker 1002 - 1173.95 -> 1088.83 (-85.13GB, -7.25%)
-  Broker 1007 - 1194.80 -> 1079.82 (-114.98GB, -9.62%)
-  Broker 1003 - 1020.79 -> 1102.31 (+81.52GB, 7.99%)
+  Broker 1006: 1019.21 -> 1111.45 (+92.25GB, 9.05%)
+  Broker 1004: 1067.73 -> 1102.47 (+34.74GB, 3.25%)
+  Broker 1005: 1108.10 -> 1099.70 (-8.40GB, -0.76%)
+  Broker 1002: 1173.95 -> 1088.83 (-85.13GB, -7.25%)
+  Broker 1007: 1194.80 -> 1079.82 (-114.98GB, -9.62%)
+  Broker 1003: 1020.79 -> 1102.31 (+81.52GB, 7.99%)
 ```
 
 The storage strategy requires complete metrics data in order to operate. Topicmappr will check for the following znodes as children of `/topicmappr` (configurable via `-zk-metrics-prefix`):

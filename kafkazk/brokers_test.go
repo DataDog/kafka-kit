@@ -16,18 +16,18 @@ func TestBrokerMapFromTopicMap(t *testing.T) {
 
 	for id, b := range brokers {
 		switch {
-		case b.id != expected[id].id:
+		case b.ID != expected[id].ID:
 			t.Errorf("Expected id %d, got %d for broker %d",
-				expected[id].id, b.id, id)
-		case b.locality != expected[id].locality:
+				expected[id].ID, b.ID, id)
+		case b.Locality != expected[id].Locality:
 			t.Errorf("Expected locality %s, got %s for broker %d",
-				expected[id].locality, b.locality, id)
-		case b.used != expected[id].used:
+				expected[id].Locality, b.Locality, id)
+		case b.Used != expected[id].Used:
 			t.Errorf("Expected used %d, got %d for broker %d",
-				expected[id].used, b.used, id)
-		case b.replace != expected[id].replace:
+				expected[id].Used, b.Used, id)
+		case b.Replace != expected[id].Replace:
 			t.Errorf("Expected replace %b, got %b for broker %d",
-				expected[id].replace, b.replace, id)
+				expected[id].Replace, b.Replace, id)
 		}
 	}
 }
@@ -67,7 +67,7 @@ func TestUpdate(t *testing.T) {
 
 func TestFilteredList(t *testing.T) {
 	bm := newMockBrokerMap()
-	bm[1003].replace = true
+	bm[1003].Replace = true
 
 	nl := bm.filteredList()
 	expected := map[int]interface{}{
@@ -77,8 +77,8 @@ func TestFilteredList(t *testing.T) {
 	}
 
 	for _, b := range nl {
-		if _, exist := expected[b.id]; !exist {
-			t.Errorf("Broker ID %d shouldn't exist", b.id)
+		if _, exist := expected[b.ID]; !exist {
+			t.Errorf("Broker ID %d shouldn't exist", b.ID)
 		}
 	}
 }
@@ -93,13 +93,13 @@ func TestBrokerMapCopy(t *testing.T) {
 
 	for b := range bm1 {
 		switch {
-		case bm1[b].id != bm2[b].id:
+		case bm1[b].ID != bm2[b].ID:
 			t.Errorf("id field mismatch")
-		case bm1[b].locality != bm2[b].locality:
+		case bm1[b].Locality != bm2[b].Locality:
 			t.Errorf("locality field mismatch")
-		case bm1[b].used != bm2[b].used:
+		case bm1[b].Used != bm2[b].Used:
 			t.Errorf("used field mismatch")
-		case bm1[b].replace != bm2[b].replace:
+		case bm1[b].Replace != bm2[b].Replace:
 			t.Errorf("replace field mismatch")
 		case bm1[b].StorageFree != bm2[b].StorageFree:
 			t.Errorf("StorageFree field mismatch")
@@ -141,8 +141,8 @@ func TestBrokerListSort(t *testing.T) {
 	expected := []int{1004, 1003, 1002, 1001}
 
 	for i, b := range bl {
-		if b.id != expected[i] {
-			t.Errorf("Expected broker %d, got %d", expected[i], b.id)
+		if b.ID != expected[i] {
+			t.Errorf("Expected broker %d, got %d", expected[i], b.ID)
 		}
 	}
 	// Test sort brokersByCount.
@@ -151,8 +151,8 @@ func TestBrokerListSort(t *testing.T) {
 	expected = []int{1003, 1004, 1001, 1002}
 
 	for i, b := range bl {
-		if b.id != expected[i] {
-			t.Errorf("Expected broker %d, got %d", expected[i], b.id)
+		if b.ID != expected[i] {
+			t.Errorf("Expected broker %d, got %d", expected[i], b.ID)
 		}
 	}
 }
@@ -174,10 +174,10 @@ func TestBrokerStringToSlice(t *testing.T) {
 
 func newMockBrokerMap() BrokerMap {
 	return BrokerMap{
-		0:    &broker{id: 0, replace: true},
-		1001: &broker{id: 1001, locality: "a", used: 3, replace: false, StorageFree: 100.00},
-		1002: &broker{id: 1002, locality: "b", used: 3, replace: false, StorageFree: 200.00},
-		1003: &broker{id: 1003, locality: "c", used: 2, replace: false, StorageFree: 300.00},
-		1004: &broker{id: 1004, locality: "a", used: 2, replace: false, StorageFree: 400.00},
+		0:    &Broker{ID: 0, Replace: true},
+		1001: &Broker{ID: 1001, Locality: "a", Used: 3, Replace: false, StorageFree: 100.00},
+		1002: &Broker{ID: 1002, Locality: "b", Used: 3, Replace: false, StorageFree: 200.00},
+		1003: &Broker{ID: 1003, Locality: "c", Used: 2, Replace: false, StorageFree: 300.00},
+		1004: &Broker{ID: 1004, Locality: "a", Used: 2, Replace: false, StorageFree: 400.00},
 	}
 }

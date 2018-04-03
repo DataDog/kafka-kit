@@ -28,7 +28,7 @@ func newConstraints() *constraints {
 
 // bestCandidate takes a *constraints and selection
 // method and returns the most suitable broker.
-func (b brokerList) bestCandidate(c *constraints, by string) (*broker, error) {
+func (b brokerList) bestCandidate(c *constraints, by string) (*Broker, error) {
 	// Sort type based on the
 	// desired placement criteria.
 	switch by {
@@ -40,14 +40,14 @@ func (b brokerList) bestCandidate(c *constraints, by string) (*broker, error) {
 		return nil, errInvalidSelectionMethod
 	}
 
-	var candidate *broker
+	var candidate *Broker
 
 	// Iterate over candidates.
 	for _, candidate = range b {
 		// Candidate passes, return.
 		if c.passes(candidate) {
 			c.add(candidate)
-			candidate.used++
+			candidate.Used++
 
 			return candidate, nil
 		}
@@ -57,31 +57,31 @@ func (b brokerList) bestCandidate(c *constraints, by string) (*broker, error) {
 	return nil, errNoBrokers
 }
 
-// add takes a *broker and adds its
+// add takes a *Broker and adds its
 // attributes to the *constraints.
 // The requestSize is also subtracted
-// from the *broker.StorageFree.
-func (c *constraints) add(b *broker) {
+// from the *Broker.StorageFree.
+func (c *constraints) add(b *Broker) {
 	b.StorageFree -= c.requestSize
 
-	if b.locality != "" {
-		c.locality[b.locality] = true
+	if b.Locality != "" {
+		c.locality[b.Locality] = true
 	}
 
-	c.id[b.id] = true
+	c.id[b.ID] = true
 }
 
-// passes takes a *broker and returns
+// passes takes a *Broker and returns
 // whether or not it passes constraints.
-func (c *constraints) passes(b *broker) bool {
+func (c *constraints) passes(b *Broker) bool {
 	switch {
 	// Fail if the candidate is one of the
 	// IDs already in the replica set.
-	case c.id[b.id]:
+	case c.id[b.ID]:
 		return false
-	// Fail if the candidate is in any of
-	// the existing replica set localities.
-	case c.locality[b.locality]:
+		// Fail if the candidate is in any of
+		// the existing replica set localities.
+	case c.locality[b.Locality]:
 		return false
 	// Fail if the candidate would run
 	// out of storage.
@@ -103,15 +103,15 @@ func mergeConstraints(bl brokerList) *constraints {
 	for _, b := range bl {
 		// Don't merge in attributes
 		// from nodes that will be removed.
-		if b.replace {
+		if b.Replace {
 			continue
 		}
 
-		if b.locality != "" {
-			c.locality[b.locality] = true
+		if b.Locality != "" {
+			c.locality[b.Locality] = true
 		}
 
-		c.id[b.id] = true
+		c.id[b.ID] = true
 	}
 
 	return c

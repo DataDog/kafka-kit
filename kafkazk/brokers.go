@@ -48,31 +48,23 @@ type BrokerStatus struct {
 	Replace    int
 }
 
-// broker is used for internal
+// Broker is used for internal
 // metadata / accounting.
-type broker struct {
-	id          int
-	locality    string
-	used        int
+type Broker struct {
+	ID          int
+	Locality    string
+	Used        int
 	StorageFree float64
-	replace     bool
-}
-
-// Replace returns whether the
-// broker was marked for replacement.
-// TODO the broker type should probably
-// just be exported.
-func (b *broker) Replace() bool {
-	return b.replace
+	Replace     bool
 }
 
 // BrokerMap holds a mapping of
-// broker IDs to *broker.
-type BrokerMap map[int]*broker
+// broker IDs to *Broker.
+type BrokerMap map[int]*Broker
 
 // brokerList is a slice of
 // brokers for sorting by used count.
-type brokerList []*broker
+type brokerList []*Broker
 
 // Wrapper types for sort by
 // methods.
@@ -85,14 +77,14 @@ type brokersByStorage brokerList
 func (b brokersByCount) Len() int      { return len(b) }
 func (b brokersByCount) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
 func (b brokersByCount) Less(i, j int) bool {
-	if b[i].used < b[j].used {
+	if b[i].Used < b[j].Used {
 		return true
 	}
-	if b[i].used > b[j].used {
+	if b[i].Used > b[j].Used {
 		return false
 	}
 
-	return b[i].id < b[j].id
+	return b[i].ID < b[j].ID
 }
 
 // By StorageFree value.
@@ -106,7 +98,7 @@ func (b brokersByStorage) Less(i, j int) bool {
 		return false
 	}
 
-	return b[i].id < b[j].id
+	return b[i].ID < b[j].ID
 }
 
 // Update takes a BrokerMap and a []int
@@ -135,7 +127,7 @@ func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) *BrokerStatus {
 			if _, exist := bm[id]; !exist {
 				fmt.Printf("%sPrevious broker %d missing\n",
 					indent, id)
-				b[id].replace = true
+				b[id].Replace = true
 				// If this broker is missing and was provided in
 				// the broker list, consider it a "missing provided broker".
 				if _, ok := newBrokers[id]; len(bm) > 0 && ok {
@@ -153,15 +145,15 @@ func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) *BrokerStatus {
 		// Broker ID 0 is a special stub
 		// ID used for internal purposes.
 		// Skip it.
-		if broker.id == 0 {
+		if broker.ID == 0 {
 			continue
 		}
 
-		if _, ok := newBrokers[broker.id]; !ok {
+		if _, ok := newBrokers[broker.ID]; !ok {
 			bs.Replace++
-			b[broker.id].replace = true
+			b[broker.ID].Replace = true
 			fmt.Printf("%sBroker %d marked for removal\n",
-				indent, broker.id)
+				indent, broker.ID)
 		}
 	}
 
@@ -172,10 +164,10 @@ func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) *BrokerStatus {
 			// Skip metadata lookups if
 			// meta is not being used.
 			if len(bm) == 0 {
-				b[id] = &broker{
-					used:    0,
-					id:      id,
-					replace: false,
+				b[id] = &Broker{
+					Used:    0,
+					ID:      id,
+					Replace: false,
 				}
 				bs.New++
 				continue
@@ -184,11 +176,11 @@ func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) *BrokerStatus {
 			// Else check the broker against
 			// the broker metadata map.
 			if meta, exists := bm[id]; exists {
-				b[id] = &broker{
-					used:     0,
-					id:       id,
-					replace:  false,
-					locality: meta.Rack,
+				b[id] = &Broker{
+					Used:        0,
+					ID:          id,
+					Replace:     false,
+					Locality:    meta.Rack,
 					StorageFree: meta.StorageFree,
 				}
 				bs.New++
@@ -245,7 +237,7 @@ func (b BrokerMap) SubStorageReplacements(pm *PartitionMap, pmm PartitionMetaMap
 		// StorageFree for all mapped brokers.
 		for _, bid := range partn.Replicas {
 			broker, exists := b[bid]
-			if exists && broker.replace {
+			if exists && broker.Replace {
 				broker.StorageFree += size
 			}
 			if !exists {
@@ -264,7 +256,7 @@ func (b BrokerMap) filteredList() brokerList {
 	bl := brokerList{}
 
 	for broker := range b {
-		if !b[broker].replace {
+		if !b[broker].Replace {
 			bl = append(bl, b[broker])
 		}
 	}
@@ -287,7 +279,7 @@ func BrokerMapFromTopicMap(pm *PartitionMap, bm BrokerMetaMap, force bool) Broke
 			if bmap[id] == nil {
 				// If we're doing a force rebuid, replace
 				// should be set to true.
-				bmap[id] = &broker{used: 0, id: id, replace: false}
+				bmap[id] = &Broker{Used: 0, ID: id, Replace: false}
 			}
 
 			// Track use scoring unless we're
@@ -295,12 +287,12 @@ func BrokerMapFromTopicMap(pm *PartitionMap, bm BrokerMetaMap, force bool) Broke
 			// we're treating existing brokers the same
 			// as new brokers (which start with a score of 0).
 			if !force {
-				bmap[id].used++
+				bmap[id].Used++
 			}
 
 			// Add metadata if we have it.
 			if meta, exists := bm[id]; exists {
-				bmap[id].locality = meta.Rack
+				bmap[id].Locality = meta.Rack
 				bmap[id].StorageFree = meta.StorageFree
 			}
 		}
@@ -310,7 +302,7 @@ func BrokerMapFromTopicMap(pm *PartitionMap, bm BrokerMetaMap, force bool) Broke
 	// We request a Stripped map which replaces
 	// all existing brokers with the fake broker
 	// with ID set for replacement.
-	bmap[0] = &broker{used: 0, id: 0, replace: true}
+	bmap[0] = &Broker{Used: 0, ID: 0, Replace: true}
 
 	return bmap
 }
@@ -338,12 +330,12 @@ func (b BrokerMap) StorageDiff(b2 BrokerMap) map[int][2]float64 {
 func (b BrokerMap) Copy() BrokerMap {
 	c := BrokerMap{}
 	for id, br := range b {
-		c[id] = &broker{
-			id:          br.id,
-			locality:    br.locality,
-			used:        br.used,
+		c[id] = &Broker{
+			ID:          br.ID,
+			Locality:    br.Locality,
+			Used:        br.Used,
 			StorageFree: br.StorageFree,
-			replace:     br.replace,
+			Replace:     br.Replace,
 		}
 	}
 
