@@ -212,6 +212,8 @@ func TestRebuild(t *testing.T) {
 
 	// Mark 1004 for replacement.
 	brokers[1004].Replace = true
+
+	// Rebuild.
 	out, errs = pm.Rebuild(brokers, pmm, "count")
 	if errs != nil {
 		t.Errorf("Unexpected error(s): %s", errs)
@@ -222,9 +224,10 @@ func TestRebuild(t *testing.T) {
 	expected.Partitions[2].Replicas = []int{1003, 1002, 1001}
 	expected.Partitions[3].Replicas = []int{1001, 1003, 1002}
 
-	if same, _ := out.equal(expected); !same {
-		t.Error("Unexpected inequality after broker replacement")
+	if same, err := out.equal(expected); !same {
+		t.Errorf("Unexpected inequality after broker replacement: %s", err)
 	}
+
 
 	// Test a rebuild with a change in
 	// replication factor.
@@ -233,8 +236,11 @@ func TestRebuild(t *testing.T) {
 
 	out, _ = pm.Rebuild(brokers, pmm, "count")
 
-	if same, _ := out.equal(expected); !same {
-		t.Error("Unexpected inequality after replication factor change -> rebuild")
+	//fmt.Printf("1: %v\n", out)
+	//fmt.Printf("2: %v\n", expected)
+
+	if same, err := out.equal(expected); !same {
+		t.Errorf("Unexpected inequality after replication factor change -> rebuild: %s", err)
 	}
 
 	// Test a force rebuild.
@@ -243,9 +249,9 @@ func TestRebuild(t *testing.T) {
 	brokers = BrokerMapFromTopicMap(pm, bm, forceRebuild)
 	out, _ = pmStripped.Rebuild(brokers, pmm, "count")
 
-	same, _ := pm.equal(out)
+	same, err := pm.equal(out)
 	if !same {
-		t.Error("Unexpected inequality after force rebuild")
+		t.Errorf("Unexpected inequality after force rebuild: %s", err)
 	}
 }
 
@@ -270,8 +276,9 @@ func TestRebuildByStorage(t *testing.T) {
 	}
 
 	// TODO
-	fmt.Println(out)
+	_ = out
+	/*
 	for _, b := range brokers {
 		fmt.Printf("%d %f\n", b.ID, b.StorageFree)
-	}
+	}*/
 }

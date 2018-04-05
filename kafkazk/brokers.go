@@ -3,7 +3,9 @@ package kafkazk
 import (
 	"errors"
 	"fmt"
+	"math/rand"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -99,6 +101,41 @@ func (b brokersByStorage) Less(i, j int) bool {
 	}
 
 	return b[i].ID < b[j].ID
+}
+
+// SortPseudoShuffle takes a brokerList and performs a
+// sort by count. For each sequence of brokers with
+// equal counts, the sub-slice is pseudo random shuffled
+// using the provided seed value s.
+func (b brokerList) SortPseudoShuffle() {
+	sort.Sort(brokersByCount(b))
+
+	if len(b) <= 2 {
+		return
+	}
+
+	s, e := 0, 0
+	currVal := b[0]
+	stop := len(b) - 1
+
+	// For each continuous run of
+	// a given Used value, shuffle
+	// that range of the slice.
+	for i := range b {
+		switch {
+		case i == stop:
+			rand.Shuffle(len(b[s:]), func(i, j int) {
+				b[s:][i], b[s:][j] = b[s:][j], b[s:][i]
+			})
+		case b[i] != currVal:
+			currVal = b[i]
+			e = i
+			rand.Shuffle(len(b[s:e]), func(i, j int) {
+				b[s:e][i], b[s:e][j] = b[s:e][j], b[s:e][i]
+			})
+			s = e
+		}
+	}
 }
 
 // Update takes a BrokerMap and a []int

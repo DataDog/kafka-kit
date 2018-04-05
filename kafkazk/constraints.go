@@ -26,14 +26,16 @@ func newConstraints() *constraints {
 	}
 }
 
-// bestCandidate takes a *constraints and selection
-// method and returns the most suitable broker.
+// bestCandidate takes a *constraints and selection method
+// and returns the most suitable broker.
 func (b brokerList) bestCandidate(c *constraints, by string) (*Broker, error) {
 	// Sort type based on the
 	// desired placement criteria.
 	switch by {
 	case "count":
-		sort.Sort(brokersByCount(b))
+		// XXX Should instantiate
+		// a dedicated Rand for this.
+		b.SortPseudoShuffle()
 	case "storage":
 		sort.Sort(brokersByStorage(b))
 	default:
