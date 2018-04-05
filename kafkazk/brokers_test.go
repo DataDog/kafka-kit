@@ -26,7 +26,7 @@ func TestBrokerMapFromTopicMap(t *testing.T) {
 			t.Errorf("Expected used %d, got %d for broker %d",
 				expected[id].Used, b.Used, id)
 		case b.Replace != expected[id].Replace:
-			t.Errorf("Expected replace %b, got %b for broker %d",
+			t.Errorf("Expected replace %t, got %t for broker %d",
 				expected[id].Replace, b.Replace, id)
 		}
 	}

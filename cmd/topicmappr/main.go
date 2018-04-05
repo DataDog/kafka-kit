@@ -63,16 +63,16 @@ func init() {
 	// Sanity check params.
 	switch {
 	case Config.rebuildMap == "" && *topics == "":
-		fmt.Println("[ERROR] Must specify either -rebuild-map or -rebuild-topics\n")
+		fmt.Println("[ERROR] Must specify either -rebuild-map or -rebuild-topics")
 		defaultsAndExit()
 	case len(*brokers) == 0:
-		fmt.Println("[ERROR] --brokers cannot be empty\n")
+		fmt.Println("[ERROR] --brokers cannot be empty")
 		defaultsAndExit()
 	case Config.placement != "count" && Config.placement != "storage":
-		fmt.Println("[ERROR] --placement must be either 'count' or 'storage'\n")
+		fmt.Println("[ERROR] --placement must be either 'count' or 'storage'")
 		defaultsAndExit()
 	case !Config.useMeta && Config.placement == "storage":
-		fmt.Println("[ERROR] --placement=storage requires --use-meta=true\n")
+		fmt.Println("[ERROR] --placement=storage requires --use-meta=true")
 		defaultsAndExit()
 	}
 
@@ -457,6 +457,7 @@ func containsRegex(t string) bool {
 }
 
 func defaultsAndExit() {
+	fmt.Println()
 	flag.PrintDefaults()
 	os.Exit(1)
 }
