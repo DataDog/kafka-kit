@@ -26,16 +26,18 @@ func newConstraints() *constraints {
 	}
 }
 
-// bestCandidate takes a *constraints and selection method
-// and returns the most suitable broker.
-func (b brokerList) bestCandidate(c *constraints, by string) (*Broker, error) {
+// bestCandidate takes a *constraints, selection method
+// and pass / iteration number (for use as a seed value
+// for pseudo-random number generation) and returns
+// the most suitable broker.
+func (b brokerList) bestCandidate(c *constraints, by string, p int64) (*Broker, error) {
 	// Sort type based on the
 	// desired placement criteria.
 	switch by {
 	case "count":
 		// XXX Should instantiate
 		// a dedicated Rand for this.
-		b.SortPseudoShuffle()
+		b.SortPseudoShuffle(p)
 	case "storage":
 		sort.Sort(brokersByStorage(b))
 	default:

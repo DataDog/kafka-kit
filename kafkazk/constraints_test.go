@@ -25,19 +25,19 @@ func TestBestCandidateByCount(t *testing.T) {
 	// "b" as candidates.
 	c.locality["b"] = true
 
-	b, _ := bl.bestCandidate(c, "count")
+	b, _ := bl.bestCandidate(c, "count", 1)
 	// 1002 should be the first available.
 	if b.ID != 1002 {
 		t.Errorf("Expected candidate with ID 1002, got %d", b.ID)
 	}
 
-	b, _ = bl.bestCandidate(c, "count")
+	b, _ = bl.bestCandidate(c, "count", 1)
 	// 1003 should be next available.
 	if b.ID != 1003 {
 		t.Errorf("Expected candidate with ID 1003, got %d", b.ID)
 	}
 
-	_, err := bl.bestCandidate(c, "count")
+	_, err := bl.bestCandidate(c, "count", 1)
 	if err == nil {
 		t.Errorf("Expected exhausted candidate list")
 	}
@@ -65,20 +65,20 @@ func TestBestCandidateByStorage(t *testing.T) {
 	// Sets request size.
 	c.requestSize = 1000.00
 
-	b, _ := bl.bestCandidate(c, "storage")
+	b, _ := bl.bestCandidate(c, "storage", 1)
 
 	// 1003 should be the first available.
 	if b.ID != 1003 {
 		t.Errorf("Expected candidate with ID 1003, got %d", b.ID)
 	}
 
-	b, _ = bl.bestCandidate(c, "storage")
+	b, _ = bl.bestCandidate(c, "storage", 1)
 	// 1003 should be next available.
 	if b.ID != 1001 {
 		t.Errorf("Expected candidate with ID 1001, got %d", b.ID)
 	}
 
-	_, err := bl.bestCandidate(c, "storage")
+	_, err := bl.bestCandidate(c, "storage", 1)
 	if err == nil {
 		t.Errorf("Expected exhausted candidate list")
 	}

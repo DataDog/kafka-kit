@@ -3,6 +3,7 @@ package kafkazk
 import (
 	"sort"
 	"testing"
+	"fmt" // REMOVE
 )
 
 func TestBrokerMapFromTopicMap(t *testing.T) {
@@ -157,6 +158,19 @@ func TestBrokerListSort(t *testing.T) {
 	}
 }
 
+func TestSortPseudoShuffle(t *testing.T) {
+	bl := newMockBrokerMap2().filteredList()
+
+	bl.SortPseudoShuffle(1)
+	// REMOVE
+	for _, b := range bl {
+		fmt.Printf("ID: %d, Used: %d\n", b.ID, b.Used)
+	}
+	// Test.
+	bl.SortPseudoShuffle(2)
+	// Test.
+}
+
 func TestBrokerStringToSlice(t *testing.T) {
 	bs := BrokerStringToSlice("1001,1002,1003,1003")
 	expected := []int{1001, 1002, 1003}
@@ -179,5 +193,18 @@ func newMockBrokerMap() BrokerMap {
 		1002: &Broker{ID: 1002, Locality: "b", Used: 3, Replace: false, StorageFree: 200.00},
 		1003: &Broker{ID: 1003, Locality: "c", Used: 2, Replace: false, StorageFree: 300.00},
 		1004: &Broker{ID: 1004, Locality: "a", Used: 2, Replace: false, StorageFree: 400.00},
+	}
+}
+
+func newMockBrokerMap2() BrokerMap {
+	return BrokerMap{
+		0:    &Broker{ID: 0, Replace: true},
+		1001: &Broker{ID: 1001, Locality: "a", Used: 2, Replace: false, StorageFree: 100.00},
+		1002: &Broker{ID: 1002, Locality: "b", Used: 2, Replace: false, StorageFree: 200.00},
+		1003: &Broker{ID: 1003, Locality: "c", Used: 3, Replace: false, StorageFree: 300.00},
+		1004: &Broker{ID: 1004, Locality: "a", Used: 2, Replace: false, StorageFree: 400.00},
+		1005: &Broker{ID: 1005, Locality: "b", Used: 2, Replace: false, StorageFree: 400.00},
+		1006: &Broker{ID: 1006, Locality: "c", Used: 3, Replace: false, StorageFree: 400.00},
+		1007: &Broker{ID: 1007, Locality: "a", Used: 3, Replace: false, StorageFree: 400.00},
 	}
 }

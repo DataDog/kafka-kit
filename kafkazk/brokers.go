@@ -107,33 +107,34 @@ func (b brokersByStorage) Less(i, j int) bool {
 // sort by count. For each sequence of brokers with
 // equal counts, the sub-slice is pseudo random shuffled
 // using the provided seed value s.
-func (b brokerList) SortPseudoShuffle() {
+func (b brokerList) SortPseudoShuffle(seed int64) {
 	sort.Sort(brokersByCount(b))
 
 	if len(b) <= 2 {
 		return
 	}
 
-	s, e := 0, 0
-	currVal := b[0]
+	rand.Seed(seed)
+
+	s := 0
 	stop := len(b) - 1
+	currVal := b[0].Used
 
 	// For each continuous run of
 	// a given Used value, shuffle
 	// that range of the slice.
-	for i := range b {
+	for k := range b {
 		switch {
-		case i == stop:
+		case b[k].Used != currVal:
+			currVal = b[k].Used
+			rand.Shuffle(len(b[s:k]), func(i, j int) {
+				b[s:k][i], b[s:k][j] = b[s:k][j], b[s:k][i]
+			})
+			s = k
+		case k == stop:
 			rand.Shuffle(len(b[s:]), func(i, j int) {
 				b[s:][i], b[s:][j] = b[s:][j], b[s:][i]
 			})
-		case b[i] != currVal:
-			currVal = b[i]
-			e = i
-			rand.Shuffle(len(b[s:e]), func(i, j int) {
-				b[s:e][i], b[s:e][j] = b[s:e][j], b[s:e][i]
-			})
-			s = e
 		}
 	}
 }

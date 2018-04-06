@@ -228,7 +228,6 @@ func TestRebuild(t *testing.T) {
 		t.Errorf("Unexpected inequality after broker replacement: %s", err)
 	}
 
-
 	// Test a rebuild with a change in
 	// replication factor.
 	pm.SetReplication(2)
@@ -278,7 +277,7 @@ func TestRebuildByStorage(t *testing.T) {
 	// TODO
 	_ = out
 	/*
-	for _, b := range brokers {
-		fmt.Printf("%d %f\n", b.ID, b.StorageFree)
-	}*/
+		for _, b := range brokers {
+			fmt.Printf("%d %f\n", b.ID, b.StorageFree)
+		}*/
 }
