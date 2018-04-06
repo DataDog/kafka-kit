@@ -202,7 +202,6 @@ func (pm *PartitionMap) Rebuild(bm BrokerMap, pmm PartitionMetaMap, strategy str
 
 				// Fetch the best candidate and append.
 				newBroker, err := bl.bestCandidate(constraints, strategy, int64(pass*n+1))
-				fmt.Println(newBroker.ID)
 
 				if err != nil {
 					// Append any caught errors.

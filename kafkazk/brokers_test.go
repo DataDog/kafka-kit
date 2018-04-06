@@ -3,7 +3,6 @@ package kafkazk
 import (
 	"sort"
 	"testing"
-	"fmt" // REMOVE
 )
 
 func TestBrokerMapFromTopicMap(t *testing.T) {
@@ -161,14 +160,25 @@ func TestBrokerListSort(t *testing.T) {
 func TestSortPseudoShuffle(t *testing.T) {
 	bl := newMockBrokerMap2().filteredList()
 
+	// Test with seed val of 1.
+	expected := []int{1001, 1002, 1005, 1004, 1007, 1003, 1006}
 	bl.SortPseudoShuffle(1)
-	// REMOVE
-	for _, b := range bl {
-		fmt.Printf("ID: %d, Used: %d\n", b.ID, b.Used)
+
+	for i, b := range bl {
+		if b.ID != expected[i] {
+			t.Errorf("Expected broker %d, got %d", expected[i], b.ID)
+		}
 	}
-	// Test.
-	bl.SortPseudoShuffle(2)
-	// Test.
+
+	// Test with seed val of 3.
+	expected = []int{1001, 1005, 1002, 1004, 1003, 1006, 1007}
+	bl.SortPseudoShuffle(3)
+
+	for i, b := range bl {
+		if b.ID != expected[i] {
+			t.Errorf("Expected broker %d, got %d", expected[i], b.ID)
+		}
+	}
 }
 
 func TestBrokerStringToSlice(t *testing.T) {
