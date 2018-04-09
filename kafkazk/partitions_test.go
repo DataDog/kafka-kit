@@ -15,6 +15,17 @@ func testGetMapString(n string) string {
     {"topic":"%s","partition":3,"replicas":[1004,1003,1002]}]}`, n, n, n, n)
 }
 
+func testGetMapString2(n string) string {
+	return fmt.Sprintf(`{"version":1,"partitions":[
+    {"topic":"%s","partition":0,"replicas":[1001,1002]},
+    {"topic":"%s","partition":1,"replicas":[1002,1001]},
+    {"topic":"%s","partition":2,"replicas":[1003,1004]},
+    {"topic":"%s","partition":3,"replicas":[1004,1003]},
+		{"topic":"%s","partition":4,"replicas":[1004,1003]},
+		{"topic":"%s","partition":5,"replicas":[1004,1003]},
+		{"topic":"%s","partition":6,"replicas":[1004,1003]}]}`, n, n, n, n, n, n, n)
+}
+
 // func TestSize(t *testing.T) {} XXX Do.
 
 func TestSortBySize(t *testing.T) {
@@ -196,8 +207,8 @@ func TestRebuild(t *testing.T) {
 	bm, _ := zk.GetAllBrokerMeta(withMetrics)
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 	pmm := NewPartitionMetaMap()
-
 	brokers := BrokerMapFromTopicMap(pm, bm, forceRebuild)
+
 	out, errs := pm.Rebuild(brokers, pmm, "count")
 	if errs != nil {
 		t.Errorf("Unexpected error(s): %s", errs)
@@ -212,6 +223,8 @@ func TestRebuild(t *testing.T) {
 
 	// Mark 1004 for replacement.
 	brokers[1004].Replace = true
+
+	// Rebuild.
 	out, errs = pm.Rebuild(brokers, pmm, "count")
 	if errs != nil {
 		t.Errorf("Unexpected error(s): %s", errs)
@@ -222,8 +235,8 @@ func TestRebuild(t *testing.T) {
 	expected.Partitions[2].Replicas = []int{1003, 1002, 1001}
 	expected.Partitions[3].Replicas = []int{1001, 1003, 1002}
 
-	if same, _ := out.equal(expected); !same {
-		t.Error("Unexpected inequality after broker replacement")
+	if same, err := out.equal(expected); !same {
+		t.Errorf("Unexpected inequality after broker replacement: %s", err)
 	}
 
 	// Test a rebuild with a change in
@@ -233,19 +246,30 @@ func TestRebuild(t *testing.T) {
 
 	out, _ = pm.Rebuild(brokers, pmm, "count")
 
-	if same, _ := out.equal(expected); !same {
-		t.Error("Unexpected inequality after replication factor change -> rebuild")
+	if same, err := out.equal(expected); !same {
+		t.Errorf("Unexpected inequality after replication factor change -> rebuild: %s", err)
 	}
 
 	// Test a force rebuild.
 	forceRebuild = true
+	pm, _ = PartitionMapFromString(testGetMapString2("test_topic"))
 	pmStripped := pm.Strip()
 	brokers = BrokerMapFromTopicMap(pm, bm, forceRebuild)
-	out, _ = pmStripped.Rebuild(brokers, pmm, "count")
 
-	same, _ := pm.equal(out)
+	out, _ = pmStripped.Rebuild(brokers, pmm, "count")
+	fmt.Printf("%v\n", out)
+	expected = pm.Copy()
+	expected.Partitions[0].Replicas = []int{1001, 1003}
+	expected.Partitions[1].Replicas = []int{1002, 1004}
+	expected.Partitions[2].Replicas = []int{1003, 1001}
+	expected.Partitions[3].Replicas = []int{1004, 1002}
+	expected.Partitions[4].Replicas = []int{1001, 1002}
+	expected.Partitions[5].Replicas = []int{1002, 1004}
+	expected.Partitions[6].Replicas = []int{1003, 1001}
+
+	same, err := out.equal(expected)
 	if !same {
-		t.Error("Unexpected inequality after force rebuild")
+		t.Errorf("Unexpected inequality after force rebuild: %s", err)
 	}
 }
 
@@ -270,8 +294,9 @@ func TestRebuildByStorage(t *testing.T) {
 	}
 
 	// TODO
-	fmt.Println(out)
-	for _, b := range brokers {
-		fmt.Printf("%d %f\n", b.ID, b.StorageFree)
-	}
+	_ = out
+	/*
+		for _, b := range brokers {
+			fmt.Printf("%d %f\n", b.ID, b.StorageFree)
+		}*/
 }

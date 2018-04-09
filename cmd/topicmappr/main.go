@@ -63,16 +63,16 @@ func init() {
 	// Sanity check params.
 	switch {
 	case Config.rebuildMap == "" && *topics == "":
-		fmt.Println("[ERROR] Must specify either -rebuild-map or -rebuild-topics\n")
+		fmt.Println("[ERROR] Must specify either -rebuild-map or -rebuild-topics")
 		defaultsAndExit()
 	case len(*brokers) == 0:
-		fmt.Println("[ERROR] --brokers cannot be empty\n")
+		fmt.Println("[ERROR] --brokers cannot be empty")
 		defaultsAndExit()
 	case Config.placement != "count" && Config.placement != "storage":
-		fmt.Println("[ERROR] --placement must be either 'count' or 'storage'\n")
+		fmt.Println("[ERROR] --placement must be either 'count' or 'storage'")
 		defaultsAndExit()
 	case !Config.useMeta && Config.placement == "storage":
-		fmt.Println("[ERROR] --placement=storage requires --use-meta=true\n")
+		fmt.Println("[ERROR] --placement=storage requires --use-meta=true")
 		defaultsAndExit()
 	}
 
@@ -294,20 +294,6 @@ func main() {
 		partitionMapOut, warns = partitionMapIn.Rebuild(brokers, partitionMeta, Config.placement)
 	}
 
-	// TODO If we use the storage placement strategy,
-	// we can call an optimize pass in a separate
-	// stage here. Rebuild is complex enough;
-	// introducing single-pass optimization there
-	// might not be the best. It's likely OK that
-	// rebuild handles replacements and initial
-	// storage based placement while honoring the
-	// locality / replication constraints.
-	// A dedicated optimization function can focus
-	// on optimizations within a given locality.
-	// For example, we can arbitrarily shuffle all
-	// partitions within a rack.id value, then perform
-	// an optimization for each value.
-
 	// Sort by topic, partition.
 	// TODO all functions should return
 	// standard lex sorted partition maps.
@@ -403,9 +389,7 @@ func main() {
 
 	// Don't write the output if ignoreWarns is set.
 	if !Config.ignoreWarns && len(warns) > 0 {
-		fmt.Printf(
-			"%sWarnings encountered, partition map not created. Override with --ignore-warns.\n",
-			indent)
+		fmt.Printf("%sWarnings encountered, partition map not created. Override with --ignore-warns.\n", indent)
 		os.Exit(1)
 	}
 
@@ -457,6 +441,7 @@ func containsRegex(t string) bool {
 }
 
 func defaultsAndExit() {
+	fmt.Println()
 	flag.PrintDefaults()
 	os.Exit(1)
 }

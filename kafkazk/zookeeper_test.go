@@ -510,7 +510,7 @@ func TestGetTopicState(t *testing.T) {
 	for p, rs := range ts.Partitions {
 		v, exists := expected[p]
 		if !exists {
-			t.Errorf("Expected partition %d in TopicState", p)
+			t.Errorf("Expected partition %s in TopicState", p)
 		}
 
 		if len(rs) != len(v) {
@@ -549,7 +549,7 @@ func TestGetTopicStateISR(t *testing.T) {
 	for p := range ts {
 		v, exists := expected[p]
 		if !exists {
-			t.Errorf("Expected partition %d in TopicState", p)
+			t.Errorf("Expected partition %s in TopicState", p)
 		}
 
 		if len(ts[p].ISR) != len(v) {

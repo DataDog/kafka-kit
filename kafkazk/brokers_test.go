@@ -26,7 +26,7 @@ func TestBrokerMapFromTopicMap(t *testing.T) {
 			t.Errorf("Expected used %d, got %d for broker %d",
 				expected[id].Used, b.Used, id)
 		case b.Replace != expected[id].Replace:
-			t.Errorf("Expected replace %b, got %b for broker %d",
+			t.Errorf("Expected replace %t, got %t for broker %d",
 				expected[id].Replace, b.Replace, id)
 		}
 	}
@@ -157,6 +157,30 @@ func TestBrokerListSort(t *testing.T) {
 	}
 }
 
+func TestSortPseudoShuffle(t *testing.T) {
+	bl := newMockBrokerMap2().filteredList()
+
+	// Test with seed val of 1.
+	expected := []int{1001, 1002, 1005, 1004, 1007, 1003, 1006}
+	bl.SortPseudoShuffle(1)
+
+	for i, b := range bl {
+		if b.ID != expected[i] {
+			t.Errorf("Expected broker %d, got %d", expected[i], b.ID)
+		}
+	}
+
+	// Test with seed val of 3.
+	expected = []int{1001, 1005, 1002, 1004, 1003, 1006, 1007}
+	bl.SortPseudoShuffle(3)
+
+	for i, b := range bl {
+		if b.ID != expected[i] {
+			t.Errorf("Expected broker %d, got %d", expected[i], b.ID)
+		}
+	}
+}
+
 func TestBrokerStringToSlice(t *testing.T) {
 	bs := BrokerStringToSlice("1001,1002,1003,1003")
 	expected := []int{1001, 1002, 1003}
@@ -179,5 +203,18 @@ func newMockBrokerMap() BrokerMap {
 		1002: &Broker{ID: 1002, Locality: "b", Used: 3, Replace: false, StorageFree: 200.00},
 		1003: &Broker{ID: 1003, Locality: "c", Used: 2, Replace: false, StorageFree: 300.00},
 		1004: &Broker{ID: 1004, Locality: "a", Used: 2, Replace: false, StorageFree: 400.00},
+	}
+}
+
+func newMockBrokerMap2() BrokerMap {
+	return BrokerMap{
+		0:    &Broker{ID: 0, Replace: true},
+		1001: &Broker{ID: 1001, Locality: "a", Used: 2, Replace: false, StorageFree: 100.00},
+		1002: &Broker{ID: 1002, Locality: "b", Used: 2, Replace: false, StorageFree: 200.00},
+		1003: &Broker{ID: 1003, Locality: "c", Used: 3, Replace: false, StorageFree: 300.00},
+		1004: &Broker{ID: 1004, Locality: "a", Used: 2, Replace: false, StorageFree: 400.00},
+		1005: &Broker{ID: 1005, Locality: "b", Used: 2, Replace: false, StorageFree: 400.00},
+		1006: &Broker{ID: 1006, Locality: "c", Used: 3, Replace: false, StorageFree: 400.00},
+		1007: &Broker{ID: 1007, Locality: "a", Used: 3, Replace: false, StorageFree: 400.00},
 	}
 }
