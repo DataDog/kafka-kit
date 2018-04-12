@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	"github.com/DataDog/topicmappr/kafkazk"
+
+	"github.com/jamiealquiza/envy"
 )
 
 const (
@@ -58,6 +60,7 @@ func init() {
 	flag.StringVar(&Config.placement, "placement", "count", "Partition placement type: [count, storage]")
 	brokers := flag.String("brokers", "", "Broker list to rebuild topic partition map with")
 
+	envy.Parse("TOPICMAPPR")
 	flag.Parse()
 
 	// Sanity check params.
