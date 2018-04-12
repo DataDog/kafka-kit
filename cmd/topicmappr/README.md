@@ -30,7 +30,7 @@ Binary will be found at `$GOPATH/bin/topicmappr`
 
 **Compatibility**
 
-Tested with Go 1.10 (required), Kafka 0.10.x, ZooKeeper 3.4.x.
+Tested with Go 1.10 (required), Kafka 0.1.x, ZooKeeper 3.4.x.
 
 # Usage
 
@@ -39,31 +39,31 @@ Tested with Go 1.10 (required), Kafka 0.10.x, ZooKeeper 3.4.x.
 ```
 Usage of topicmappr:
   -brokers string
-    	Broker list to rebuild topic partition map with
+    	Broker list to rebuild topic partition map with [TOPICMAPPR_BROKERS]
   -force-rebuild
-    	Forces a rebuild even if all existing brokers are provided
+    	Forces a rebuild even if all existing brokers are provided [TOPICMAPPR_FORCE_REBUILD]
   -ignore-warns
-    	Whether a map should be produced if warnings are emitted
+    	Whether a map should be produced if warnings are emitted [TOPICMAPPR_IGNORE_WARNS]
   -out-file string
-    	If defined, write a combined map of all topics to a file
+    	If defined, write a combined map of all topics to a file [TOPICMAPPR_OUT_FILE]
   -out-path string
-    	Path to write output map files to
+    	Path to write output map files to [TOPICMAPPR_OUT_PATH]
   -placement string
-    	Partition placement type: [count, storage] (default "count")
+    	Partition placement type: [count, storage] [TOPICMAPPR_PLACEMENT] (default "count")
   -rebuild-map string
-    	Rebuild a topic map
+    	Rebuild a topic map [TOPICMAPPR_REBUILD_MAP]
   -rebuild-topics string
-    	Rebuild topics (comma delim list) by lookup in ZooKeeper
+    	Rebuild topics (comma delim list) by lookup in ZooKeeper [TOPICMAPPR_REBUILD_TOPICS]
   -replication int
-    	Set the replication factor
+    	Set the replication factor [TOPICMAPPR_REPLICATION]
   -use-meta
-    	Use broker metadata as constraints (default true)
+    	Use broker metadata as constraints [TOPICMAPPR_USE_META] (default true)
   -zk-addr string
-    	ZooKeeper connect string (for broker metadata or rebuild-topic lookups) (default "localhost:2181")
+    	ZooKeeper connect string (for broker metadata or rebuild-topic lookups) [TOPICMAPPR_ZK_ADDR] (default "localhost:2181")
   -zk-metrics-prefix string
-    	ZooKeeper namespace prefix (for Kafka metrics) (default "topicmappr")
+    	ZooKeeper namespace prefix (for Kafka metrics) [TOPICMAPPR_ZK_METRICS_PREFIX] (default "topicmappr")
   -zk-prefix string
-    	ZooKeeper namespace prefix (for Kafka)
+    	ZooKeeper namespace prefix (for Kafka) [TOPICMAPPR_ZK_PREFIX]
 ```
 
 ## How Mapping Works
