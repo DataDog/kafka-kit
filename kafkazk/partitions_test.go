@@ -209,7 +209,7 @@ func TestRebuild(t *testing.T) {
 	pmm := NewPartitionMetaMap()
 	brokers := BrokerMapFromTopicMap(pm, bm, forceRebuild)
 
-	out, errs := pm.Rebuild(brokers, pmm, "count")
+	out, errs := pm.Rebuild(brokers, pmm, "distribution", "count")
 	if errs != nil {
 		t.Errorf("Unexpected error(s): %s", errs)
 	}
@@ -225,7 +225,7 @@ func TestRebuild(t *testing.T) {
 	brokers[1004].Replace = true
 
 	// Rebuild.
-	out, errs = pm.Rebuild(brokers, pmm, "count")
+	out, errs = pm.Rebuild(brokers, pmm, "distribution", "count")
 	if errs != nil {
 		t.Errorf("Unexpected error(s): %s", errs)
 	}
@@ -244,7 +244,7 @@ func TestRebuild(t *testing.T) {
 	pm.SetReplication(2)
 	expected.SetReplication(2)
 
-	out, _ = pm.Rebuild(brokers, pmm, "count")
+	out, _ = pm.Rebuild(brokers, pmm, "distribution", "count")
 
 	if same, err := out.equal(expected); !same {
 		t.Errorf("Unexpected inequality after replication factor change -> rebuild: %s", err)
@@ -256,7 +256,7 @@ func TestRebuild(t *testing.T) {
 	pmStripped := pm.Strip()
 	brokers = BrokerMapFromTopicMap(pm, bm, forceRebuild)
 
-	out, _ = pmStripped.Rebuild(brokers, pmm, "count")
+	out, _ = pmStripped.Rebuild(brokers, pmm, "distribution", "count")
 	fmt.Printf("%v\n", out)
 	expected = pm.Copy()
 	expected.Partitions[0].Replicas = []int{1001, 1003}
@@ -288,7 +288,7 @@ func TestRebuildByStorage(t *testing.T) {
 	brokers := BrokerMapFromTopicMap(pm, bm, forceRebuild)
 	_ = brokers.SubStorageAll(pm, pmm)
 
-	out, errs := pmStripped.Rebuild(brokers, pmm, "storage")
+	out, errs := pmStripped.Rebuild(brokers, pmm, "distribution", "storage")
 	if errs != nil {
 		t.Errorf("Unexpected error(s): %s", errs)
 	}
