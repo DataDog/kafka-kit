@@ -142,11 +142,12 @@ func (pm *PartitionMap) Rebuild(bm BrokerMap, pmm PartitionMetaMap, strategy str
 
 // placeByPosition builds a PartitionMap by doing placements
 // for all partitions, one broker index at a time. For instance,
-// if all partitions required a broker set length of 3, we'd do
-// all placements in 3 passes. The first pass would be leaders
-// for all positions, the second pass would be the first follower,
-// and the third pass would be the final follower. This placement
-// pattern is optimal for the count strategy.
+// if all partitions required a broker set length of 3 (aka a replication
+// factor of 3), we'd do all placements in 3 passes.
+// The first pass would be leaders for all partitions, the second
+// pass would be the first follower, and the third pass would be
+// the second follower. This placement pattern is optimal
+// for the count strategy.
 func placeByPosition(pm *PartitionMap, bm BrokerMap, pmm PartitionMetaMap, strategy string) (*PartitionMap, []string) {
 	newMap := NewPartitionMap()
 
@@ -167,8 +168,8 @@ func placeByPosition(pm *PartitionMap, bm BrokerMap, pmm PartitionMetaMap, strat
 			// If this is the first pass, create
 			// the new partition.
 			if pass == 0 {
-				newP := Partition{Partition: partn.Partition, Topic: partn.Topic}
-				newMap.Partitions = append(newMap.Partitions, newP)
+				newPartn := Partition{Partition: partn.Partition, Topic: partn.Topic}
+				newMap.Partitions = append(newMap.Partitions, newPartn)
 			}
 
 			// The number of needed passes may vary;
@@ -239,6 +240,92 @@ func placeByPosition(pm *PartitionMap, bm BrokerMap, pmm PartitionMetaMap, strat
 		// Increment the pass.
 		pass++
 
+	}
+
+	// Final check to ensure that no
+	// replica sets were somehow set to 0.
+	for _, partn := range newMap.Partitions {
+		if len(partn.Replicas) == 0 {
+			errString := fmt.Sprintf("%s p%d: configured to zero replicas", partn.Topic, partn.Partition)
+			errs = append(errs, errString)
+		}
+	}
+
+	// Return map, errors.
+	return newMap, errs
+}
+
+func placeByPartition(pm *PartitionMap, bm BrokerMap, pmm PartitionMetaMap, strategy string) (*PartitionMap, []string) {
+	newMap := NewPartitionMap()
+
+	// We need a filtered list for
+	// usage sorting and exclusion
+	// of nodes marked for removal.
+	bl := bm.filteredList()
+
+	var errs []string
+
+	for _, partn := range pm.Partitions {
+		// Create the partition in
+		// the new map.
+		newPartn := Partition{Partition: partn.Partition, Topic: partn.Topic}
+		newMap.Partitions = append(newMap.Partitions, newPartn)
+
+		// Map over each broker from the original
+		// partition replica list to the new,
+		// selecting replacemnt for those marked
+		// for replacement.
+		for _, bid := range partn.Replicas {
+			// If the current broker isn't
+			// marked for removal, just add it
+			// to the same position in the new map.
+			if !bm[bid].Replace {
+				newPartn.Replicas = append(newPartn.Replicas, bid)
+			} else {
+				// Otherwise, we need to find a replacement.
+
+				// Build a brokerList from the
+				// IDs in the old replica set to
+				// get a *constraints.
+				replicaSet := brokerList{}
+				for _, bid := range partn.Replicas {
+					replicaSet = append(replicaSet, bm[bid])
+				}
+				// Add existing brokers in the
+				// new replica set as well.
+				for _, bid := range newPartn.Replicas {
+					replicaSet = append(replicaSet, bm[bid])
+				}
+
+				// Populate a constraints.
+				constraints := mergeConstraints(replicaSet)
+
+				// Add any necessary meta from current partition
+				// to the constraints.
+				if strategy == "storage" {
+					s, err := pmm.Size(partn)
+					if err != nil {
+						errString := fmt.Sprintf("%s p%d: %s", partn.Topic, partn.Partition, err.Error())
+						errs = append(errs, errString)
+						continue
+					}
+
+					constraints.requestSize = s
+				}
+
+				// Fetch the best candidate and append.
+				newBroker, err := bl.bestCandidate(constraints, strategy, 1)
+
+				if err != nil {
+					// Append any caught errors.
+					errString := fmt.Sprintf("%s p%d: %s", partn.Topic, partn.Partition, err.Error())
+					errs = append(errs, errString)
+					continue
+				}
+
+				newPartn.Replicas = append(newPartn.Replicas, newBroker.ID)
+			}
+		}
 	}
 
 	// Final check to ensure that no
