@@ -110,22 +110,44 @@ func (pmm PartitionMetaMap) Size(p Partition) (float64, error) {
 // rebuild strategy. A rebuilt *PartitionMap and []string of
 // errors is returned.
 func (pm *PartitionMap) Rebuild(bm BrokerMap, pmm PartitionMetaMap, strategy string) (*PartitionMap, []string) {
+	var newMap *PartitionMap
+	var errs []string
+
 	switch strategy {
-	// Standard sort.
 	case "count":
+		// Standard sort
 		sort.Sort(pm.Partitions)
-	// Sort by size.
+		// Perform placements.
+		newMap, errs = placeByPosition(pm, bm, pmm, strategy)
 	case "storage":
+		// Sort by size.
 		s := partitionsBySize{
 			pl: pm.Partitions,
 			pm: pmm,
 		}
 		sort.Sort(partitionsBySize(s))
+		// Perform placements.
+		newMap, errs = placeByPosition(pm, bm, pmm, strategy)
 	default:
 		return nil, []string{
 			fmt.Sprintf("Invalid rebuild strategy '%s'", strategy),
 		}
 	}
+
+	// Final sort.
+	sort.Sort(newMap.Partitions)
+
+	return newMap, errs
+}
+
+// placeByPosition builds a PartitionMap by doing placements
+// for all partitions, one broker index at a time. For instance,
+// if all partitions required a broker set length of 3, we'd do
+// all placements in 3 passes. The first pass would be leaders
+// for all positions, the second pass would be the first follower,
+// and the third pass would be the final follower. This placement
+// pattern is optimal for the count strategy.
+func placeByPosition(pm *PartitionMap, bm BrokerMap, pmm PartitionMetaMap, strategy string) (*PartitionMap, []string) {
 	newMap := NewPartitionMap()
 
 	// We need a filtered list for
@@ -228,8 +250,7 @@ func (pm *PartitionMap) Rebuild(bm BrokerMap, pmm PartitionMetaMap, strategy str
 		}
 	}
 
-	sort.Sort(newMap.Partitions)
-
+	// Return map, errors.
 	return newMap, errs
 }
 
