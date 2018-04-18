@@ -127,7 +127,7 @@ func (pm *PartitionMap) Rebuild(bm BrokerMap, pmm PartitionMetaMap, strategy str
 		}
 		sort.Sort(partitionsBySize(s))
 		// Perform placements.
-		newMap, errs = placeByPosition(pm, bm, pmm, strategy)
+		newMap, errs = placeByPartition(pm, bm, pmm, strategy)
 	default:
 		return nil, []string{
 			fmt.Sprintf("Invalid rebuild strategy '%s'", strategy),
@@ -269,7 +269,6 @@ func placeByPartition(pm *PartitionMap, bm BrokerMap, pmm PartitionMetaMap, stra
 		// Create the partition in
 		// the new map.
 		newPartn := Partition{Partition: partn.Partition, Topic: partn.Topic}
-		newMap.Partitions = append(newMap.Partitions, newPartn)
 
 		// Map over each broker from the original
 		// partition replica list to the new,
@@ -326,6 +325,10 @@ func placeByPartition(pm *PartitionMap, bm BrokerMap, pmm PartitionMetaMap, stra
 				newPartn.Replicas = append(newPartn.Replicas, newBroker.ID)
 			}
 		}
+
+		// Add the partition to the
+		// new map.
+		newMap.Partitions = append(newMap.Partitions, newPartn)
 	}
 
 	// Final check to ensure that no
