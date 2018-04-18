@@ -39,6 +39,7 @@ var (
 		forceRebuild    bool
 		replication     int
 		placement       string
+		optimize        string
 	}
 )
 
@@ -58,6 +59,7 @@ func init() {
 	flag.BoolVar(&Config.forceRebuild, "force-rebuild", false, "Forces a rebuild even if all existing brokers are provided")
 	flag.IntVar(&Config.replication, "replication", 0, "Set the replication factor")
 	flag.StringVar(&Config.placement, "placement", "count", "Partition placement type: [count, storage]")
+	flag.StringVar(&Config.optimize, "optimize", "distribution", "Optimization priority for storage placement: [distribution, storage]")
 	brokers := flag.String("brokers", "", "Broker list to rebuild topic partition map with")
 
 	envy.Parse("TOPICMAPPR")
@@ -73,6 +75,9 @@ func init() {
 		defaultsAndExit()
 	case Config.placement != "count" && Config.placement != "storage":
 		fmt.Println("[ERROR] --placement must be either 'count' or 'storage'")
+		defaultsAndExit()
+	case Config.optimize != "distribution" && Config.optimize != "storage":
+		fmt.Println("[ERROR] --optimize must be either 'distribution' or 'storage'")
 		defaultsAndExit()
 	case !Config.useMeta && Config.placement == "storage":
 		fmt.Println("[ERROR] --placement=storage requires --use-meta=true")
@@ -282,7 +287,7 @@ func main() {
 			}
 		}
 		// Rebuild.
-		partitionMapOut, warns = partitionMapInStripped.Rebuild(brokers, partitionMeta, Config.placement)
+		partitionMapOut, warns = partitionMapInStripped.Rebuild(brokers, partitionMeta, Config.optimize, Config.placement)
 	} else {
 		// Update the StorageFree only on brokers
 		// marked for replacement.
@@ -294,7 +299,7 @@ func main() {
 			}
 		}
 		// Rebuild directly on the input map.
-		partitionMapOut, warns = partitionMapIn.Rebuild(brokers, partitionMeta, Config.placement)
+		partitionMapOut, warns = partitionMapIn.Rebuild(brokers, partitionMeta, Config.optimize, Config.placement)
 	}
 
 	// Sort by topic, partition.

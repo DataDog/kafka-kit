@@ -110,7 +110,7 @@ func (pmm PartitionMetaMap) Size(p Partition) (float64, error) {
 // with the best available candidate based on the selected
 // rebuild strategy. A rebuilt *PartitionMap and []string of
 // errors is returned.
-func (pm *PartitionMap) Rebuild(bm BrokerMap, pmm PartitionMetaMap, strategy string) (*PartitionMap, []string) {
+func (pm *PartitionMap) Rebuild(bm BrokerMap, pmm PartitionMetaMap, optimization string, strategy string) (*PartitionMap, []string) {
 	var newMap *PartitionMap
 	var errs []string
 
@@ -127,21 +127,29 @@ func (pm *PartitionMap) Rebuild(bm BrokerMap, pmm PartitionMetaMap, strategy str
 			pm: pmm,
 		}
 		sort.Sort(partitionsBySize(s))
-		// Perform placements.
-		newMap, errs = placeByPartition(pm, bm, pmm, strategy)
-		// Shuffle replica sets. placeByPartition
-		// suffers from optimal leadership distribution
-		// because of the requirement to choose all
-		// brokers for each partition at a time (in contrast
-		// to placeByPosition). Shuffling has proven so far
-		// to distribute leadership even though it's purely
-		// by probability. If cases are found that this proves
-		// unsuitable, a real optimizer will be written.
-		newMap.shuffle()
-	default:
-		return nil, []string{
-			fmt.Sprintf("Invalid rebuild strategy '%s'", strategy),
+		// Perform placements. The placement method
+		// depends on the choosen optimization param.
+		switch optimization {
+		case "distribution":
+			newMap, errs = placeByPosition(pm, bm, pmm, strategy)
+		case "storage":
+			newMap, errs = placeByPartition(pm, bm, pmm, strategy)
+			// Shuffle replica sets. placeByPartition
+			// suffers from optimal leadership distribution
+			// because of the requirement to choose all
+			// brokers for each partition at a time (in contrast
+			// to placeByPosition). Shuffling has proven so far
+			// to distribute leadership even though it's purely
+			// by probability. If cases are found that this proves
+			// unsuitable, a real optimizer will be written.
+			newMap.shuffle()
+		// Invalid optimization.
+		default:
+			return nil, []string{fmt.Sprintf("Invalid optimization '%s'", optimization)}
 		}
+	// Invalid placement.
+	default:
+		return nil, []string{fmt.Sprintf("Invalid rebuild strategy '%s'", strategy)}
 	}
 
 	// Final sort.
@@ -356,7 +364,7 @@ func placeByPartition(pm *PartitionMap, bm BrokerMap, pmm PartitionMetaMap, stra
 
 func (pm *PartitionMap) shuffle() {
 	for n := range pm.Partitions {
-		rand.Seed(int64(n<<2))
+		rand.Seed(int64(n << 2))
 		rand.Shuffle(len(pm.Partitions[n].Replicas), func(i, j int) {
 			pm.Partitions[n].Replicas[i], pm.Partitions[n].Replicas[j] = pm.Partitions[n].Replicas[j], pm.Partitions[n].Replicas[i]
 		})
