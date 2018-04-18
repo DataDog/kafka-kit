@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"regexp"
 	"sort"
 )
@@ -128,6 +129,15 @@ func (pm *PartitionMap) Rebuild(bm BrokerMap, pmm PartitionMetaMap, strategy str
 		sort.Sort(partitionsBySize(s))
 		// Perform placements.
 		newMap, errs = placeByPartition(pm, bm, pmm, strategy)
+		// Shuffle replica sets. placeByPartition
+		// suffers from optimal leadership distribution
+		// because of the requirement to choose all
+		// brokers for each partition at a time (in contrast
+		// to placeByPosition). Shuffling has proven so far
+		// to distribute leadership even though it's purely
+		// by probability. If cases are found that this proves
+		// unsuitable, a real optimizer will be written.
+		newMap.shuffle()
 	default:
 		return nil, []string{
 			fmt.Sprintf("Invalid rebuild strategy '%s'", strategy),
@@ -342,6 +352,15 @@ func placeByPartition(pm *PartitionMap, bm BrokerMap, pmm PartitionMetaMap, stra
 
 	// Return map, errors.
 	return newMap, errs
+}
+
+func (pm *PartitionMap) shuffle() {
+	for n := range pm.Partitions {
+		rand.Seed(int64(n<<2))
+		rand.Shuffle(len(pm.Partitions[n].Replicas), func(i, j int) {
+			pm.Partitions[n].Replicas[i], pm.Partitions[n].Replicas[j] = pm.Partitions[n].Replicas[j], pm.Partitions[n].Replicas[i]
+		})
+	}
 }
 
 // PartitionMapFromString takes a json encoded string
