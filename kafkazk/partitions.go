@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"regexp"
 	"sort"
 )
@@ -109,23 +110,63 @@ func (pmm PartitionMetaMap) Size(p Partition) (float64, error) {
 // with the best available candidate based on the selected
 // rebuild strategy. A rebuilt *PartitionMap and []string of
 // errors is returned.
-func (pm *PartitionMap) Rebuild(bm BrokerMap, pmm PartitionMetaMap, strategy string) (*PartitionMap, []string) {
+func (pm *PartitionMap) Rebuild(bm BrokerMap, pmm PartitionMetaMap, optimization string, strategy string) (*PartitionMap, []string) {
+	var newMap *PartitionMap
+	var errs []string
+
 	switch strategy {
-	// Standard sort.
 	case "count":
+		// Standard sort
 		sort.Sort(pm.Partitions)
-	// Sort by size.
+		// Perform placements.
+		newMap, errs = placeByPosition(pm, bm, pmm, strategy)
 	case "storage":
+		// Sort by size.
 		s := partitionsBySize{
 			pl: pm.Partitions,
 			pm: pmm,
 		}
 		sort.Sort(partitionsBySize(s))
-	default:
-		return nil, []string{
-			fmt.Sprintf("Invalid rebuild strategy '%s'", strategy),
+		// Perform placements. The placement method
+		// depends on the choosen optimization param.
+		switch optimization {
+		case "distribution":
+			newMap, errs = placeByPosition(pm, bm, pmm, strategy)
+		case "storage":
+			newMap, errs = placeByPartition(pm, bm, pmm, strategy)
+			// Shuffle replica sets. placeByPartition
+			// suffers from optimal leadership distribution
+			// because of the requirement to choose all
+			// brokers for each partition at a time (in contrast
+			// to placeByPosition). Shuffling has proven so far
+			// to distribute leadership even though it's purely
+			// by probability. If cases are found that this proves
+			// unsuitable, a real optimizer will be written.
+			newMap.shuffle()
+		// Invalid optimization.
+		default:
+			return nil, []string{fmt.Sprintf("Invalid optimization '%s'", optimization)}
 		}
+	// Invalid placement.
+	default:
+		return nil, []string{fmt.Sprintf("Invalid rebuild strategy '%s'", strategy)}
 	}
+
+	// Final sort.
+	sort.Sort(newMap.Partitions)
+
+	return newMap, errs
+}
+
+// placeByPosition builds a PartitionMap by doing placements
+// for all partitions, one broker index at a time. For instance,
+// if all partitions required a broker set length of 3 (aka a replication
+// factor of 3), we'd do all placements in 3 passes.
+// The first pass would be leaders for all partitions, the second
+// pass would be the first follower, and the third pass would be
+// the second follower. This placement pattern is optimal
+// for the count strategy.
+func placeByPosition(pm *PartitionMap, bm BrokerMap, pmm PartitionMetaMap, strategy string) (*PartitionMap, []string) {
 	newMap := NewPartitionMap()
 
 	// We need a filtered list for
@@ -145,8 +186,8 @@ func (pm *PartitionMap) Rebuild(bm BrokerMap, pmm PartitionMetaMap, strategy str
 			// If this is the first pass, create
 			// the new partition.
 			if pass == 0 {
-				newP := Partition{Partition: partn.Partition, Topic: partn.Topic}
-				newMap.Partitions = append(newMap.Partitions, newP)
+				newPartn := Partition{Partition: partn.Partition, Topic: partn.Topic}
+				newMap.Partitions = append(newMap.Partitions, newPartn)
 			}
 
 			// The number of needed passes may vary;
@@ -228,9 +269,106 @@ func (pm *PartitionMap) Rebuild(bm BrokerMap, pmm PartitionMetaMap, strategy str
 		}
 	}
 
-	sort.Sort(newMap.Partitions)
-
+	// Return map, errors.
 	return newMap, errs
+}
+
+func placeByPartition(pm *PartitionMap, bm BrokerMap, pmm PartitionMetaMap, strategy string) (*PartitionMap, []string) {
+	newMap := NewPartitionMap()
+
+	// We need a filtered list for
+	// usage sorting and exclusion
+	// of nodes marked for removal.
+	bl := bm.filteredList()
+
+	var errs []string
+
+	for _, partn := range pm.Partitions {
+		// Create the partition in
+		// the new map.
+		newPartn := Partition{Partition: partn.Partition, Topic: partn.Topic}
+
+		// Map over each broker from the original
+		// partition replica list to the new,
+		// selecting replacemnt for those marked
+		// for replacement.
+		for _, bid := range partn.Replicas {
+			// If the current broker isn't
+			// marked for removal, just add it
+			// to the same position in the new map.
+			if !bm[bid].Replace {
+				newPartn.Replicas = append(newPartn.Replicas, bid)
+			} else {
+				// Otherwise, we need to find a replacement.
+
+				// Build a brokerList from the
+				// IDs in the old replica set to
+				// get a *constraints.
+				replicaSet := brokerList{}
+				for _, bid := range partn.Replicas {
+					replicaSet = append(replicaSet, bm[bid])
+				}
+				// Add existing brokers in the
+				// new replica set as well.
+				for _, bid := range newPartn.Replicas {
+					replicaSet = append(replicaSet, bm[bid])
+				}
+
+				// Populate a constraints.
+				constraints := mergeConstraints(replicaSet)
+
+				// Add any necessary meta from current partition
+				// to the constraints.
+				if strategy == "storage" {
+					s, err := pmm.Size(partn)
+					if err != nil {
+						errString := fmt.Sprintf("%s p%d: %s", partn.Topic, partn.Partition, err.Error())
+						errs = append(errs, errString)
+						continue
+					}
+
+					constraints.requestSize = s
+				}
+
+				// Fetch the best candidate and append.
+				newBroker, err := bl.bestCandidate(constraints, strategy, 1)
+
+				if err != nil {
+					// Append any caught errors.
+					errString := fmt.Sprintf("%s p%d: %s", partn.Topic, partn.Partition, err.Error())
+					errs = append(errs, errString)
+					continue
+				}
+
+				newPartn.Replicas = append(newPartn.Replicas, newBroker.ID)
+			}
+		}
+
+		// Add the partition to the
+		// new map.
+		newMap.Partitions = append(newMap.Partitions, newPartn)
+	}
+
+	// Final check to ensure that no
+	// replica sets were somehow set to 0.
+	for _, partn := range newMap.Partitions {
+		if len(partn.Replicas) == 0 {
+			errString := fmt.Sprintf("%s p%d: configured to zero replicas", partn.Topic, partn.Partition)
+			errs = append(errs, errString)
+		}
+	}
+
+	// Return map, errors.
+	return newMap, errs
+}
+
+func (pm *PartitionMap) shuffle() {
+	for n := range pm.Partitions {
+		rand.Seed(int64(n << 2))
+		rand.Shuffle(len(pm.Partitions[n].Replicas), func(i, j int) {
+			pm.Partitions[n].Replicas[i], pm.Partitions[n].Replicas[j] = pm.Partitions[n].Replicas[j], pm.Partitions[n].Replicas[i]
+		})
+	}
 }
 
 // PartitionMapFromString takes a json encoded string
