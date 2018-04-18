@@ -44,6 +44,8 @@ Usage of topicmappr:
     	Forces a rebuild even if all existing brokers are provided [TOPICMAPPR_FORCE_REBUILD]
   -ignore-warns
     	Whether a map should be produced if warnings are emitted [TOPICMAPPR_IGNORE_WARNS]
+  -optimize string
+    	Optimization priority for storage placement: [distribution, storage] [TOPICMAPPR_OPTIMIZE] (default "distribution")
   -out-file string
     	If defined, write a combined map of all topics to a file [TOPICMAPPR_OUT_FILE]
   -out-path string
@@ -258,7 +260,9 @@ The `-placement` parameter takes one of two values: `count` or `storage`. This d
 The count strategy balances partitions in a way that results in the most even number across brokers. This is simple and reliable if imbalances in data volumes among partitions is not anticipated.
 
 #### Storage
-The storage strategy chooses brokers based on free space and partition size (using first-fit bin packing by descending partition size). In each placement decision, the broker with the most available free space that satisfies all other constraints is chosen. The storage strategy is best used if large imbalances among partitions is anticipated.
+The storage strategy chooses brokers based on free space and partition size (using an algorithm modeled on first-fit descending bin packing). In each placement decision, the broker with the most available free space that satisfies all other constraints is chosen. The storage strategy is best used if large imbalances among partitions is anticipated.
+
+Additionally, the storage placement strategy is tunable as to whether it biases for maximum partition dispersion or maximum storage balance, via the `--optimize` param. The default is `distribution` and is suitable for most storage placements. The `storage` optimization is used when a few partitions are disproportionately large and result in undesirable range spreads in broker free storage when using the default `distribution` optimization.
 
 When using the storage placement strategy, an estimate of changes in free storage is printed in the topicmappr summary output:
 
