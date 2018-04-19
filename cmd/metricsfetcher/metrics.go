@@ -17,6 +17,12 @@ func partitionMetrics(c *Config) (map[string]map[string]map[string]float64, erro
 
 	for _, ts := range o {
 		topic := tagValFromScope(ts.GetScope(), "topic")
+		// Cope with the double underscore
+		// dedupe in the __consumer_offsets topic.
+		if topic == "_consumer_offsets" {
+			topic = "__consumer_offsets"
+		}
+
 		partition := tagValFromScope(ts.GetScope(), "partition")
 
 		if _, exists := d[topic]; !exists {
@@ -24,7 +30,7 @@ func partitionMetrics(c *Config) (map[string]map[string]map[string]float64, erro
 		}
 
 		d[topic][partition] = map[string]float64{}
-		d[topic][partition]["Size"] = ts.Points[0][1]
+		d[topic][partition]["Size"] = *ts.Points[0][1]
 	}
 
 	return d, nil
@@ -47,7 +53,7 @@ func brokerMetrics(c *Config) (map[string]map[string]float64, error) {
 			d[broker] = map[string]float64{}
 		}
 
-		d[broker]["StorageFree"] = ts.Points[0][1]
+		d[broker]["StorageFree"] = *ts.Points[0][1]
 	}
 
 	return d, nil

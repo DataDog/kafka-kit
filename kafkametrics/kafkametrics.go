@@ -197,7 +197,7 @@ func brokersFromSeries(s []dd.Series) ([]*Broker, error) {
 
 		b := &Broker{
 			Host:  host,
-			NetTX: ts.Points[0][1] / 1024 / 1024,
+			NetTX: *ts.Points[0][1] / 1024 / 1024,
 		}
 
 		bs = append(bs, b)

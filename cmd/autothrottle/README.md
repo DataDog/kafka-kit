@@ -21,7 +21,7 @@ Binary will be found at `$GOPATH/bin/autothrottle`
 
 **Compatibility**
 
-Tested with Go 1.9+, Kafka 0.10.x, ZooKeeper 3.4.x.
+Tested with Go 1.10+ (required), Kafka 0.10.x, ZooKeeper 3.4.x.
 
 # Usage
 
