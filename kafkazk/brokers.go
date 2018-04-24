@@ -37,9 +37,17 @@ type BrokerMetrics struct {
 // BrokerUseStats holds counts
 // of partition ownership.
 type BrokerUseStats struct {
+	ID       int
 	Leader   int
 	Follower int
 }
+
+// BrokerUseStatsList is a slice of *BrokerUseStats.
+type BrokerUseStatsList []*BrokerUseStats
+
+func (b BrokerUseStatsList) Len() int           { return len(b) }
+func (b BrokerUseStatsList) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
+func (b BrokerUseStatsList) Less(i, j int) bool { return b[i].ID < b[j].ID }
 
 // BrokerStatus summarizes change counts
 // from an input and output broker list.

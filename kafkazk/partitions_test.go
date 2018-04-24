@@ -186,15 +186,15 @@ func TestUseStats(t *testing.T) {
 		1004: [2]int{1, 1},
 	}
 
-	for b, bs := range s {
-		if bs.Leader != expected[b][0] {
+	for _, b := range s {
+		if bs.Leader != expected[b.ID][0] {
 			t.Errorf("Expected leader count %d for %d, got %d",
-				expected[b][0], b, bs.Leader)
+				expected[b.ID][0], b.ID, b.Leader)
 		}
 
-		if bs.Follower != expected[b][1] {
+		if b.Follower != expected[b.ID][1] {
 			t.Errorf("Expected follower count %d for %d, got %d",
-				expected[b][1], b, bs.Follower)
+				expected[b.ID][1], b.ID, b.Follower)
 		}
 	}
 }

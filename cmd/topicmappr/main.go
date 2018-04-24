@@ -246,8 +246,8 @@ func main() {
 
 	// If the replication factor is changed,
 	// the partition map input needs to have stub
-	// brokers appended (for r factor increase) or
-	// existing brokers removed (for r factor decrease).
+	// brokers appended (r factor increase) or
+	// existing brokers removed (r factor decrease).
 	if Config.replication > 0 {
 		fmt.Printf("%sUpdating replication factor to %d\n",
 			indent, Config.replication)
@@ -356,9 +356,9 @@ func main() {
 	// and total partition assignments.
 	fmt.Println("\nPartitions assigned:")
 	UseStats := partitionMapOut.UseStats()
-	for id, use := range UseStats {
+	for _, use := range UseStats {
 		fmt.Printf("%sBroker %d - leader: %d, follower: %d, total: %d\n",
-			indent, id, use.Leader, use.Follower, use.Leader+use.Follower)
+			indent, use.ID, use.Leader, use.Follower, use.Leader+use.Follower)
 	}
 
 	// If we're using the storage placement strategy,
