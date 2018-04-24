@@ -40,6 +40,7 @@ var (
 		replication     int
 		placement       string
 		optimize        string
+		verbose         bool
 	}
 )
 
@@ -60,6 +61,7 @@ func init() {
 	flag.IntVar(&Config.replication, "replication", 0, "Set the replication factor")
 	flag.StringVar(&Config.placement, "placement", "count", "Partition placement type: [count, storage]")
 	flag.StringVar(&Config.optimize, "optimize", "distribution", "Optimization priority for storage placement: [distribution, storage]")
+	flag.BoolVar(&Config.verbose, "verbose", false, "Verbose information")
 	brokers := flag.String("brokers", "", "Broker list to rebuild topic partition map with")
 
 	envy.Parse("TOPICMAPPR")
@@ -361,18 +363,34 @@ func main() {
 			indent, use.ID, use.Leader, use.Follower, use.Leader+use.Follower)
 	}
 
+	// Broker statistics.
+	if Config.verbose {
+		// fmt.Println("\nBroker statistics:")
+	}
+
 	// If we're using the storage placement strategy,
 	// write anticipated storage changes.
-	var div float64 = 1073741824.00
+	var div float64 = 1073741824.00 // Fixed on GB for now.
 	if Config.placement == "storage" {
 		fmt.Println("\nStorage free change estimations:")
 
 		storageDiffs := brokersOrig.StorageDiff(brokers)
-		for id, diff := range storageDiffs {
+
+		// Pop IDs into a slice for sorted ouptut.
+		ids := []int{}
+		for id := range storageDiffs {
+			ids = append(ids, id)
+		}
+
+		sort.Ints(ids)
+
+		for _, id := range ids {
 			// Skip the internal reserved ID.
 			if id == 0 {
 				continue
 			}
+
+			diff := storageDiffs[id]
 
 			// Explicitely set a
 			// positive sign.
@@ -395,7 +413,6 @@ func main() {
 		}
 	}
 
-	// Don't write the output if ignoreWarns is set.
 	if !Config.ignoreWarns && len(warns) > 0 {
 		fmt.Printf("%sWarnings encountered, partition map not created. Override with --ignore-warns.\n", indent)
 		os.Exit(1)

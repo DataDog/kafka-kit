@@ -18,7 +18,7 @@ type Partition struct {
 	Replicas  []int  `json:"replicas"`
 }
 
-type partitionList []Partition // XXX pointers.
+type partitionList []Partition
 
 // PartitionMap maps the
 // Kafka topic mapping syntax.
