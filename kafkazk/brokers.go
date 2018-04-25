@@ -3,6 +3,7 @@ package kafkazk
 import (
 	"errors"
 	"fmt"
+	"math"
 	"math/rand"
 	"os"
 	"sort"
@@ -370,6 +371,33 @@ func (b BrokerMap) StorageDiff(b2 BrokerMap) map[int][2]float64 {
 	}
 
 	return d
+}
+
+// StorageRangeSpread returns the range spread
+// in free storage for all brokers in the BrokerMap.
+func (b BrokerMap) StorageRangeSpread() float64 {
+	// Get the high/low StorageFree values.
+	h, l := 0.00, math.MaxFloat64
+
+	for id := range b {
+		if id == 0 {
+			continue
+		}
+
+		v := b[id].StorageFree
+
+		// Update the high/low.
+		if v > h {
+			h = v
+		}
+
+		if v < l {
+			l = v
+		}
+	}
+
+	// Return range spread.
+	return (h - l) / l * 100
 }
 
 // Copy returns a copy of a BrokerMap.

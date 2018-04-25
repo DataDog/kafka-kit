@@ -374,6 +374,19 @@ func main() {
 	if Config.placement == "storage" {
 		fmt.Println("\nStorage free change estimations:")
 
+		// For these stats, we only want brokers
+		// that were actually holding partitions.
+		// It's possible to provide brokers that
+		// are ultimately not used, so we don't want
+		// those to contribute to measurements such as
+		// range spread.
+		mappedBrokersOrig := kafkazk.BrokerMapFromTopicMap(originalMap, brokerMetadata, false)
+		mappedBrokers := kafkazk.BrokerMapFromTopicMap(partitionMapOut, brokerMetadata, false)
+
+		rs1, rs2 := mappedBrokersOrig.StorageRangeSpread(), mappedBrokers.StorageRangeSpread()
+		fmt.Printf("%sRange Spread: %.2f%% -> %.2f%%\n", indent, rs1, rs2)
+
+		// Get changes in storage utilization.
 		storageDiffs := brokersOrig.StorageDiff(brokers)
 
 		// Pop IDs into a slice for sorted ouptut.
