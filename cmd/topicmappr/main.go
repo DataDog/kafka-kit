@@ -383,8 +383,13 @@ func main() {
 		mappedBrokersOrig := kafkazk.BrokerMapFromTopicMap(originalMap, brokerMetadata, false)
 		mappedBrokers := kafkazk.BrokerMapFromTopicMap(partitionMapOut, brokerMetadata, false)
 
+		// Range spread before/after.
 		rs1, rs2 := mappedBrokersOrig.StorageRangeSpread(), mappedBrokers.StorageRangeSpread()
 		fmt.Printf("%sRange Spread: %.2f%% -> %.2f%%\n", indent, rs1, rs2)
+
+		// Std dev before/after.
+		sd1, sd2 := mappedBrokersOrig.StorageStdDev(), mappedBrokers.StorageStdDev()
+		fmt.Printf("%sStandard Deviation: %.2fGB -> %.2fGB\n", indent, sd1/div, sd2/div)
 
 		// Get changes in storage utilization.
 		storageDiffs := brokersOrig.StorageDiff(brokers)
