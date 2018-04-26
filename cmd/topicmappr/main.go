@@ -40,6 +40,7 @@ var (
 		replication     int
 		placement       string
 		optimize        string
+		verbose         bool
 	}
 )
 
@@ -60,6 +61,7 @@ func init() {
 	flag.IntVar(&Config.replication, "replication", 0, "Set the replication factor")
 	flag.StringVar(&Config.placement, "placement", "count", "Partition placement type: [count, storage]")
 	flag.StringVar(&Config.optimize, "optimize", "distribution", "Optimization priority for storage placement: [distribution, storage]")
+	flag.BoolVar(&Config.verbose, "verbose", false, "Verbose information")
 	brokers := flag.String("brokers", "", "Broker list to rebuild topic partition map with")
 
 	envy.Parse("TOPICMAPPR")
@@ -246,8 +248,8 @@ func main() {
 
 	// If the replication factor is changed,
 	// the partition map input needs to have stub
-	// brokers appended (for r factor increase) or
-	// existing brokers removed (for r factor decrease).
+	// brokers appended (r factor increase) or
+	// existing brokers removed (r factor decrease).
 	if Config.replication > 0 {
 		fmt.Printf("%sUpdating replication factor to %d\n",
 			indent, Config.replication)
@@ -356,23 +358,61 @@ func main() {
 	// and total partition assignments.
 	fmt.Println("\nPartitions assigned:")
 	UseStats := partitionMapOut.UseStats()
-	for id, use := range UseStats {
+	for _, use := range UseStats {
 		fmt.Printf("%sBroker %d - leader: %d, follower: %d, total: %d\n",
-			indent, id, use.Leader, use.Follower, use.Leader+use.Follower)
+			indent, use.ID, use.Leader, use.Follower, use.Leader+use.Follower)
+	}
+
+	// Broker statistics.
+	if Config.verbose {
+		// fmt.Println("\nBroker statistics:")
 	}
 
 	// If we're using the storage placement strategy,
 	// write anticipated storage changes.
-	var div float64 = 1073741824.00
+	var div float64 = 1073741824.00 // Fixed on GB for now.
 	if Config.placement == "storage" {
 		fmt.Println("\nStorage free change estimations:")
 
+		// Get filtered BrokerMaps. For the 'before' broker statistics, we want
+		// all brokers in the original BrokerMap that were also in the input PartitionMap.
+		// For the 'after' broker statistics, we want brokers that were not marked
+		// for replacement. We don't necessarily want to exclude brokers in the output
+		// that aren't mapped in the output PartitionMap. It's possible that a broker is
+		// not mapped to any of the input topics but is still holding data for other topics.
+		// It's ideal to still include that broker's storage metrics since it was a provided
+		// input and wasn't marked for replacement (generally, users are doing storage placements
+		// particularly to balance out the storage of the input broker list).
+		mb1, mb2 := brokersOrig.MappedBrokers(originalMap), brokers.NonReplacedBrokers()
+
+		// Range spread before/after.
+		rs1, rs2 := mb1.StorageRangeSpread(), mb2.StorageRangeSpread()
+		fmt.Printf("%sRange Spread: %.2f%% -> %.2f%%\n", indent, rs1, rs2)
+
+		// Std dev before/after.
+		sd1, sd2 := mb1.StorageStdDev(), mb2.StorageStdDev()
+		fmt.Printf("%sStandard Deviation: %.2fGB -> %.2fGB\n", indent, sd1/div, sd2/div)
+
+		fmt.Printf("%s-\n", indent)
+
+		// Get changes in storage utilization.
 		storageDiffs := brokersOrig.StorageDiff(brokers)
-		for id, diff := range storageDiffs {
+
+		// Pop IDs into a slice for sorted ouptut.
+		ids := []int{}
+		for id := range storageDiffs {
+			ids = append(ids, id)
+		}
+
+		sort.Ints(ids)
+
+		for _, id := range ids {
 			// Skip the internal reserved ID.
 			if id == 0 {
 				continue
 			}
+
+			diff := storageDiffs[id]
 
 			// Explicitely set a
 			// positive sign.
@@ -395,7 +435,6 @@ func main() {
 		}
 	}
 
-	// Don't write the output if ignoreWarns is set.
 	if !Config.ignoreWarns && len(warns) > 0 {
 		fmt.Printf("%sWarnings encountered, partition map not created. Override with --ignore-warns.\n", indent)
 		os.Exit(1)

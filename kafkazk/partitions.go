@@ -18,7 +18,7 @@ type Partition struct {
 	Replicas  []int  `json:"replicas"`
 }
 
-type partitionList []Partition // XXX pointers.
+type partitionList []Partition
 
 // PartitionMap maps the
 // Kafka topic mapping syntax.
@@ -548,23 +548,32 @@ func WriteMap(pm *PartitionMap, path string) error {
 // UseStats returns a map of broker IDs
 // to BrokerUseStats; each contains a count
 // of leader and follower partition assignments.
-func (pm *PartitionMap) UseStats() map[int]*BrokerUseStats {
-	stats := map[int]*BrokerUseStats{}
+func (pm *PartitionMap) UseStats() []*BrokerUseStats {
+	smap := map[int]*BrokerUseStats{}
 	// Get counts.
 	for _, p := range pm.Partitions {
 		for i, b := range p.Replicas {
-			if _, exists := stats[b]; !exists {
-				stats[b] = &BrokerUseStats{}
+			if _, exists := smap[b]; !exists {
+				smap[b] = &BrokerUseStats{
+					ID: b,
+				}
 			}
 			// Idx 0 for each replica set
 			// is a leader assignment.
 			if i == 0 {
-				stats[b].Leader++
+				smap[b].Leader++
 			} else {
-				stats[b].Follower++
+				smap[b].Follower++
 			}
 		}
 	}
+
+	stats := BrokerUseStatsList{}
+	for _, b := range smap {
+		stats = append(stats, b)
+	}
+
+	sort.Sort(stats)
 
 	return stats
 }

@@ -3,6 +3,7 @@ package kafkazk
 import (
 	"errors"
 	"fmt"
+	"math"
 	"math/rand"
 	"os"
 	"sort"
@@ -37,9 +38,17 @@ type BrokerMetrics struct {
 // BrokerUseStats holds counts
 // of partition ownership.
 type BrokerUseStats struct {
+	ID       int
 	Leader   int
 	Follower int
 }
+
+// BrokerUseStatsList is a slice of *BrokerUseStats.
+type BrokerUseStatsList []*BrokerUseStats
+
+func (b BrokerUseStatsList) Len() int           { return len(b) }
+func (b BrokerUseStatsList) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
+func (b BrokerUseStatsList) Less(i, j int) bool { return b[i].ID < b[j].ID }
 
 // BrokerStatus summarizes change counts
 // from an input and output broker list.
@@ -304,7 +313,7 @@ func (b BrokerMap) filteredList() brokerList {
 
 // BrokerMapFromTopicMap creates a BrokerMap
 // from a topicMap. Counts occurance is counted.
-// XXX can we remove marked for replacement here too?
+// TODO can we remove marked for replacement here too?
 func BrokerMapFromTopicMap(pm *PartitionMap, bm BrokerMetaMap, force bool) BrokerMap {
 	bmap := BrokerMap{}
 	// For each partition.
@@ -345,6 +354,60 @@ func BrokerMapFromTopicMap(pm *PartitionMap, bm BrokerMetaMap, force bool) Broke
 	return bmap
 }
 
+// MappedBrokers takes a PartitionMap and returns a
+// new BrokerMap that only includes brokers found
+// in the partition map holding a partition.
+func (b BrokerMap) MappedBrokers(pm *PartitionMap) BrokerMap {
+	bmap := BrokerMap{}
+
+	ids := map[int]interface{}{}
+
+	// Get all IDs.
+	for _, partition := range pm.Partitions {
+		for _, id := range partition.Replicas {
+			ids[id] = nil
+		}
+	}
+
+	// For each ID that's in the BrokerMap,
+	// add to the new BrokerMap.
+	for id := range ids {
+		if _, exists := b[id]; exists {
+			bmap[id] = &Broker{
+				ID:          id,
+				Locality:    b[id].Locality,
+				Used:        b[id].Used,
+				StorageFree: b[id].StorageFree,
+				Replace:     b[id].Replace,
+			}
+		}
+	}
+
+	return bmap
+}
+
+// NonReplacedBrokers returns a copy of a BrokerMap
+// that excludes all brokers marked for replacement.
+func (b BrokerMap) NonReplacedBrokers() BrokerMap {
+	bmap := BrokerMap{}
+
+	// For each ID that's in the BrokerMap
+	// and not marked for replacement,
+	// add to the new BrokerMap.
+	for id := range b {
+		if !b[id].Replace {
+			bmap[id] = &Broker{
+				ID:          id,
+				Locality:    b[id].Locality,
+				Used:        b[id].Used,
+				StorageFree: b[id].StorageFree,
+			}
+		}
+	}
+
+	return bmap
+}
+
 // StorageDiff takes two BrokerMaps and returns
 // a per broker ID diff in storage as a [2]float64:
 // [absolute, percentage] diff.
@@ -362,6 +425,63 @@ func (b BrokerMap) StorageDiff(b2 BrokerMap) map[int][2]float64 {
 	}
 
 	return d
+}
+
+// StorageRangeSpread returns the range spread
+// of free storage for all brokers in the BrokerMap.
+func (b BrokerMap) StorageRangeSpread() float64 {
+	// Get the high/low StorageFree values.
+	h, l := 0.00, math.MaxFloat64
+
+	for id := range b {
+		if id == 0 {
+			continue
+		}
+
+		v := b[id].StorageFree
+
+		// Update the high/low.
+		if v > h {
+			h = v
+		}
+
+		if v < l {
+			l = v
+		}
+	}
+
+	// Return range spread.
+	return (h - l) / l * 100
+}
+
+// StorageStdDev returns the standard deviation
+// of free storage for all brokers in the BrokerMap.
+func (b BrokerMap) StorageStdDev() float64 {
+	var m float64
+	var t float64
+	var s float64
+	var l float64
+
+	for id := range b {
+		if id == 0 {
+			continue
+		}
+		l++
+		t += b[id].StorageFree
+	}
+
+	m = t / l
+
+	for id := range b {
+		if id == 0 {
+			continue
+		}
+		s += math.Pow(m-b[id].StorageFree, 2)
+	}
+
+	msq := s / l
+
+	return math.Sqrt(msq)
 }
 
 // Copy returns a copy of a BrokerMap.

@@ -241,13 +241,13 @@ Partition map changes:
   test_topic p7: [1007 1002] -> [1004 1002] replaced broker
 
 Partitions assigned:
+  Broker 1001 - leader: 1, follower: 2, total: 3
   Broker 1002 - leader: 1, follower: 2, total: 3
-  Broker 1008 - leader: 0, follower: 1, total: 1
+  Broker 1003 - leader: 1, follower: 1, total: 2
   Broker 1004 - leader: 1, follower: 0, total: 1
   Broker 1005 - leader: 2, follower: 1, total: 3
   Broker 1006 - leader: 2, follower: 1, total: 3
-  Broker 1003 - leader: 1, follower: 1, total: 2
-  Broker 1001 - leader: 1, follower: 2, total: 3
+  Broker 1008 - leader: 0, follower: 1, total: 1
 
 New parition maps:
   test_topic.json
@@ -264,24 +264,26 @@ The storage strategy chooses brokers based on free space and partition size (usi
 
 Additionally, the storage placement strategy is tunable as to whether it biases for maximum partition dispersion or maximum storage balance, via the `--optimize` param. The default is `distribution` and is suitable for most storage placements. The `storage` optimization is used when a few partitions are disproportionately large and result in undesirable range spreads in broker free storage when using the default `distribution` optimization.
 
-When using the storage placement strategy, an estimate of changes in free storage is printed in the topicmappr summary output:
+When using the storage placement strategy, an estimate of changes in free storage is printed in the topicmappr summary output, including the change in range spread and standard deviation of free storage across all referenced brokers:
 
 ```
 Partitions assigned:
-  Broker 1006 - leader: 9, follower: 12, total: 21
-  Broker 1003 - leader: 9, follower: 8, total: 17
-  Broker 1005 - leader: 12, follower: 11, total: 23
-  Broker 1007 - leader: 12, follower: 11, total: 23
-  Broker 1002 - leader: 13, follower: 10, total: 23
-  Broker 1004 - leader: 9, follower: 12, total: 21
+  Broker 1001 - leader: 19, follower: 14, total: 33
+  Broker 1002 - leader: 7, follower: 9, total: 16
+  Broker 1004 - leader: 2, follower: 13, total: 15
+  Broker 1005 - leader: 18, follower: 14, total: 32
+  Broker 1006 - leader: 18, follower: 14, total: 32
 
 Storage free change estimations:
-  Broker 1006: 1019.21 -> 1111.45 (+92.25GB, 9.05%)
-  Broker 1004: 1067.73 -> 1102.47 (+34.74GB, 3.25%)
-  Broker 1005: 1108.10 -> 1099.70 (-8.40GB, -0.76%)
-  Broker 1002: 1173.95 -> 1088.83 (-85.13GB, -7.25%)
-  Broker 1007: 1194.80 -> 1079.82 (-114.98GB, -9.62%)
-  Broker 1003: 1020.79 -> 1102.31 (+81.52GB, 7.99%)
+  Range Spread: 19.44% -> 0.37%
+  Standard Deviation: 65.23GB -> 1.27GB
+  -
+  Broker 1001: 1060.89 -> 986.55 (-74.35GB, -7.01%)
+  Broker 1002: 989.85 -> 988.45 (-1.40GB, -0.14%)
+  Broker 1003: 888.20 -> 986.16 (+97.95GB, 11.03%)
+  Broker 1004: 917.99 -> 985.60 (+67.61GB, 7.36%)
+  Broker 1005: 1007.89 -> 987.32 (-20.57GB, -2.04%)
+  Broker 1006: 1058.44 -> 989.20 (-69.24GB, -6.54%)
 ```
 
 The storage strategy requires complete metrics data in order to operate. Topicmappr will check for the following znodes as children of `/topicmappr` (configurable via `-zk-metrics-prefix`):
