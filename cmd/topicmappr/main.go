@@ -374,13 +374,16 @@ func main() {
 	if Config.placement == "storage" {
 		fmt.Println("\nStorage free change estimations:")
 
-		// For these stats, we only want brokers
-		// that were actually holding partitions.
-		// It's possible to provide brokers that
-		// are ultimately not used, so we don't want
-		// those to contribute to measurements such as
-		// range spread.
-		mb1, mb2 := brokersOrig.MappedBrokers(originalMap), brokers.MappedBrokers(partitionMapOut)
+		// Get filtered BrokerMaps. For the 'before' broker statistics, we want
+		// all brokers in the original BrokerMap that were also in the input PartitionMap.
+		// For the 'after' broker statistics, we want brokers that were not marked
+		// for replacement. We don't necessarily want to exclude brokers in the output
+		// that aren't mapped in the output PartitionMap. It's possible that a broker is
+		// not mapped to any of the input topics but is still holding data for other topics.
+		// It's ideal to still include that broker's storage metrics since it was a provided
+		// input and wasn't marked for replacement (generally, users are doing storage placements
+		// particularly to balance out the storage of the input broker list).
+		mb1, mb2 := brokersOrig.MappedBrokers(originalMap), brokers.NonReplacedBrokers()
 
 		// Range spread before/after.
 		rs1, rs2 := mb1.StorageRangeSpread(), mb2.StorageRangeSpread()

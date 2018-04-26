@@ -313,7 +313,7 @@ func (b BrokerMap) filteredList() brokerList {
 
 // BrokerMapFromTopicMap creates a BrokerMap
 // from a topicMap. Counts occurance is counted.
-// XXX can we remove marked for replacement here too?
+// TODO can we remove marked for replacement here too?
 func BrokerMapFromTopicMap(pm *PartitionMap, bm BrokerMetaMap, force bool) BrokerMap {
 	bmap := BrokerMap{}
 	// For each partition.
@@ -386,6 +386,28 @@ func (b BrokerMap) MappedBrokers(pm *PartitionMap) BrokerMap {
 	return bmap
 }
 
+// NonReplacedBrokers returns a copy of a BrokerMap
+// that excludes all brokers marked for replacement.
+func (b BrokerMap) NonReplacedBrokers() BrokerMap {
+	bmap := BrokerMap{}
+
+	// For each ID that's in the BrokerMap
+	// and not marked for replacement,
+	// add to the new BrokerMap.
+	for id := range b {
+		if !b[id].Replace {
+			bmap[id] = &Broker{
+				ID:          id,
+				Locality:    b[id].Locality,
+				Used:        b[id].Used,
+				StorageFree: b[id].StorageFree,
+			}
+		}
+	}
+
+	return bmap
+}
+
 // StorageDiff takes two BrokerMaps and returns
 // a per broker ID diff in storage as a [2]float64:
 // [absolute, percentage] diff.
@@ -412,7 +434,9 @@ func (b BrokerMap) StorageRangeSpread() float64 {
 	h, l := 0.00, math.MaxFloat64
 
 	for id := range b {
-		if id == 0 {continue}
+		if id == 0 {
+			continue
+		}
 
 		v := b[id].StorageFree
 
@@ -427,7 +451,7 @@ func (b BrokerMap) StorageRangeSpread() float64 {
 	}
 
 	// Return range spread.
-	return (h - l)/l * 100
+	return (h - l) / l * 100
 }
 
 // StorageStdDev returns the standard deviation
@@ -436,19 +460,22 @@ func (b BrokerMap) StorageStdDev() float64 {
 	var m float64
 	var t float64
 	var s float64
-	// We sub 1 from the len because
-	// there's the stub broker ID 0.
-	var l float64 = float64(len(b))-1
+	var l float64
 
 	for id := range b {
-		if id == 0 {continue}
+		if id == 0 {
+			continue
+		}
+		l++
 		t += b[id].StorageFree
 	}
 
-	m = t/l
+	m = t / l
 
 	for id := range b {
-		if id == 0 {continue}
+		if id == 0 {
+			continue
+		}
 		s += math.Pow(m-b[id].StorageFree, 2)
 	}
 
