@@ -354,6 +354,38 @@ func BrokerMapFromTopicMap(pm *PartitionMap, bm BrokerMetaMap, force bool) Broke
 	return bmap
 }
 
+// MappedBrokers takes a PartitionMap and returns a
+// new BrokerMap that only includes brokers found
+// in the partition map holding a partition.
+func (b BrokerMap) MappedBrokers(pm *PartitionMap) BrokerMap {
+	bmap := BrokerMap{}
+
+	ids := map[int]interface{}{}
+
+	// Get all IDs.
+	for _, partition := range pm.Partitions {
+		for _, id := range partition.Replicas {
+			ids[id] = nil
+		}
+	}
+
+	// For each ID that's in the BrokerMap,
+	// add to the new BrokerMap.
+	for id := range ids {
+		if _, exists := b[id]; exists {
+			bmap[id] = &Broker{
+				ID:          id,
+				Locality:    b[id].Locality,
+				Used:        b[id].Used,
+				StorageFree: b[id].StorageFree,
+				Replace:     b[id].Replace,
+			}
+		}
+	}
+
+	return bmap
+}
+
 // StorageDiff takes two BrokerMaps and returns
 // a per broker ID diff in storage as a [2]float64:
 // [absolute, percentage] diff.
@@ -380,9 +412,7 @@ func (b BrokerMap) StorageRangeSpread() float64 {
 	h, l := 0.00, math.MaxFloat64
 
 	for id := range b {
-		if id == 0 {
-			continue
-		}
+		if id == 0 {continue}
 
 		v := b[id].StorageFree
 
@@ -397,7 +427,7 @@ func (b BrokerMap) StorageRangeSpread() float64 {
 	}
 
 	// Return range spread.
-	return (h - l) / l * 100
+	return (h - l)/l * 100
 }
 
 // StorageStdDev returns the standard deviation
@@ -408,21 +438,17 @@ func (b BrokerMap) StorageStdDev() float64 {
 	var s float64
 	// We sub 1 from the len because
 	// there's the stub broker ID 0.
-	var l float64 = float64(len(b)) - 1
+	var l float64 = float64(len(b))-1
 
 	for id := range b {
-		if id == 0 {
-			continue
-		}
+		if id == 0 {continue}
 		t += b[id].StorageFree
 	}
 
-	m = t / l
+	m = t/l
 
 	for id := range b {
-		if id == 0 {
-			continue
-		}
+		if id == 0 {continue}
 		s += math.Pow(m-b[id].StorageFree, 2)
 	}
 
