@@ -1,6 +1,7 @@
 package kafkazk
 
 import (
+	"math"
 	"sort"
 	"testing"
 )
@@ -129,6 +130,26 @@ func TestBrokerMapStorageDiff(t *testing.T) {
 		if v[1] != diff[bid][1] {
 			t.Errorf("Expected diff percent of %f, got %f\n", v[1], diff[bid][1])
 		}
+	}
+}
+
+func TestBrokerMapStorageRangeSpread(t *testing.T) {
+	bm := newMockBrokerMap()
+
+	rs := bm.StorageRangeSpread()
+
+	if rs != 300.00 {
+		t.Errorf("Expected storage range spread 300, got %f", rs)
+	}
+}
+
+func TestBrokerMapStorageStdDev(t *testing.T) {
+	bm := newMockBrokerMap()
+
+	sd := math.Round(bm.StorageStdDev()/0.001) * 0.001
+
+	if sd != 111.803000 {
+		t.Errorf("Expected storage standard deviation 111.803000, got %f", sd)
 	}
 }
 

@@ -408,15 +408,21 @@ func (b BrokerMap) StorageStdDev() float64 {
 	var s float64
 	// We sub 1 from the len because
 	// there's the stub broker ID 0.
-	var l float64 = float64(len(b))-1
+	var l float64 = float64(len(b)) - 1
 
 	for id := range b {
+		if id == 0 {
+			continue
+		}
 		t += b[id].StorageFree
 	}
 
-	m = t/l
+	m = t / l
 
 	for id := range b {
+		if id == 0 {
+			continue
+		}
 		s += math.Pow(m-b[id].StorageFree, 2)
 	}
 
