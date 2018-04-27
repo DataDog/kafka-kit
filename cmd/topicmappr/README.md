@@ -3,7 +3,7 @@ Topicmappr was created as a replacement for Kafka's provided `kafka-reassign-par
 
 **Deterministic Output**
 
-Given the same input, topicmappr will always provide the same output map.
+Given the same input, topicmappr should always provide the same output map.
 
 **Minimal Partition Movement**
 
@@ -21,6 +21,8 @@ Provided enough brokers, topicmapper determines the appropriate leadership, foll
 **Change Summaries**
 
 An output of what's changed along with advisory notices (e.g. insufficient broker counts supplied to satisfy all constraints at the desired partition/replica count) that helps users make clear decisions.
+
+Additional statistical output is included where available. For instance, broker-to-broker relationships are represented as node degree counts (where edges are defined as brokers that belong in a common replica set for any given partition). These values can be used as a probabilistic indicator of replication bandwidth; replacing a broker with more edges will likely replicate from more source brokers than one with fewer edges.
 
 # Installation
 - `go get github.com/DataDog/topicmappr`
@@ -122,7 +124,9 @@ Partition map changes:
   test_topic p2: [1001 1002] -> [1001 1004] replaced broker
   test_topic p3: [1002 1001] -> [1004 1001] replaced broker
 
-Partitions assigned:
+Broker distribution:
+  degree [min/max/avg]: 1/1/1.00 -> 1/2/1.33
+  -
   Broker 1001 - leader: 2, follower: 2, total: 4
   Broker 1003 - leader: 1, follower: 1, total: 2
   Broker 1004 - leader: 1, follower: 1, total: 2
@@ -154,7 +158,9 @@ Partition map changes:
   test_topic p2: [1001 1002] -> [1003 1004] replaced broker
   test_topic p3: [1002 1001] -> [1004 1003] replaced broker
 
-Partitions assigned:
+Broker distribution:
+  degree [min/max/avg]: 1/1/1.00 -> 1/3/2.00
+  -
   Broker 1001 - leader: 1, follower: 1, total: 2
   Broker 1002 - leader: 1, follower: 1, total: 2
   Broker 1003 - leader: 1, follower: 1, total: 2
@@ -197,7 +203,9 @@ Partition map changes:
   test_topic p6: [0 1] -> [0 2] replaced broker
   test_topic p7: [1 0] -> [2 0] replaced broker
 
-Partitions assigned:
+Broker distribution:
+  degree [min/max/avg]: 1/1/1.00 -> 1/1/1.00
+  -
   Broker 0 - leader: 4, follower: 4, total: 8
   Broker 2 - leader: 4, follower: 4, total: 8
 
@@ -240,7 +248,9 @@ Partition map changes:
   test_topic p6: [1006 1001] -> [1006 1001]
   test_topic p7: [1007 1002] -> [1004 1002] replaced broker
 
-Partitions assigned:
+Broker distribution:
+  degree [min/max/avg]: 3/4/3.20 -> 1/3/2.29
+  -
   Broker 1001 - leader: 1, follower: 2, total: 3
   Broker 1002 - leader: 1, follower: 2, total: 3
   Broker 1003 - leader: 1, follower: 1, total: 2
@@ -267,9 +277,7 @@ Additionally, the storage placement strategy is tunable as to whether it biases 
 When using the storage placement strategy, an estimate of changes in free storage is printed in the topicmappr summary output, including the change in range spread and standard deviation of free storage across all referenced brokers:
 
 ```
-Partitions assigned:
-  Broker 1001 - leader: 19, follower: 14, total: 33
-  Broker 1002 - leader: 7, follower: 9, total: 16
+...
   Broker 1004 - leader: 2, follower: 13, total: 15
   Broker 1005 - leader: 18, follower: 14, total: 32
   Broker 1006 - leader: 18, follower: 14, total: 32
