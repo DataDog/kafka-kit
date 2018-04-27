@@ -102,8 +102,8 @@ func TestSetup(t *testing.T) {
 		}
 
 		/*****************
-		  Populate test data
-		  *****************/
+		Populate test data
+		*****************/
 
 		// Create paths.
 		for _, p := range paths {
