@@ -118,6 +118,17 @@ func (dd DegreeDistribution) Add(nodes []int) {
 	}
 }
 
+// Count takes a node ID and returns the
+// degree distribution.
+func (dd DegreeDistribution) Count(n int) int {
+	c, exists := dd.Relationships[n]
+	if !exists {
+		return 0
+	}
+
+	return len(c)
+}
+
 // DegreeDistribution returns the DegreeDistribution
 // for the PartitionMap.
 func (pm *PartitionMap) DegreeDistribution() DegreeDistribution {

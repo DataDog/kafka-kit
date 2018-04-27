@@ -26,6 +26,15 @@ func testGetMapString2(n string) string {
 		{"topic":"%s","partition":6,"replicas":[1004,1003]}]}`, n, n, n, n, n, n, n)
 }
 
+func testGetMapString3(n string) string {
+	return fmt.Sprintf(`{"version":1,"partitions":[
+    {"topic":"%s","partition":0,"replicas":[1001,1002]},
+    {"topic":"%s","partition":1,"replicas":[1002,1001]},
+    {"topic":"%s","partition":2,"replicas":[1003,1004,1001]},
+    {"topic":"%s","partition":3,"replicas":[1004,1003,1002]},
+		{"topic":"%s","partition":3,"replicas":[1004,1005]}]}`, n, n, n, n, n)
+}
+
 // func TestSize(t *testing.T) {} XXX Do.
 
 func TestSortBySize(t *testing.T) {
@@ -175,14 +184,15 @@ func TestStrip(t *testing.T) {
 }
 
 func TestDegreeDistribution(t *testing.T) {
-	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
+	pm, _ := PartitionMapFromString(testGetMapString3("test_topic"))
 	dd := pm.DegreeDistribution()
 
 	expected := map[int][]int{
 		1001: []int{1002, 1003, 1004},
 		1002: []int{1001, 1003, 1004},
-		1003: []int{1001, 1003, 1004, 1002},
-		1004: []int{1001, 1002, 1003},
+		1003: []int{1001, 1004, 1002},
+		1004: []int{1001, 1002, 1003, 1005},
+		1005: []int{1004},
 	}
 
 	// Check that expected relationships exist.
@@ -206,6 +216,22 @@ func TestDegreeDistribution(t *testing.T) {
 			if !found {
 				t.Errorf("[%d] Unexpected %d in relationships: %v", id, r, expected[id])
 			}
+		}
+	}
+
+	// Check counts method.
+	expectedCounts := map[int]int{
+		1001: 3,
+		1002: 3,
+		1003: 3,
+		1004: 4,
+		1005: 1,
+	}
+
+	for id, count := range expectedCounts {
+		c := dd.Count(id)
+		if count != c {
+			t.Errorf("[%d] Expected count %d, got %d", id, count, c)
 		}
 	}
 }
