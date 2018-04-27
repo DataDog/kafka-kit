@@ -84,6 +84,52 @@ func NewPartitionMetaMap() PartitionMetaMap {
 	return map[string]map[int]*PartitionMeta{}
 }
 
+// DegreeDistribution holds broker to
+// broker relationships.
+type DegreeDistribution struct {
+	// Relationships is a mapping of a broker ID
+	// to other broker IDs that share occupancy
+	// in at least one replica set. For instance, given the
+	// replica set [1001,1002,1003], ID 1002 has a relationship
+	// with 1001 and 1003.
+	Relationships map[int]map[int]interface{}
+}
+
+// NewDegreeDistribution returns a new DegreeDistribution.
+func NewDegreeDistribution() DegreeDistribution {
+	return DegreeDistribution{
+		Relationships: make(map[int]map[int]interface{}),
+	}
+}
+
+// Add takes a []int of broker IDs representing a
+// replica set and creates relationship mappings accordingly.
+func (dd DegreeDistribution) Add(nodes []int) {
+	for _, node := range nodes {
+		if _, exists := dd.Relationships[node]; !exists {
+			dd.Relationships[node] = make(map[int]interface{})
+		}
+
+		for _, neighbor := range nodes {
+			if node != neighbor {
+				dd.Relationships[node][neighbor] = nil
+			}
+		}
+	}
+}
+
+// DegreeDistribution returns the DegreeDistribution
+// for the PartitionMap.
+func (pm *PartitionMap) DegreeDistribution() DegreeDistribution {
+	d := NewDegreeDistribution()
+
+	for _, partn := range pm.Partitions {
+		d.Add(partn.Replicas)
+	}
+
+	return d
+}
+
 // Size takes a Partition and returns the
 // size. An error is returned if the partition
 // isn't in the PartitionMetaMap.

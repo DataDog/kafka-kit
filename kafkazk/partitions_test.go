@@ -174,6 +174,42 @@ func TestStrip(t *testing.T) {
 	}
 }
 
+func TestDegreeDistribution(t *testing.T) {
+	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
+	dd := pm.DegreeDistribution()
+
+	expected := map[int][]int{
+		1001: []int{1002, 1003, 1004},
+		1002: []int{1001, 1003, 1004},
+		1003: []int{1001, 1003, 1004, 1002},
+		1004: []int{1001, 1002, 1003},
+	}
+
+	// Check that expected relationships exist.
+	for id := range expected {
+		for _, r := range expected[id] {
+			if _, exists := dd.Relationships[id]; !exists {
+				t.Errorf("[%d] Expected %d in relationships: %v", id, r, dd.Relationships[id])
+			}
+		}
+	}
+
+	// Check that no unexpected relationships exist.
+	for id := range dd.Relationships {
+		for r := range dd.Relationships[id] {
+			var found bool
+			for _, e := range expected[id] {
+				if r == e {
+					found = true
+				}
+			}
+			if !found {
+				t.Errorf("[%d] Unexpected %d in relationships: %v", id, r, expected[id])
+			}
+		}
+	}
+}
+
 func TestUseStats(t *testing.T) {
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 
