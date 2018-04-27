@@ -359,7 +359,7 @@ func main() {
 
 	// Get general info.
 	dd1, dd2 := originalMap.DegreeDistribution().Stats(), partitionMapOut.DegreeDistribution().Stats()
-	fmt.Printf("%sdegree: min:%.0f max:%.0f avg:%.2f -> min:%.0f max:%.0f avg:%.2f\n",
+	fmt.Printf("%sdegree [min/max/avg]: %.0f/%.0f/%.2f -> %.0f/%.0f/%.2f\n",
 		indent, dd1.Min, dd1.Max, dd1.Avg, dd2.Min, dd2.Max, dd2.Avg)
 
 	fmt.Printf("%s-\n", indent)
