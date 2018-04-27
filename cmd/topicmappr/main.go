@@ -354,9 +354,17 @@ func main() {
 			change)
 	}
 
-	// Get a per-broker count of leader, follower
-	// and total partition assignments.
-	fmt.Println("\nPartitions assigned:")
+	// Write broker assignment statistics.
+	fmt.Println("\nBroker distribution:")
+
+	// Get general info.
+	dd1, dd2 := originalMap.DegreeDistribution().Stats(), partitionMapOut.DegreeDistribution().Stats()
+	fmt.Printf("%sdegree: min:%.0f max:%.0f avg:%.2f -> min:%.0f max:%.0f avg:%.2f\n",
+		indent, dd1.Min, dd1.Max, dd1.Avg, dd2.Min, dd2.Max, dd2.Avg)
+
+	fmt.Printf("%s-\n", indent)
+
+	// Per-broker info.
 	UseStats := partitionMapOut.UseStats()
 	for _, use := range UseStats {
 		fmt.Printf("%sBroker %d - leader: %d, follower: %d, total: %d\n",
@@ -387,11 +395,11 @@ func main() {
 
 		// Range spread before/after.
 		rs1, rs2 := mb1.StorageRangeSpread(), mb2.StorageRangeSpread()
-		fmt.Printf("%sRange Spread: %.2f%% -> %.2f%%\n", indent, rs1, rs2)
+		fmt.Printf("%srange spread: %.2f%% -> %.2f%%\n", indent, rs1, rs2)
 
 		// Std dev before/after.
 		sd1, sd2 := mb1.StorageStdDev(), mb2.StorageStdDev()
-		fmt.Printf("%sStandard Deviation: %.2fGB -> %.2fGB\n", indent, sd1/div, sd2/div)
+		fmt.Printf("%sstd. deviation: %.2fGB -> %.2fGB\n", indent, sd1/div, sd2/div)
 
 		fmt.Printf("%s-\n", indent)
 
