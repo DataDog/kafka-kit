@@ -219,7 +219,7 @@ func TestDegreeDistribution(t *testing.T) {
 		}
 	}
 
-	// Check counts method.
+	// Test Count method.
 	expectedCounts := map[int]int{
 		1001: 3,
 		1002: 3,
@@ -233,6 +233,19 @@ func TestDegreeDistribution(t *testing.T) {
 		if count != c {
 			t.Errorf("[%d] Expected count %d, got %d", id, count, c)
 		}
+	}
+
+	// Test Stats method.
+	stats := dd.Stats()
+
+	if stats.Min != 1.00 {
+		t.Errorf("Expected min val %f, got %f", 1.00, stats.Min)
+	}
+	if stats.Max != 4.00 {
+		t.Errorf("Expected max val %f, got %f", 4.00, stats.Max)
+	}
+	if stats.Avg != 2.80 {
+		t.Errorf("Expected avg val %f, got %f", 2.80, stats.Avg)
 	}
 }
 

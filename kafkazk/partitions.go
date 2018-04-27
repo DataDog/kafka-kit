@@ -129,6 +129,36 @@ func (dd DegreeDistribution) Count(n int) int {
 	return len(c)
 }
 
+// DegreeDistributionStats holds general
+// statistical information describing the
+// DegreeDistribution counts.
+type DegreeDistributionStats struct {
+	Min float64
+	Max float64
+	Avg float64
+}
+
+// Stats returns a DegreeDistributionStats.
+func (dd DegreeDistribution) Stats() DegreeDistributionStats {
+	vals := []int{}
+
+	for node := range dd.Relationships {
+		vals = append(vals, dd.Count(node))
+	}
+
+	sort.Ints(vals)
+	var s int
+	for _, v := range vals {
+		s += v
+	}
+
+	return DegreeDistributionStats{
+		Min: float64(vals[0]),
+		Max: float64(vals[len(vals)-1]),
+		Avg: float64(s) / float64(len(vals)),
+	}
+}
+
 // DegreeDistribution returns the DegreeDistribution
 // for the PartitionMap.
 func (pm *PartitionMap) DegreeDistribution() DegreeDistribution {
