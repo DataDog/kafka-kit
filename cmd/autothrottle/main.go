@@ -23,7 +23,7 @@ var (
 		APIKey           string
 		AppKey           string
 		NetworkTXQuery   string
-		BrokerIDTag string
+		BrokerIDTag      string
 		MetricsWindow    int
 		ZKAddr           string
 		ZKPrefix         string

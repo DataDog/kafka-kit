@@ -20,15 +20,13 @@ type Config struct {
 	APIKey string
 	// Datadog app key.
 	AppKey string
-	// NetworkTXQuery is a query string
-	// that should return the outbound
-	// network metrics for the reference
-	// Kafka brokers.
-	// For example (Datadog): avg:system.net.bytes_sent{service:kafka}".
+	// NetworkTXQuery is a query string that
+	// should return the outbound network metrics
+	// by host for the reference Kafka brokers.
+	// For example (Datadog): "avg:system.net.bytes_sent{service:kafka} by {host}"
 	NetworkTXQuery string
-	// BrokerIDTag is the tag name that
-	// Kafka broker ID host tags. For exammple,
-	// "host" would ultimately become "by {host}".
+	// BrokerIDTag is the host tag name
+	// for Kafka broker IDs.
 	BrokerIDTag string
 	// MetricsWindow specifies the window size of
 	// timeseries data to evaluate in seconds.
@@ -140,7 +138,7 @@ func NewHandler(c *Config) (Handler, error) {
 		c:             client,
 		netTXQuery:    netQ,
 		metricsWindow: c.MetricsWindow,
-		brokerIDTag: c.BrokerIDTag,
+		brokerIDTag:   c.BrokerIDTag,
 	}
 
 	return k, nil

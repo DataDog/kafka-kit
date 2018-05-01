@@ -346,7 +346,7 @@ func repCapacityByMetrics(rtm *ReplicationThrottleMeta, bmb bmapBundle, bm kafka
 	}
 
 	event = fmt.Sprintf("Most utilized source broker: "+
-		"[%d] net tx of %.2fMB/s (over %ds) with an existing throttle rate of %.2fMB/s\n",
+		"[%d] net tx of %.2fMB/s (over %ds) with an existing throttle rate of %.2fMB/s",
 		constrainingSrc.ID, constrainingSrc.NetTX, Config.MetricsWindow, currThrottle)
 
 	return replicationCapacity, currThrottle, event, nil
