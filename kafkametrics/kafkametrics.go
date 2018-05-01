@@ -20,10 +20,14 @@ type Config struct {
 	APIKey string
 	// Datadog app key.
 	AppKey string
-	// NetworkTXQuery is a query that should
-	// return a series per broker of outbound network
-	// metrics. For example (Datadog): avg:system.net.bytes_sent{service:kafka} by {host}".
+	// NetworkTXQuery is a query string that
+	// should return the outbound network metrics
+	// by host for the reference Kafka brokers.
+	// For example (Datadog): "avg:system.net.bytes_sent{service:kafka} by {host}"
 	NetworkTXQuery string
+	// BrokerIDTag is the host tag name
+	// for Kafka broker IDs.
+	BrokerIDTag string
 	// MetricsWindow specifies the window size of
 	// timeseries data to evaluate in seconds.
 	// All values for the window are averaged.
@@ -40,6 +44,7 @@ type Handler interface {
 type ddHandler struct {
 	c             *dd.Client
 	netTXQuery    string
+	brokerIDTag   string
 	metricsWindow int
 }
 
@@ -127,12 +132,13 @@ func NewHandler(c *Config) (Handler, error) {
 		}
 	}
 
-	netQ := createNetTXQuery(c.NetworkTXQuery, c.MetricsWindow)
+	netQ := createNetTXQuery(c)
 
 	k := &ddHandler{
 		c:             client,
 		netTXQuery:    netQ,
 		metricsWindow: c.MetricsWindow,
+		brokerIDTag:   c.BrokerIDTag,
 	}
 
 	return k, nil
@@ -142,10 +148,10 @@ func NewHandler(c *Config) (Handler, error) {
 // with no aggs plus a window in seconds. A full
 // metric query is returned with an avg rollup
 // for the provided window.
-func createNetTXQuery(q string, w int) string {
+func createNetTXQuery(c *Config) string {
 	var b bytes.Buffer
-	b.WriteString(q)
-	b.WriteString(fmt.Sprintf(".rollup(avg, %d)", w))
+	b.WriteString(c.NetworkTXQuery)
+	b.WriteString(fmt.Sprintf(".rollup(avg, %d)", c.MetricsWindow))
 	return b.String()
 }
 
@@ -218,7 +224,7 @@ func (k *ddHandler) brokerMetricsFromList(l []*Broker) (BrokerMetrics, error) {
 	}
 
 	brokers := BrokerMetrics{}
-	err = brokers.populateFromTagMap(tags)
+	err = brokers.populateFromTagMap(tags, k.brokerIDTag)
 	if err != nil {
 		return nil, err
 	}
@@ -250,20 +256,20 @@ func (k *ddHandler) getHostTagMap(l []*Broker) (map[*Broker][]string, error) {
 }
 
 // populateFromTagMap takes a map of broker tags
-// and populates a BrokerMetrics with tags
-// of interest. An error describing any missing
-// tags is returned.
-func (bm BrokerMetrics) populateFromTagMap(t map[*Broker][]string) error {
+// and a broker ID tag key and returns a BrokerMetrics
+// with tags of interest. An error describing any
+// missing tags is returned.
+func (bm BrokerMetrics) populateFromTagMap(t map[*Broker][]string, btag string) error {
 	var missingTags bytes.Buffer
 
 	for b, ht := range t {
-		ids := valFromTags(ht, "broker_id")
+		ids := valFromTags(ht, btag)
 		if ids != "" {
 			id, _ := strconv.Atoi(ids)
 			b.ID = id
 			bm[id] = b
 		} else {
-			s := fmt.Sprintf(" broker_id:%s", b.Host)
+			s := fmt.Sprintf(" %s:%s", btag, b.Host)
 			missingTags.WriteString(s)
 		}
 
@@ -278,7 +284,7 @@ func (bm BrokerMetrics) populateFromTagMap(t map[*Broker][]string) error {
 
 	if missingTags.String() != "" {
 		return &PartialResults{
-			err: fmt.Sprintf("Host tags missing for:%s", missingTags.String()),
+			err: fmt.Sprintf("Host tags missing for: %s", missingTags.String()),
 		}
 	}
 

@@ -11,7 +11,13 @@ import (
 // func TestNewHandler(t *testing.T) {}
 
 func TestCreateNetTXQuery(t *testing.T) {
-	s := createNetTXQuery("avg:system.net.bytes_sent{service:kafka} by {host}", 300)
+	c := &Config{
+		NetworkTXQuery: "avg:system.net.bytes_sent{service:kafka}",
+		BrokerIDTag:    "host",
+		MetricsWindow:  300,
+	}
+
+	s := createNetTXQuery(c)
 
 	if s != "avg:system.net.bytes_sent{service:kafka} by {host}.rollup(avg, 300)" {
 		t.Errorf("Expected avg:system.net.bytes_sent{service:kafka} by {host}.rollup(avg, 300), got %s\n", s)
@@ -88,7 +94,7 @@ func TestPopulateFromTagMap(t *testing.T) {
 
 	// Test with complete input.
 	tagMap := mockTagMap()
-	err := b.populateFromTagMap(tagMap)
+	err := b.populateFromTagMap(tagMap, "broker_id")
 	if err != nil {
 		t.Errorf("Unexpected error: %s\n", err.Error())
 	}
@@ -109,7 +115,7 @@ func TestPopulateFromTagMap(t *testing.T) {
 
 	// Test with incomplete input.
 	tagMap[rndBroker] = tagMap[rndBroker][1:]
-	err = b.populateFromTagMap(tagMap)
+	err = b.populateFromTagMap(tagMap, "broker_id")
 	if err == nil {
 		t.Errorf("Expected error, got nil")
 	}

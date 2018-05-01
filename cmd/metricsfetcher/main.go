@@ -19,17 +19,19 @@ type Config struct {
 	AppKey      string
 	PartnQuery  string
 	BrokerQuery string
+	BrokerIDTag string
 	Span        int
 	ZKAddr      string
 	ZKPrefix    string
 }
 
-var config = &Config{}
+var config = &Config{} // :(
 
 func init() {
 	flag.StringVar(&config.APIKey, "api-key", "", "Datadog API key")
 	flag.StringVar(&config.AppKey, "app-key", "", "Datadog app key")
-	bq := flag.String("broker-storage-query", "avg:system.disk.free{service:kafka,device:/data} by {broker_id}", "Datadog metric query to get storage free by broker_id")
+	bq := flag.String("broker-storage-query", "avg:system.disk.free{service:kafka,device:/data}", "Datadog metric query to get broker storage free")
+	flag.StringVar(&config.BrokerIDTag, "broker-id-tag", "broker_id", "Datadog host tag for broker ID")
 	pq := flag.String("partition-size-query", "max:kafka.log.partition.size{service:kafka} by {topic,partition}", "Datadog metric query to get partition size by topic, partition")
 	flag.IntVar(&config.Span, "span", 3600, "Query range in seconds (now - span)")
 	flag.StringVar(&config.ZKAddr, "zk-addr", "localhost:2181", "ZooKeeper connect string")
@@ -39,7 +41,7 @@ func init() {
 	flag.Parse()
 
 	// Complete query string.
-	config.BrokerQuery = fmt.Sprintf("%s.rollup(avg, %d)", *bq, config.Span)
+	config.BrokerQuery = fmt.Sprintf("%s by {%s}.rollup(avg, %d)", *bq, config.BrokerIDTag, config.Span)
 	config.PartnQuery = fmt.Sprintf("%s.rollup(avg, %d)", *pq, config.Span)
 }
 

@@ -47,7 +47,7 @@ func brokerMetrics(c *Config) (map[string]map[string]float64, error) {
 	d := map[string]map[string]float64{}
 
 	for _, ts := range o {
-		broker := tagValFromScope(ts.GetScope(), "broker_id")
+		broker := tagValFromScope(ts.GetScope(), c.BrokerIDTag)
 
 		if _, exists := d[broker]; !exists {
 			d[broker] = map[string]float64{}

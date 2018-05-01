@@ -29,7 +29,7 @@ Autothrottle prerequisites include:
 
 - Datadog API and app key
 - A metric string that returns the `system.net.bytes_sent` metric per host, scoped to the cluster that's being managed
-- That each Kafka host is tagged with `instance-type` (included via the AWS integration) and a `broker_id` tag
+- That each Kafka host is tagged with `instance-type` (included via the AWS integration) and a broker ID tag (configurable via `-broker-id-tag`, defaults to `broker_id`)
 - A map of instance types and available bandwidth (in MB/s), supplied as a json string via the `--cap-map` parameter (e.g. `--cap-map '{"d2.2xlarge":120,"d2.4xlarge":240}'`)
 
 Once running, autothrottle should clearly log what it's doing:
@@ -77,6 +77,8 @@ Usage of autothrottle:
     	Admin API listen address:port [AUTOTHROTTLE_API_LISTEN] (default "localhost:8080")
   -app-key string
     	Datadog app key [AUTOTHROTTLE_APP_KEY]
+  -broker-id-tag string
+    	Datadog host tag for broker ID [AUTOTHROTTLE_BROKER_ID_TAG] (default "broker_id")
   -cap-map string
     	JSON map of instance types to network capacity in MB/s [AUTOTHROTTLE_CAP_MAP]
   -change-threshold float
