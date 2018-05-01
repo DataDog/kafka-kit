@@ -41,7 +41,7 @@ func init() {
 	flag.Parse()
 
 	// Complete query string.
-	config.BrokerQuery = fmt.Sprintf("%s by{%s}.rollup(avg, %d)", *bq, config.BrokerIDTag, config.Span)
+	config.BrokerQuery = fmt.Sprintf("%s by {%s}.rollup(avg, %d)", *bq, config.BrokerIDTag, config.Span)
 	config.PartnQuery = fmt.Sprintf("%s.rollup(avg, %d)", *pq, config.Span)
 }
 
