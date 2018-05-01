@@ -140,6 +140,7 @@ func NewHandler(c *Config) (Handler, error) {
 		c:             client,
 		netTXQuery:    netQ,
 		metricsWindow: c.MetricsWindow,
+		brokerIDTag: c.BrokerIDTag,
 	}
 
 	return k, nil
@@ -152,7 +153,6 @@ func NewHandler(c *Config) (Handler, error) {
 func createNetTXQuery(c *Config) string {
 	var b bytes.Buffer
 	b.WriteString(c.NetworkTXQuery)
-	b.WriteString(fmt.Sprintf(" by {%s}", c.BrokerIDTag))
 	b.WriteString(fmt.Sprintf(".rollup(avg, %d)", c.MetricsWindow))
 	return b.String()
 }
