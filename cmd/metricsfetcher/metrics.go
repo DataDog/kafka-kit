@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strconv"
 	"strings"
 	"time"
 )
@@ -48,6 +49,15 @@ func brokerMetrics(c *Config) (map[string]map[string]float64, error) {
 
 	for _, ts := range o {
 		broker := tagValFromScope(ts.GetScope(), c.BrokerIDTag)
+
+		// Check that the tag value
+		// is actually a broker ID.
+		// An improperly tagged or
+		// untagged broker may have "N/A"
+		// or some other invalid value.
+		if _, err := strconv.Atoi(broker); err != nil {
+			continue
+		}
 
 		if _, exists := d[broker]; !exists {
 			d[broker] = map[string]float64{}
