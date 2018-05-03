@@ -157,7 +157,7 @@ func main() {
 
 		brokerMetadata, err = zk.GetAllBrokerMeta(withMetrics)
 		if err != nil {
-			fmt.Printf("Error fetching broker metadata: %s\n", err)
+			fmt.Println(err)
 			os.Exit(1)
 		}
 	}
