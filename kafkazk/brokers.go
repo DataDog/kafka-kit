@@ -67,6 +67,7 @@ type Broker struct {
 	Used        int
 	StorageFree float64
 	Replace     bool
+	New         bool
 }
 
 // BrokerMap holds a mapping of
@@ -215,6 +216,7 @@ func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) *BrokerStatus {
 					Used:    0,
 					ID:      id,
 					Replace: false,
+					New:     true,
 				}
 				bs.New++
 				continue
@@ -229,6 +231,7 @@ func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) *BrokerStatus {
 					Replace:     false,
 					Locality:    meta.Rack,
 					StorageFree: meta.StorageFree,
+					New:         true,
 				}
 				bs.New++
 			} else {
@@ -236,6 +239,13 @@ func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) *BrokerStatus {
 				fmt.Printf("%sBroker %d not found in ZooKeeper\n",
 					indent, id)
 			}
+		}
+	}
+
+	// Log new brokers.
+	for _, broker := range b {
+		if broker.New {
+			fmt.Printf("%sNew broker %d\n", indent, broker.ID)
 		}
 	}
 
