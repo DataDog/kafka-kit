@@ -105,7 +105,7 @@ func (pmm PartitionMetaMap) Size(p Partition) (float64, error) {
 	return partn.Size, nil
 }
 
-// RebuildParams holds are required
+// RebuildParams holds required
 // parameters to call the Rebuild
 // method on a *PartitionMap.
 type RebuildParams struct {
@@ -114,6 +114,25 @@ type RebuildParams struct {
 	BM           BrokerMap
 	Strategy     string
 	Optimization string
+	Affinities   SubstitutionAffinities
+}
+
+// SubstitutionAffinities is a mapping of
+// an ID belonging to a *Broker marked for replacement
+// and a replacement *Broker that will fill
+// all previously filled replica slots held by the
+// *Broker being replaced.
+type SubstitutionAffinities map[int]*Broker
+
+// Get takes a broker ID and returns a *Broker
+// if one was set as a substitution affinity.
+func (sa SubstitutionAffinities) Get(id int) *Broker {
+	if b, exists := sa[id]; exists {
+		b.Used++
+		return b
+	}
+
+	return nil
 }
 
 // Rebuild takes a BrokerMap and rebuild strategy.
@@ -255,16 +274,29 @@ func placeByPosition(params RebuildParams) (*PartitionMap, []string) {
 				}
 
 				// Fetch the best candidate and append.
-				newBroker, err := bl.bestCandidate(constraints, params.Strategy, int64(pass*n+1))
+				var replacement *Broker
+				var err error
 
-				if err != nil {
-					// Append any caught errors.
-					errString := fmt.Sprintf("%s p%d: %s", partn.Topic, partn.Partition, err.Error())
-					errs = append(errs, errString)
-					continue
+				// If we're using the count method, check if a
+				// substitution affinity is set for this broker.
+				affinity := params.Affinities.Get(bid)
+				if params.Strategy == "count" && affinity != nil {
+					replacement = affinity
+				} else {
+					// Otherwise, use the standard
+					// constraints based selector.
+					replacement, err = bl.bestCandidate(constraints, params.Strategy, int64(pass*n+1))
+
+					if err != nil {
+						// Append any caught errors.
+						errString := fmt.Sprintf("%s p%d: %s", partn.Topic, partn.Partition, err.Error())
+						errs = append(errs, errString)
+						continue
+					}
 				}
 
-				newMap.Partitions[n].Replicas = append(newMap.Partitions[n].Replicas, newBroker.ID)
+				// Add the replacement to the map.
+				newMap.Partitions[n].Replicas = append(newMap.Partitions[n].Replicas, replacement.ID)
 			}
 		}
 
@@ -344,7 +376,7 @@ func placeByPartition(params RebuildParams) (*PartitionMap, []string) {
 				}
 
 				// Fetch the best candidate and append.
-				newBroker, err := bl.bestCandidate(constraints, params.Strategy, 1)
+				replacement, err := bl.bestCandidate(constraints, params.Strategy, 1)
 
 				if err != nil {
 					// Append any caught errors.
@@ -353,7 +385,7 @@ func placeByPartition(params RebuildParams) (*PartitionMap, []string) {
 					continue
 				}
 
-				newPartn.Replicas = append(newPartn.Replicas, newBroker.ID)
+				newPartn.Replicas = append(newPartn.Replicas, replacement.ID)
 			}
 		}
 

@@ -38,6 +38,7 @@ var (
 		ignoreWarns     bool
 		forceRebuild    bool
 		replication     int
+		subAffinity     bool
 		placement       string
 		optimize        string
 		verbose         bool
@@ -59,6 +60,7 @@ func init() {
 	flag.BoolVar(&Config.ignoreWarns, "ignore-warns", false, "Whether a map should be produced if warnings are emitted")
 	flag.BoolVar(&Config.forceRebuild, "force-rebuild", false, "Forces a rebuild even if all existing brokers are provided")
 	flag.IntVar(&Config.replication, "replication", 0, "Set the replication factor")
+	flag.BoolVar(&Config.subAffinity, "sub-affinity", false, "Replacement broker substitution affinity")
 	flag.StringVar(&Config.placement, "placement", "count", "Partition placement type: [count, storage]")
 	flag.StringVar(&Config.optimize, "optimize", "distribution", "Optimization priority for storage placement: [distribution, storage]")
 	flag.BoolVar(&Config.verbose, "verbose", false, "Verbose information")
@@ -225,6 +227,28 @@ func main() {
 	// Store a copy.
 	brokersOrig := brokers.Copy()
 
+	// Get substitution affinities.
+	var affinities kafkazk.SubstitutionAffinities
+	if Config.subAffinity {
+		var err error
+		affinities, err = brokers.SubstitutionAffinities()
+		if err != nil {
+			fmt.Printf("Substitution affinity error: %s\n", err.Error())
+			os.Exit(1)
+		}
+	}
+
+	// Print substitution affinities.
+	if affinities != nil {
+		fmt.Printf("%s-\n", indent)
+	}
+
+	for a, b := range affinities {
+		fmt.Printf("%sSubstitution affinity: %d -> %d\n", indent, a, b.ID)
+	}
+
+	fmt.Printf("%s-\n", indent)
+
 	// Print change summary.
 	fmt.Printf("%sReplacing %d, added %d, missing %d, total count changed by %d\n",
 		indent, bs.Replace, bs.New, bs.Missing+bs.OldMissing, change)
@@ -263,6 +287,17 @@ func main() {
 	var partitionMapOut *kafkazk.PartitionMap
 	var warns []string
 
+	rebuildParams := kafkazk.RebuildParams{
+		PMM:          partitionMeta,
+		BM:           brokers,
+		Strategy:     Config.placement,
+		Optimization: Config.optimize,
+	}
+
+	if affinities != nil {
+		rebuildParams.Affinities = affinities
+	}
+
 	// If we're doing a force rebuild, the input map
 	// must have all brokers stripped out.
 	// A few notes about doing force rebuilds:
@@ -276,24 +311,18 @@ func main() {
 	// 		used to find partition to broker relationships so that the storage used can
 	//		be readded to the broker's StorageFree value. The amount to be readded, the
 	//		size of the partition, is referenced from the PartitionMetaMap.
+
 	if Config.forceRebuild {
 		// Get a stripped map that we'll call rebuild on.
 		partitionMapInStripped := partitionMapIn.Strip()
 		// If the storage placement strategy is being used,
 		// update the broker StorageFree values.
 		if Config.placement == "storage" {
-			err := brokers.SubStorageAll(partitionMapIn, partitionMeta)
+			err := rebuildParams.BM.SubStorageAll(partitionMapIn, partitionMeta)
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(1)
 			}
-		}
-
-		rebuildParams := kafkazk.RebuildParams{
-			PMM:          partitionMeta,
-			BM:           brokers,
-			Strategy:     Config.placement,
-			Optimization: Config.optimize,
 		}
 
 		// Rebuild.
@@ -302,18 +331,11 @@ func main() {
 		// Update the StorageFree only on brokers
 		// marked for replacement.
 		if Config.placement == "storage" {
-			err := brokers.SubStorageReplacements(partitionMapIn, partitionMeta)
+			err := rebuildParams.BM.SubStorageReplacements(partitionMapIn, partitionMeta)
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(1)
 			}
-		}
-
-		rebuildParams := kafkazk.RebuildParams{
-			PMM:          partitionMeta,
-			BM:           brokers,
-			Strategy:     Config.placement,
-			Optimization: Config.optimize,
 		}
 
 		// Rebuild directly on the input map.

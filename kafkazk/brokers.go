@@ -252,6 +252,71 @@ func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) *BrokerStatus {
 	return bs
 }
 
+// SubstitutionAffinities finds all brokers marked for replacement
+// and creates an exclusive association with a newly provided broker.
+// In the rebuild stage, each replacement will be only replaced with the
+// affinity it's associated with. A given broker can only be an affinity
+// for a single replacement broker. An error is returned if a complete
+// mapping of affinities cannot be constructed (e.g. two brokers are
+// marke for replacement but only one new replacement was provided
+// and substitution affinities is enabled).
+func (b BrokerMap) SubstitutionAffinities() (SubstitutionAffinities, error) {
+	replace := map[*Broker]interface{}{}
+	new := map[*Broker]interface{}{}
+	affinities := SubstitutionAffinities{}
+
+	// Map replacements and new brokers.
+	for _, broker := range b {
+		if broker.ID == 0 {
+			continue
+		}
+
+		if broker.Replace {
+			replace[broker] = nil
+		}
+
+		if broker.New {
+			new[broker] = nil
+		}
+	}
+
+	// Check if we have enough new nodes
+	// to cover replacements.
+	if len(new) < len(replace) {
+		return nil, errors.New("Insufficient number of new brokers")
+	}
+
+	// For each broker being replaced, find
+	// replacement with the same Rack ID.
+	for broker := range replace {
+		match, err := constraintsMatch(broker, new)
+		if err != nil {
+			return affinities, err
+		}
+
+		affinities[broker.ID] = match
+	}
+
+	return affinities, nil
+}
+
+// constraintsMatch takes a *Broker and a map[*Broker]interface{}.
+// The map is traversed for a broker that matches the constraints
+// of the provided broker. If one is available, it's removed from
+// the map and returned. Otherwise, an error is returned.
+func constraintsMatch(b *Broker, bm map[*Broker]interface{}) (*Broker, error) {
+	for broker := range bm {
+		if broker.Locality == b.Locality {
+			delete(bm, b)
+			return broker, nil
+		}
+	}
+
+	// No match was found.
+	errS := fmt.Sprintf("Insufficient free brokers for locality %s", b.Locality)
+	return nil, errors.New(errS)
+}
+
 // SubStorageAll takes a PartitionMap + PartitionMetaMap and adds
 // the size of each partition back to the StorageFree value
 // of any broker it was originally mapped to.
