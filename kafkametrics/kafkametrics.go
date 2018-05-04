@@ -271,6 +271,11 @@ func (bm BrokerMetrics) populateFromTagMap(t map[*Broker][]string, btag string) 
 		} else {
 			s := fmt.Sprintf(" %s:%s", btag, b.Host)
 			missingTags.WriteString(s)
+
+			// Early break if this tag is
+			// missing. We need it in the next
+			// step.
+			continue
 		}
 
 		it := valFromTags(ht, "instance-type")
@@ -284,7 +289,7 @@ func (bm BrokerMetrics) populateFromTagMap(t map[*Broker][]string, btag string) 
 
 	if missingTags.String() != "" {
 		return &PartialResults{
-			err: fmt.Sprintf("Host tags missing for: %s", missingTags.String()),
+			err: fmt.Sprintf("Missing host tags:%s", missingTags.String()),
 		}
 	}
 
