@@ -12,7 +12,7 @@ import (
 
 func TestCreateNetTXQuery(t *testing.T) {
 	c := &Config{
-		NetworkTXQuery: "avg:system.net.bytes_sent{service:kafka}",
+		NetworkTXQuery: "avg:system.net.bytes_sent{service:kafka} by {host}",
 		BrokerIDTag:    "host",
 		MetricsWindow:  300,
 	}
