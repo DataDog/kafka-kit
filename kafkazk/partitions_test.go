@@ -218,7 +218,14 @@ func TestRebuild(t *testing.T) {
 	pmm := NewPartitionMetaMap()
 	brokers := BrokerMapFromTopicMap(pm, bm, forceRebuild)
 
-	out, errs := pm.Rebuild(brokers, pmm, "distribution", "count")
+	rebuildParams := RebuildParams{
+		PMM:          pmm,
+		BM:           brokers,
+		Strategy:     "count",
+		Optimization: "distribution",
+	}
+
+	out, errs := pm.Rebuild(rebuildParams)
 	if errs != nil {
 		t.Errorf("Unexpected error(s): %s", errs)
 	}
@@ -231,10 +238,10 @@ func TestRebuild(t *testing.T) {
 	}
 
 	// Mark 1004 for replacement.
-	brokers[1004].Replace = true
+	rebuildParams.BM[1004].Replace = true
 
 	// Rebuild.
-	out, errs = pm.Rebuild(brokers, pmm, "distribution", "count")
+	out, errs = pm.Rebuild(rebuildParams)
 	if errs != nil {
 		t.Errorf("Unexpected error(s): %s", errs)
 	}
@@ -253,7 +260,7 @@ func TestRebuild(t *testing.T) {
 	pm.SetReplication(2)
 	expected.SetReplication(2)
 
-	out, _ = pm.Rebuild(brokers, pmm, "distribution", "count")
+	out, _ = pm.Rebuild(rebuildParams)
 
 	if same, err := out.equal(expected); !same {
 		t.Errorf("Unexpected inequality after replication factor change -> rebuild: %s", err)
@@ -263,9 +270,9 @@ func TestRebuild(t *testing.T) {
 	forceRebuild = true
 	pm, _ = PartitionMapFromString(testGetMapString2("test_topic"))
 	pmStripped := pm.Strip()
-	brokers = BrokerMapFromTopicMap(pm, bm, forceRebuild)
+	rebuildParams.BM = BrokerMapFromTopicMap(pm, bm, forceRebuild)
 
-	out, _ = pmStripped.Rebuild(brokers, pmm, "distribution", "count")
+	out, _ = pmStripped.Rebuild(rebuildParams)
 	fmt.Printf("%v\n", out)
 	expected = pm.Copy()
 	expected.Partitions[0].Replicas = []int{1001, 1003}
@@ -297,7 +304,14 @@ func TestRebuildByStorage(t *testing.T) {
 	brokers := BrokerMapFromTopicMap(pm, bm, forceRebuild)
 	_ = brokers.SubStorageAll(pm, pmm)
 
-	out, errs := pmStripped.Rebuild(brokers, pmm, "distribution", "storage")
+	rebuildParams := RebuildParams{
+		PMM:          pmm,
+		BM:           brokers,
+		Strategy:     "count",
+		Optimization: "distribution",
+	}
+
+	out, errs := pmStripped.Rebuild(rebuildParams)
 	if errs != nil {
 		t.Errorf("Unexpected error(s): %s", errs)
 	}

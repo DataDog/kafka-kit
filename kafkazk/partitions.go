@@ -105,35 +105,48 @@ func (pmm PartitionMetaMap) Size(p Partition) (float64, error) {
 	return partn.Size, nil
 }
 
+// RebuildParams holds are required
+// parameters to call the Rebuild
+// method on a *PartitionMap.
+type RebuildParams struct {
+	pm           *PartitionMap
+	PMM          PartitionMetaMap
+	BM           BrokerMap
+	Strategy     string
+	Optimization string
+}
+
 // Rebuild takes a BrokerMap and rebuild strategy.
 // It then traverses the partition map, replacing brokers marked removal
 // with the best available candidate based on the selected
 // rebuild strategy. A rebuilt *PartitionMap and []string of
 // errors is returned.
-func (pm *PartitionMap) Rebuild(bm BrokerMap, pmm PartitionMetaMap, optimization string, strategy string) (*PartitionMap, []string) {
+func (pm *PartitionMap) Rebuild(params RebuildParams) (*PartitionMap, []string) {
 	var newMap *PartitionMap
 	var errs []string
 
-	switch strategy {
+	params.pm = pm
+
+	switch params.Strategy {
 	case "count":
 		// Standard sort
-		sort.Sort(pm.Partitions)
+		sort.Sort(params.pm.Partitions)
 		// Perform placements.
-		newMap, errs = placeByPosition(pm, bm, pmm, strategy)
+		newMap, errs = placeByPosition(params)
 	case "storage":
 		// Sort by size.
 		s := partitionsBySize{
-			pl: pm.Partitions,
-			pm: pmm,
+			pl: params.pm.Partitions,
+			pm: params.PMM,
 		}
 		sort.Sort(partitionsBySize(s))
 		// Perform placements. The placement method
 		// depends on the choosen optimization param.
-		switch optimization {
+		switch params.Optimization {
 		case "distribution":
-			newMap, errs = placeByPosition(pm, bm, pmm, strategy)
+			newMap, errs = placeByPosition(params)
 		case "storage":
-			newMap, errs = placeByPartition(pm, bm, pmm, strategy)
+			newMap, errs = placeByPartition(params)
 			// Shuffle replica sets. placeByPartition
 			// suffers from optimal leadership distribution
 			// because of the requirement to choose all
@@ -145,11 +158,11 @@ func (pm *PartitionMap) Rebuild(bm BrokerMap, pmm PartitionMetaMap, optimization
 			newMap.shuffle()
 		// Invalid optimization.
 		default:
-			return nil, []string{fmt.Sprintf("Invalid optimization '%s'", optimization)}
+			return nil, []string{fmt.Sprintf("Invalid optimization '%s'", params.Optimization)}
 		}
 	// Invalid placement.
 	default:
-		return nil, []string{fmt.Sprintf("Invalid rebuild strategy '%s'", strategy)}
+		return nil, []string{fmt.Sprintf("Invalid rebuild strategy '%s'", params.Strategy)}
 	}
 
 	// Final sort.
@@ -166,13 +179,13 @@ func (pm *PartitionMap) Rebuild(bm BrokerMap, pmm PartitionMetaMap, optimization
 // pass would be the first follower, and the third pass would be
 // the second follower. This placement pattern is optimal
 // for the count strategy.
-func placeByPosition(pm *PartitionMap, bm BrokerMap, pmm PartitionMetaMap, strategy string) (*PartitionMap, []string) {
+func placeByPosition(params RebuildParams) (*PartitionMap, []string) {
 	newMap := NewPartitionMap()
 
 	// We need a filtered list for
 	// usage sorting and exclusion
 	// of nodes marked for removal.
-	bl := bm.filteredList()
+	bl := params.BM.filteredList()
 
 	var errs []string
 	var pass int
@@ -181,8 +194,8 @@ func placeByPosition(pm *PartitionMap, bm BrokerMap, pmm PartitionMetaMap, strat
 	// If we've just counted as many skips
 	// as there are partitions to handle,
 	// we have nothing left to do.
-	for skipped := 0; skipped < len(pm.Partitions); {
-		for n, partn := range pm.Partitions {
+	for skipped := 0; skipped < len(params.pm.Partitions); {
+		for n, partn := range params.pm.Partitions {
 			// If this is the first pass, create
 			// the new partition.
 			if pass == 0 {
@@ -207,7 +220,7 @@ func placeByPosition(pm *PartitionMap, bm BrokerMap, pmm PartitionMetaMap, strat
 			// If the current broker isn't
 			// marked for removal, just add it
 			// to the same position in the new map.
-			if !bm[bid].Replace {
+			if !params.BM[bid].Replace {
 				newMap.Partitions[n].Replicas = append(newMap.Partitions[n].Replicas, bid)
 			} else {
 				// Otherwise, we need to find a replacement.
@@ -217,12 +230,12 @@ func placeByPosition(pm *PartitionMap, bm BrokerMap, pmm PartitionMetaMap, strat
 				// get a *constraints.
 				replicaSet := brokerList{}
 				for _, bid := range partn.Replicas {
-					replicaSet = append(replicaSet, bm[bid])
+					replicaSet = append(replicaSet, params.BM[bid])
 				}
 				// Add existing brokers in the
 				// new replica set as well.
 				for _, bid := range newMap.Partitions[n].Replicas {
-					replicaSet = append(replicaSet, bm[bid])
+					replicaSet = append(replicaSet, params.BM[bid])
 				}
 
 				// Populate a constraints.
@@ -230,8 +243,8 @@ func placeByPosition(pm *PartitionMap, bm BrokerMap, pmm PartitionMetaMap, strat
 
 				// Add any necessary meta from current partition
 				// to the constraints.
-				if strategy == "storage" {
-					s, err := pmm.Size(partn)
+				if params.Strategy == "storage" {
+					s, err := params.PMM.Size(partn)
 					if err != nil {
 						errString := fmt.Sprintf("%s p%d: %s", partn.Topic, partn.Partition, err.Error())
 						errs = append(errs, errString)
@@ -242,7 +255,7 @@ func placeByPosition(pm *PartitionMap, bm BrokerMap, pmm PartitionMetaMap, strat
 				}
 
 				// Fetch the best candidate and append.
-				newBroker, err := bl.bestCandidate(constraints, strategy, int64(pass*n+1))
+				newBroker, err := bl.bestCandidate(constraints, params.Strategy, int64(pass*n+1))
 
 				if err != nil {
 					// Append any caught errors.
@@ -273,17 +286,17 @@ func placeByPosition(pm *PartitionMap, bm BrokerMap, pmm PartitionMetaMap, strat
 	return newMap, errs
 }
 
-func placeByPartition(pm *PartitionMap, bm BrokerMap, pmm PartitionMetaMap, strategy string) (*PartitionMap, []string) {
+func placeByPartition(params RebuildParams) (*PartitionMap, []string) {
 	newMap := NewPartitionMap()
 
 	// We need a filtered list for
 	// usage sorting and exclusion
 	// of nodes marked for removal.
-	bl := bm.filteredList()
+	bl := params.BM.filteredList()
 
 	var errs []string
 
-	for _, partn := range pm.Partitions {
+	for _, partn := range params.pm.Partitions {
 		// Create the partition in
 		// the new map.
 		newPartn := Partition{Partition: partn.Partition, Topic: partn.Topic}
@@ -296,7 +309,7 @@ func placeByPartition(pm *PartitionMap, bm BrokerMap, pmm PartitionMetaMap, stra
 			// If the current broker isn't
 			// marked for removal, just add it
 			// to the same position in the new map.
-			if !bm[bid].Replace {
+			if !params.BM[bid].Replace {
 				newPartn.Replicas = append(newPartn.Replicas, bid)
 			} else {
 				// Otherwise, we need to find a replacement.
@@ -306,12 +319,12 @@ func placeByPartition(pm *PartitionMap, bm BrokerMap, pmm PartitionMetaMap, stra
 				// get a *constraints.
 				replicaSet := brokerList{}
 				for _, bid := range partn.Replicas {
-					replicaSet = append(replicaSet, bm[bid])
+					replicaSet = append(replicaSet, params.BM[bid])
 				}
 				// Add existing brokers in the
 				// new replica set as well.
 				for _, bid := range newPartn.Replicas {
-					replicaSet = append(replicaSet, bm[bid])
+					replicaSet = append(replicaSet, params.BM[bid])
 				}
 
 				// Populate a constraints.
@@ -319,8 +332,8 @@ func placeByPartition(pm *PartitionMap, bm BrokerMap, pmm PartitionMetaMap, stra
 
 				// Add any necessary meta from current partition
 				// to the constraints.
-				if strategy == "storage" {
-					s, err := pmm.Size(partn)
+				if params.Strategy == "storage" {
+					s, err := params.PMM.Size(partn)
 					if err != nil {
 						errString := fmt.Sprintf("%s p%d: %s", partn.Topic, partn.Partition, err.Error())
 						errs = append(errs, errString)
@@ -331,7 +344,7 @@ func placeByPartition(pm *PartitionMap, bm BrokerMap, pmm PartitionMetaMap, stra
 				}
 
 				// Fetch the best candidate and append.
-				newBroker, err := bl.bestCandidate(constraints, strategy, 1)
+				newBroker, err := bl.bestCandidate(constraints, params.Strategy, 1)
 
 				if err != nil {
 					// Append any caught errors.

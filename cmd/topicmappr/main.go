@@ -288,8 +288,16 @@ func main() {
 				os.Exit(1)
 			}
 		}
+
+		rebuildParams := kafkazk.RebuildParams{
+			PMM:          partitionMeta,
+			BM:           brokers,
+			Strategy:     Config.placement,
+			Optimization: Config.optimize,
+		}
+
 		// Rebuild.
-		partitionMapOut, warns = partitionMapInStripped.Rebuild(brokers, partitionMeta, Config.optimize, Config.placement)
+		partitionMapOut, warns = partitionMapInStripped.Rebuild(rebuildParams)
 	} else {
 		// Update the StorageFree only on brokers
 		// marked for replacement.
@@ -300,8 +308,16 @@ func main() {
 				os.Exit(1)
 			}
 		}
+
+		rebuildParams := kafkazk.RebuildParams{
+			PMM:          partitionMeta,
+			BM:           brokers,
+			Strategy:     Config.placement,
+			Optimization: Config.optimize,
+		}
+
 		// Rebuild directly on the input map.
-		partitionMapOut, warns = partitionMapIn.Rebuild(brokers, partitionMeta, Config.optimize, Config.placement)
+		partitionMapOut, warns = partitionMapIn.Rebuild(rebuildParams)
 	}
 
 	// Sort by topic, partition.
