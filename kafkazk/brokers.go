@@ -252,13 +252,13 @@ func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) *BrokerStatus {
 	return bs
 }
 
-// SubstitutionAffinities finds all brokers marked for replacement
-// and creates an exclusive association with a newly provided broker.
-// In the rebuild stage, each replacement will be only replaced with the
-// affinity it's associated with. A given broker can only be an affinity
-// for a single replacement broker. An error is returned if a complete
+// SubstitutionAffinities finds all brokers marked for replacement and for
+// each broker, it creates an exclusive association with a newly provided broker.
+// In the rebuild stage, each to-be-replaced broker will be only replaced with the
+// affinity it's associated with. A given new broker can only be an affinity
+// for a single outgoing broker. An error is returned if a complete
 // mapping of affinities cannot be constructed (e.g. two brokers are
-// marke for replacement but only one new replacement was provided
+// marked for replacement but only one new replacement was provided
 // and substitution affinities is enabled).
 func (b BrokerMap) SubstitutionAffinities() (SubstitutionAffinities, error) {
 	replace := map[*Broker]interface{}{}

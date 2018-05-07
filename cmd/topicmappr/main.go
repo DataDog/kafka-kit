@@ -48,7 +48,6 @@ var (
 func init() {
 	log.SetOutput(ioutil.Discard)
 
-	fmt.Println()
 	flag.StringVar(&Config.rebuildMap, "rebuild-map", "", "Rebuild a topic map")
 	topics := flag.String("rebuild-topics", "", "Rebuild topics (comma delim list) by lookup in ZooKeeper")
 	flag.BoolVar(&Config.useMeta, "use-meta", true, "Use broker metadata as constraints")
@@ -72,20 +71,22 @@ func init() {
 	// Sanity check params.
 	switch {
 	case Config.rebuildMap == "" && *topics == "":
-		fmt.Println("[ERROR] Must specify either -rebuild-map or -rebuild-topics")
+		fmt.Println("\n[ERROR] Must specify either -rebuild-map or -rebuild-topics")
 		defaultsAndExit()
 	case len(*brokers) == 0:
-		fmt.Println("[ERROR] --brokers cannot be empty")
+		fmt.Println("\n[ERROR] --brokers cannot be empty")
 		defaultsAndExit()
 	case Config.placement != "count" && Config.placement != "storage":
-		fmt.Println("[ERROR] --placement must be either 'count' or 'storage'")
+		fmt.Println("\n[ERROR] --placement must be either 'count' or 'storage'")
 		defaultsAndExit()
 	case Config.optimize != "distribution" && Config.optimize != "storage":
-		fmt.Println("[ERROR] --optimize must be either 'distribution' or 'storage'")
+		fmt.Println("\n[ERROR] --optimize must be either 'distribution' or 'storage'")
 		defaultsAndExit()
 	case !Config.useMeta && Config.placement == "storage":
-		fmt.Println("[ERROR] --placement=storage requires --use-meta=true")
+		fmt.Println("\n[ERROR] --placement=storage requires --use-meta=true")
 		defaultsAndExit()
+	case Config.forceRebuild && Config.subAffinity:
+		fmt.Println("\n[INFO] --force-rebuild disables --sub-affinity")
 	}
 
 	// Append trailing slash if not included.
@@ -208,7 +209,7 @@ func main() {
 		topics[p.Topic] = true
 	}
 
-	fmt.Printf("Topics:\n")
+	fmt.Printf("\nTopics:\n")
 	for t := range topics {
 		fmt.Printf("%s%s\n", indent, t)
 	}
@@ -229,7 +230,7 @@ func main() {
 
 	// Get substitution affinities.
 	var affinities kafkazk.SubstitutionAffinities
-	if Config.subAffinity {
+	if Config.subAffinity && !Config.forceRebuild {
 		var err error
 		affinities, err = brokers.SubstitutionAffinities()
 		if err != nil {
