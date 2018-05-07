@@ -59,6 +59,18 @@ type BrokerStatus struct {
 	Replace    int
 }
 
+// Changes returns a bool that indicates
+// whether a BrokerStatus values represent
+// a change in brokers.
+func (bs BrokerStatus) Changes() bool {
+	switch {
+	case bs.New != 0, bs.Missing != 0, bs.OldMissing != 0, bs.Replace != 0:
+		return true
+	}
+
+	return false
+}
+
 // Broker is used for internal
 // metadata / accounting.
 type Broker struct {

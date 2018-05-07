@@ -222,6 +222,9 @@ func main() {
 
 	// Update the currentBrokers list with
 	// the provided broker list.
+	// TODO the information output of broker changes
+	// comes from within this Update call. Should return
+	// this info as a value and print it out here.
 	bs := brokers.Update(Config.brokers, brokerMetadata)
 	change := bs.New - bs.Replace
 
@@ -248,7 +251,9 @@ func main() {
 		fmt.Printf("%sSubstitution affinity: %d -> %d\n", indent, a, b.ID)
 	}
 
-	fmt.Printf("%s-\n", indent)
+	if bs.Changes() {
+		fmt.Printf("%s-\n", indent)
+	}
 
 	// Print change summary.
 	fmt.Printf("%sReplacing %d, added %d, missing %d, total count changed by %d\n",
