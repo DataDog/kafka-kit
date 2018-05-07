@@ -7,11 +7,11 @@ import (
 // DegreeDistribution holds broker to
 // broker relationships.
 type DegreeDistribution struct {
-	// Relationships is a mapping of a broker ID
-	// to other broker IDs that share occupancy
-	// in at least one replica set. For instance, given the
-	// replica set [1001,1002,1003], ID 1002 has a relationship
-	// with 1001 and 1003.
+	// Relationships is a an adjacency list
+	// where an edge between brokers is defined as
+	// a common occupancy in at least one replica set.
+	// For instance, given the replica set [1001,1002,1003],
+	// ID 1002 has a relationship with 1001 and 1003.
 	Relationships map[int]map[int]interface{}
 }
 
@@ -23,7 +23,8 @@ func NewDegreeDistribution() DegreeDistribution {
 }
 
 // Add takes a []int of broker IDs representing a
-// replica set and creates relationship mappings accordingly.
+// replica set and updates the adjacency lists for
+// each broker in the set.
 func (dd DegreeDistribution) Add(nodes []int) {
 	for _, node := range nodes {
 		if _, exists := dd.Relationships[node]; !exists {

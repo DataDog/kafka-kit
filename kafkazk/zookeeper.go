@@ -169,7 +169,7 @@ func (z *zkHandler) Get(p string) ([]byte, error) {
 	r, _, e := z.client.Get(p)
 	var err error
 	if e != nil {
-		err = errors.New(fmt.Sprintf("[%s] %s", p, e.Error()))
+		err = fmt.Errorf("[%s] %s", p, e.Error())
 	}
 
 	return r, err
@@ -182,7 +182,7 @@ func (z *zkHandler) Set(p string, d string) error {
 	_, e := z.client.Set(p, []byte(d), -1)
 	var err error
 	if e != nil {
-		err = errors.New(fmt.Sprintf("[%s] %s", p, e.Error()))
+		err = fmt.Errorf("[%s] %s", p, e.Error())
 	}
 
 	return err
@@ -195,7 +195,7 @@ func (z *zkHandler) CreateSequential(p string, d string) error {
 	_, e := z.client.Create(p, []byte(d), zkclient.FlagSequence, zkclient.WorldACL(31))
 	var err error
 	if e != nil {
-		err = errors.New(fmt.Sprintf("[%s] %s", p, e.Error()))
+		err = fmt.Errorf("[%s] %s", p, e.Error())
 	}
 
 	return err
@@ -208,7 +208,7 @@ func (z *zkHandler) Create(p string, d string) error {
 	_, e := z.client.Create(p, []byte(d), 0, zkclient.WorldACL(31))
 	var err error
 	if e != nil {
-		err = errors.New(fmt.Sprintf("[%s] %s", p, e.Error()))
+		err = fmt.Errorf("[%s] %s", p, e.Error())
 	}
 
 	return err
@@ -221,7 +221,7 @@ func (z *zkHandler) Exists(p string) (bool, error) {
 	b, _, e := z.client.Exists(p)
 	var err error
 	if e != nil {
-		err = errors.New(fmt.Sprintf("[%s] %s", p, e.Error()))
+		err = fmt.Errorf("[%s] %s", p, e.Error())
 	}
 
 	return b, err

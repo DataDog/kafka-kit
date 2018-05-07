@@ -13,6 +13,8 @@ import (
 	dd "github.com/zorkian/go-datadog-api"
 )
 
+// Config holds
+// config parameters.
 type Config struct {
 	Client      *dd.Client
 	APIKey      string
