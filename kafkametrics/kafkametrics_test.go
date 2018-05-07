@@ -53,8 +53,8 @@ func TestBrokersFromSeries(t *testing.T) {
 
 func mockSeries() []dd.Series {
 	ss := []dd.Series{}
-	var f1 float64 = 0.00
-	var f2 float64 = 1073741824.00
+	var f1 = 0.00
+	var f2 = 1073741824.00
 
 	for i := 0; i < 5; i++ {
 		scope := fmt.Sprintf("host%d,broker_id:100%d,instance-type:mock", i, i)

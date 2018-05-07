@@ -271,8 +271,7 @@ func mapsFromReassigments(r kafkazk.Reassignments, zk kafkazk.Handler) (bmapBund
 		lb.throttled[t]["followers"] = []string{}
 		tstate, err := zk.GetTopicStateISR(t)
 		if err != nil {
-			errS := fmt.Sprintf("Error fetching topic data: %s\n", err.Error())
-			return lb, errors.New(errS)
+			return lb, fmt.Errorf("Error fetching topic data: %s\n", err.Error())
 		}
 
 		// For each partition, compare the current

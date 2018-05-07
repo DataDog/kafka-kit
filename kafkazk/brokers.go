@@ -340,8 +340,7 @@ func constraintsMatch(b *Broker, bm map[*Broker]interface{}) (*Broker, error) {
 	}
 
 	// No match was found.
-	errS := fmt.Sprintf("Insufficient free brokers for locality %s", b.Locality)
-	return nil, errors.New(errS)
+	return nil, fmt.Errorf("Insufficient free brokers for locality %s", b.Locality)
 }
 
 // SubStorageAll takes a PartitionMap + PartitionMetaMap and adds
@@ -363,8 +362,7 @@ func (b BrokerMap) SubStorageAll(pm *PartitionMap, pmm PartitionMetaMap) error {
 			if broker, exists := b[bid]; exists {
 				broker.StorageFree += size
 			} else {
-				errS := fmt.Sprintf("Broker %d not found in broker map", bid)
-				return errors.New(errS)
+				return fmt.Errorf("Broker %d not found in broker map", bid)
 			}
 		}
 	}
@@ -390,8 +388,7 @@ func (b BrokerMap) SubStorageReplacements(pm *PartitionMap, pmm PartitionMetaMap
 				broker.StorageFree += size
 			}
 			if !exists {
-				errS := fmt.Sprintf("Broker %d not found in broker map", bid)
-				return errors.New(errS)
+				return fmt.Errorf("Broker %d not found in broker map", bid)
 			}
 		}
 	}

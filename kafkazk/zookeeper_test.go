@@ -109,8 +109,7 @@ func TestSetup(t *testing.T) {
 		for _, p := range paths {
 			_, err := zkc.Create(p, []byte{}, 0, zkclient.WorldACL(31))
 			if err != nil {
-				errS := fmt.Sprintf("path %s: %s", p, err.Error())
-				t.Error(errS)
+				t.Error(fmt.Sprintf("path %s: %s", p, err.Error()))
 			}
 		}
 

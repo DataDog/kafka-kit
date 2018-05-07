@@ -422,7 +422,7 @@ func main() {
 
 	// If we're using the storage placement strategy,
 	// write anticipated storage changes.
-	var div float64 = 1073741824.00 // Fixed on GB for now.
+	var div = 1073741824.00 // Fixed on GB for now.
 	if Config.placement == "storage" {
 		fmt.Println("\nStorage free change estimations:")
 
