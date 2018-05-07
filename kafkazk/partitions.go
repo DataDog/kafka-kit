@@ -91,15 +91,13 @@ func (pmm PartitionMetaMap) Size(p Partition) (float64, error) {
 	// Check for the topic.
 	t, exists := pmm[p.Topic]
 	if !exists {
-		errS := fmt.Sprintf("Topic %s not found in partition metadata", p.Topic)
-		return 0.00, errors.New(errS)
+		return 0.00, fmt.Errorf("Topic %s not found in partition metadata", p.Topic)
 	}
 
 	// Check for the partition.
 	partn, exists := t[p.Partition]
 	if !exists {
-		errS := fmt.Sprintf("Partition %d not found in partition metadata", p.Partition)
-		return 0.00, errors.New(errS)
+		return 0.00, fmt.Errorf("Partition %d not found in partition metadata", p.Partition)
 	}
 
 	return partn.Size, nil
@@ -423,8 +421,7 @@ func PartitionMapFromString(s string) (*PartitionMap, error) {
 
 	err := json.Unmarshal([]byte(s), &pm)
 	if err != nil {
-		errString := fmt.Sprintf("Error parsing topic map: %s", err.Error())
-		return nil, errors.New(errString)
+		return nil, fmt.Errorf("Error parsing topic map: %s", err.Error())
 	}
 
 	sort.Sort(pm.Partitions)
@@ -446,8 +443,7 @@ func PartitionMapFromZK(t []*regexp.Regexp, zk Handler) (*PartitionMap, error) {
 
 	// Err if no matching topics were found.
 	if len(topicsToRebuild) == 0 {
-		errS := fmt.Sprintf("No topics found matching: %s", t)
-		return nil, errors.New(errS)
+		return nil, fmt.Errorf("No topics found matching: %s", t)
 	}
 
 	// Get a partition map for each topic.

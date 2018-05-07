@@ -374,8 +374,7 @@ func (z *zkHandler) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, error) {
 	if withMetrics {
 		bmetrics, err := z.getBrokerMetrics()
 		if err != nil {
-			errS := fmt.Sprintf("Error fetching broker metrics: %s", err.Error())
-			return nil, errors.New(errS)
+			return nil, fmt.Errorf("Error fetching broker metrics: %s", err.Error())
 		}
 
 		// Populate each broker with
@@ -383,8 +382,7 @@ func (z *zkHandler) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, error) {
 		for bid := range bmm {
 			m, exists := bmetrics[bid]
 			if !exists {
-				errS := fmt.Sprintf("Metrics not found for broker %d", bid)
-				return nil, errors.New(errS)
+				return nil, fmt.Errorf("Metrics not found for broker %d", bid)
 			}
 
 			bmm[bid].StorageFree = m.StorageFree
@@ -409,15 +407,13 @@ func (z *zkHandler) getBrokerMetrics() (BrokerMetricsMap, error) {
 	// Fetch the metrics object.
 	data, err := z.Get(path)
 	if err != nil {
-		errS := fmt.Sprintf("Error fetching broker metrics: %s", err.Error())
-		return nil, errors.New(errS)
+		return nil, fmt.Errorf("Error fetching broker metrics: %s", err.Error())
 	}
 
 	bmm := BrokerMetricsMap{}
 	err = json.Unmarshal(data, &bmm)
 	if err != nil {
-		errS := fmt.Sprintf("Error unmarshalling broker metrics: %s", err.Error())
-		return nil, errors.New(errS)
+		return nil, fmt.Errorf("Error unmarshalling broker metrics: %s", err.Error())
 	}
 
 	return bmm, nil
@@ -435,8 +431,7 @@ func (z *zkHandler) GetAllPartitionMeta() (PartitionMetaMap, error) {
 	// Fetch the metrics object.
 	data, err := z.Get(path)
 	if err != nil {
-		errS := fmt.Sprintf("Error fetching partition meta: %s", err.Error())
-		return nil, errors.New(errS)
+		return nil, fmt.Errorf("Error fetching partition meta: %s", err.Error())
 	}
 
 	if string(data) == "" {
@@ -446,8 +441,7 @@ func (z *zkHandler) GetAllPartitionMeta() (PartitionMetaMap, error) {
 	pmm := NewPartitionMetaMap()
 	err = json.Unmarshal(data, &pmm)
 	if err != nil {
-		errS := fmt.Sprintf("Error unmarshalling partition meta: %s", err.Error())
-		return nil, errors.New(errS)
+		return nil, fmt.Errorf("Error unmarshalling partition meta: %s", err.Error())
 	}
 
 	return pmm, nil
@@ -636,8 +630,7 @@ func (z *zkHandler) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
 	if changed {
 		newConfig, err := json.Marshal(config)
 		if err != nil {
-			errS := fmt.Sprintf("Error marshalling config: %s", err)
-			return false, errors.New(errS)
+			return false, fmt.Errorf("Error marshalling config: %s", err)
 		}
 		_, err = z.client.Set(path, newConfig, -1)
 		if err != nil {

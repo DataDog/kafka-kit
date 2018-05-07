@@ -68,8 +68,7 @@ func getThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler, p
 
 	t, err := zk.Get(p)
 	if err != nil {
-		errS := fmt.Sprintf("Error getting throttle: %s\n", err.Error())
-		io.WriteString(w, errS)
+		io.WriteString(w, fmt.Sprintf("Error getting throttle: %s\n", err.Error()))
 		return
 	}
 
@@ -104,11 +103,9 @@ func setThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler, p
 
 	err := zk.Set(p, rate)
 	if err != nil {
-		errS := fmt.Sprintf("Error setting throttle: %s\n", err)
-		io.WriteString(w, errS)
+		io.WriteString(w, fmt.Sprintf("Error setting throttle: %s\n", err))
 	} else {
-		resp := fmt.Sprintf("Throttle successfully set to %sMB/s\n", rate)
-		io.WriteString(w, resp)
+		io.WriteString(w, fmt.Sprintf("Throttle successfully set to %sMB/s\n", rate))
 	}
 }
 
@@ -122,8 +119,7 @@ func removeThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler
 
 	err := zk.Set(p, "")
 	if err != nil {
-		errS := fmt.Sprintf("Error setting throttle: %s\n", err)
-		io.WriteString(w, errS)
+		io.WriteString(w, fmt.Sprintf("Error setting throttle: %s\n", err))
 	} else {
 		io.WriteString(w, "Throttle successfully removed\n")
 	}
