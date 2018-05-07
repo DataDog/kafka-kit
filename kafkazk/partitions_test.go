@@ -183,72 +183,6 @@ func TestStrip(t *testing.T) {
 	}
 }
 
-func TestDegreeDistribution(t *testing.T) {
-	pm, _ := PartitionMapFromString(testGetMapString3("test_topic"))
-	dd := pm.DegreeDistribution()
-
-	expected := map[int][]int{
-		1001: []int{1002, 1003, 1004},
-		1002: []int{1001, 1003, 1004},
-		1003: []int{1001, 1004, 1002},
-		1004: []int{1001, 1002, 1003, 1005},
-		1005: []int{1004},
-	}
-
-	// Check that expected relationships exist.
-	for id := range expected {
-		for _, r := range expected[id] {
-			if _, exists := dd.Relationships[id]; !exists {
-				t.Errorf("[%d] Expected %d in relationships: %v", id, r, dd.Relationships[id])
-			}
-		}
-	}
-
-	// Check that no unexpected relationships exist.
-	for id := range dd.Relationships {
-		for r := range dd.Relationships[id] {
-			var found bool
-			for _, e := range expected[id] {
-				if r == e {
-					found = true
-				}
-			}
-			if !found {
-				t.Errorf("[%d] Unexpected %d in relationships: %v", id, r, expected[id])
-			}
-		}
-	}
-
-	// Test Count method.
-	expectedCounts := map[int]int{
-		1001: 3,
-		1002: 3,
-		1003: 3,
-		1004: 4,
-		1005: 1,
-	}
-
-	for id, count := range expectedCounts {
-		c := dd.Count(id)
-		if count != c {
-			t.Errorf("[%d] Expected count %d, got %d", id, count, c)
-		}
-	}
-
-	// Test Stats method.
-	stats := dd.Stats()
-
-	if stats.Min != 1.00 {
-		t.Errorf("Expected min val %f, got %f", 1.00, stats.Min)
-	}
-	if stats.Max != 4.00 {
-		t.Errorf("Expected max val %f, got %f", 4.00, stats.Max)
-	}
-	if stats.Avg != 2.80 {
-		t.Errorf("Expected avg val %f, got %f", 2.80, stats.Avg)
-	}
-}
-
 func TestUseStats(t *testing.T) {
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 
@@ -284,7 +218,14 @@ func TestRebuild(t *testing.T) {
 	pmm := NewPartitionMetaMap()
 	brokers := BrokerMapFromTopicMap(pm, bm, forceRebuild)
 
-	out, errs := pm.Rebuild(brokers, pmm, "distribution", "count")
+	rebuildParams := RebuildParams{
+		PMM:          pmm,
+		BM:           brokers,
+		Strategy:     "count",
+		Optimization: "distribution",
+	}
+
+	out, errs := pm.Rebuild(rebuildParams)
 	if errs != nil {
 		t.Errorf("Unexpected error(s): %s", errs)
 	}
@@ -297,10 +238,10 @@ func TestRebuild(t *testing.T) {
 	}
 
 	// Mark 1004 for replacement.
-	brokers[1004].Replace = true
+	rebuildParams.BM[1004].Replace = true
 
 	// Rebuild.
-	out, errs = pm.Rebuild(brokers, pmm, "distribution", "count")
+	out, errs = pm.Rebuild(rebuildParams)
 	if errs != nil {
 		t.Errorf("Unexpected error(s): %s", errs)
 	}
@@ -319,7 +260,7 @@ func TestRebuild(t *testing.T) {
 	pm.SetReplication(2)
 	expected.SetReplication(2)
 
-	out, _ = pm.Rebuild(brokers, pmm, "distribution", "count")
+	out, _ = pm.Rebuild(rebuildParams)
 
 	if same, err := out.equal(expected); !same {
 		t.Errorf("Unexpected inequality after replication factor change -> rebuild: %s", err)
@@ -329,9 +270,9 @@ func TestRebuild(t *testing.T) {
 	forceRebuild = true
 	pm, _ = PartitionMapFromString(testGetMapString2("test_topic"))
 	pmStripped := pm.Strip()
-	brokers = BrokerMapFromTopicMap(pm, bm, forceRebuild)
+	rebuildParams.BM = BrokerMapFromTopicMap(pm, bm, forceRebuild)
 
-	out, _ = pmStripped.Rebuild(brokers, pmm, "distribution", "count")
+	out, _ = pmStripped.Rebuild(rebuildParams)
 	fmt.Printf("%v\n", out)
 	expected = pm.Copy()
 	expected.Partitions[0].Replicas = []int{1001, 1003}
@@ -363,7 +304,14 @@ func TestRebuildByStorage(t *testing.T) {
 	brokers := BrokerMapFromTopicMap(pm, bm, forceRebuild)
 	_ = brokers.SubStorageAll(pm, pmm)
 
-	out, errs := pmStripped.Rebuild(brokers, pmm, "distribution", "storage")
+	rebuildParams := RebuildParams{
+		PMM:          pmm,
+		BM:           brokers,
+		Strategy:     "count",
+		Optimization: "distribution",
+	}
+
+	out, errs := pmStripped.Rebuild(rebuildParams)
 	if errs != nil {
 		t.Errorf("Unexpected error(s): %s", errs)
 	}

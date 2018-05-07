@@ -59,6 +59,18 @@ type BrokerStatus struct {
 	Replace    int
 }
 
+// Changes returns a bool that indicates
+// whether a BrokerStatus values represent
+// a change in brokers.
+func (bs BrokerStatus) Changes() bool {
+	switch {
+	case bs.New != 0, bs.Missing != 0, bs.OldMissing != 0, bs.Replace != 0:
+		return true
+	}
+
+	return false
+}
+
 // Broker is used for internal
 // metadata / accounting.
 type Broker struct {
@@ -67,6 +79,7 @@ type Broker struct {
 	Used        int
 	StorageFree float64
 	Replace     bool
+	New         bool
 }
 
 // BrokerMap holds a mapping of
@@ -81,6 +94,7 @@ type brokerList []*Broker
 // methods.
 type brokersByCount brokerList
 type brokersByStorage brokerList
+type brokersByID brokerList
 
 // Satisfy the sort interface for brokerList types.
 
@@ -111,6 +125,11 @@ func (b brokersByStorage) Less(i, j int) bool {
 
 	return b[i].ID < b[j].ID
 }
+
+// By ID value ascending.
+func (b brokersByID) Len() int           { return len(b) }
+func (b brokersByID) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
+func (b brokersByID) Less(i, j int) bool { return b[i].ID < b[j].ID }
 
 // SortPseudoShuffle takes a brokerList and performs a
 // sort by count. For each sequence of brokers with
@@ -215,6 +234,7 @@ func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) *BrokerStatus {
 					Used:    0,
 					ID:      id,
 					Replace: false,
+					New:     true,
 				}
 				bs.New++
 				continue
@@ -229,6 +249,7 @@ func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) *BrokerStatus {
 					Replace:     false,
 					Locality:    meta.Rack,
 					StorageFree: meta.StorageFree,
+					New:         true,
 				}
 				bs.New++
 			} else {
@@ -239,7 +260,88 @@ func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) *BrokerStatus {
 		}
 	}
 
+	// Log new brokers.
+	for _, broker := range b {
+		if broker.New {
+			fmt.Printf("%sNew broker %d\n", indent, broker.ID)
+		}
+	}
+
 	return bs
+}
+
+// SubstitutionAffinities finds all brokers marked for replacement and for
+// each broker, it creates an exclusive association with a newly provided broker.
+// In the rebuild stage, each to-be-replaced broker will be only replaced with the
+// affinity it's associated with. A given new broker can only be an affinity
+// for a single outgoing broker. An error is returned if a complete
+// mapping of affinities cannot be constructed (e.g. two brokers are
+// marked for replacement but only one new replacement was provided
+// and substitution affinities is enabled).
+func (b BrokerMap) SubstitutionAffinities() (SubstitutionAffinities, error) {
+	replace := map[*Broker]interface{}{}
+	new := map[*Broker]interface{}{}
+	affinities := SubstitutionAffinities{}
+
+	// Map replacements and new brokers.
+	for _, broker := range b {
+		if broker.ID == 0 {
+			continue
+		}
+
+		if broker.Replace {
+			replace[broker] = nil
+		}
+
+		if broker.New {
+			new[broker] = nil
+		}
+	}
+
+	// Check if we have enough new nodes
+	// to cover replacements.
+	if len(new) < len(replace) {
+		return nil, errors.New("Insufficient number of new brokers")
+	}
+
+	// For each broker being replaced, find
+	// replacement with the same Rack ID.
+	for broker := range replace {
+		match, err := constraintsMatch(broker, new)
+		if err != nil {
+			return affinities, err
+		}
+
+		affinities[broker.ID] = match
+	}
+
+	return affinities, nil
+}
+
+// constraintsMatch takes a *Broker and a map[*Broker]interface{}.
+// The map is traversed for a broker that matches the constraints
+// of the provided broker. If one is available, it's removed from
+// the map and returned. Otherwise, an error is returned.
+func constraintsMatch(b *Broker, bm map[*Broker]interface{}) (*Broker, error) {
+	// Need a predictable selection.
+	brokers := brokerList{}
+	for broker := range bm {
+		brokers = append(brokers, broker)
+	}
+
+	sort.Sort(brokersByID(brokers))
+
+	// Get the first constraints match.
+	for _, broker := range brokers {
+		if broker.Locality == b.Locality {
+			delete(bm, broker)
+			return broker, nil
+		}
+	}
+
+	// No match was found.
+	errS := fmt.Sprintf("Insufficient free brokers for locality %s", b.Locality)
+	return nil, errors.New(errS)
 }
 
 // SubStorageAll takes a PartitionMap + PartitionMetaMap and adds
