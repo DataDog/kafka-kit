@@ -60,8 +60,12 @@ Usage of topicmappr:
     	Rebuild topics (comma delim list) by lookup in ZooKeeper [TOPICMAPPR_REBUILD_TOPICS]
   -replication int
     	Set the replication factor [TOPICMAPPR_REPLICATION]
+  -sub-affinity
+    	Replacement broker substitution affinity [TOPICMAPPR_SUB_AFFINITY]
   -use-meta
     	Use broker metadata as constraints [TOPICMAPPR_USE_META] (default true)
+  -verbose
+    	Verbose information [TOPICMAPPR_VERBOSE]
   -zk-addr string
     	ZooKeeper connect string (for broker metadata or rebuild-topic lookups) [TOPICMAPPR_ZK_ADDR] (default "localhost:2181")
   -zk-metrics-prefix string
@@ -268,6 +272,25 @@ The `-placement` parameter takes one of two values: `count` or `storage`. This d
 
 #### Count
 The count strategy balances partitions in a way that results in the most even number across brokers. This is simple and reliable if imbalances in data volumes among partitions is not anticipated.
+
+When repairing a topic, for example a one that was originally mapped to brokers `1,2,3,4,5` where broker `5` failed and the user provides the new broker list `1,2,3,4,6`, the count strategy will attempt even partition balance when choosing replacements. This means that if broker `1` were lowly utilized (in terms of partitions held), it may take up a few of the partitions along with the newly provided broker `6`.
+
+The count method can be used to repair missing brokers from a topic that was previously storage balanced, but in this case it may be desirable to maintain the uneven partition counts (since the storage strategy places by size rather than quantity). Using the optional "substitution affinity" feature (via the `-sub-affinity` flag) allows users to ensure 1:1 replacements for specific brokers. In the above example, if the replacement broker `6` has the same rack ID as the previously failed broker `5`, enabling substitution affinity would ensure that _only_ broker `6` will be used used to replace all of the ISR slots left by broker `5`.
+
+When this feature is used, it's indicated in the information output:
+
+```
+Broker change summary:
+  Broker 1002 marked for removal
+  New broker 1003
+  New broker 1004
+  -
+  Substitution affinity: 1002 -> 1003
+  -
+  Replacing 1, added 2, missing 0, total count changed by 1
+```
+
+This means that every slot left behind by `1002` will be replaced with `1003`. Disabling this feature (the default) would allow both `1003` and `1004` to fill those slots.
 
 #### Storage
 The storage strategy chooses brokers based on free space and partition size (using an algorithm modeled on first-fit descending bin packing). In each placement decision, the broker with the most available free space that satisfies all other constraints is chosen. The storage strategy is best used if large imbalances among partitions is anticipated.
