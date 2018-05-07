@@ -82,6 +82,7 @@ type brokerList []*Broker
 // methods.
 type brokersByCount brokerList
 type brokersByStorage brokerList
+type brokersByID brokerList
 
 // Satisfy the sort interface for brokerList types.
 
@@ -112,6 +113,11 @@ func (b brokersByStorage) Less(i, j int) bool {
 
 	return b[i].ID < b[j].ID
 }
+
+// By ID value ascending.
+func (b brokersByID) Len() int           { return len(b) }
+func (b brokersByID) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
+func (b brokersByID) Less(i, j int) bool { return b[i].ID < b[j].ID }
 
 // SortPseudoShuffle takes a brokerList and performs a
 // sort by count. For each sequence of brokers with
@@ -305,9 +311,18 @@ func (b BrokerMap) SubstitutionAffinities() (SubstitutionAffinities, error) {
 // of the provided broker. If one is available, it's removed from
 // the map and returned. Otherwise, an error is returned.
 func constraintsMatch(b *Broker, bm map[*Broker]interface{}) (*Broker, error) {
+	// Need a predictable selection.
+	brokers := brokerList{}
 	for broker := range bm {
+		brokers = append(brokers, broker)
+	}
+
+	sort.Sort(brokersByID(brokers))
+
+	// Get the first constraints match.
+	for _, broker := range brokers {
 		if broker.Locality == b.Locality {
-			delete(bm, b)
+			delete(bm, broker)
 			return broker, nil
 		}
 	}
