@@ -3,7 +3,6 @@ package kafkazk
 import (
 	"errors"
 	"fmt"
-	"math"
 	"math/rand"
 	"os"
 	"sort"
@@ -505,82 +504,6 @@ func (b BrokerMap) NonReplacedBrokers() BrokerMap {
 	}
 
 	return bmap
-}
-
-// StorageDiff takes two BrokerMaps and returns
-// a per broker ID diff in storage as a [2]float64:
-// [absolute, percentage] diff.
-func (b BrokerMap) StorageDiff(b2 BrokerMap) map[int][2]float64 {
-	d := map[int][2]float64{}
-
-	for bid := range b {
-		if _, exist := b2[bid]; !exist {
-			continue
-		}
-
-		diff := b2[bid].StorageFree - b[bid].StorageFree
-		p := diff / b[bid].StorageFree * 100
-		d[bid] = [2]float64{diff, p}
-	}
-
-	return d
-}
-
-// StorageRangeSpread returns the range spread
-// of free storage for all brokers in the BrokerMap.
-func (b BrokerMap) StorageRangeSpread() float64 {
-	// Get the high/low StorageFree values.
-	h, l := 0.00, math.MaxFloat64
-
-	for id := range b {
-		if id == 0 {
-			continue
-		}
-
-		v := b[id].StorageFree
-
-		// Update the high/low.
-		if v > h {
-			h = v
-		}
-
-		if v < l {
-			l = v
-		}
-	}
-
-	// Return range spread.
-	return (h - l) / l * 100
-}
-
-// StorageStdDev returns the standard deviation
-// of free storage for all brokers in the BrokerMap.
-func (b BrokerMap) StorageStdDev() float64 {
-	var m float64
-	var t float64
-	var s float64
-	var l float64
-
-	for id := range b {
-		if id == 0 {
-			continue
-		}
-		l++
-		t += b[id].StorageFree
-	}
-
-	m = t / l
-
-	for id := range b {
-		if id == 0 {
-			continue
-		}
-		s += math.Pow(m-b[id].StorageFree, 2)
-	}
-
-	msq := s / l
-
-	return math.Sqrt(msq)
 }
 
 // Copy returns a copy of a BrokerMap.
