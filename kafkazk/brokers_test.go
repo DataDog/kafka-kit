@@ -1,8 +1,6 @@
 package kafkazk
 
 import (
-	"math"
-	"sort"
 	"testing"
 )
 
@@ -189,76 +187,6 @@ func TestBrokerMapCopy(t *testing.T) {
 			t.Errorf("replace field mismatch")
 		case bm1[b].StorageFree != bm2[b].StorageFree:
 			t.Errorf("StorageFree field mismatch")
-		}
-	}
-}
-
-func TestBrokerMapStorageDiff(t *testing.T) {
-	bm1 := newMockBrokerMap()
-	bm2 := newMockBrokerMap()
-
-	bm2[1001].StorageFree = 200.00
-	bm2[1002].StorageFree = 100.00
-
-	diff := bm1.StorageDiff(bm2)
-
-	expected := map[int][2]float64{
-		1001: [2]float64{100.00, 100.00},
-		1002: [2]float64{-100, -50.00},
-	}
-
-	for bid, v := range expected {
-		if v[0] != diff[bid][0] {
-			t.Errorf("Expected diff value of %f, got %f\n", v[0], diff[bid][0])
-		}
-
-		if v[1] != diff[bid][1] {
-			t.Errorf("Expected diff percent of %f, got %f\n", v[1], diff[bid][1])
-		}
-	}
-}
-
-func TestBrokerMapStorageRangeSpread(t *testing.T) {
-	bm := newMockBrokerMap()
-
-	rs := bm.StorageRangeSpread()
-
-	if rs != 300.00 {
-		t.Errorf("Expected storage range spread 300, got %f", rs)
-	}
-}
-
-func TestBrokerMapStorageStdDev(t *testing.T) {
-	bm := newMockBrokerMap()
-
-	sd := math.Round(bm.StorageStdDev()/0.001) * 0.001
-
-	if sd != 111.803000 {
-		t.Errorf("Expected storage standard deviation 111.803000, got %f", sd)
-	}
-}
-
-func TestBrokerListSort(t *testing.T) {
-	bl := newMockBrokerMap().filteredList()
-
-	// Test sort brokersByStorage.
-	sort.Sort(brokersByStorage(bl))
-
-	expected := []int{1004, 1003, 1002, 1001}
-
-	for i, b := range bl {
-		if b.ID != expected[i] {
-			t.Errorf("Expected broker %d, got %d", expected[i], b.ID)
-		}
-	}
-	// Test sort brokersByCount.
-	sort.Sort(brokersByCount(bl))
-
-	expected = []int{1003, 1004, 1001, 1002}
-
-	for i, b := range bl {
-		if b.ID != expected[i] {
-			t.Errorf("Expected broker %d, got %d", expected[i], b.ID)
 		}
 	}
 }
