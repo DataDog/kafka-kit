@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/DataDog/topicmappr/kafkametrics"
+	"github.com/DataDog/topicmappr/kafkametrics/datadog"
 	"github.com/DataDog/topicmappr/kafkazk"
 
 	"github.com/jamiealquiza/envy"
@@ -104,7 +105,7 @@ func main() {
 	defer zk.Close()
 
 	// Init a Kafka metrics fetcher.
-	km, err := kafkametrics.NewHandler(&kafkametrics.Config{
+	km, err := datadog.NewHandler(&datadog.Config{
 		APIKey:         Config.APIKey,
 		AppKey:         Config.AppKey,
 		NetworkTXQuery: Config.NetworkTXQuery,

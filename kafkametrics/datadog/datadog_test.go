@@ -1,8 +1,12 @@
-package kafkametrics
+// Package datadog implements
+// a kafkametrics Handler.
+package datadog
 
 import (
 	"fmt"
 	"testing"
+
+	"github.com/DataDog/topicmappr/kafkametrics"
 
 	dd "github.com/zorkian/go-datadog-api"
 )
@@ -90,18 +94,18 @@ func mockSeriesWithoutPoints() []dd.Series {
 // func TestGetHostTagMap(t *testing.T) {}
 
 func TestPopulateFromTagMap(t *testing.T) {
-	b := BrokerMetrics{}
+	b := kafkametrics.BrokerMetrics{}
 
 	// Test with complete input.
 	tagMap := mockTagMap()
-	err := b.populateFromTagMap(tagMap, "broker_id")
+	err := populateFromTagMap(b, map[string][]string{}, tagMap, "broker_id")
 	if err != nil {
 		t.Errorf("Unexpected error: %s\n", err.Error())
 	}
 
 	// Keep a broker reference
 	// for the next test.
-	var rndBroker *Broker
+	var rndBroker *kafkametrics.Broker
 
 	for id, broker := range b {
 		rndBroker = broker
@@ -115,18 +119,18 @@ func TestPopulateFromTagMap(t *testing.T) {
 
 	// Test with incomplete input.
 	tagMap[rndBroker] = tagMap[rndBroker][1:]
-	err = b.populateFromTagMap(tagMap, "broker_id")
+	err = populateFromTagMap(b, map[string][]string{}, tagMap, "broker_id")
 	if err == nil {
 		t.Errorf("Expected error, got nil")
 	}
 }
 
-func mockTagMap() map[*Broker][]string {
-	tm := map[*Broker][]string{}
+func mockTagMap() map[*kafkametrics.Broker][]string {
+	tm := map[*kafkametrics.Broker][]string{}
 
 	for i := 0; i < 5; i++ {
 		bid := 1000 + i
-		b := &Broker{
+		b := &kafkametrics.Broker{
 			ID:           bid,
 			Host:         fmt.Sprintf("host%d", i),
 			InstanceType: "mock",
