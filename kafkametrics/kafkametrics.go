@@ -46,6 +46,7 @@ type ddHandler struct {
 	netTXQuery    string
 	brokerIDTag   string
 	metricsWindow int
+	tagCache      map[string][]string
 }
 
 // BrokerMetrics is a map of broker IDs
@@ -97,14 +98,14 @@ type Event struct {
 
 // PostEvent posts an event to the
 // Datadog API.
-func (k *ddHandler) PostEvent(e *Event) error {
+func (h *ddHandler) PostEvent(e *Event) error {
 	m := &dd.Event{
 		Title: &e.Title,
 		Text:  &e.Text,
 		Tags:  e.Tags,
 	}
 
-	_, err := k.c.PostEvent(m)
+	_, err := h.c.PostEvent(m)
 	return err
 }
 
@@ -139,6 +140,7 @@ func NewHandler(c *Config) (Handler, error) {
 		netTXQuery:    netQ,
 		metricsWindow: c.MetricsWindow,
 		brokerIDTag:   c.BrokerIDTag,
+		tagCache:      make(map[string][]string),
 	}
 
 	return k, nil
@@ -157,10 +159,10 @@ func createNetTXQuery(c *Config) string {
 
 // GetMetrics requests broker metrics and metadata
 // from the Datadog API and returns a BrokerMetrics.
-func (k *ddHandler) GetMetrics() (BrokerMetrics, error) {
+func (h *ddHandler) GetMetrics() (BrokerMetrics, error) {
 	// Get series.
-	start := time.Now().Add(-time.Duration(k.metricsWindow) * time.Second).Unix()
-	o, err := k.c.QueryMetrics(start, time.Now().Unix(), k.netTXQuery)
+	start := time.Now().Add(-time.Duration(h.metricsWindow) * time.Second).Unix()
+	o, err := h.c.QueryMetrics(start, time.Now().Unix(), h.netTXQuery)
 	if err != nil {
 		return nil, &APIError{
 			request: "metrics query",
@@ -170,7 +172,7 @@ func (k *ddHandler) GetMetrics() (BrokerMetrics, error) {
 
 	if len(o) == 0 {
 		return nil, &PartialResults{
-			err: fmt.Sprintf("No data returned with query %s", k.netTXQuery),
+			err: fmt.Sprintf("No data returned with query %s", h.netTXQuery),
 		}
 	}
 
@@ -183,7 +185,7 @@ func (k *ddHandler) GetMetrics() (BrokerMetrics, error) {
 	// and the network tx metric. Fetch the rest
 	// of the required metadata and construct
 	// a BrokerMetrics.
-	return k.brokerMetricsFromList(blist)
+	return h.brokerMetricsFromList(blist)
 }
 
 // brokersFromSeries takes metrics series as a
@@ -215,16 +217,16 @@ func brokersFromSeries(s []dd.Series) ([]*Broker, error) {
 // brokerMetricsFromList takes a *[]Broker and fetches
 // relevant host tags for all brokers in the list, returning
 // a BrokerMetrics.
-func (k *ddHandler) brokerMetricsFromList(l []*Broker) (BrokerMetrics, error) {
+func (h *ddHandler) brokerMetricsFromList(l []*Broker) (BrokerMetrics, error) {
 	// Get host tags for brokers
 	// in the list.
-	tags, err := k.getHostTagMap(l)
+	tags, err := h.getHostTagMap(l)
 	if err != nil {
 		return nil, err
 	}
 
 	brokers := BrokerMetrics{}
-	err = brokers.populateFromTagMap(tags, k.brokerIDTag)
+	err = brokers.populateFromTagMap(h.tagCache, tags, h.brokerIDTag)
 	if err != nil {
 		return nil, err
 	}
@@ -236,34 +238,42 @@ func (k *ddHandler) brokerMetricsFromList(l []*Broker) (BrokerMetrics, error) {
 // host tags for each. If no errors are encountered,
 // a map[*Broker][]string holding the received tags
 // is returned.
-func (k *ddHandler) getHostTagMap(l []*Broker) (map[*Broker][]string, error) {
+func (h *ddHandler) getHostTagMap(l []*Broker) (map[*Broker][]string, error) {
 	brokers := map[*Broker][]string{}
 	// Get broker IDs for each host,
 	// populate into a BrokerMetrics.
 	for _, b := range l {
-		ht, err := k.c.GetHostTags(b.Host, "")
-		if err != nil {
-			return nil, &APIError{
-				request: "host tags",
-				err:     fmt.Sprintf("Error requesting host tags for %s", b.Host),
-			}
-		}
+		// Check if we already have this broker's metadata.
+		ht, cached := h.tagCache[b.Host]
 
-		brokers[b] = ht
+		if cached {
+			brokers[b] = ht
+		} else {
+			// Else fetch it.
+			ht, err := h.c.GetHostTags(b.Host, "")
+			if err != nil {
+				return nil, &APIError{
+					request: "host tags",
+					err:     fmt.Sprintf("Error requesting host tags for %s", b.Host),
+				}
+			}
+			brokers[b] = ht
+		}
 	}
 
 	return brokers, nil
 }
 
-// populateFromTagMap takes a map of broker tags
-// and a broker ID tag key and returns a BrokerMetrics
-// with tags of interest. An error describing any
-// missing tags is returned.
-func (bm BrokerMetrics) populateFromTagMap(t map[*Broker][]string, btag string) error {
+// populateFromTagMap takes a map of broker IDs to []string host tags
+// that functions as a cache, a map of brokers to []string unparsed
+// host tag key:value pairs, and a broker ID tag key and returns a BrokerMetrics
+// with tags of interest. An error describing any missing tags is returned.
+func (bm BrokerMetrics) populateFromTagMap(c map[string][]string, t map[*Broker][]string, btag string) error {
 	var missingTags bytes.Buffer
 
 	for b, ht := range t {
 		ids := valFromTags(ht, btag)
+
 		if ids != "" {
 			id, _ := strconv.Atoi(ids)
 			b.ID = id
@@ -271,16 +281,21 @@ func (bm BrokerMetrics) populateFromTagMap(t map[*Broker][]string, btag string) 
 		} else {
 			s := fmt.Sprintf(" %s:%s", btag, b.Host)
 			missingTags.WriteString(s)
-
-			// Early break if this tag is
-			// missing. We need it in the next
-			// step.
+			// Early break if this tag is missing.
+			// We need it in the next step.
 			continue
 		}
 
 		it := valFromTags(ht, "instance-type")
 		if it != "" {
 			bm[b.ID].InstanceType = it
+			// Cache this broker's tags. In case additional tags are populated
+			// in the future, we should only cache brokers that have
+			// successfully had all of their tags populated. Leaving it
+			// uncached gives it another chance for complete metadata in the
+			// preceding API lookups.
+			c[b.Host] = t[b]
+
 		} else {
 			s := fmt.Sprintf(" instance_type:%s", b.Host)
 			missingTags.WriteString(s)
