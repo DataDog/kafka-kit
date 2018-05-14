@@ -420,9 +420,19 @@ func (pm *PartitionMap) LocalitiesAvailable(bm BrokerMap, b *Broker) []string {
 			// that contains the reference
 			if replica == b.ID {
 				containsRef = true
+				// We shouldn't have the reference
+				// broker's locality since it's
+				// missing; the purpose of this
+				// entire method is to infer it
+				// or a compatible locality. Skip.
+				continue
 			}
-			// Add the localities.
-			localities[b.Locality] = nil
+
+			// Add the locality.
+			l := bm[replica].Locality
+			if l != "" {
+				localities[l] = nil
+			}
 		}
 
 		// Populate into the appropriate
@@ -446,6 +456,8 @@ func (pm *PartitionMap) LocalitiesAvailable(bm BrokerMap, b *Broker) []string {
 			diff = append(diff, l)
 		}
 	}
+
+	sort.Strings(diff)
 
 	return diff
 }

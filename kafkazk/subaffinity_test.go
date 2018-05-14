@@ -48,8 +48,8 @@ func TestConstraintsMatch(t *testing.T) {
 }
 
 func TestSubstitutionAffinities(t *testing.T) {
-  z := &Mock{}
-  pm, _ := z.GetPartitionMap("test_topic")
+	z := &Mock{}
+	pm, _ := z.GetPartitionMap("test_topic")
 
 	bm := newMockBrokerMap()
 	bm[1001].Replace = true
