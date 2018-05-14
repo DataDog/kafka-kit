@@ -115,24 +115,6 @@ type RebuildParams struct {
 	Affinities   SubstitutionAffinities
 }
 
-// SubstitutionAffinities is a mapping of
-// an ID belonging to a *Broker marked for replacement
-// and a replacement *Broker that will fill
-// all previously filled replica slots held by the
-// *Broker being replaced.
-type SubstitutionAffinities map[int]*Broker
-
-// Get takes a broker ID and returns a *Broker
-// if one was set as a substitution affinity.
-func (sa SubstitutionAffinities) Get(id int) *Broker {
-	if b, exists := sa[id]; exists {
-		b.Used++
-		return b
-	}
-
-	return nil
-}
-
 // Rebuild takes a BrokerMap and rebuild strategy.
 // It then traverses the partition map, replacing brokers marked removal
 // with the best available candidate based on the selected
@@ -280,17 +262,27 @@ func placeByPosition(params RebuildParams) (*PartitionMap, []string) {
 				affinity := params.Affinities.Get(bid)
 				if params.Strategy == "count" && affinity != nil {
 					replacement = affinity
+					// Ensure the replacement passes constraints.
+					// This is usually checked at the time of building
+					// a substitution affinities map, but in scenarios
+					// where the replacement broker was completely missing
+					// from ZooKeeper, its rack ID is unknown and a suitable
+					// sub has to be inferred. We're checking that it passes
+					// here in case the inference logic is faulty.
+					if passes := constraints.passes(replacement); !passes {
+						err = errNoBrokers
+					}
 				} else {
 					// Otherwise, use the standard
 					// constraints based selector.
 					replacement, err = bl.bestCandidate(constraints, params.Strategy, int64(pass*n+1))
+				}
 
-					if err != nil {
-						// Append any caught errors.
-						errString := fmt.Sprintf("%s p%d: %s", partn.Topic, partn.Partition, err.Error())
-						errs = append(errs, errString)
-						continue
-					}
+				if err != nil {
+					// Append any caught errors.
+					errString := fmt.Sprintf("%s p%d: %s", partn.Topic, partn.Partition, err.Error())
+					errs = append(errs, errString)
+					continue
 				}
 
 				// Add the replacement to the map.

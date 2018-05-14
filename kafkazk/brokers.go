@@ -130,10 +130,27 @@ func (b brokersByID) Len() int           { return len(b) }
 func (b brokersByID) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
 func (b brokersByID) Less(i, j int) bool { return b[i].ID < b[j].ID }
 
-// SortPseudoShuffle takes a brokerList and performs a
-// sort by count. For each sequence of brokers with
-// equal counts, the sub-slice is pseudo random shuffled
-// using the provided seed value s.
+// SubstitutionAffinities is a mapping of
+// an ID belonging to a *Broker marked for replacement
+// and a replacement *Broker that will fill
+// all previously filled replica slots held by the
+// *Broker being replaced.
+type SubstitutionAffinities map[int]*Broker
+
+// Get takes a broker ID and returns a *Broker
+// if one was set as a substitution affinity.
+func (sa SubstitutionAffinities) Get(id int) *Broker {
+	if b, exists := sa[id]; exists {
+		b.Used++
+		return b
+	}
+
+	return nil
+}
+
+// SortPseudoShuffle takes a brokerList and performs a sort by count.
+// For each sequence of brokers with equal counts, the sub-slice is
+// pseudo random shuffled using the provided seed value s.
 func (b brokerList) SortPseudoShuffle(seed int64) {
 	sort.Sort(brokersByCount(b))
 
@@ -166,11 +183,9 @@ func (b brokerList) SortPseudoShuffle(seed int64) {
 	}
 }
 
-// Update takes a BrokerMap and a []int
-// of broker IDs and adds them to the BrokerMap,
-// returning the count of marked for replacement,
-// newly included, and brokers that weren't found
-// in ZooKeeper.
+// Update takes a BrokerMap and a []int of broker IDs and adds
+// them to the BrokerMap, returning the count of marked for replacement,
+// newly included, and brokers that weren't found in ZooKeeper.
 func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) *BrokerStatus {
 	bs := &BrokerStatus{}
 
@@ -271,8 +286,8 @@ func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) *BrokerStatus {
 
 // SubstitutionAffinities finds all brokers marked for replacement and for
 // each broker, it creates an exclusive association with a newly provided broker.
-// In the rebuild stage, each to-be-replaced broker will be only replaced with the
-// affinity it's associated with. A given new broker can only be an affinity
+// In the rebuild stage, each to-be-replaced broker will be only replaced with
+// the affinity it's associated with. A given new broker can only be an affinity
 // for a single outgoing broker. An error is returned if a complete
 // mapping of affinities cannot be constructed (e.g. two brokers are
 // marked for replacement but only one new replacement was provided
