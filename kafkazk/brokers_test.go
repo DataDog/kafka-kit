@@ -60,6 +60,8 @@ func TestUpdate(t *testing.T) {
 		t.Errorf("Expected Replace count of 2, got %d", stat.Replace)
 	}
 
+	// TODO assert that all Broker fields
+	// are also what we expected.
 }
 
 // func TestSubStorageAll(t *testing.T) {} // TODO

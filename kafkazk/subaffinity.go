@@ -76,7 +76,29 @@ func (b BrokerMap) SubstitutionAffinities(pm *PartitionMap) (SubstitutionAffinit
 	// by accounting for other brokers that are being replaced and
 	// will coexist in a replica set with an affinity determined here.
 	for broker := range missing {
-		_ = pm.LocalitiesAvailable(b, broker)
+		// Get localities that a substitution
+		// could reside in.
+		localities := pm.LocalitiesAvailable(b, broker)
+		// Find the first broker available
+		// that resides in one of the
+		// available localities.
+		var match *Broker
+		for _, locality := range localities {
+			var err error
+			mockBroker := &Broker{
+				Locality: locality,
+			}
+			match, err = constraintsMatch(mockBroker, new)
+			if err == nil {
+				break
+			}
+		}
+
+		if match != nil {
+			affinities[broker.ID] = match
+		} else {
+			return nil, fmt.Errorf("Could not infer a replacement for %d", broker.ID)
+		}
 	}
 
 	// For each broker being replaced, find
