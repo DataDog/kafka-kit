@@ -397,6 +397,59 @@ func placeByPartition(params RebuildParams) (*PartitionMap, []string) {
 	return newMap, errs
 }
 
+// LocalitiesAvailable takes a broker map and broker and
+// returns a []string of localities that are unused by any
+// of the brokers in any replica sets that the reference
+// broker was found in. This is done by building a set of
+// all localities observed across all replica sets and a set
+// of all localities observed in replica sets containing the
+// reference broker, then returning the diff.
+func (pm *PartitionMap) LocalitiesAvailable(bm BrokerMap, b *Broker) []string {
+	all := map[string]interface{}{}
+	reference := map[string]interface{}{}
+
+	// Traverse the partition map and
+	// gather localities.
+	for _, partn := range pm.Partitions {
+
+		localities := map[string]interface{}{}
+		var containsRef bool
+
+		for _, replica := range partn.Replicas {
+			// Check if this is a replica set
+			// that contains the reference
+			if replica == b.ID {
+				containsRef = true
+			}
+			// Add the localities.
+			localities[b.Locality] = nil
+		}
+
+		// Populate into the appropriate
+		// set.
+		if containsRef {
+			for k := range localities {
+				reference[k] = nil
+			}
+		} else {
+			for k := range localities {
+				all[k] = nil
+			}
+		}
+	}
+
+	// Get the diff between the all set
+	// and the reference set.
+	diff := []string{}
+	for l := range all {
+		if _, used := reference[l]; !used {
+			diff = append(diff, l)
+		}
+	}
+
+	return diff
+}
+
 func (pm *PartitionMap) shuffle() {
 	for n := range pm.Partitions {
 		rand.Seed(int64(n << 2))

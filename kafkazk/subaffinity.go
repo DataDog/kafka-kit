@@ -32,7 +32,7 @@ func (sa SubstitutionAffinities) Get(id int) *Broker {
 // mapping of affinities cannot be constructed (e.g. two brokers are
 // marked for replacement but only one new replacement was provided
 // and substitution affinities is enabled).
-func (b BrokerMap) SubstitutionAffinities() (SubstitutionAffinities, error) {
+func (b BrokerMap) SubstitutionAffinities(pm *PartitionMap) (SubstitutionAffinities, error) {
 	replace := map[*Broker]interface{}{}
 	missing := map[*Broker]interface{}{}
 	new := map[*Broker]interface{}{}
@@ -75,6 +75,9 @@ func (b BrokerMap) SubstitutionAffinities() (SubstitutionAffinities, error) {
 	// TODO we should guarantee this will pass in the rebuild stage
 	// by accounting for other brokers that are being replaced and
 	// will coexist in a replica set with an affinity determined here.
+	for broker := range missing {
+		_ = pm.LocalitiesAvailable(b, broker)
+	}
 
 	// For each broker being replaced, find
 	// replacement with the same Rack ID.

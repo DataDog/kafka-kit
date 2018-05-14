@@ -235,7 +235,7 @@ func main() {
 	var affinities kafkazk.SubstitutionAffinities
 	if Config.subAffinity && !Config.forceRebuild {
 		var err error
-		affinities, err = brokers.SubstitutionAffinities()
+		affinities, err = brokers.SubstitutionAffinities(partitionMapIn)
 		if err != nil {
 			fmt.Printf("Substitution affinity error: %s\n", err.Error())
 			os.Exit(1)

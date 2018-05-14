@@ -48,12 +48,15 @@ func TestConstraintsMatch(t *testing.T) {
 }
 
 func TestSubstitutionAffinities(t *testing.T) {
+  z := &Mock{}
+  pm, _ := z.GetPartitionMap("test_topic")
+
 	bm := newMockBrokerMap()
 	bm[1001].Replace = true
 
 	// Should error because no
 	// broker is available marked as new.
-	_, err := bm.SubstitutionAffinities()
+	_, err := bm.SubstitutionAffinities(pm)
 	if err == nil {
 		t.Errorf("Expected error")
 	}
@@ -62,13 +65,13 @@ func TestSubstitutionAffinities(t *testing.T) {
 	// 1002 doesn't satisfy
 	// constraints as an affinity.
 	bm[1002].New = true
-	_, err = bm.SubstitutionAffinities()
+	_, err = bm.SubstitutionAffinities(pm)
 	if err == nil {
 		t.Errorf("Expected error")
 	}
 
 	bm[1004].New = true
-	sa, err := bm.SubstitutionAffinities()
+	sa, err := bm.SubstitutionAffinities(pm)
 	if err != nil {
 		t.Errorf("Unexpected error: %s", err.Error())
 	}
@@ -82,7 +85,7 @@ func TestSubstitutionAffinities(t *testing.T) {
 	// new broker available.
 	bm[1002].Replace = true
 	bm[1002].New = false
-	_, err = bm.SubstitutionAffinities()
+	_, err = bm.SubstitutionAffinities(pm)
 	expected := "Insufficient number of new brokers"
 	if err.Error() != expected {
 		t.Errorf("Expected error '%s', got %s", expected, err)
