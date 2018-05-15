@@ -248,7 +248,11 @@ func main() {
 	}
 
 	for a, b := range affinities {
-		fmt.Printf("%sSubstitution affinity: %d -> %d\n", indent, a, b.ID)
+		var inferred string
+		if brokersOrig[a].Missing {
+			inferred = "(inferred)"
+		}
+		fmt.Printf("%sSubstitution affinity: %d -> %d %s\n", indent, a, b.ID, inferred)
 	}
 
 	if bs.Changes() {
