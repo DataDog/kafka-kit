@@ -17,9 +17,9 @@ var (
 	ErrInvalidKafkaConfigType = errors.New("Invalid Kafka config type")
 	// validKafkaConfigTypes is used as a set
 	// to define valid configuration type names.
-	validKafkaConfigTypes = map[string]interface{}{
-		"broker": nil,
-		"topic":  nil,
+	validKafkaConfigTypes = map[string]struct{}{
+		"broker": struct{}{},
+		"topic":  struct{}{},
 	}
 )
 

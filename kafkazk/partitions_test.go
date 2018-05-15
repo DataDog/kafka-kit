@@ -323,3 +323,19 @@ func TestRebuildByStorage(t *testing.T) {
 			fmt.Printf("%d %f\n", b.ID, b.StorageFree)
 		}*/
 }
+
+func TestLocalitiesAvailable(t *testing.T) {
+	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
+	bm := newMockBrokerMap()
+
+	pm.SetReplication(2)
+
+	localities := pm.LocalitiesAvailable(bm, bm[1001])
+
+	expected := []string{"a", "c"}
+	for i, l := range localities {
+		if expected[i] != l {
+			t.Errorf("Unexpected localities available")
+		}
+	}
+}

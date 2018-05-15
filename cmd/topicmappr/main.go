@@ -235,7 +235,7 @@ func main() {
 	var affinities kafkazk.SubstitutionAffinities
 	if Config.subAffinity && !Config.forceRebuild {
 		var err error
-		affinities, err = brokers.SubstitutionAffinities()
+		affinities, err = brokers.SubstitutionAffinities(partitionMapIn)
 		if err != nil {
 			fmt.Printf("Substitution affinity error: %s\n", err.Error())
 			os.Exit(1)
@@ -248,7 +248,11 @@ func main() {
 	}
 
 	for a, b := range affinities {
-		fmt.Printf("%sSubstitution affinity: %d -> %d\n", indent, a, b.ID)
+		var inferred string
+		if brokersOrig[a].Missing {
+			inferred = "(inferred)"
+		}
+		fmt.Printf("%sSubstitution affinity: %d -> %d %s\n", indent, a, b.ID, inferred)
 	}
 
 	if bs.Changes() {

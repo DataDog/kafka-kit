@@ -69,19 +69,19 @@ func TestLists(t *testing.T) {
 
 func mockBmapBundle() bmapBundle {
 	b := bmapBundle{
-		src:       map[int]interface{}{},
-		dst:       map[int]interface{}{},
-		all:       map[int]interface{}{},
+		src:       map[int]struct{}{},
+		dst:       map[int]struct{}{},
+		all:       map[int]struct{}{},
 		throttled: map[string]map[string][]string{},
 	}
 
 	for i := 1000; i < 1010; i++ {
 		if i < 1005 {
-			b.src[i] = nil
+			b.src[i] = struct{}{}
 		} else {
-			b.dst[i] = nil
+			b.dst[i] = struct{}{}
 		}
-		b.all[i] = nil
+		b.all[i] = struct{}{}
 	}
 
 	b.throttled["mock"] = map[string][]string{}
