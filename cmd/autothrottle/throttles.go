@@ -76,9 +76,9 @@ func (t ReassigningBrokers) highestSrcNetTX() *kafkametrics.Broker {
 // used as sets. Reduces return params
 // for mapsFromReassigments.
 type bmapBundle struct {
-	src       map[int]interface{}
-	dst       map[int]interface{}
-	all       map[int]interface{}
+	src       map[int]struct{}
+	dst       map[int]struct{}
+	all       map[int]struct{}
 	throttled map[string]map[string][]string
 }
 
@@ -87,7 +87,7 @@ type bmapBundle struct {
 func (bm bmapBundle) lists() ([]int, []int, []int) {
 	srcBrokers := []int{}
 	dstBrokers := []int{}
-	for n, m := range []map[int]interface{}{bm.src, bm.dst} {
+	for n, m := range []map[int]struct{}{bm.src, bm.dst} {
 		for b := range m {
 			if n == 0 {
 				srcBrokers = append(srcBrokers, b)
@@ -252,9 +252,9 @@ func mapsFromReassigments(r kafkazk.Reassignments, zk kafkazk.Handler) (bmapBund
 	lb := bmapBundle{
 		// Maps of src and dst brokers
 		// used as sets.
-		src: map[int]interface{}{},
-		dst: map[int]interface{}{},
-		all: map[int]interface{}{},
+		src: map[int]struct{}{},
+		dst: map[int]struct{}{},
+		all: map[int]struct{}{},
 		// A map for each topic with a list throttled
 		// leaders and followers. This is used to write
 		// the topic config throttled brokers lists. E.g.:
@@ -284,14 +284,14 @@ func mapsFromReassigments(r kafkazk.Reassignments, zk kafkazk.Handler) (bmapBund
 			if reassigning, exists := r[t][part]; exists {
 				// Source brokers.
 				leader := tstate[p].Leader
-				lb.src[leader] = nil
+				lb.src[leader] = struct{}{}
 				// Append to the throttle list.
 				lb.throttled[t]["leaders"] = append(lb.throttled[t]["leaders"], fmt.Sprintf("%d:%d", part, leader))
 
 				// Dest brokers.
 				for _, b := range reassigning {
 					if b != leader {
-						lb.dst[b] = nil
+						lb.dst[b] = struct{}{}
 						lb.throttled[t]["followers"] = append(lb.throttled[t]["followers"], fmt.Sprintf("%d:%d", part, b))
 					}
 				}
@@ -400,7 +400,7 @@ func applyTopicThrottles(throttled map[string]map[string][]string, zk kafkazk.Ha
 // rate, map of applied throttles, and zk kafkazk.Handler zookeeper client.
 // For each broker, the throttle rate is applied and if successful, the rate
 // is stored in the throttles map for future reference.
-func applyBrokerThrottles(bs map[int]interface{}, ratestr string, r float64, ts map[int]float64, zk kafkazk.Handler) []string {
+func applyBrokerThrottles(bs map[int]struct{}, ratestr string, r float64, ts map[int]float64, zk kafkazk.Handler) []string {
 	var errs []string
 
 	// Generate a broker throttle config.
@@ -529,16 +529,16 @@ func removeAllThrottles(zk kafkazk.Handler, params *ReplicationThrottleMeta) err
 }
 
 // mergeMaps takes two maps and merges them.
-func mergeMaps(a map[int]interface{}, b map[int]interface{}) map[int]interface{} {
-	m := map[int]interface{}{}
+func mergeMaps(a map[int]struct{}, b map[int]struct{}) map[int]struct{} {
+	m := map[int]struct{}{}
 
 	// Merge from each.
 	for k := range a {
-		m[k] = nil
+		m[k] = struct{}{}
 	}
 
 	for k := range b {
-		m[k] = nil
+		m[k] = struct{}{}
 	}
 
 	return m

@@ -13,13 +13,13 @@ type DegreeDistribution struct {
 	// a common occupancy in at least one replica set.
 	// For instance, given the replica set [1001,1002,1003],
 	// ID 1002 has a relationship with 1001 and 1003.
-	Relationships map[int]map[int]interface{}
+	Relationships map[int]map[int]struct{}
 }
 
 // NewDegreeDistribution returns a new DegreeDistribution.
 func NewDegreeDistribution() DegreeDistribution {
 	return DegreeDistribution{
-		Relationships: make(map[int]map[int]interface{}),
+		Relationships: make(map[int]map[int]struct{}),
 	}
 }
 
@@ -29,12 +29,12 @@ func NewDegreeDistribution() DegreeDistribution {
 func (dd DegreeDistribution) Add(nodes []int) {
 	for _, node := range nodes {
 		if _, exists := dd.Relationships[node]; !exists {
-			dd.Relationships[node] = make(map[int]interface{})
+			dd.Relationships[node] = make(map[int]struct{})
 		}
 
 		for _, neighbor := range nodes {
 			if node != neighbor {
-				dd.Relationships[node][neighbor] = nil
+				dd.Relationships[node][neighbor] = struct{}{}
 			}
 		}
 	}

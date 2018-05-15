@@ -383,12 +383,12 @@ func BrokerMapFromTopicMap(pm *PartitionMap, bm BrokerMetaMap, force bool) Broke
 func (b BrokerMap) MappedBrokers(pm *PartitionMap) BrokerMap {
 	bmap := BrokerMap{}
 
-	ids := map[int]interface{}{}
+	ids := map[int]struct{}{}
 
 	// Get all IDs.
 	for _, partition := range pm.Partitions {
 		for _, id := range partition.Replicas {
-			ids[id] = nil
+			ids[id] = struct{}{}
 		}
 	}
 

@@ -141,8 +141,8 @@ func main() {
 	knownThrottles := true
 
 	var reassignments kafkazk.Reassignments
-	var replicatingPreviously map[string]interface{}
-	var replicatingNow map[string]interface{}
+	var replicatingPreviously map[string]struct{}
+	var replicatingNow map[string]struct{}
 	var done []string
 
 	// Params for the updateReplicationThrottle
@@ -176,10 +176,10 @@ func main() {
 		throttleMeta.topics = throttleMeta.topics[:0]
 		// Get topics undergoing reassignment.
 		reassignments = zk.GetReassignments() // XXX This needs to return an error.
-		replicatingNow = make(map[string]interface{})
+		replicatingNow = make(map[string]struct{})
 		for t := range reassignments {
 			throttleMeta.topics = append(throttleMeta.topics, t)
-			replicatingNow[t] = nil
+			replicatingNow[t] = struct{}{}
 		}
 
 		// Check for topics that were
@@ -202,9 +202,9 @@ func main() {
 		// Rebuild replicatingPreviously with
 		// the current replications for the next
 		// check iteration.
-		replicatingPreviously = make(map[string]interface{})
+		replicatingPreviously = make(map[string]struct{})
 		for t := range replicatingNow {
-			replicatingPreviously[t] = nil
+			replicatingPreviously[t] = struct{}{}
 		}
 
 		// If topics are being reassigned, update

@@ -10,9 +10,9 @@ func TestConstraintsMatch(t *testing.T) {
 	ref := bm[1001]
 	delete(bm, 1001)
 
-	m := map[*Broker]interface{}{}
+	m := map[*Broker]struct{}{}
 	for broker := range bm {
-		m[bm[broker]] = nil
+		m[bm[broker]] = struct{}{}
 	}
 
 	b, err := constraintsMatch(ref, m)
@@ -34,9 +34,9 @@ func TestConstraintsMatch(t *testing.T) {
 	ref = bm[1002]
 	delete(bm, 1002)
 
-	m = map[*Broker]interface{}{}
+	m = map[*Broker]struct{}{}
 	for broker := range bm {
-		m[bm[broker]] = nil
+		m[bm[broker]] = struct{}{}
 	}
 
 	_, err = constraintsMatch(ref, m)

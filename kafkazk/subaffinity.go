@@ -33,9 +33,9 @@ func (sa SubstitutionAffinities) Get(id int) *Broker {
 // marked for replacement but only one new replacement was provided
 // and substitution affinities is enabled).
 func (b BrokerMap) SubstitutionAffinities(pm *PartitionMap) (SubstitutionAffinities, error) {
-	replace := map[*Broker]interface{}{}
-	missing := map[*Broker]interface{}{}
-	new := map[*Broker]interface{}{}
+	replace := map[*Broker]struct{}{}
+	missing := map[*Broker]struct{}{}
+	new := map[*Broker]struct{}{}
 	affinities := SubstitutionAffinities{}
 
 	// Map brokers according to their status.
@@ -44,11 +44,11 @@ func (b BrokerMap) SubstitutionAffinities(pm *PartitionMap) (SubstitutionAffinit
 		case broker.ID == 0:
 			continue
 		case broker.Missing:
-			missing[broker] = nil
+			missing[broker] = struct{}{}
 		case broker.Replace:
-			replace[broker] = nil
+			replace[broker] = struct{}{}
 		case broker.New:
-			new[broker] = nil
+			new[broker] = struct{}{}
 		}
 	}
 
@@ -115,11 +115,11 @@ func (b BrokerMap) SubstitutionAffinities(pm *PartitionMap) (SubstitutionAffinit
 	return affinities, nil
 }
 
-// constraintsMatch takes a *Broker and a map[*Broker]interface{}.
+// constraintsMatch takes a *Broker and a map[*Broker]struct{}.
 // The map is traversed for a broker that matches the constraints
 // of the provided broker. If one is available, it's removed from
 // the map and returned. Otherwise, an error is returned.
-func constraintsMatch(b *Broker, bm map[*Broker]interface{}) (*Broker, error) {
+func constraintsMatch(b *Broker, bm map[*Broker]struct{}) (*Broker, error) {
 	// Need a predictable selection.
 	brokers := brokerList{}
 	for broker := range bm {

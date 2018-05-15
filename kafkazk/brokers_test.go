@@ -71,10 +71,10 @@ func TestFilteredList(t *testing.T) {
 	bm[1003].Replace = true
 
 	nl := bm.filteredList()
-	expected := map[int]interface{}{
-		1001: nil,
-		1002: nil,
-		1004: nil,
+	expected := map[int]struct{}{
+		1001: struct{}{},
+		1002: struct{}{},
+		1004: struct{}{},
 	}
 
 	for _, b := range nl {

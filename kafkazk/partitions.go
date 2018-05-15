@@ -405,14 +405,14 @@ func placeByPartition(params RebuildParams) (*PartitionMap, []string) {
 // of all localities observed in replica sets containing the
 // reference broker, then returning the diff.
 func (pm *PartitionMap) LocalitiesAvailable(bm BrokerMap, b *Broker) []string {
-	all := map[string]interface{}{}
-	reference := map[string]interface{}{}
+	all := map[string]struct{}{}
+	reference := map[string]struct{}{}
 
 	// Traverse the partition map and
 	// gather localities.
 	for _, partn := range pm.Partitions {
 
-		localities := map[string]interface{}{}
+		localities := map[string]struct{}{}
 		var containsRef bool
 
 		for _, replica := range partn.Replicas {
@@ -431,7 +431,7 @@ func (pm *PartitionMap) LocalitiesAvailable(bm BrokerMap, b *Broker) []string {
 			// Add the locality.
 			l := bm[replica].Locality
 			if l != "" {
-				localities[l] = nil
+				localities[l] = struct{}{}
 			}
 		}
 
@@ -439,11 +439,11 @@ func (pm *PartitionMap) LocalitiesAvailable(bm BrokerMap, b *Broker) []string {
 		// set.
 		if containsRef {
 			for k := range localities {
-				reference[k] = nil
+				reference[k] = struct{}{}
 			}
 		} else {
 			for k := range localities {
-				all[k] = nil
+				all[k] = struct{}{}
 			}
 		}
 	}
