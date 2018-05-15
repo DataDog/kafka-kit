@@ -292,6 +292,8 @@ Broker change summary:
 
 This means that every slot left behind by `1002` will be replaced with `1003`. Disabling this feature (the default) would allow both `1003` and `1004` to fill those slots.
 
+Substitution affinity has two ways of choosing a substitution broker. If the broker being replaced is still registered in ZooKeeper, it prefers a newly added broker (a broker in the `--brokers` list that is not currently holding any replicas for topics in the `--rebuild-topics` list) with the same rack ID. If the broker being replaced has failed and is no longer in ZooKeeper, substitution affinity will infer a suitable replacement and indicate this by appending `(inferred)` to the info output.
+
 #### Storage
 The storage strategy chooses brokers based on free space and partition size (using an algorithm modeled on first-fit descending bin packing). In each placement decision, the broker with the most available free space that satisfies all other constraints is chosen. The storage strategy is best used if large imbalances among partitions is anticipated.
 
@@ -329,7 +331,7 @@ The znode data must be formatted as JSON with the structure `{"<broker ID>": {"S
 
 This data can be populated from any metrics system as long as it conforms to these standards. The provided [metricsfetcher](https://github.com/DataDog/topicmappr/tree/master/cmd/metricsfetcher) is a simple Datadog implementation.
 
-Ensure that recent data is being used. If stale metrics data is being used, a placement map could be built that's suboptimal.
+Ensure that recent data is being used. If stale metrics data is being used, a placement map could be built that's suboptimal. Topics that have been storage balanced can be repaired (e.g. if a broker fails) using the count method combined with the `--sub-affinity` flag.
 
 ## Scaling Scenarios
 
