@@ -441,6 +441,8 @@ func (b BrokerMap) Copy() BrokerMap {
 			Used:        br.Used,
 			StorageFree: br.StorageFree,
 			Replace:     br.Replace,
+			Missing:     br.Missing,
+			New:         br.New,
 		}
 	}
 
