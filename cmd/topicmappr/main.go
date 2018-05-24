@@ -492,7 +492,7 @@ func main() {
 	}
 
 	if !Config.ignoreWarns && len(warns) > 0 {
-		fmt.Printf("%sWarnings encountered, partition map not created. Override with --ignore-warns.\n", indent)
+		fmt.Printf("\n%sWarnings encountered, partition map not created. Override with --ignore-warns.\n", indent)
 		os.Exit(1)
 	}
 
