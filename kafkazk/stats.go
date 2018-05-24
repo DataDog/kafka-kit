@@ -62,6 +62,11 @@ type DegreeDistributionStats struct {
 
 // Stats returns a DegreeDistributionStats.
 func (dd DegreeDistribution) Stats() DegreeDistributionStats {
+	dds := DegreeDistributionStats{}
+	if len(dd.Relationships) == 0 {
+		return dds
+	}
+
 	vals := []int{}
 
 	for node := range dd.Relationships {
@@ -74,11 +79,11 @@ func (dd DegreeDistribution) Stats() DegreeDistributionStats {
 		s += v
 	}
 
-	return DegreeDistributionStats{
-		Min: float64(vals[0]),
-		Max: float64(vals[len(vals)-1]),
-		Avg: float64(s) / float64(len(vals)),
-	}
+	dds.Min = float64(vals[0])
+	dds.Max = float64(vals[len(vals)-1])
+	dds.Avg = float64(s) / float64(len(vals))
+
+	return dds
 }
 
 // DegreeDistribution returns the DegreeDistribution
