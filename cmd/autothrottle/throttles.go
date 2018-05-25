@@ -428,7 +428,7 @@ func applyBrokerThrottles(bs map[int]struct{}, ratestr string, r float64, ts map
 
 		// Hard coded sleep to reduce
 		// ZK load.
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(250 * time.Millisecond)
 	}
 
 	return errs
@@ -465,7 +465,7 @@ func removeAllThrottles(zk kafkazk.Handler, params *ReplicationThrottleMeta) err
 
 		// Hardcoded sleep to reduce
 		// ZK load.
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(250 * time.Millisecond)
 	}
 
 	/**********************
@@ -503,7 +503,7 @@ func removeAllThrottles(zk kafkazk.Handler, params *ReplicationThrottleMeta) err
 
 		// Hardcoded sleep to reduce
 		// ZK load.
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(250 * time.Millisecond)
 	}
 
 	// Write event.
