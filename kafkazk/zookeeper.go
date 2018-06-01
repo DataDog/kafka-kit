@@ -609,7 +609,9 @@ func (z *zkHandler) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
 		missing := fmt.Sprintf("[%s] zk: node does not exist", path)
 		switch err.Error() {
 		case missing:
-			if err := z.Create(path, ""); err != nil {
+			c := NewKafkaConfigData()
+			d, _ := json.Marshal(c)
+			if err := z.Create(path, string(d)); err != nil {
 				return false, err
 			}
 		default:
