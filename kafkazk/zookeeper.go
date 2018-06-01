@@ -601,7 +601,20 @@ func (z *zkHandler) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
 
 	data, err := z.Get(path)
 	if err != nil {
-		return false, err
+		// The path may be missing if the broker/topic
+		// has never had a configuration applied.
+		// This has only been observed for newly added
+		// brokers. Uncertain under what circumstance
+		// a topic config path wouldn't exist.
+		missing := fmt.Sprintf("[%s] zk: node does not exist", path)
+		switch err.Error() {
+		case missing:
+			if err := z.Create(path, ""); err != nil {
+				return false, err
+			}
+		default:
+			return false, err
+		}
 	}
 
 	config := NewKafkaConfigData()
