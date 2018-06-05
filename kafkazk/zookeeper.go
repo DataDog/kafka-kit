@@ -23,6 +23,18 @@ var (
 	}
 )
 
+// ErrNoNode error type is specifically for
+// Get method calls where the underlying
+// error type is a zkclient.ErrNoNode.
+type ErrNoNode struct {
+	s string
+}
+
+// Error returns an errror.
+func (e ErrNoNode) Error() string {
+	return e.s
+}
+
 // Handler exposes basic ZooKeeper operations
 // along with additional methods that return
 // kafkazk package specific types, populated
@@ -167,12 +179,17 @@ func (z *zkHandler) Close() {
 // the data from the path and an error if encountered.
 func (z *zkHandler) Get(p string) ([]byte, error) {
 	r, _, e := z.client.Get(p)
-	var err error
+
 	if e != nil {
-		err = fmt.Errorf("[%s] %s", p, e.Error())
+		switch e {
+		case zkclient.ErrNoNode:
+			return nil, ErrNoNode{s: fmt.Sprintf("[%s] %s", p, e.Error())}
+		default:
+			return nil, fmt.Errorf("[%s] %s", p, e.Error())
+		}
 	}
 
-	return r, err
+	return r, nil
 }
 
 // Set sets the provided path p data to the
@@ -599,6 +616,8 @@ func (z *zkHandler) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
 		path = fmt.Sprintf("/config/%ss/%s", c.Type, c.Name)
 	}
 
+	var config KafkaConfigData
+
 	data, err := z.Get(path)
 	if err != nil {
 		// The path may be missing if the broker/topic
@@ -606,11 +625,12 @@ func (z *zkHandler) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
 		// This has only been observed for newly added
 		// brokers. Uncertain under what circumstance
 		// a topic config path wouldn't exist.
-		missing := fmt.Sprintf("[%s] zk: node does not exist", path)
-		switch err.Error() {
-		case missing:
-			c := NewKafkaConfigData()
-			d, _ := json.Marshal(c)
+		switch err.(type) {
+		case ErrNoNode:
+			config = NewKafkaConfigData()
+			// XXX Kafka version switch here.
+			config.Version = 1
+			d, _ := json.Marshal(config)
 			if err := z.Create(path, string(d)); err != nil {
 				return false, err
 			}
@@ -619,10 +639,10 @@ func (z *zkHandler) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
 		default:
 			return false, err
 		}
+	} else {
+		config = NewKafkaConfigData()
+		json.Unmarshal(data, &config)
 	}
-
-	config := NewKafkaConfigData()
-	json.Unmarshal(data, &config)
 
 	// Populate configs.
 	var changed bool
