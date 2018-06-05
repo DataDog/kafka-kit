@@ -599,6 +599,8 @@ func (z *zkHandler) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
 		path = fmt.Sprintf("/config/%ss/%s", c.Type, c.Name)
 	}
 
+	var config KafkaConfigData
+
 	data, err := z.Get(path)
 	if err != nil {
 		// The path may be missing if the broker/topic
@@ -609,8 +611,10 @@ func (z *zkHandler) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
 		missing := fmt.Sprintf("[%s] zk: node does not exist", path)
 		switch err.Error() {
 		case missing:
-			c := NewKafkaConfigData()
-			d, _ := json.Marshal(c)
+			config = NewKafkaConfigData()
+			// XXX Kafka version switch here.
+			config.Version = 1
+			d, _ := json.Marshal(config)
 			if err := z.Create(path, string(d)); err != nil {
 				return false, err
 			}
@@ -619,10 +623,10 @@ func (z *zkHandler) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
 		default:
 			return false, err
 		}
+	} else {
+		config = NewKafkaConfigData()
+		json.Unmarshal(data, &config)
 	}
-
-	config := NewKafkaConfigData()
-	json.Unmarshal(data, &config)
 
 	// Populate configs.
 	var changed bool

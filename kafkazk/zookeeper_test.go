@@ -204,14 +204,6 @@ func TestSetup(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
-
-			// Create broker config path.
-			p = fmt.Sprintf("%s/config/brokers/%d", zkprefix, 1001+i)
-			paths = append(paths, p)
-			_, err = zkc.Create(p, []byte{}, 0, zkclient.WorldACL(31))
-			if err != nil {
-				t.Error(err)
-			}
 		}
 
 		// Create broker metrics.
@@ -602,6 +594,8 @@ func TestUpdateKafkaConfigBroker(t *testing.T) {
 		},
 	}
 
+	paths = append(paths, zkprefix+"/config/brokers/1001")
+
 	_, err := zki.UpdateKafkaConfig(c)
 	if err != nil {
 		t.Error(err)
@@ -636,7 +630,7 @@ func TestUpdateKafkaConfigBroker(t *testing.T) {
 		t.Error(err)
 	}
 
-	expected = `{"version":0,"config":{"follower.replication.throttled.rate":"100000","leader.replication.throttled.rate":"100000"}}`
+	expected = `{"version":1,"config":{"follower.replication.throttled.rate":"100000","leader.replication.throttled.rate":"100000"}}`
 	if string(d) != expected {
 		t.Errorf("Expected config '%s', got '%s'", expected, string(d))
 	}
