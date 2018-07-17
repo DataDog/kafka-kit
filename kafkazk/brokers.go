@@ -19,8 +19,9 @@ type BrokerMetaMap map[int]*BrokerMeta
 // describes a broker, used in satisfying
 // constraints.
 type BrokerMeta struct {
-	Rack        string  `json:"rack"`
-	StorageFree float64 // In bytes.
+	Rack              string  `json:"rack"`
+	StorageFree       float64 // In bytes.
+	MetricsIncomplete bool
 }
 
 // BrokerMetricsMap holds a mapping of broker

@@ -418,6 +418,7 @@ func TestGetAllBrokerMeta(t *testing.T) {
 	}
 }
 
+/* This test is useless.
 func TestGetBrokerMetrics(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
@@ -443,6 +444,7 @@ func TestGetBrokerMetrics(t *testing.T) {
 		}
 	}
 }
+*/
 
 func TestGetAllPartitionMeta(t *testing.T) {
 	if testing.Short() {
