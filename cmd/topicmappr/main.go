@@ -149,8 +149,6 @@ func main() {
 	// Fetch broker metadata.
 	var brokerMetadata kafkazk.BrokerMetaMap
 	if Config.useMeta {
-		var err error
-
 		// Whether or not we want to include
 		// additional broker metrics metadata.
 		var withMetrics bool
@@ -166,7 +164,9 @@ func main() {
 		// We check later whether any brokers that
 		// matter are missing metrics.
 		if errs != nil && brokerMetadata == nil {
-			fmt.Println(err)
+			for e := range errs {
+				fmt.Println(e)
+			}
 			os.Exit(1)
 		}
 	}
@@ -244,7 +244,7 @@ func main() {
 			// Missing brokers won't even
 			// be found in the brokerMetadata.
 			if !b.Missing && id != 0 && brokerMetadata[id].MetricsIncomplete {
-				fmt.Printf("Missing metrics for broker %d\n", id)
+				fmt.Printf("Metrics not found for broker %d\n", id)
 				os.Exit(1)
 			}
 		}
