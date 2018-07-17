@@ -149,8 +149,6 @@ func main() {
 	// Fetch broker metadata.
 	var brokerMetadata kafkazk.BrokerMetaMap
 	if Config.useMeta {
-		var err error
-
 		// Whether or not we want to include
 		// additional broker metrics metadata.
 		var withMetrics bool
@@ -158,9 +156,17 @@ func main() {
 			withMetrics = true
 		}
 
-		brokerMetadata, err = zk.GetAllBrokerMeta(withMetrics)
-		if err != nil {
-			fmt.Println(err)
+		var errs []error
+		brokerMetadata, errs = zk.GetAllBrokerMeta(withMetrics)
+		// If no data is returned, report and exit.
+		// Otherwise, it's possible that complete
+		// data for a few brokers wasn't returned.
+		// We check later whether any brokers that
+		// matter are missing metrics.
+		if errs != nil && brokerMetadata == nil {
+			for e := range errs {
+				fmt.Println(e)
+			}
 			os.Exit(1)
 		}
 	}
@@ -230,6 +236,19 @@ func main() {
 
 	// Store a copy.
 	brokersOrig := brokers.Copy()
+
+	// Check if any referenced brokers are
+	// marked as having missing metrics.
+	if Config.useMeta {
+		for id, b := range brokers {
+			// Missing brokers won't even
+			// be found in the brokerMetadata.
+			if !b.Missing && id != 0 && brokerMetadata[id].MetricsIncomplete {
+				fmt.Printf("Metrics not found for broker %d\n", id)
+				os.Exit(1)
+			}
+		}
+	}
 
 	// Get substitution affinities.
 	var affinities kafkazk.SubstitutionAffinities
@@ -470,13 +489,6 @@ func main() {
 
 			diff := storageDiffs[id]
 
-			// Explicitely set a
-			// positive sign.
-			var sign string
-			if diff[0] > 0 {
-				sign = "+"
-			}
-
 			// Indicate if the broker
 			// is a replacement.
 			var replace string
@@ -486,8 +498,8 @@ func main() {
 
 			originalStorage := brokersOrig[id].StorageFree / div
 			newStorage := brokers[id].StorageFree / div
-			fmt.Printf("%sBroker %d: %.2f -> %.2f (%s%.2fGB, %.2f%%) %s\n",
-				indent, id, originalStorage, newStorage, sign, diff[0]/div, diff[1], replace)
+			fmt.Printf("%sBroker %d: %.2f -> %.2f (%+.2fGB, %.2f%%) %s\n",
+				indent, id, originalStorage, newStorage, diff[0]/div, diff[1], replace)
 		}
 	}
 

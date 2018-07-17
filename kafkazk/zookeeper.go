@@ -52,7 +52,7 @@ type Handler interface {
 	GetReassignments() Reassignments
 	GetTopics([]*regexp.Regexp) ([]string, error)
 	GetTopicConfig(string) (*TopicConfig, error)
-	GetAllBrokerMeta(bool) (BrokerMetaMap, error)
+	GetAllBrokerMeta(bool) (BrokerMetaMap, []error)
 	GetAllPartitionMeta() (PartitionMetaMap, error)
 	GetPartitionMap(string) (*PartitionMap, error)
 }
@@ -344,7 +344,9 @@ func (z *zkHandler) GetTopicConfig(t string) (*TopicConfig, error) {
 // brokers and returns their metadata as a BrokerMetaMap.
 // An withMetrics bool param determines whether we additionally
 // want to fetch stored broker metrics.
-func (z *zkHandler) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, error) {
+func (z *zkHandler) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, []error) {
+	var errs []error
+
 	var path string
 	if z.Prefix != "" {
 		path = fmt.Sprintf("/%s/brokers/ids", z.Prefix)
@@ -355,7 +357,7 @@ func (z *zkHandler) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, error) {
 	// Get all brokers.
 	entries, _, err := z.client.Children(path)
 	if err != nil {
-		return nil, err
+		return nil, []error{err}
 	}
 
 	bmm := BrokerMetaMap{}
@@ -391,7 +393,7 @@ func (z *zkHandler) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, error) {
 	if withMetrics {
 		bmetrics, err := z.getBrokerMetrics()
 		if err != nil {
-			return nil, fmt.Errorf("Error fetching broker metrics: %s", err.Error())
+			return nil, []error{fmt.Errorf("Error fetching broker metrics: %s", err.Error())}
 		}
 
 		// Populate each broker with
@@ -399,15 +401,16 @@ func (z *zkHandler) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, error) {
 		for bid := range bmm {
 			m, exists := bmetrics[bid]
 			if !exists {
-				return nil, fmt.Errorf("Metrics not found for broker %d", bid)
+				errs = append(errs, fmt.Errorf("Metrics not found for broker %d", bid))
+				bmm[bid].MetricsIncomplete = true
+			} else {
+				bmm[bid].StorageFree = m.StorageFree
 			}
-
-			bmm[bid].StorageFree = m.StorageFree
 		}
 
 	}
 
-	return bmm, nil
+	return bmm, errs
 }
 
 // GetBrokerMetrics fetches broker metrics stored

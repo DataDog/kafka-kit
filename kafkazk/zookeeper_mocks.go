@@ -135,7 +135,7 @@ func (zk *Mock) GetTopicConfig(t string) (*TopicConfig, error) {
 }
 
 // GetAllBrokerMeta mocks GetAllBrokerMeta.
-func (zk *Mock) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, error) {
+func (zk *Mock) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, []error) {
 	b := BrokerMetaMap{
 		1001: &BrokerMeta{Rack: "a"},
 		1002: &BrokerMeta{Rack: "b"},
