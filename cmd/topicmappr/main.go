@@ -158,8 +158,14 @@ func main() {
 			withMetrics = true
 		}
 
-		brokerMetadata, err = zk.GetAllBrokerMeta(withMetrics)
-		if err != nil {
+		var errs []error
+		brokerMetadata, errs = zk.GetAllBrokerMeta(withMetrics)
+		// If no data is returned, report and exit.
+		// Otherwise, it's possible that complete
+		// data for a few brokers wasn't returned.
+		// We check later whether any brokers that
+		// matter are missing metrics.
+		if errs != nil && brokerMetadata == nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
@@ -230,6 +236,19 @@ func main() {
 
 	// Store a copy.
 	brokersOrig := brokers.Copy()
+
+	// Check if any referenced brokers are
+	// marked as having missing metrics.
+	if Config.useMeta {
+		for id, b := range brokers {
+			// Missing brokers won't even
+			// be found in the brokerMetadata.
+			if !b.Missing && id != 0 && brokerMetadata[id].MetricsIncomplete {
+				fmt.Printf("Missing metrics for broker %d\n", id)
+				os.Exit(1)
+			}
+		}
+	}
 
 	// Get substitution affinities.
 	var affinities kafkazk.SubstitutionAffinities
