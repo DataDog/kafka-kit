@@ -489,13 +489,6 @@ func main() {
 
 			diff := storageDiffs[id]
 
-			// Explicitely set a
-			// positive sign.
-			var sign string
-			if diff[0] > 0 {
-				sign = "+"
-			}
-
 			// Indicate if the broker
 			// is a replacement.
 			var replace string
@@ -505,8 +498,8 @@ func main() {
 
 			originalStorage := brokersOrig[id].StorageFree / div
 			newStorage := brokers[id].StorageFree / div
-			fmt.Printf("%sBroker %d: %.2f -> %.2f (%s%.2fGB, %.2f%%) %s\n",
-				indent, id, originalStorage, newStorage, sign, diff[0]/div, diff[1], replace)
+			fmt.Printf("%sBroker %d: %.2f -> %.2f (%+.2fGB, %.2f%%) %s\n",
+				indent, id, originalStorage, newStorage, diff[0]/div, diff[1], replace)
 		}
 	}
 
