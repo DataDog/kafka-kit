@@ -403,9 +403,9 @@ func (z *zkHandler) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, []error) 
 			if !exists {
 				errs = append(errs, fmt.Errorf("Metrics not found for broker %d", bid))
 				bmm[bid].MetricsIncomplete = true
+			} else {
+				bmm[bid].StorageFree = m.StorageFree
 			}
-
-			bmm[bid].StorageFree = m.StorageFree
 		}
 
 	}
