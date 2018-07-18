@@ -164,7 +164,7 @@ func main() {
 		// We check later whether any brokers that
 		// matter are missing metrics.
 		if errs != nil && brokerMetadata == nil {
-			for e := range errs {
+			for _, e := range errs {
 				fmt.Println(e)
 			}
 			os.Exit(1)
