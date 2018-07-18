@@ -464,7 +464,7 @@ func (pm *PartitionMap) LocalitiesAvailable(bm BrokerMap, b *Broker) []string {
 
 func (pm *PartitionMap) shuffle() {
 	for n := range pm.Partitions {
-		rand.Seed(int64(n << 2))
+		rand.Seed(int64(n << 20))
 		rand.Shuffle(len(pm.Partitions[n].Replicas), func(i, j int) {
 			pm.Partitions[n].Replicas[i], pm.Partitions[n].Replicas[j] = pm.Partitions[n].Replicas[j], pm.Partitions[n].Replicas[i]
 		})
