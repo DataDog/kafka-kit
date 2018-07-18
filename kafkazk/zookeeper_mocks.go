@@ -51,6 +51,11 @@ func (zk *Mock) Get(a string) ([]byte, error) {
 	return []byte{}, nil
 }
 
+// Children mocks children.
+func (zk *Mock) Children(a string) ([]string, error) {
+	return nil, nil
+}
+
 // GetTopicState mocks GetTopicState.
 func (zk *Mock) GetTopicState(t string) (*TopicState, error) {
 	_ = t

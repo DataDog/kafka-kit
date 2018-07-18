@@ -45,6 +45,7 @@ type Handler interface {
 	CreateSequential(string, string) error
 	Set(string, string) error
 	Get(string) ([]byte, error)
+	Children(string) ([]string, error)
 	Close()
 	GetTopicState(string) (*TopicState, error)
 	GetTopicStateISR(string) (TopicStateISR, error)
@@ -244,6 +245,23 @@ func (z *zkHandler) Exists(p string) (bool, error) {
 	return b, err
 }
 
+// Children takes a path p and returns a list
+// of child znodes and an error if encountered.
+func (z *zkHandler) Children(p string) ([]string, error) {
+	c, _, e := z.client.Children(p)
+
+	if e != nil {
+		switch e {
+		case zkclient.ErrNoNode:
+			return nil, ErrNoNode{s: fmt.Sprintf("[%s] %s", p, e.Error())}
+		default:
+			return nil, fmt.Errorf("[%s] %s", p, e.Error())
+		}
+	}
+
+	return c, nil
+}
+
 // GetReassignments looks up any ongoing
 // topic reassignments and returns the data
 // as a Reassignments type.
@@ -292,7 +310,7 @@ func (z *zkHandler) GetTopics(ts []*regexp.Regexp) ([]string, error) {
 	}
 
 	// Find all topics in zk.
-	entries, _, err := z.client.Children(path)
+	entries, err := z.Children(path)
 	if err != nil {
 		return nil, err
 	}
@@ -355,7 +373,7 @@ func (z *zkHandler) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, []error) 
 	}
 
 	// Get all brokers.
-	entries, _, err := z.client.Children(path)
+	entries, err := z.Children(path)
 	if err != nil {
 		return nil, []error{err}
 	}
@@ -520,7 +538,7 @@ func (z *zkHandler) GetTopicStateISR(t string) (TopicStateISR, error) {
 	ts := TopicStateISR{}
 
 	// Get partitions.
-	partitions, _, err := z.client.Children(path)
+	partitions, err := z.Children(path)
 	if err != nil {
 		return nil, err
 	}
