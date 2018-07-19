@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"sort"
 	"strconv"
 	"time"
 
@@ -72,44 +71,6 @@ func (t ReassigningBrokers) highestSrcNetTX() *kafkametrics.Broker {
 	return broker
 }
 
-// bmapBundle holds several maps
-// used as sets. Reduces return params
-// for mapsFromReassigments.
-type bmapBundle struct {
-	src       map[int]struct{}
-	dst       map[int]struct{}
-	all       map[int]struct{}
-	throttled map[string]map[string][]string
-}
-
-// lists returns a []int of broker IDs for the
-// src, dst and all bmapBundle maps.
-func (bm bmapBundle) lists() ([]int, []int, []int) {
-	srcBrokers := []int{}
-	dstBrokers := []int{}
-	for n, m := range []map[int]struct{}{bm.src, bm.dst} {
-		for b := range m {
-			if n == 0 {
-				srcBrokers = append(srcBrokers, b)
-			} else {
-				dstBrokers = append(dstBrokers, b)
-			}
-		}
-	}
-
-	allBrokers := []int{}
-	for b := range bm.all {
-		allBrokers = append(allBrokers, b)
-	}
-
-	// Sort.
-	sort.Ints(srcBrokers)
-	sort.Ints(dstBrokers)
-	sort.Ints(allBrokers)
-
-	return srcBrokers, dstBrokers, allBrokers
-}
-
 // updateReplicationThrottle takes a ReplicationThrottleMeta
 // that holds topics being replicated, any clients, throttle override params,
 // and other required metadata.
@@ -144,6 +105,8 @@ func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 	var currThrottle float64
 	var useMetrics bool
 	var brokerMetrics kafkametrics.BrokerMetrics
+	var metricErrs []error
+	var inFailureMode bool
 
 	if params.override != "" {
 		log.Printf("A throttle override is set: %sMB/s\n", params.override)
@@ -151,30 +114,45 @@ func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 		replicationCapacity = float64(o)
 	} else {
 		useMetrics = true
+
 		// Get broker metrics.
-		brokerMetrics, err = params.km.GetMetrics()
-		if err != nil {
-			// If there was a error fetching metrics,
-			// revert to the minimum replication rate
-			// configured.
-			log.Println(err)
+		brokerMetrics, metricErrs = params.km.GetMetrics()
+		// Even if errors are returned, we can still
+		// proceed as long as we have complete metrics
+		// data for all target brokers. If we have broker
+		// metrics for all target brokers, we can ignore
+		// any errors.
+		if metricErrs != nil {
+			if brokerMetrics == nil || incompleteBrokerMetrics(allBrokers, brokerMetrics) {
+				inFailureMode = true
+			}
+		}
+
+		// If we cannot proceed normally due to missing/partial
+		// metrics data, check what failure iteration we're in.
+		// If we're above the threshold, revert to the minimum
+		// rate, otherwise retain the previous rate.
+		if inFailureMode {
+			log.Println(metricErrs)
 			// Check our failures against the
 			// configured threshold.
 			over := params.Failure()
+			// Over threshold. Set replicationCapacity which will be
+			// applied in the apply throttles stage.
 			if over {
 				log.Printf("Metrics fetch failure count %d exceeds threshold %d, reverting to min-rate %.2fMB/s\n",
 					params.failures, params.failureThreshold, params.limits["minimum"])
 				replicationCapacity = params.limits["minimum"]
+				// Not over threshold. Return and retain previous throttle.
 			} else {
 				log.Printf("Metrics fetch failure count %d doesn't exceed threshold %d, retaining previous throttle\n",
 					params.failures, params.failureThreshold)
 				return nil
 			}
-		}
-
-		// Avoiding an else
-		// layer cake.
-		if err == nil {
+		} else {
+			// Reset the failure counter
+			// in case it was incremented
+			// in previous iterations.
 			params.ResetFailures()
 		}
 	}
@@ -182,7 +160,7 @@ func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 	// If we're using metrics and successfully
 	// fetched them, determine a tvalue based on
 	// the most-utilized path.
-	if useMetrics && err == nil {
+	if useMetrics && !inFailureMode {
 		var e string
 		replicationCapacity, currThrottle, e, err = repCapacityByMetrics(params, bmaps, brokerMetrics)
 		if err != nil {
@@ -526,34 +504,4 @@ func removeAllThrottles(zk kafkazk.Handler, params *ReplicationThrottleMeta) err
 	}
 
 	return nil
-}
-
-// mergeMaps takes two maps and merges them.
-func mergeMaps(a map[int]struct{}, b map[int]struct{}) map[int]struct{} {
-	m := map[int]struct{}{}
-
-	// Merge from each.
-	for k := range a {
-		m[k] = struct{}{}
-	}
-
-	for k := range b {
-		m[k] = struct{}{}
-	}
-
-	return m
-}
-
-// sliceToString takes []string and
-// returns a comma delimited string.
-func sliceToString(l []string) string {
-	var b bytes.Buffer
-	for n, i := range l {
-		b.WriteString(i)
-		if n < len(l)-1 {
-			b.WriteString(",")
-		}
-	}
-
-	return b.String()
 }
