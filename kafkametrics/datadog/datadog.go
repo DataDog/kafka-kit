@@ -51,16 +51,16 @@ func NewHandler(c *Config) (kafkametrics.Handler, error) {
 	// Validate.
 	ok, err := client.Validate()
 	if err != nil {
-		return nil, &APIError{
-			request: "validate credentials",
-			err:     err.Error(),
+		return nil, &kafkametrics.APIError{
+			Request: "validate credentials",
+			Message: err.Error(),
 		}
 	}
 
 	if !ok {
-		return nil, &APIError{
-			request: "validate credentials",
-			err:     "invalid API or app key",
+		return nil, &kafkametrics.APIError{
+			Request: "validate credentials",
+			Message: "invalid API or app key",
 		}
 	}
 
@@ -92,31 +92,44 @@ func (h *ddHandler) PostEvent(e *kafkametrics.Event) error {
 
 // GetMetrics requests broker metrics and metadata
 // from the Datadog API and returns a BrokerMetrics.
-func (h *ddHandler) GetMetrics() (kafkametrics.BrokerMetrics, error) {
+// If any errors are encountered (i.e. complete metadata
+// for a given broker cann't be retrieved), the broker
+// will not be included in the BrokerMetrics.
+func (h *ddHandler) GetMetrics() (kafkametrics.BrokerMetrics, []error) {
+	var errors []error
+
 	// Get series.
 	start := time.Now().Add(-time.Duration(h.metricsWindow) * time.Second).Unix()
 	o, err := h.c.QueryMetrics(start, time.Now().Unix(), h.netTXQuery)
 	if err != nil {
-		return nil, &APIError{
-			request: "metrics query",
-			err:     err.Error(),
-		}
+		return nil, []error{&kafkametrics.APIError{
+			Request: "metrics query",
+			Message: err.Error(),
+		}}
 	}
 
 	if len(o) == 0 {
-		return nil, &PartialResults{
-			err: fmt.Sprintf("No data returned with query %s", h.netTXQuery),
-		}
+		return nil, []error{&kafkametrics.NoResults{
+			Message: fmt.Sprintf("No data returned with query %s", h.netTXQuery),
+		}}
 	}
 
 	// Get a []*kafkametrics.Broker from the series.
-	blist, err := brokersFromSeries(o)
-	if err != nil {
-		return nil, err
+	// Brokers with missing points are excluded
+	// from blist.
+	blist, errs := brokersFromSeries(o)
+	if errs != nil {
+		errors = append(errors, errs...)
 	}
+
 	// The []*kafkametrics.Broker only contains hostnames
 	// and the network tx metric. Fetch the rest
 	// of the required metadata and construct
 	// a kafkametrics.BrokerMetrics.
-	return h.brokerMetricsFromList(blist)
+	bm, errs := h.brokerMetricsFromList(blist)
+	if errs != nil {
+		errors = append(errors, errs...)
+	}
+
+	return bm, errors
 }
