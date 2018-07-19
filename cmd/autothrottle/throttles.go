@@ -470,7 +470,17 @@ func removeAllThrottles(zk kafkazk.Handler, params *ReplicationThrottleMeta) err
 		}
 
 		changed, err := zk.UpdateKafkaConfig(config)
-		if err != nil {
+		switch err.(type) {
+		case kafkazk.ErrNoNode:
+			// We'd get an ErrNoNode here only if
+			// the parent path for dynamic broker
+			// configs (/config/brokers) if it doesn't
+			// exist, which can happen in new clusters
+			// that have never had dynamic configs applied.
+			// Rather than creating that znode, we'll just
+			// ignore errors here; if the znodes don't exist,
+			// there's not even config to remove.
+		default:
 			log.Printf("Error removing throttle on broker %d: %s\n", b, err)
 		}
 
