@@ -6,7 +6,7 @@ package kafkametrics
 // Handler requests broker metrics
 // and posts events.
 type Handler interface {
-	GetMetrics() (BrokerMetrics, error)
+	GetMetrics() (BrokerMetrics, []error)
 	PostEvent(*Event) error
 }
 

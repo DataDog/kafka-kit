@@ -36,7 +36,7 @@ func TestBrokersFromSeries(t *testing.T) {
 	bs, err := brokersFromSeries(series)
 
 	if err != nil {
-		t.Errorf("Unexpected error: %s", err.Error())
+		t.Errorf("Unexpected error: %s", err)
 	}
 
 	if len(bs) != 5 {
@@ -100,7 +100,7 @@ func TestPopulateFromTagMap(t *testing.T) {
 	tagMap := mockTagMap()
 	err := populateFromTagMap(b, map[string][]string{}, tagMap, "broker_id")
 	if err != nil {
-		t.Errorf("Unexpected error: %s\n", err.Error())
+		t.Errorf("Unexpected error: %s\n", err)
 	}
 
 	// Keep a broker reference

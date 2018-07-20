@@ -224,12 +224,16 @@ func (z *zkHandler) CreateSequential(p string, d string) error {
 // if encountered.
 func (z *zkHandler) Create(p string, d string) error {
 	_, e := z.client.Create(p, []byte(d), 0, zkclient.WorldACL(31))
-	var err error
 	if e != nil {
-		err = fmt.Errorf("[%s] %s", p, e.Error())
+		switch e {
+		case zkclient.ErrNoNode:
+			return ErrNoNode{s: fmt.Sprintf("[%s] %s", p, e.Error())}
+		default:
+			return fmt.Errorf("[%s] %s", p, e.Error())
+		}
 	}
 
-	return err
+	return nil
 }
 
 // Exists takes a path p and returns a bool

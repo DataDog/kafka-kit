@@ -9,7 +9,7 @@ import (
 type Mock struct{}
 
 // GetMetrics mocks the GetMetrics function.
-func (k *Mock) GetMetrics() (BrokerMetrics, error) {
+func (k *Mock) GetMetrics() (BrokerMetrics, []error) {
 	bm := BrokerMetrics{}
 	for i := 0; i < 10; i++ {
 		bm[1000+i] = &Broker{

@@ -23,18 +23,22 @@ func createNetTXQuery(c *Config) string {
 }
 
 // brokersFromSeries takes metrics series as a
-// []dd.Series and returns a []*kafkametrics.Broker. An error
-// is returned if for some reason no points were
-// returned with the series.
-func brokersFromSeries(s []dd.Series) ([]*kafkametrics.Broker, error) {
+// []dd.Series and returns a []*kafkametrics.Broker.
+// If for some reason points were not returned for a
+// broker, it's excluded from the []*kafkametrics.Broker
+// and an error is populated in the return []error.
+func brokersFromSeries(s []dd.Series) ([]*kafkametrics.Broker, []error) {
 	bs := []*kafkametrics.Broker{}
+	var errors []error
+
 	for _, ts := range s {
 		host := tagValFromScope(ts.GetScope(), "host")
 
 		if len(ts.Points) == 0 {
-			return nil, &PartialResults{
-				err: fmt.Sprintf("no points for host %s", host),
-			}
+			errors = append(errors, &kafkametrics.PartialResults{
+				Message: fmt.Sprintf("No points for host %s", host),
+			})
+			continue
 		}
 
 		b := &kafkametrics.Broker{
@@ -45,34 +49,37 @@ func brokersFromSeries(s []dd.Series) ([]*kafkametrics.Broker, error) {
 		bs = append(bs, b)
 	}
 
-	return bs, nil
+	return bs, errors
 }
 
 // brokerMetricsFromList takes a *[]kafkametrics.Broker and fetches
 // relevant host tags for all brokers in the list, returning
 // a BrokerMetrics.
-func (h *ddHandler) brokerMetricsFromList(l []*kafkametrics.Broker) (kafkametrics.BrokerMetrics, error) {
+func (h *ddHandler) brokerMetricsFromList(l []*kafkametrics.Broker) (kafkametrics.BrokerMetrics, []error) {
+	var errors []error
 	// Get host tags for brokers
 	// in the list.
-	tags, err := h.getHostTagMap(l)
-	if err != nil {
-		return nil, err
+	tags, errs := h.getHostTagMap(l)
+	if errs != nil {
+		errors = append(errors, errs...)
 	}
 
 	brokers := kafkametrics.BrokerMetrics{}
-	err = populateFromTagMap(brokers, h.tagCache, tags, h.brokerIDTag)
-	if err != nil {
-		return nil, err
+	errs = populateFromTagMap(brokers, h.tagCache, tags, h.brokerIDTag)
+	if errs != nil {
+		errs = append(errors, errs...)
 	}
 
-	return brokers, nil
+	return brokers, errors
 }
 
 // getHostTagMap takes a []*kafkametrics.Broker and fetches
 // host tags for each. If no errors are encountered,
 // a map[*kafkametrics.Broker][]string holding the received tags
 // is returned.
-func (h *ddHandler) getHostTagMap(l []*kafkametrics.Broker) (map[*kafkametrics.Broker][]string, error) {
+func (h *ddHandler) getHostTagMap(l []*kafkametrics.Broker) (map[*kafkametrics.Broker][]string, []error) {
+	var errors []error
+
 	brokers := map[*kafkametrics.Broker][]string{}
 	// Get broker IDs for each host,
 	// populate into a BrokerMetrics.
@@ -86,16 +93,18 @@ func (h *ddHandler) getHostTagMap(l []*kafkametrics.Broker) (map[*kafkametrics.B
 			// Else fetch it.
 			ht, err := h.c.GetHostTags(b.Host, "")
 			if err != nil {
-				return nil, &APIError{
-					request: "host tags",
-					err:     fmt.Sprintf("Error requesting host tags for %s", b.Host),
-				}
+				errors = append(errors, &kafkametrics.APIError{
+					Request: "host tags",
+					Message: fmt.Sprintf("Error requesting host tags for %s", b.Host),
+				})
+				continue
 			}
+
 			brokers[b] = ht
 		}
 	}
 
-	return brokers, nil
+	return brokers, errors
 }
 
 // populateFromTagMap takes a kafkametrics.BrokerMetrics, map of broker
@@ -103,44 +112,53 @@ func (h *ddHandler) getHostTagMap(l []*kafkametrics.Broker) (map[*kafkametrics.B
 // to []string unparsed host tag key:value pairs, and a broker ID tag key
 // populates the kafkametrics.BrokerMetrics with tags of interest.
 // An error describing any missing tags is returned.
-func populateFromTagMap(bm kafkametrics.BrokerMetrics, c map[string][]string, t map[*kafkametrics.Broker][]string, btag string) error {
+func populateFromTagMap(bm kafkametrics.BrokerMetrics, c map[string][]string, t map[*kafkametrics.Broker][]string, btag string) []error {
 	var missingTags bytes.Buffer
 
 	for b, ht := range t {
-		ids := valFromTags(ht, btag)
+		// We need to get both the ID and instance type
+		// tag values. Both must exist for the broker to be
+		// populated in the BrokerMetrics.
+		var id int
+		var it string
 
+		// Get ID.
+		ids := valFromTags(ht, btag)
 		if ids != "" {
-			id, _ := strconv.Atoi(ids)
-			b.ID = id
-			bm[id] = b
+			id, _ = strconv.Atoi(ids)
 		} else {
 			s := fmt.Sprintf(" %s:%s", btag, b.Host)
 			missingTags.WriteString(s)
-			// Early break if this tag is missing.
-			// We need it in the next step.
 			continue
 		}
 
-		it := valFromTags(ht, "instance-type")
+		// Get instance type.
+		it = valFromTags(ht, "instance-type")
 		if it != "" {
-			bm[b.ID].InstanceType = it
 			// Cache this broker's tags. In case additional tags are populated
 			// in the future, we should only cache brokers that have
 			// successfully had all of their tags populated. Leaving it
 			// uncached gives it another chance for complete metadata in the
 			// preceding API lookups.
 			c[b.Host] = t[b]
-
 		} else {
 			s := fmt.Sprintf(" instance_type:%s", b.Host)
 			missingTags.WriteString(s)
+			continue
 		}
+
+		// If we are here, we have
+		// both the ID and Instance
+		// type tag values. Populate.
+		b.ID = id
+		b.InstanceType = it
+		bm[id] = b
 	}
 
 	if missingTags.String() != "" {
-		return &PartialResults{
-			err: fmt.Sprintf("Missing host tags:%s", missingTags.String()),
-		}
+		return []error{&kafkametrics.PartialResults{
+			Message: fmt.Sprintf("Missing host tags:%s", missingTags.String()),
+		}}
 	}
 
 	return nil
