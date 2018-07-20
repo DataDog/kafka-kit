@@ -133,7 +133,7 @@ func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 		// If we're above the threshold, revert to the minimum
 		// rate, otherwise retain the previous rate.
 		if inFailureMode {
-			log.Println(metricErrs)
+			log.Printf("Errors fetching metrics: %s\n", metricErrs)
 			// Check our failures against the
 			// configured threshold.
 			over := params.Failure()
