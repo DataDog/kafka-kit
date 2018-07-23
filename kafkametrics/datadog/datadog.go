@@ -4,6 +4,7 @@ package datadog
 
 import (
 	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/DataDog/topicmappr/kafkametrics"
@@ -38,6 +39,8 @@ type ddHandler struct {
 	brokerIDTag   string
 	metricsWindow int
 	tagCache      map[string][]string
+	keysRegex     *regexp.Regexp
+	redactionSub  []byte
 }
 
 // NewHandler takes a *Config and
@@ -46,6 +49,22 @@ type ddHandler struct {
 // Further backends can be supported with
 // a type switch and some other changes.
 func NewHandler(c *Config) (kafkametrics.Handler, error) {
+	// The underlying client sometimes returns API errors
+	// with full dd URL, including parameterized app/api keys.
+	// Until an upstream improvement is done, we'll just
+	// brute force a redaction via string match/sub in all
+	// wrapped errors from the client.
+	keysRegex := regexp.MustCompile(fmt.Sprintf("%s|%s", c.APIKey, c.AppKey))
+
+	h := &ddHandler{
+		netTXQuery:    createNetTXQuery(c),
+		metricsWindow: c.MetricsWindow,
+		brokerIDTag:   c.BrokerIDTag,
+		tagCache:      make(map[string][]string),
+		keysRegex:     keysRegex,
+		redactionSub:  []byte("xxx"),
+	}
+
 	client := dd.NewClient(c.APIKey, c.AppKey)
 
 	// Validate.
@@ -53,7 +72,7 @@ func NewHandler(c *Config) (kafkametrics.Handler, error) {
 	if err != nil {
 		return nil, &kafkametrics.APIError{
 			Request: "validate credentials",
-			Message: err.Error(),
+			Message: h.scrubbedErrorText(err),
 		}
 	}
 
@@ -64,17 +83,9 @@ func NewHandler(c *Config) (kafkametrics.Handler, error) {
 		}
 	}
 
-	netQ := createNetTXQuery(c)
+	h.c = client
 
-	k := &ddHandler{
-		c:             client,
-		netTXQuery:    netQ,
-		metricsWindow: c.MetricsWindow,
-		brokerIDTag:   c.BrokerIDTag,
-		tagCache:      make(map[string][]string),
-	}
-
-	return k, nil
+	return h, nil
 }
 
 // PostEvent posts an event to the
@@ -104,7 +115,7 @@ func (h *ddHandler) GetMetrics() (kafkametrics.BrokerMetrics, []error) {
 	if err != nil {
 		return nil, []error{&kafkametrics.APIError{
 			Request: "metrics query",
-			Message: err.Error(),
+			Message: h.scrubbedErrorText(err),
 		}}
 	}
 
@@ -132,4 +143,10 @@ func (h *ddHandler) GetMetrics() (kafkametrics.BrokerMetrics, []error) {
 	}
 
 	return bm, errors
+}
+
+// scrubbedErrorText takes an error and returns the message
+// string, scrubbed of API and app keys.
+func (h *ddHandler) scrubbedErrorText(e error) string {
+	return string(h.keysRegex.ReplaceAll([]byte(e.Error()), h.redactionSub))
 }
