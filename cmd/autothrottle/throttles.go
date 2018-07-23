@@ -471,6 +471,7 @@ func removeAllThrottles(zk kafkazk.Handler, params *ReplicationThrottleMeta) err
 
 		changed, err := zk.UpdateKafkaConfig(config)
 		switch err.(type) {
+		case nil:
 		case kafkazk.ErrNoNode:
 			// We'd get an ErrNoNode here only if
 			// the parent path for dynamic broker
