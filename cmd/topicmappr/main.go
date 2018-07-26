@@ -146,35 +146,14 @@ func main() {
 	// Build a topic map with either
 	// text input or by fetching the
 	// map data from ZooKeeper.
-	partitionMapIn := kafkazk.NewPartitionMap()
-	switch {
-	// Provided as text.
-	case Config.rebuildMap != "":
-		pm, err := kafkazk.PartitionMapFromString(Config.rebuildMap)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		partitionMapIn = pm
-	// Fetch from ZK.
-	case len(Config.rebuildTopics) > 0:
-		pm, err := kafkazk.PartitionMapFromZK(Config.rebuildTopics, zk)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		partitionMapIn = pm
-	}
+	partitionMapIn := getPartitionMap(zk)
 
 	// Store a copy of the
 	// original map.
 	originalMap := partitionMapIn.Copy()
 
 	// Get a list of affected topics.
-	topics := map[string]bool{}
-	for _, p := range partitionMapIn.Partitions {
-		topics[p.Topic] = true
-	}
+	topics := topics(partitionMapIn)
 
 	fmt.Printf("\nTopics:\n")
 	for t := range topics {
@@ -556,6 +535,39 @@ func getPartitionMeta(zk kafkazk.Handler) kafkazk.PartitionMetaMap {
 	}
 
 	return nil
+}
+
+func getPartitionMap(zk kafkazk.Handler) *kafkazk.PartitionMap {
+	switch {
+	// Provided as text.
+	case Config.rebuildMap != "":
+		pm, err := kafkazk.PartitionMapFromString(Config.rebuildMap)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
+		return pm
+	// Fetch from ZK.
+	case len(Config.rebuildTopics) > 0:
+		pm, err := kafkazk.PartitionMapFromZK(Config.rebuildTopics, zk)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		return pm
+	}
+
+	return nil
+}
+
+func topics(pm *kafkazk.PartitionMap) map[string]interface{} {
+	topics := map[string]interface{}{}
+	for _, p := range pm.Partitions {
+		topics[p.Topic] = nil
+	}
+
+	return topics
 }
 
 // containsRegex takes a topic name
