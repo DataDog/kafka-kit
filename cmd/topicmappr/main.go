@@ -50,8 +50,8 @@ func init() {
 
 	flag.StringVar(&Config.rebuildMap, "rebuild-map", "", "Rebuild a topic map")
 	topics := flag.String("rebuild-topics", "", "Rebuild topics (comma delim list) by lookup in ZooKeeper")
-	flag.BoolVar(&Config.useMeta, "use-meta", true, "Use broker metadata as constraints")
-	flag.StringVar(&Config.zkAddr, "zk-addr", "localhost:2181", "ZooKeeper connect string (for broker metadata or rebuild-topic lookups)")
+	flag.BoolVar(&Config.useMeta, "use-meta", true, "Use broker Metadata as constraints")
+	flag.StringVar(&Config.zkAddr, "zk-addr", "localhost:2181", "ZooKeeper connect string (for broker Metadata or rebuild-topic lookups)")
 	flag.StringVar(&Config.zkPrefix, "zk-prefix", "", "ZooKeeper namespace prefix (for Kafka)")
 	flag.StringVar(&Config.zkMetricsPrefix, "zk-metrics-prefix", "topicmappr", "ZooKeeper namespace prefix (for Kafka metrics)")
 	flag.StringVar(&Config.outPath, "out-path", "", "Path to write output map files to")
@@ -105,7 +105,7 @@ func init() {
 		}
 	}
 
-	// Ensure all topic regex compiles.
+	// Compile topic regex.
 	for _, t := range topicNames {
 		r, err := regexp.Compile(t)
 		if err != nil {
@@ -119,68 +119,29 @@ func init() {
 
 func main() {
 	// ZooKeeper init.
-	var zk kafkazk.Handler
-	if Config.useMeta || len(Config.rebuildTopics) > 0 || Config.placement == "storage" {
-		var err error
-		zk, err = kafkazk.NewHandler(&kafkazk.Config{
-			Connect:       Config.zkAddr,
-			Prefix:        Config.zkPrefix,
-			MetricsPrefix: Config.zkMetricsPrefix,
-		})
-		if err != nil {
-			fmt.Printf("Error connecting to ZooKeeper: %s\n", err)
-			os.Exit(1)
-		}
-
+	zk := initZooKeeper()
+	if zk != nil {
 		defer zk.Close()
 	}
 
 	// General flow:
-	// 1) PartitionMap formed from topic data (provided or via zk).
-	// A BrokerMap is built from brokers found in the input
-	// PartitionMap + any new brokers provided from the
-	// --brokers param.
-	// 2) New PartitionMap from the origial map is rebuilt with
-	// the BrokerMap; marked brokers are removed and newly
-	// provided brokers are swapped in where possible.
-	// 3) New map is possibly expanded/rebalanced.
-	// 4) Final map output.
+	// 1) A PartitionMap is formed (either unmarshaled from the literal
+	//   map input via --rebuild-map or generated from ZooKeeper Metadata
+	//   for topics matching --rebuild-topics).
+	// 2) A BrokerMap is formed from brokers found in the PartitionMap
+	//   along with any new brokers provided via the --brokers param.
+	// 3) The PartitionMap and BrokerMap are fed to a rebuild
+	//   function. Missing brokers, brokers marked for replacement,
+	//   and all other placements are performed, returning a new
+	//   PartitionMap.
+	// 4) Differences between the original and new PartitionMap
+	//   are detected and reported.
+	// 5) The new PartitionMap is split by topic and a map is
+	//   written for each.
 
-	// Fetch broker metadata.
-	var brokerMetadata kafkazk.BrokerMetaMap
-	if Config.useMeta {
-		// Whether or not we want to include
-		// additional broker metrics metadata.
-		var withMetrics bool
-		if Config.placement == "storage" {
-			withMetrics = true
-		}
-
-		var errs []error
-		brokerMetadata, errs = zk.GetAllBrokerMeta(withMetrics)
-		// If no data is returned, report and exit.
-		// Otherwise, it's possible that complete
-		// data for a few brokers wasn't returned.
-		// We check later whether any brokers that
-		// matter are missing metrics.
-		if errs != nil && brokerMetadata == nil {
-			for _, e := range errs {
-				fmt.Println(e)
-			}
-			os.Exit(1)
-		}
-	}
-
-	// Fetch partition metadata.
-	var partitionMeta kafkazk.PartitionMetaMap
-	if Config.placement == "storage" {
-		var err error
-		partitionMeta, err = zk.GetAllPartitionMeta()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-	}
+	// Fetch broker and partition Metadata.
+	brokerMeta := getbrokerMeta(zk)
+	partitionMeta := getPartitionMeta(zk)
 
 	// Build a topic map with either
 	// text input or by fetching the
@@ -223,15 +184,15 @@ func main() {
 	fmt.Printf("\nBroker change summary:\n")
 
 	// Get a broker map of the brokers in the current topic map.
-	// If meta data isn't being looked up, brokerMetadata will be empty.
-	brokers := kafkazk.BrokerMapFromTopicMap(partitionMapIn, brokerMetadata, Config.forceRebuild)
+	// If meta data isn't being looked up, brokerMeta will be empty.
+	brokers := kafkazk.BrokerMapFromTopicMap(partitionMapIn, brokerMeta, Config.forceRebuild)
 
 	// Update the currentBrokers list with
 	// the provided broker list.
 	// TODO the information output of broker changes
 	// comes from within this Update call. Should return
 	// this info as a value and print it out here.
-	bs := brokers.Update(Config.brokers, brokerMetadata)
+	bs := brokers.Update(Config.brokers, brokerMeta)
 	change := bs.New - bs.Replace
 
 	// Store a copy.
@@ -242,8 +203,8 @@ func main() {
 	if Config.useMeta {
 		for id, b := range brokers {
 			// Missing brokers won't even
-			// be found in the brokerMetadata.
-			if !b.Missing && id != 0 && brokerMetadata[id].MetricsIncomplete {
+			// be found in the brokerMeta.
+			if !b.Missing && id != 0 && brokerMeta[id].MetricsIncomplete {
 				fmt.Printf("Metrics not found for broker %d\n", id)
 				os.Exit(1)
 			}
@@ -536,6 +497,65 @@ func main() {
 			fmt.Printf("%s%s%s.json\n", indent, Config.outPath, t)
 		}
 	}
+}
+
+func initZooKeeper() kafkazk.Handler {
+	if Config.useMeta || len(Config.rebuildTopics) > 0 || Config.placement == "storage" {
+		zk, err := kafkazk.NewHandler(&kafkazk.Config{
+			Connect:       Config.zkAddr,
+			Prefix:        Config.zkPrefix,
+			MetricsPrefix: Config.zkMetricsPrefix,
+		})
+		if err != nil {
+			fmt.Printf("Error connecting to ZooKeeper: %s\n", err)
+			os.Exit(1)
+		}
+
+		return zk
+	}
+
+	return nil
+}
+
+func getbrokerMeta(zk kafkazk.Handler) kafkazk.BrokerMetaMap {
+	if Config.useMeta {
+		// Whether or not we want to include
+		// additional broker metrics Metadata.
+		var withMetrics bool
+		if Config.placement == "storage" {
+			withMetrics = true
+		}
+
+		brokerMeta, errs := zk.GetAllBrokerMeta(withMetrics)
+		// If no data is returned, report and exit.
+		// Otherwise, it's possible that complete
+		// data for a few brokers wasn't returned.
+		// We check later whether any brokers that
+		// matter are missing metrics.
+		if errs != nil && brokerMeta == nil {
+			for _, e := range errs {
+				fmt.Println(e)
+			}
+			os.Exit(1)
+		}
+
+		return brokerMeta
+	}
+
+	return nil
+}
+
+func getPartitionMeta(zk kafkazk.Handler) kafkazk.PartitionMetaMap {
+	if Config.placement == "storage" {
+		partitionMeta, err := zk.GetAllPartitionMeta()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		return partitionMeta
+	}
+
+	return nil
 }
 
 // containsRegex takes a topic name
