@@ -335,10 +335,10 @@ func (b BrokerMap) filteredList() brokerList {
 	return bl
 }
 
-// BrokerMapFromTopicMap creates a BrokerMap
-// from a topicMap. Counts occurance is counted.
+// BrokerMapFromPartitionMap creates a BrokerMap
+// from a partitionMap. Counts occurance is counted.
 // TODO can we remove marked for replacement here too?
-func BrokerMapFromTopicMap(pm *PartitionMap, bm BrokerMetaMap, force bool) BrokerMap {
+func BrokerMapFromPartitionMap(pm *PartitionMap, bm BrokerMetaMap, force bool) BrokerMap {
 	bmap := BrokerMap{}
 	// For each partition.
 	for _, partition := range pm.Partitions {

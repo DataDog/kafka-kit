@@ -4,13 +4,13 @@ import (
 	"testing"
 )
 
-func TestBrokerMapFromTopicMap(t *testing.T) {
+func TestBrokerMapFromPartitionMap(t *testing.T) {
 	zk := &Mock{}
 	bmm, _ := zk.GetAllBrokerMeta(false)
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 	forceRebuild := false
 
-	brokers := BrokerMapFromTopicMap(pm, bmm, forceRebuild)
+	brokers := BrokerMapFromPartitionMap(pm, bmm, forceRebuild)
 	expected := newMockBrokerMap()
 
 	for id, b := range brokers {

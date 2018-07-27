@@ -41,37 +41,35 @@ Tested with Go 1.10 (required), Kafka 0.1.x, ZooKeeper 3.4.x.
 ```
 Usage of topicmappr:
   -brokers string
-    	Broker list to rebuild topic partition map with [TOPICMAPPR_BROKERS]
+    	Broker list to scope all partition placements to [TOPICMAPPR_BROKERS]
   -force-rebuild
-    	Forces a rebuild even if all existing brokers are provided [TOPICMAPPR_FORCE_REBUILD]
+    	Forces a complete map rebuild [TOPICMAPPR_FORCE_REBUILD]
   -ignore-warns
-    	Whether a map should be produced if warnings are emitted [TOPICMAPPR_IGNORE_WARNS]
+    	Produce a map even if warnings are encountered [TOPICMAPPR_IGNORE_WARNS]
   -optimize string
-    	Optimization priority for storage placement: [distribution, storage] [TOPICMAPPR_OPTIMIZE] (default "distribution")
+    	Optimization priority for the storage placement strategy: [distribution, storage] [TOPICMAPPR_OPTIMIZE] (default "distribution")
   -out-file string
     	If defined, write a combined map of all topics to a file [TOPICMAPPR_OUT_FILE]
   -out-path string
     	Path to write output map files to [TOPICMAPPR_OUT_PATH]
   -placement string
-    	Partition placement type: [count, storage] [TOPICMAPPR_PLACEMENT] (default "count")
+    	Partition placement strategy: [count, storage] [TOPICMAPPR_PLACEMENT] (default "count")
   -rebuild-map string
-    	Rebuild a topic map [TOPICMAPPR_REBUILD_MAP]
+    	Rebuild a partition map provided as a string literal [TOPICMAPPR_REBUILD_MAP]
   -rebuild-topics string
-    	Rebuild topics (comma delim list) by lookup in ZooKeeper [TOPICMAPPR_REBUILD_TOPICS]
+    	Rebuild topics (comma delim. list) by lookup in ZooKeeper [TOPICMAPPR_REBUILD_TOPICS]
   -replication int
-    	Set the replication factor [TOPICMAPPR_REPLICATION]
+    	Normalize the topic replication factor across all replica sets [TOPICMAPPR_REPLICATION]
   -sub-affinity
     	Replacement broker substitution affinity [TOPICMAPPR_SUB_AFFINITY]
   -use-meta
-    	Use broker metadata as constraints [TOPICMAPPR_USE_META] (default true)
-  -verbose
-    	Verbose information [TOPICMAPPR_VERBOSE]
+    	Use broker metadata in placement constraints [TOPICMAPPR_USE_META] (default true)
   -zk-addr string
     	ZooKeeper connect string (for broker metadata or rebuild-topic lookups) [TOPICMAPPR_ZK_ADDR] (default "localhost:2181")
   -zk-metrics-prefix string
     	ZooKeeper namespace prefix (for Kafka metrics) [TOPICMAPPR_ZK_METRICS_PREFIX] (default "topicmappr")
   -zk-prefix string
-    	ZooKeeper namespace prefix (for Kafka) [TOPICMAPPR_ZK_PREFIX]
+    	ZooKeeper namespace prefix (for Kafka brokers) [TOPICMAPPR_ZK_PREFIX]
 ```
 
 ## Managing and Repairing Topics
