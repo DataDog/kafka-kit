@@ -44,7 +44,7 @@ var (
 func init() {
 	log.SetOutput(ioutil.Discard)
 
-	flag.StringVar(&Config.rebuildMap, "rebuild-map", "", "Rebuild a topic map")
+	flag.StringVar(&Config.rebuildMap, "rebuild-map", "", "Rebuild a partition map")
 	topics := flag.String("rebuild-topics", "", "Rebuild topics (comma delim list) by lookup in ZooKeeper")
 	flag.BoolVar(&Config.useMeta, "use-meta", true, "Use broker metadata in placement constraints")
 	flag.StringVar(&Config.zkAddr, "zk-addr", "localhost:2181", "ZooKeeper connect string (for broker Metadata or rebuild-topic lookups)")
@@ -138,7 +138,7 @@ func main() {
 	brokerMeta := getbrokerMeta(zk)
 	partitionMeta := getPartitionMeta(zk)
 
-	// Build a topic map either from literal map text input or by fetching the
+	// Build a partition map either from literal map text input or by fetching the
 	// map data from ZooKeeper. Store a copy of the original.
 	partitionMapIn := getPartitionMap(zk)
 	originalMap := partitionMapIn.Copy()
@@ -197,7 +197,7 @@ func main() {
 	printBrokerAssignmentStats(originalMap, partitionMapOut, brokersOrig, brokers)
 
 	// If no warnings were encountered, write out the
-	// output topic map(s).
+	// output partition map(s).
 	if !Config.ignoreWarns && len(warns) > 0 {
 		fmt.Printf("\n%sWarnings encountered, partition map not created. Override with --ignore-warns.\n", indent)
 		os.Exit(1)

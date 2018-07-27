@@ -216,7 +216,7 @@ func TestRebuild(t *testing.T) {
 	bm, _ := zk.GetAllBrokerMeta(withMetrics)
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 	pmm := NewPartitionMetaMap()
-	brokers := BrokerMapFromTopicMap(pm, bm, forceRebuild)
+	brokers := BrokerMapFromPartitionMap(pm, bm, forceRebuild)
 
 	rebuildParams := RebuildParams{
 		PMM:          pmm,
@@ -234,7 +234,7 @@ func TestRebuild(t *testing.T) {
 	// all brokers already in the map were provided,
 	// none marked as replace.
 	if same, _ := pm.equal(out); !same {
-		t.Error("Expected no-op, topic map changed")
+		t.Error("Expected no-op, partition map changed")
 	}
 
 	// Mark 1004 for replacement.
@@ -270,7 +270,7 @@ func TestRebuild(t *testing.T) {
 	forceRebuild = true
 	pm, _ = PartitionMapFromString(testGetMapString2("test_topic"))
 	pmStripped := pm.Strip()
-	rebuildParams.BM = BrokerMapFromTopicMap(pm, bm, forceRebuild)
+	rebuildParams.BM = BrokerMapFromPartitionMap(pm, bm, forceRebuild)
 
 	out, _ = pmStripped.Rebuild(rebuildParams)
 	fmt.Printf("%v\n", out)
@@ -301,7 +301,7 @@ func TestRebuildByStorage(t *testing.T) {
 	pm.SetReplication(2)
 	pmStripped := pm.Strip()
 
-	brokers := BrokerMapFromTopicMap(pm, bm, forceRebuild)
+	brokers := BrokerMapFromPartitionMap(pm, bm, forceRebuild)
 	_ = brokers.SubStorageAll(pm, pmm)
 
 	rebuildParams := RebuildParams{

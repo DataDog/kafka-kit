@@ -196,7 +196,7 @@ func getBrokers(pm *kafkazk.PartitionMap, bm kafkazk.BrokerMetaMap) (kafkazk.Bro
 
 	// Get a broker map of the brokers in the current partition map.
 	// If meta data isn't being looked up, brokerMeta will be empty.
-	brokers := kafkazk.BrokerMapFromTopicMap(pm, bm, Config.forceRebuild)
+	brokers := kafkazk.BrokerMapFromPartitionMap(pm, bm, Config.forceRebuild)
 
 	// Update the currentBrokers list with
 	// the provided broker list.

@@ -11,7 +11,7 @@ import (
 )
 
 // Partition maps the partition objects
-// in the Kafka topic mapping syntax.
+// in the Kafka partition mapping syntax.
 type Partition struct {
 	Topic     string `json:"topic"`
 	Partition int    `json:"partition"`
@@ -21,7 +21,7 @@ type Partition struct {
 type partitionList []Partition
 
 // PartitionMap maps the
-// Kafka topic mapping syntax.
+// Kafka partition mapping syntax.
 type PartitionMap struct {
 	Version    int           `json:"version"`
 	Partitions partitionList `json:"partitions"`
@@ -478,7 +478,7 @@ func PartitionMapFromString(s string) (*PartitionMap, error) {
 
 	err := json.Unmarshal([]byte(s), &pm)
 	if err != nil {
-		return nil, fmt.Errorf("Error parsing topic map: %s", err.Error())
+		return nil, fmt.Errorf("Error parsing partition map: %s", err.Error())
 	}
 
 	sort.Sort(pm.Partitions)
