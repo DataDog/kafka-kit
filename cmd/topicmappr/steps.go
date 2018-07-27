@@ -8,6 +8,14 @@ import (
 	"github.com/DataDog/topicmappr/kafkazk"
 )
 
+// initZooKeeper inits a ZooKeeper connection if one is needed.
+// Scenarios that would require a connection:
+//  - the --use-meta flag is true (default), which requests
+//    that broker metadata (such as rack ID or registration liveness).
+//  - that topics were specified via --rebuild-topics, which requires
+//    topic discovery via ZooKeeper.
+//  - that the --placement flag was set to 'storage', which expects
+//    metrics metadata to be stored in ZooKeeper.
 func initZooKeeper() kafkazk.Handler {
 	if Config.useMeta || len(Config.rebuildTopics) > 0 || Config.placement == "storage" {
 		zk, err := kafkazk.NewHandler(&kafkazk.Config{
@@ -26,6 +34,13 @@ func initZooKeeper() kafkazk.Handler {
 	return nil
 }
 
+// *References to metrics metadata persisted in ZooKeeper, see:
+// https://github.com/DataDog/topicmappr/tree/master/cmd/metricsfetcher#data-structures)
+
+// getbrokerMeta returns a map of brokers and broker metadata
+// for those registered in ZooKeeper. Optionally, metrics metadata
+// persisted in ZooKeeper (via an external mechanism*) can be merged
+// into the metadata.
 func getbrokerMeta(zk kafkazk.Handler) kafkazk.BrokerMetaMap {
 	if Config.useMeta {
 		// Whether or not we want to include
@@ -39,8 +54,8 @@ func getbrokerMeta(zk kafkazk.Handler) kafkazk.BrokerMetaMap {
 		// If no data is returned, report and exit.
 		// Otherwise, it's possible that complete
 		// data for a few brokers wasn't returned.
-		// We check later whether any brokers that
-		// matter are missing metrics.
+		// We check in subsequent steps as to whether any
+		// brokers that matter are missing metrics.
 		if errs != nil && brokerMeta == nil {
 			for _, e := range errs {
 				fmt.Println(e)
@@ -54,6 +69,10 @@ func getbrokerMeta(zk kafkazk.Handler) kafkazk.BrokerMetaMap {
 	return nil
 }
 
+// getPartitionMeta returns a map of topic, partition metadata
+// persisted in ZooKeeper (via an external mechanism*). This is
+// primarily partition size metrics data used for the storage
+// placement strategy.
 func getPartitionMeta(zk kafkazk.Handler) kafkazk.PartitionMetaMap {
 	if Config.placement == "storage" {
 		partitionMeta, err := zk.GetAllPartitionMeta()
@@ -67,9 +86,16 @@ func getPartitionMeta(zk kafkazk.Handler) kafkazk.PartitionMetaMap {
 	return nil
 }
 
+// getPartitionMap returns a map of of partition, topic config
+// (particuarly what brokers compose every replica set) for all
+// topics specified. A partition map is either built from a string
+// literal input (json from off-the-shelf Kafka tools output) provided
+// via the --rebuild-map flag, or, by building a map based on topic
+// config found in ZooKeeper for all topics matching input provided
+// via the --rebuild-topics flag.
 func getPartitionMap(zk kafkazk.Handler) *kafkazk.PartitionMap {
 	switch {
-	// Provided as text.
+	// The map was provided as text.
 	case Config.rebuildMap != "":
 		pm, err := kafkazk.PartitionMapFromString(Config.rebuildMap)
 		if err != nil {
@@ -78,7 +104,8 @@ func getPartitionMap(zk kafkazk.Handler) *kafkazk.PartitionMap {
 		}
 
 		return pm
-	// Fetch from ZK.
+	// Build a map using ZooKeeper metadata
+	// for all specified topics.
 	case len(Config.rebuildTopics) > 0:
 		pm, err := kafkazk.PartitionMapFromZK(Config.rebuildTopics, zk)
 		if err != nil {
@@ -91,7 +118,9 @@ func getPartitionMap(zk kafkazk.Handler) *kafkazk.PartitionMap {
 	return nil
 }
 
-func getTopics(pm *kafkazk.PartitionMap) {
+// printTopics takes a partition map and prints out
+// the names of all topics referenced in the map.
+func printTopics(pm *kafkazk.PartitionMap) {
 	topics := map[string]interface{}{}
 	for _, p := range pm.Partitions {
 		topics[p.Topic] = nil
@@ -103,12 +132,16 @@ func getTopics(pm *kafkazk.PartitionMap) {
 	}
 }
 
-func ensureBrokerMetrics(bs kafkazk.BrokerMap, bm kafkazk.BrokerMetaMap) {
+// ensureBrokerMetrics takes a map of reference brokers and
+// a map of discovered broker metadata. Any non-missing brokers
+// in the broker map must be present in the broker metadata map
+// and have a non-true MetricsIncomplete value.
+func ensureBrokerMetrics(bm kafkazk.BrokerMap, bmm kafkazk.BrokerMetaMap) {
 	if Config.useMeta {
-		for id, b := range bs {
+		for id, b := range bm {
 			// Missing brokers won't even
 			// be found in the brokerMeta.
-			if !b.Missing && id != 0 && bm[id].MetricsIncomplete {
+			if !b.Missing && id != 0 && bmm[id].MetricsIncomplete {
 				fmt.Printf("Metrics not found for broker %d\n", id)
 				os.Exit(1)
 			}
@@ -116,6 +149,8 @@ func ensureBrokerMetrics(bs kafkazk.BrokerMap, bm kafkazk.BrokerMetaMap) {
 	}
 }
 
+// getSubAffinities, if enabled via --sub-affinity, takes reference broker maps
+// and a partition map and attempts to return a complete SubstitutionAffinities.
 func getSubAffinities(bm kafkazk.BrokerMap, bmo kafkazk.BrokerMap, pm *kafkazk.PartitionMap) kafkazk.SubstitutionAffinities {
 	var affinities kafkazk.SubstitutionAffinities
 	if Config.subAffinity && !Config.forceRebuild {
@@ -132,6 +167,8 @@ func getSubAffinities(bm kafkazk.BrokerMap, bmo kafkazk.BrokerMap, pm *kafkazk.P
 		fmt.Printf("%s-\n", indent)
 	}
 
+	// Print whether any affinities
+	// were inferred.
 	for a, b := range affinities {
 		var inferred string
 		if bmo[a].Missing {
@@ -143,10 +180,21 @@ func getSubAffinities(bm kafkazk.BrokerMap, bmo kafkazk.BrokerMap, pm *kafkazk.P
 	return affinities
 }
 
-func getBrokers(pm *kafkazk.PartitionMap, bm kafkazk.BrokerMetaMap) (kafkazk.BrokerMap, kafkazk.BrokerMap, *kafkazk.BrokerStatus) {
+// getBrokers takes a PartitionMap and BrokerMetaMap and returns a BrokerMap
+// along with a BrokerStatus. These two structures hold metadata describing
+// broker state (rack IDs, whether they need to be replaced, newly provided, etc.)
+// and general statistics.
+// - The BrokerMap is later used in map rebuild time as the canonical source of
+//   broker state. Brokers that need to be removed (either because they were not
+//   registered in ZooKeeper or were removed from the --brokers list) are determined here.
+// - The BrokerStatus is used for purely informational output, such as how many missing
+//   brokers were discovered or newly provided (i.e. specified in the --brokers flag but
+//   not previously holding any partitions for any partitions of the referenced topics
+//   being rebuilt by topicmappr)
+func getBrokers(pm *kafkazk.PartitionMap, bm kafkazk.BrokerMetaMap) (kafkazk.BrokerMap, *kafkazk.BrokerStatus) {
 	fmt.Printf("\nBroker change summary:\n")
 
-	// Get a broker map of the brokers in the current topic map.
+	// Get a broker map of the brokers in the current partition map.
 	// If meta data isn't being looked up, brokerMeta will be empty.
 	brokers := kafkazk.BrokerMapFromTopicMap(pm, bm, Config.forceRebuild)
 
@@ -161,9 +209,12 @@ func getBrokers(pm *kafkazk.PartitionMap, bm kafkazk.BrokerMetaMap) (kafkazk.Bro
 		fmt.Printf("%s-\n", indent)
 	}
 
-	return brokers, brokers.Copy(), bs
+	return brokers, bs
 }
 
+// printChangesActions takes a BrokerStatus and prints out
+// information output describing changes in broker counts
+// and liveness.
 func printChangesActions(bs *kafkazk.BrokerStatus) {
 	change := bs.New - bs.Replace
 
@@ -189,6 +240,8 @@ func printChangesActions(bs *kafkazk.BrokerStatus) {
 	}
 }
 
+// updateReplicationFactor takes a PartitionMap and normalizes
+// the replica set length to an optionally provided value.
 func updateReplicationFactor(pm *kafkazk.PartitionMap) {
 	// If the replication factor is changed,
 	// the partition map input needs to have stub
@@ -202,6 +255,9 @@ func updateReplicationFactor(pm *kafkazk.PartitionMap) {
 	}
 }
 
+// buildMap takes an input PartitionMap, rebuild parameters, and all partition/broker
+// metadata structures required to generate the output PartitionMap. A []string of
+// warnings / advisories is returned if any are encountered.
 func buildMap(pm *kafkazk.PartitionMap, pmm kafkazk.PartitionMetaMap, bm kafkazk.BrokerMap, af kafkazk.SubstitutionAffinities) (*kafkazk.PartitionMap, []string) {
 	rebuildParams := kafkazk.RebuildParams{
 		PMM:          pmm,
@@ -259,6 +315,8 @@ func buildMap(pm *kafkazk.PartitionMap, pmm kafkazk.PartitionMetaMap, bm kafkazk
 	}
 }
 
+// printMapChanges takes the original input PartitionMap
+// and the final output PartitionMap and prints what's changed.
 func printMapChanges(pm1, pm2 *kafkazk.PartitionMap) {
 	// Ensure the topic name and partition
 	// order match.
@@ -287,6 +345,9 @@ func printMapChanges(pm1, pm2 *kafkazk.PartitionMap) {
 	}
 }
 
+// printBrokerAssignmentStats prints before and after broker usage stats,
+// such as leadership counts, total partitions owned, degree distribution,
+// and changes in storage usage.
 func printBrokerAssignmentStats(pm1, pm2 *kafkazk.PartitionMap, bm1, bm2 kafkazk.BrokerMap) {
 	fmt.Println("\nBroker distribution:")
 
@@ -365,6 +426,8 @@ func printBrokerAssignmentStats(pm1, pm2 *kafkazk.PartitionMap, bm1, bm2 kafkazk
 	}
 }
 
+// writeMaps takes a PartitionMap and writes out
+// files.
 func writeMaps(pm *kafkazk.PartitionMap) {
 	// Map per topic.
 	tm := map[string]*kafkazk.PartitionMap{}

@@ -132,28 +132,25 @@ func main() {
 	//   PartitionMap.
 	// 4) Differences between the original and new PartitionMap
 	//   are detected and reported.
-	// 5) The new PartitionMap is split by topic and a map is
-	//   written for each.
+	// 5) The new PartitionMap is split by topic. Map(s) are written.
 
 	// Fetch broker and partition Metadata.
 	brokerMeta := getbrokerMeta(zk)
 	partitionMeta := getPartitionMeta(zk)
 
-	// Build a topic map with either
-	// text input or by fetching the
-	// map data from ZooKeeper.
-	// Store a copy of the original.
+	// Build a topic map either from literal map text input or by fetching the
+	// map data from ZooKeeper. Store a copy of the original.
 	partitionMapIn := getPartitionMap(zk)
 	originalMap := partitionMapIn.Copy()
 
 	// Get a list of affected topics.
-	getTopics(partitionMapIn)
+	printTopics(partitionMapIn)
 
-	brokers, brokersOrig, bs := getBrokers(partitionMapIn, brokerMeta)
+	brokers, bs := getBrokers(partitionMapIn, brokerMeta)
+	brokersOrig := brokers.Copy()
 
-	// Check if any referenced brokers are
-	// marked as having missing/partial
-	// metrics data.
+	// Check if any referenced brokers are marked as having
+	// missing/partial metrics data.
 	ensureBrokerMetrics(brokers, brokerMeta)
 
 	// Create substitution affinities.
@@ -166,14 +163,13 @@ func main() {
 	updateReplicationFactor(partitionMapIn)
 
 	// Build a new map using the provided list of brokers.
-	// This is ok to run even when a no-op is intended.
+	// This is OK to run even when a no-op is intended.
 	partitionMapOut, warns := buildMap(partitionMapIn, partitionMeta, brokers, affinities)
 
 	// Sort by topic, partition.
-	// TODO all functions should return
-	// standard lex sorted partition maps.
-	// Review for removal. Also, partitionMapIn
-	// shouldn't be further referenced.
+	// TODO all functions should return lex sorted partition
+	// maps. Review for removal. Also, partitionMapIn
+	// shouldn't be further referenced from this point.
 	sort.Sort(partitionMapIn.Partitions)
 	sort.Sort(partitionMapOut.Partitions)
 
