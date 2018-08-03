@@ -162,11 +162,6 @@ func getSubAffinities(bm kafkazk.BrokerMap, bmo kafkazk.BrokerMap, pm *kafkazk.P
 		}
 	}
 
-	// Print substitution affinities.
-	if affinities != nil {
-		fmt.Printf("%s-\n", indent)
-	}
-
 	// Print whether any affinities
 	// were inferred.
 	for a, b := range affinities {
@@ -204,10 +199,6 @@ func getBrokers(pm *kafkazk.PartitionMap, bm kafkazk.BrokerMetaMap) (kafkazk.Bro
 	// comes from within this Update call. Should return
 	// this info as a value and print it out here.
 	bs := brokers.Update(Config.brokers, bm)
-
-	if bs.Changes() {
-		fmt.Printf("%s-\n", indent)
-	}
 
 	return brokers, bs
 }
