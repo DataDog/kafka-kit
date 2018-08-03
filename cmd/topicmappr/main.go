@@ -149,12 +149,20 @@ func main() {
 	brokers, bs := getBrokers(partitionMapIn, brokerMeta)
 	brokersOrig := brokers.Copy()
 
+	if bs.Changes() {
+		fmt.Printf("%s-\n", indent)
+	}
+
 	// Check if any referenced brokers are marked as having
 	// missing/partial metrics data.
 	ensureBrokerMetrics(brokers, brokerMeta)
 
 	// Create substitution affinities.
 	affinities := getSubAffinities(brokers, brokersOrig, partitionMapIn)
+
+	if affinities != nil {
+		fmt.Printf("%s-\n", indent)
+	}
 
 	// Print changes, actions.
 	printChangesActions(bs)
