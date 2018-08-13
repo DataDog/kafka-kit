@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/DataDog/topicmappr/kafkametrics"
+	"github.com/DataDog/kafka-kit/kafkametrics"
 
 	dd "github.com/zorkian/go-datadog-api"
 )

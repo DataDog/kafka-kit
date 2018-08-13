@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/DataDog/topicmappr/kafkametrics"
+	"github.com/DataDog/kafka-kit/kafkametrics"
 )
 
 // Events configs.

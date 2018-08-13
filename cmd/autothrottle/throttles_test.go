@@ -5,8 +5,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/DataDog/topicmappr/kafkametrics"
-	"github.com/DataDog/topicmappr/kafkazk"
+	"github.com/DataDog/kafka-kit/kafkametrics"
+	"github.com/DataDog/kafka-kit/kafkazk"
 )
 
 func TestHighestSrcNetTX(t *testing.T) {

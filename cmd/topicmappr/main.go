@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/DataDog/topicmappr/kafkazk"
+	"github.com/DataDog/kafka-kit/kafkazk"
 
 	"github.com/jamiealquiza/envy"
 )

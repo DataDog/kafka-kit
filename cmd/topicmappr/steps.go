@@ -5,7 +5,7 @@ import (
 	"os"
 	"sort"
 
-	"github.com/DataDog/topicmappr/kafkazk"
+	"github.com/DataDog/kafka-kit/kafkazk"
 )
 
 // initZooKeeper inits a ZooKeeper connection if one is needed.
@@ -35,7 +35,7 @@ func initZooKeeper() kafkazk.Handler {
 }
 
 // *References to metrics metadata persisted in ZooKeeper, see:
-// https://github.com/DataDog/topicmappr/tree/master/cmd/metricsfetcher#data-structures)
+// https://github.com/DataDog/kafka-kit/tree/master/cmd/metricsfetcher#data-structures)
 
 // getbrokerMeta returns a map of brokers and broker metadata
 // for those registered in ZooKeeper. Optionally, metrics metadata

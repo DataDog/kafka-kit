@@ -14,8 +14,8 @@ Autothrottle is designed to work as a piggyback system that doesn't take ownersh
 - Ability to dynamically set fixed replication rates (via the HTTP API)
 
 # Installation
-- `go get github.com/DataDog/topicmappr`
-- `go install github.com/DataDog/topicmappr/cmd/autothrottle`
+- `go get github.com/DataDog/kafka-kit`
+- `go install github.com/DataDog/kafka-kit/cmd/autothrottle`
 
 Binary will be found at `$GOPATH/bin/autothrottle`
 

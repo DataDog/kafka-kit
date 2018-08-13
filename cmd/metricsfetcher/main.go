@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/DataDog/topicmappr/kafkazk"
+	"github.com/DataDog/kafka-kit/kafkazk"
 
 	"github.com/jamiealquiza/envy"
 	dd "github.com/zorkian/go-datadog-api"
