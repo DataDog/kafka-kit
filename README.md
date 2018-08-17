@@ -1,5 +1,7 @@
 # Kafka topic management tools
 
+Read the blog post: [Introducing Kafka-Kit: Tools for Scaling Kafka](https://www.datadoghq.com/blog/engineering/introducing-kafka-kit-tools-for-scaling-kafka/)
+
 This repository contains several tools for managing Kafka topic data. See the README for each tool for further details.
 
 # topicmappr
