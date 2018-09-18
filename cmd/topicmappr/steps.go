@@ -251,10 +251,11 @@ func updateReplicationFactor(pm *kafkazk.PartitionMap) {
 // warnings / advisories is returned if any are encountered.
 func buildMap(pm *kafkazk.PartitionMap, pmm kafkazk.PartitionMetaMap, bm kafkazk.BrokerMap, af kafkazk.SubstitutionAffinities) (*kafkazk.PartitionMap, []string) {
 	rebuildParams := kafkazk.RebuildParams{
-		PMM:          pmm,
-		BM:           bm,
-		Strategy:     Config.placement,
-		Optimization: Config.optimize,
+		PMM:           pmm,
+		BM:            bm,
+		Strategy:      Config.placement,
+		Optimization:  Config.optimize,
+		PartnSzFactor: Config.partnSzFactor,
 	}
 
 	if af != nil {
@@ -361,6 +362,9 @@ func printBrokerAssignmentStats(pm1, pm2 *kafkazk.PartitionMap, bm1, bm2 kafkazk
 	var div = 1073741824.00 // Fixed on GB for now.
 	if Config.placement == "storage" {
 		fmt.Println("\nStorage free change estimations:")
+		if Config.partnSzFactor != 1.0 {
+			fmt.Printf("%sPartition size factor of %.2f applied\n", indent, Config.partnSzFactor)
+		}
 
 		// Get filtered BrokerMaps. For the 'before' broker statistics, we want
 		// all brokers in the original BrokerMap that were also in the input PartitionMap.

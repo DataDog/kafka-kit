@@ -107,12 +107,13 @@ func (pmm PartitionMetaMap) Size(p Partition) (float64, error) {
 // parameters to call the Rebuild
 // method on a *PartitionMap.
 type RebuildParams struct {
-	pm           *PartitionMap
-	PMM          PartitionMetaMap
-	BM           BrokerMap
-	Strategy     string
-	Optimization string
-	Affinities   SubstitutionAffinities
+	pm            *PartitionMap
+	PMM           PartitionMetaMap
+	BM            BrokerMap
+	Strategy      string
+	Optimization  string
+	Affinities    SubstitutionAffinities
+	PartnSzFactor float64
 }
 
 // Rebuild takes a BrokerMap and rebuild strategy.
@@ -249,7 +250,7 @@ func placeByPosition(params RebuildParams) (*PartitionMap, []string) {
 						continue
 					}
 
-					constraints.requestSize = s
+					constraints.requestSize = s * params.PartnSzFactor
 				}
 
 				// Fetch the best candidate and append.
@@ -361,7 +362,7 @@ func placeByPartition(params RebuildParams) (*PartitionMap, []string) {
 						continue
 					}
 
-					constraints.requestSize = s
+					constraints.requestSize = s * params.PartnSzFactor
 				}
 
 				// Fetch the best candidate and append.
