@@ -147,13 +147,12 @@ func (pm *PartitionMap) Rebuild(params RebuildParams) (*PartitionMap, []string) 
 		case "storage":
 			newMap, errs = placeByPartition(params)
 			// Shuffle replica sets. placeByPartition
-			// suffers from optimal leadership distribution
+			// suffers from suboptimal leadership distribution
 			// because of the requirement to choose all
 			// brokers for each partition at a time (in contrast
 			// to placeByPosition). Shuffling has proven so far
 			// to distribute leadership even though it's purely
-			// by probability. If cases are found that this proves
-			// unsuitable, a real optimizer will be written.
+			// by probability. TODO eventually, write a real optimizer.
 			newMap.shuffle()
 		// Invalid optimization.
 		default:
