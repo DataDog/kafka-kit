@@ -251,10 +251,11 @@ func updateReplicationFactor(pm *kafkazk.PartitionMap) {
 // warnings / advisories is returned if any are encountered.
 func buildMap(pm *kafkazk.PartitionMap, pmm kafkazk.PartitionMetaMap, bm kafkazk.BrokerMap, af kafkazk.SubstitutionAffinities) (*kafkazk.PartitionMap, []string) {
 	rebuildParams := kafkazk.RebuildParams{
-		PMM:          pmm,
-		BM:           bm,
-		Strategy:     Config.placement,
-		Optimization: Config.optimize,
+		PMM:           pmm,
+		BM:            bm,
+		Strategy:      Config.placement,
+		Optimization:  Config.optimize,
+		PartnSzFactor: Config.partnSzFactor,
 	}
 
 	if af != nil {
@@ -264,16 +265,16 @@ func buildMap(pm *kafkazk.PartitionMap, pmm kafkazk.PartitionMetaMap, bm kafkazk
 	// If we're doing a force rebuild, the input map
 	// must have all brokers stripped out.
 	// A few notes about doing force rebuilds:
-	//	- Map rebuilds should always be called on a stripped PartitionMap copy.
-	//  - The BrokerMap provided in the Rebuild call should have
-	//		been built from the original PartitionMap, not the stripped map.
-	//  - A force rebuild assumes that all partitions will be lifted from
-	// 		all brokers and repositioned. This means you should call the
-	// 		SubStorageAll method on the BrokerMap if we're doing a "storage" placement strategy.
-	//		The SubStorageAll takes a PartitionMap and PartitionMetaMap. The PartitionMap is
-	// 		used to find partition to broker relationships so that the storage used can
-	//		be readded to the broker's StorageFree value. The amount to be readded, the
-	//		size of the partition, is referenced from the PartitionMetaMap.
+	// - Map rebuilds should always be called on a stripped PartitionMap copy.
+	// - The BrokerMap provided in the Rebuild call should have
+	//   been built from the original PartitionMap, not the stripped map.
+	// - A force rebuild assumes that all partitions will be lifted from
+	//   all brokers and repositioned. This means you should call the
+	//   SubStorageAll method on the BrokerMap if we're doing a "storage" placement strategy.
+	//   The SubStorageAll takes a PartitionMap and PartitionMetaMap. The PartitionMap is
+	//   used to find partition to broker relationships so that the storage used can
+	//   be readded to the broker's StorageFree value. The amount to be readded, the
+	//   size of the partition, is referenced from the PartitionMetaMap.
 
 	if Config.forceRebuild {
 		// Get a stripped map that we'll call rebuild on.
@@ -361,6 +362,9 @@ func printBrokerAssignmentStats(pm1, pm2 *kafkazk.PartitionMap, bm1, bm2 kafkazk
 	var div = 1073741824.00 // Fixed on GB for now.
 	if Config.placement == "storage" {
 		fmt.Println("\nStorage free change estimations:")
+		if Config.partnSzFactor != 1.0 {
+			fmt.Printf("%sPartition size factor of %.2f applied\n", indent, Config.partnSzFactor)
+		}
 
 		// Get filtered BrokerMaps. For the 'before' broker statistics, we want
 		// all brokers in the original BrokerMap that were also in the input PartitionMap.

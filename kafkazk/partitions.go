@@ -107,12 +107,13 @@ func (pmm PartitionMetaMap) Size(p Partition) (float64, error) {
 // parameters to call the Rebuild
 // method on a *PartitionMap.
 type RebuildParams struct {
-	pm           *PartitionMap
-	PMM          PartitionMetaMap
-	BM           BrokerMap
-	Strategy     string
-	Optimization string
-	Affinities   SubstitutionAffinities
+	pm            *PartitionMap
+	PMM           PartitionMetaMap
+	BM            BrokerMap
+	Strategy      string
+	Optimization  string
+	Affinities    SubstitutionAffinities
+	PartnSzFactor float64
 }
 
 // Rebuild takes a BrokerMap and rebuild strategy.
@@ -147,13 +148,12 @@ func (pm *PartitionMap) Rebuild(params RebuildParams) (*PartitionMap, []string) 
 		case "storage":
 			newMap, errs = placeByPartition(params)
 			// Shuffle replica sets. placeByPartition
-			// suffers from optimal leadership distribution
+			// suffers from suboptimal leadership distribution
 			// because of the requirement to choose all
 			// brokers for each partition at a time (in contrast
 			// to placeByPosition). Shuffling has proven so far
 			// to distribute leadership even though it's purely
-			// by probability. If cases are found that this proves
-			// unsuitable, a real optimizer will be written.
+			// by probability. TODO eventually, write a real optimizer.
 			newMap.shuffle()
 		// Invalid optimization.
 		default:
@@ -250,7 +250,7 @@ func placeByPosition(params RebuildParams) (*PartitionMap, []string) {
 						continue
 					}
 
-					constraints.requestSize = s
+					constraints.requestSize = s * params.PartnSzFactor
 				}
 
 				// Fetch the best candidate and append.
@@ -362,7 +362,7 @@ func placeByPartition(params RebuildParams) (*PartitionMap, []string) {
 						continue
 					}
 
-					constraints.requestSize = s
+					constraints.requestSize = s * params.PartnSzFactor
 				}
 
 				// Fetch the best candidate and append.

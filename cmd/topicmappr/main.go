@@ -38,6 +38,7 @@ var (
 		placement       string
 		optimize        string
 		verbose         bool
+		partnSzFactor   float64
 	}
 )
 
@@ -59,6 +60,7 @@ func init() {
 	flag.BoolVar(&Config.subAffinity, "sub-affinity", false, "Replacement broker substitution affinity")
 	flag.StringVar(&Config.placement, "placement", "count", "Partition placement strategy: [count, storage]")
 	flag.StringVar(&Config.optimize, "optimize", "distribution", "Optimization priority for the storage placement strategy: [distribution, storage]")
+	flag.Float64Var(&Config.partnSzFactor, "partition-size-factor", 1.0, "Factor by which to multiply partition sizes when using storage placement")
 	brokers := flag.String("brokers", "", "Broker list to scope all partition placements to")
 
 	envy.Parse("TOPICMAPPR")
