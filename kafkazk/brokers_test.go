@@ -143,7 +143,35 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestSubStorageAll(t *testing.T) {
+	bm := newMockBrokerMap()
+	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
+	pmm := NewPartitionMetaMap()
 
+	pmm["test_topic"] = map[int]*PartitionMeta{
+		0: &PartitionMeta{Size: 30},
+		1: &PartitionMeta{Size: 35},
+		2: &PartitionMeta{Size: 60},
+		3: &PartitionMeta{Size: 45},
+	}
+
+	err := bm.SubStorageAll(pm, pmm)
+	if err != nil {
+		t.Errorf("Unexpected error: %s", err)
+	}
+
+	expected := map[int]float64{
+		1001: 225,
+		1002: 310,
+		1003: 405,
+		1004: 505,
+	}
+
+	for _, b := range bm {
+		if b.StorageFree != expected[b.ID] {
+			t.Errorf("Expected '%f' StorageFree for ID %d, got '%f'",
+				expected[b.ID], b.ID, b.StorageFree)
+		}
+	}
 }
 
 // func TestSubStorageAll(t *testing.T) {} TODO
