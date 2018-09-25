@@ -51,6 +51,21 @@ func TestSortBrokerListByCount(t *testing.T) {
 	}
 }
 
+func TestSortBrokerListByStorage(t *testing.T) {
+	b := newMockBrokerMap2()
+	bl := b.filteredList()
+
+	sort.Sort(brokersByStorage(bl))
+
+	expected := []int{1001,1002,1004,1005,1003,1006,1007}
+
+	for i, br := range bl {
+		if br.ID != expected[i] {
+			t.Errorf("Unexpected sort results")
+		}
+	}
+}
+
 func TestBrokerMapFromPartitionMap(t *testing.T) {
 	zk := &Mock{}
 	bmm, _ := zk.GetAllBrokerMeta(false)
