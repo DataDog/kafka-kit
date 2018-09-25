@@ -1,8 +1,8 @@
 package kafkazk
 
 import (
-	"testing"
 	"sort"
+	"testing"
 )
 
 func TestChanges(t *testing.T) {
@@ -42,7 +42,7 @@ func TestSortBrokerListByCount(t *testing.T) {
 
 	sort.Sort(brokersByCount(bl))
 
-	expected := []int{1001,1002,1004,1005,1003,1006,1007}
+	expected := []int{1001, 1002, 1004, 1005, 1003, 1006, 1007}
 
 	for i, br := range bl {
 		if br.ID != expected[i] {
@@ -57,7 +57,7 @@ func TestSortBrokerListByStorage(t *testing.T) {
 
 	sort.Sort(brokersByStorage(bl))
 
-	expected := []int{1001,1002,1004,1005,1003,1006,1007}
+	expected := []int{1004, 1005, 1006, 1007, 1003, 1002, 1001}
 
 	for i, br := range bl {
 		if br.ID != expected[i] {
