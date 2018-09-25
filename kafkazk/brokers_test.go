@@ -2,6 +2,7 @@ package kafkazk
 
 import (
 	"testing"
+	"sort"
 )
 
 func TestChanges(t *testing.T) {
@@ -32,6 +33,21 @@ func TestChanges(t *testing.T) {
 	b.Replace = 1
 	if !b.Changes() {
 		t.Errorf("Expected return 'true'")
+	}
+}
+
+func TestSortBrokerListByCount(t *testing.T) {
+	b := newMockBrokerMap2()
+	bl := b.filteredList()
+
+	sort.Sort(brokersByCount(bl))
+
+	expected := []int{1001,1002,1004,1005,1003,1006,1007}
+
+	for i, br := range bl {
+		if br.ID != expected[i] {
+			t.Errorf("Unexpected sort results")
+		}
 	}
 }
 
