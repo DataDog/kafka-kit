@@ -254,8 +254,39 @@ func TestBrokerMapFromPartitionMap(t *testing.T) {
 	}
 }
 
-// func TestMappedBrokers(t *Testing.T) // TODO
-// func TestNonReplacedBrokers(t *Testing.T) // TODO
+func TestMappedBrokers(t *testing.T) {
+	bm := newMockBrokerMap()
+	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
+
+	// Drop some partitions. This should leave
+	// the only mapped partitions to brokers
+	// 1001 and 1002.
+	pl := partitionList{}
+	for _, p := range pm.Partitions {
+		if p.Partition == 0 || p.Partition == 1 {
+			pl = append(pl, p)
+		}
+	}
+	pm.Partitions = pl
+
+	mapped := bm.MappedBrokers(pm)
+	expected := []int{1001, 1002}
+
+	for _, id := range expected {
+		if _, exist := mapped[id]; !exists {
+			t.Errorf("Expected ID %d in mapped", id)
+		}
+	}
+
+	// This implicitly catches IDs present
+	// that shouldn't be; if we have only 2 and
+	// the previous test passed, it's the correct 2.
+	if len(mapped) != 2 {
+		t.Errorf("Unexpected mapped count")
+	}
+}
+
+// func TestNonReplacedBrokers(t *testing.T) // TODO
 
 func TestBrokerMapCopy(t *testing.T) {
 	bm1 := newMockBrokerMap()
