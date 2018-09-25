@@ -4,6 +4,37 @@ import (
 	"testing"
 )
 
+func TestChanges(t *testing.T) {
+	b := BrokerStatus{}
+
+	if b.Changes() {
+		t.Errorf("Expected return 'false'")
+	}
+
+	b.New = 1
+	if !b.Changes() {
+		t.Errorf("Expected return 'true'")
+	}
+	b.New = 0
+
+	b.Missing = 1
+	if !b.Changes() {
+		t.Errorf("Expected return 'true'")
+	}
+	b.Missing = 0
+
+	b.OldMissing = 1
+	if !b.Changes() {
+		t.Errorf("Expected return 'true'")
+	}
+	b.OldMissing = 0
+
+	b.Replace = 1
+	if !b.Changes() {
+		t.Errorf("Expected return 'true'")
+	}
+}
+
 func TestBrokerMapFromPartitionMap(t *testing.T) {
 	zk := &Mock{}
 	bmm, _ := zk.GetAllBrokerMeta(false)
