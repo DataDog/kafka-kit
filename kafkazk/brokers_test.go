@@ -273,7 +273,7 @@ func TestMappedBrokers(t *testing.T) {
 	expected := []int{1001, 1002}
 
 	for _, id := range expected {
-		if _, exist := mapped[id]; !exists {
+		if _, exists := mapped[id]; !exists {
 			t.Errorf("Expected ID %d in mapped", id)
 		}
 	}
@@ -282,11 +282,32 @@ func TestMappedBrokers(t *testing.T) {
 	// that shouldn't be; if we have only 2 and
 	// the previous test passed, it's the correct 2.
 	if len(mapped) != 2 {
-		t.Errorf("Unexpected mapped count")
+		t.Errorf("Unexpected BrokerMap size")
 	}
 }
 
-// func TestNonReplacedBrokers(t *testing.T) // TODO
+func TestNonReplacedBrokers(t *testing.T) {
+	bm := newMockBrokerMap()
+
+	bm[1002].Replace = true
+
+	nr := bm.NonReplacedBrokers()
+
+	expected := []int{1001, 1003, 1004}
+
+	for _, id := range expected {
+		if _, exists := nr[id]; !exists {
+			t.Errorf("Expected ID %d", id)
+		}
+	}
+
+	// This implicitly catches IDs present
+	// that shouldn't be; if we have only 3 and
+	// the previous test passed, it's the correct 3.
+	if len(nr) != 3 {
+		t.Errorf("Unexpected BrokerMap size")
+	}
+}
 
 func TestBrokerMapCopy(t *testing.T) {
 	bm1 := newMockBrokerMap()
