@@ -66,33 +66,6 @@ func TestSortBrokerListByStorage(t *testing.T) {
 	}
 }
 
-func TestBrokerMapFromPartitionMap(t *testing.T) {
-	zk := &Mock{}
-	bmm, _ := zk.GetAllBrokerMeta(false)
-	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
-	forceRebuild := false
-
-	brokers := BrokerMapFromPartitionMap(pm, bmm, forceRebuild)
-	expected := newMockBrokerMap()
-
-	for id, b := range brokers {
-		switch {
-		case b.ID != expected[id].ID:
-			t.Errorf("Expected id %d, got %d for broker %d",
-				expected[id].ID, b.ID, id)
-		case b.Locality != expected[id].Locality:
-			t.Errorf("Expected locality %s, got %s for broker %d",
-				expected[id].Locality, b.Locality, id)
-		case b.Used != expected[id].Used:
-			t.Errorf("Expected used %d, got %d for broker %d",
-				expected[id].Used, b.Used, id)
-		case b.Replace != expected[id].Replace:
-			t.Errorf("Expected replace %t, got %t for broker %d",
-				expected[id].Replace, b.Replace, id)
-		}
-	}
-}
-
 func TestUpdate(t *testing.T) {
 	zk := &Mock{}
 	bmm, _ := zk.GetAllBrokerMeta(false)
@@ -122,11 +95,58 @@ func TestUpdate(t *testing.T) {
 		t.Errorf("Expected Replace count of 2, got %d", stat.Replace)
 	}
 
-	// TODO assert that all Broker fields
-	// are also what we expected.
+	// Ensure all broker IDs are in the map.
+	for _, id := range []int{0, 1001, 1002, 1003, 1004, 1005} {
+		if _, ok := bm[id]; !ok {
+			t.Errorf("Expected presence of ID %d", id)
+		}
+	}
+
+	// Test that brokers have appropriately
+	// updated fields.
+
+	if !bm[1001].Missing {
+		t.Errorf("Expected ID 1001 Missing == true")
+	}
+	if !bm[1001].Replace {
+		t.Errorf("Expected ID 1001 Replace == true")
+	}
+
+	if !bm[1002].Missing {
+		t.Errorf("Expected ID 1002 Missing == true")
+	}
+	if !bm[1002].Replace {
+		t.Errorf("Expected ID 1002 Replace == true")
+	}
+
+	if bm[1003].Missing || bm[1003].Replace || bm[1003].New {
+		t.Errorf("Unexpected fields set for ID 1003")
+	}
+
+	if bm[1004].Missing {
+		t.Errorf("Expected ID 1004 Missing != true")
+	}
+	if !bm[1004].Replace {
+		t.Errorf("Expected ID 1004 Replace == true")
+	}
+
+	if bm[1005].Missing || bm[1005].Replace {
+		t.Errorf("Unexpected fields set for ID 1005")
+	}
+	if !bm[1005].New {
+		t.Errorf("Expected ID 1005 New == true")
+	}
+
+	if _, exists := bm[1006]; exists {
+		t.Errorf("ID 1006 unexpectedly exists in BrokerMap")
+	}
 }
 
-// func TestSubStorageAll(t *testing.T) {} // TODO
+func TestSubStorageAll(t *testing.T) {
+
+}
+
+// func TestSubStorageAll(t *testing.T) {} TODO
 
 func TestFilteredList(t *testing.T) {
 	bm := newMockBrokerMap()
@@ -145,6 +165,36 @@ func TestFilteredList(t *testing.T) {
 		}
 	}
 }
+
+func TestBrokerMapFromPartitionMap(t *testing.T) {
+	zk := &Mock{}
+	bmm, _ := zk.GetAllBrokerMeta(false)
+	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
+	forceRebuild := false
+
+	brokers := BrokerMapFromPartitionMap(pm, bmm, forceRebuild)
+	expected := newMockBrokerMap()
+
+	for id, b := range brokers {
+		switch {
+		case b.ID != expected[id].ID:
+			t.Errorf("Expected id %d, got %d for broker %d",
+				expected[id].ID, b.ID, id)
+		case b.Locality != expected[id].Locality:
+			t.Errorf("Expected locality %s, got %s for broker %d",
+				expected[id].Locality, b.Locality, id)
+		case b.Used != expected[id].Used:
+			t.Errorf("Expected used %d, got %d for broker %d",
+				expected[id].Used, b.Used, id)
+		case b.Replace != expected[id].Replace:
+			t.Errorf("Expected replace %t, got %t for broker %d",
+				expected[id].Replace, b.Replace, id)
+		}
+	}
+}
+
+// func TestMappedBrokers(t *Testing.T) // TODO
+// func TestNonReplacedBrokers(t *Testing.T) // TODO
 
 func TestBrokerMapCopy(t *testing.T) {
 	bm1 := newMockBrokerMap()
