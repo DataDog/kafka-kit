@@ -50,8 +50,15 @@ func TestSize(t *testing.T) {
 		t.Errorf("Expected size result 1000.00, got %f", s)
 	}
 
+	// Missing partition.
 	delete(pmm["test_topic"], 3)
+	_, err = pmm.Size(pm.Partitions[3])
+	if err == nil {
+		t.Error("Expected error")
+	}
 
+	// Missing topic.
+	delete(pmm, "test_topic")
 	_, err = pmm.Size(pm.Partitions[3])
 	if err == nil {
 		t.Error("Expected error")
