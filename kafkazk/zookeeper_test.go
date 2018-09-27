@@ -76,7 +76,7 @@ func TestSetup(t *testing.T) {
 		var err error
 		zkc, _, err = zkclient.Connect([]string{zkaddr}, time.Second, zkclient.WithLogInfo(false))
 		if err != nil {
-			t.Errorf("Error initializing ZooKeeper client: %s", err.Error())
+			t.Errorf("Error initializing ZooKeeper client: %s", err)
 		}
 
 		_, _, _ = zkc.Get("/")
@@ -98,7 +98,7 @@ func TestSetup(t *testing.T) {
 			MetricsPrefix: "topicmappr",
 		})
 		if err != nil {
-			t.Errorf("Error initializing ZooKeeper client: %s", err.Error())
+			t.Errorf("Error initializing ZooKeeper client: %s", err)
 		}
 
 		/*****************
@@ -109,7 +109,7 @@ func TestSetup(t *testing.T) {
 		for _, p := range paths {
 			_, err := zkc.Create(p, []byte{}, 0, zkclient.WorldACL(31))
 			if err != nil {
-				t.Error(fmt.Sprintf("path %s: %s", p, err.Error()))
+				t.Error(fmt.Sprintf("path %s: %s", p, err))
 			}
 		}
 
@@ -578,7 +578,7 @@ func TestGetPartitionMap(t *testing.T) {
 	}
 
 	if matches, err := pm.equal(expected); !matches {
-		t.Errorf("Unexpected PartitionMap inequality: %s", err.Error())
+		t.Errorf("Unexpected PartitionMap inequality: %s", err)
 	}
 }
 
@@ -710,11 +710,11 @@ func TestTearDown(t *testing.T) {
 	for _, p := range paths {
 		_, s, err := zkc.Get(p)
 		if err != nil {
-			errors = append(errors, fmt.Sprintf("[%s] %s", p, err.Error()))
+			errors = append(errors, fmt.Sprintf("[%s] %s", p, err))
 		} else {
 			err = zkc.Delete(p, s.Version)
 			if err != nil {
-				errors = append(errors, fmt.Sprintf("[%s] %s", p, err.Error()))
+				errors = append(errors, fmt.Sprintf("[%s] %s", p, err))
 			}
 		}
 	}

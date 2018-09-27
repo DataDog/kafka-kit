@@ -1,6 +1,7 @@
 package kafkazk
 
 import (
+	"sort"
 	"testing"
 )
 
@@ -73,7 +74,7 @@ func TestSubstitutionAffinities(t *testing.T) {
 	bm[1004].New = true
 	sa, err := bm.SubstitutionAffinities(pm)
 	if err != nil {
-		t.Errorf("Unexpected error: %s", err.Error())
+		t.Errorf("Unexpected error: %s", err)
 	}
 
 	if sa[1001].ID != 1004 {
@@ -85,9 +86,83 @@ func TestSubstitutionAffinities(t *testing.T) {
 	// new broker available.
 	bm[1002].Replace = true
 	bm[1002].New = false
+
 	_, err = bm.SubstitutionAffinities(pm)
 	expected := "Insufficient number of new brokers"
 	if err.Error() != expected {
 		t.Errorf("Expected error '%s', got %s", expected, err)
 	}
+}
+
+func TestSubstitutionAffinitiesInferred(t *testing.T) {
+	pm, _ := PartitionMapFromString(testGetMapString2("test_topic"))
+
+	bm := newMockBrokerMap()
+	bm[1001] = &Broker{
+		ID:      1001,
+		Replace: true,
+		Missing: true,
+	}
+
+	sort.Sort(pm.Partitions)
+	pm.Partitions[2].Replicas = []int{1003, 1001}
+
+	// Our mock data starts as follows:
+
+	// 1001, Locality: missing, unknown
+	// 1002, Locality: "b"
+	// 1003, Locality: "c"
+	// 1004, Locality: "a"
+
+	// x indicates former 1001 positions.
+
+	// {"topic":"test_topic","partition":0,"replicas":[x,1002]}
+	// {"topic":"test_topic","partition":1,"replicas":[1002,x]}
+	// {"topic":"test_topic","partition":2,"replicas":[1003,1001]}
+	// {"topic":"test_topic","partition":3,"replicas":[1004,1003]}
+	// {"topic":"test_topic","partition":4,"replicas":[1004,1003]}
+	// {"topic":"test_topic","partition":5,"replicas":[1004,1003]}
+	// {"topic":"test_topic","partition":6,"replicas":[1004,1003]}
+
+	// Neither locality b nor c can be sourced for substitutions.
+
+	// Should fail.
+	bm[1005] = &Broker{
+		ID:       1005,
+		Locality: "b",
+		New:      true,
+	}
+
+	_, err := bm.SubstitutionAffinities(pm)
+	if err == nil {
+		t.Errorf("Expected error, ID 1005 is not a suitable replacement")
+	}
+
+	// Also should fail.
+	bm[1006] = &Broker{
+		ID:       1006,
+		Locality: "c",
+		New:      true,
+	}
+
+	_, err = bm.SubstitutionAffinities(pm)
+	if err == nil {
+		t.Errorf("Expected error, ID 1005 is not a suitable replacement")
+	}
+
+	// Should succeed.
+	bm[1007] = &Broker{
+		ID:       1007,
+		Locality: "a",
+		New:      true,
+	}
+
+	sa, err := bm.SubstitutionAffinities(pm)
+	if err != nil {
+		t.Errorf("Unexpected error: %s", err)
+	}
+	if sa[1001].ID != 1007 {
+		t.Errorf("Expected substitution affinity 1001->1007")
+	}
+
 }
