@@ -47,7 +47,7 @@ func (p partitionList) Less(i, j int) bool {
 	return p[i].Partition < p[j].Partition
 }
 
-// PartitionMap sorty by partition size.
+// PartitionMap sort by partition size.
 
 type partitionsBySize struct {
 	pl partitionList

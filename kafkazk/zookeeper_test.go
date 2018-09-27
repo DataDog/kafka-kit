@@ -507,7 +507,7 @@ func TestGetTopicState(t *testing.T) {
 		}
 
 		if len(rs) != len(v) {
-			t.Errorf("Unexpected replica set length")
+			t.Error("Unexpected replica set length")
 		}
 
 		for n := range rs {
@@ -546,7 +546,7 @@ func TestGetTopicStateISR(t *testing.T) {
 		}
 
 		if len(ts[p].ISR) != len(v) {
-			t.Errorf("Unexpected replica set length")
+			t.Error("Unexpected replica set length")
 		}
 
 		for n := range ts[p].ISR {

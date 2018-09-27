@@ -35,7 +35,28 @@ func testGetMapString3(n string) string {
 		{"topic":"%s","partition":3,"replicas":[1004,1005]}]}`, n, n, n, n, n)
 }
 
-// func TestSize(t *testing.T) {} XXX Do.
+func TestSize(t *testing.T) {
+	z := &Mock{}
+
+	pm, _ := z.GetPartitionMap("test_topic")
+	pmm, _ := z.GetAllPartitionMeta()
+
+	s, err := pmm.Size(pm.Partitions[0])
+	if err != nil {
+		t.Errorf("Unexpected error: %s", err)
+	}
+
+	if s != 1000.00 {
+		t.Errorf("Expected size result 1000.00, got %f", s)
+	}
+
+	delete(pmm["test_topic"], 3)
+
+	_, err = pmm.Size(pm.Partitions[3])
+	if err == nil {
+		t.Error("Expected error")
+	}
+}
 
 func TestSortBySize(t *testing.T) {
 	z := &Mock{}
@@ -70,7 +91,7 @@ func TestEqual(t *testing.T) {
 	// we expect inequality.
 	pm.Partitions = pm.Partitions[:2]
 	if same, _ := pm.equal(pm2); same {
-		t.Errorf("Unexpected equality")
+		t.Error("Unexpected equality")
 	}
 }
 
@@ -86,7 +107,7 @@ func TestPartitionMapCopy(t *testing.T) {
 	// we expect inequality.
 	pm.Partitions = pm.Partitions[:2]
 	if same, _ := pm.equal(pm2); same {
-		t.Errorf("Unexpected equality")
+		t.Error("Unexpected equality")
 	}
 }
 
@@ -97,7 +118,7 @@ func TestPartitionMapFromString(t *testing.T) {
 
 	// We expect equality here.
 	if same, _ := pm.equal(pm2); !same {
-		t.Errorf("Unexpected inequality")
+		t.Error("Unexpected inequality")
 	}
 }
 
@@ -113,7 +134,7 @@ func TestPartitionMapFromZK(t *testing.T) {
 	// from PartitionMapFromZK doesn't have
 	// any matches.
 	if pm != nil || err.Error() != "No topics found matching: [/^null$/]" {
-		t.Errorf("Expected topic lookup failure")
+		t.Error("Expected topic lookup failure")
 	}
 
 	r = r[:0]
@@ -335,7 +356,7 @@ func TestLocalitiesAvailable(t *testing.T) {
 	expected := []string{"a", "c"}
 	for i, l := range localities {
 		if expected[i] != l {
-			t.Errorf("Unexpected localities available")
+			t.Error("Unexpected localities available")
 		}
 	}
 }

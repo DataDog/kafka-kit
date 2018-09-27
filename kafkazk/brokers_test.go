@@ -9,30 +9,30 @@ func TestChanges(t *testing.T) {
 	b := BrokerStatus{}
 
 	if b.Changes() {
-		t.Errorf("Expected return 'false'")
+		t.Error("Expected return 'false'")
 	}
 
 	b.New = 1
 	if !b.Changes() {
-		t.Errorf("Expected return 'true'")
+		t.Error("Expected return 'true'")
 	}
 	b.New = 0
 
 	b.Missing = 1
 	if !b.Changes() {
-		t.Errorf("Expected return 'true'")
+		t.Error("Expected return 'true'")
 	}
 	b.Missing = 0
 
 	b.OldMissing = 1
 	if !b.Changes() {
-		t.Errorf("Expected return 'true'")
+		t.Error("Expected return 'true'")
 	}
 	b.OldMissing = 0
 
 	b.Replace = 1
 	if !b.Changes() {
-		t.Errorf("Expected return 'true'")
+		t.Error("Expected return 'true'")
 	}
 }
 
@@ -46,7 +46,7 @@ func TestSortBrokerListByCount(t *testing.T) {
 
 	for i, br := range bl {
 		if br.ID != expected[i] {
-			t.Errorf("Unexpected sort results")
+			t.Error("Unexpected sort results")
 		}
 	}
 }
@@ -61,7 +61,7 @@ func TestSortBrokerListByStorage(t *testing.T) {
 
 	for i, br := range bl {
 		if br.ID != expected[i] {
-			t.Errorf("Unexpected sort results")
+			t.Error("Unexpected sort results")
 		}
 	}
 }
@@ -130,39 +130,39 @@ func TestUpdate(t *testing.T) {
 	// updated fields.
 
 	if !bm[1001].Missing {
-		t.Errorf("Expected ID 1001 Missing == true")
+		t.Error("Expected ID 1001 Missing == true")
 	}
 	if !bm[1001].Replace {
-		t.Errorf("Expected ID 1001 Replace == true")
+		t.Error("Expected ID 1001 Replace == true")
 	}
 
 	if !bm[1002].Missing {
-		t.Errorf("Expected ID 1002 Missing == true")
+		t.Error("Expected ID 1002 Missing == true")
 	}
 	if !bm[1002].Replace {
-		t.Errorf("Expected ID 1002 Replace == true")
+		t.Error("Expected ID 1002 Replace == true")
 	}
 
 	if bm[1003].Missing || bm[1003].Replace || bm[1003].New {
-		t.Errorf("Unexpected fields set for ID 1003")
+		t.Error("Unexpected fields set for ID 1003")
 	}
 
 	if bm[1004].Missing {
-		t.Errorf("Expected ID 1004 Missing != true")
+		t.Error("Expected ID 1004 Missing != true")
 	}
 	if !bm[1004].Replace {
-		t.Errorf("Expected ID 1004 Replace == true")
+		t.Error("Expected ID 1004 Replace == true")
 	}
 
 	if bm[1005].Missing || bm[1005].Replace {
-		t.Errorf("Unexpected fields set for ID 1005")
+		t.Error("Unexpected fields set for ID 1005")
 	}
 	if !bm[1005].New {
-		t.Errorf("Expected ID 1005 New == true")
+		t.Error("Expected ID 1005 New == true")
 	}
 
 	if _, exists := bm[1006]; exists {
-		t.Errorf("ID 1006 unexpectedly exists in BrokerMap")
+		t.Error("ID 1006 unexpectedly exists in BrokerMap")
 	}
 }
 
@@ -306,7 +306,7 @@ func TestMappedBrokers(t *testing.T) {
 	// that shouldn't be; if we have only 2 and
 	// the previous test passed, it's the correct 2.
 	if len(mapped) != 2 {
-		t.Errorf("Unexpected BrokerMap size")
+		t.Error("Unexpected BrokerMap size")
 	}
 }
 
@@ -329,7 +329,7 @@ func TestNonReplacedBrokers(t *testing.T) {
 	// that shouldn't be; if we have only 3 and
 	// the previous test passed, it's the correct 3.
 	if len(nr) != 3 {
-		t.Errorf("Unexpected BrokerMap size")
+		t.Error("Unexpected BrokerMap size")
 	}
 }
 
@@ -338,21 +338,21 @@ func TestBrokerMapCopy(t *testing.T) {
 	bm2 := bm1.Copy()
 
 	if len(bm1) != len(bm2) {
-		t.Errorf("Unexpected length inequality")
+		t.Error("Unexpected length inequality")
 	}
 
 	for b := range bm1 {
 		switch {
 		case bm1[b].ID != bm2[b].ID:
-			t.Errorf("id field mismatch")
+			t.Error("id field mismatch")
 		case bm1[b].Locality != bm2[b].Locality:
-			t.Errorf("locality field mismatch")
+			t.Error("locality field mismatch")
 		case bm1[b].Used != bm2[b].Used:
-			t.Errorf("used field mismatch")
+			t.Error("used field mismatch")
 		case bm1[b].Replace != bm2[b].Replace:
-			t.Errorf("replace field mismatch")
+			t.Error("replace field mismatch")
 		case bm1[b].StorageFree != bm2[b].StorageFree:
-			t.Errorf("StorageFree field mismatch")
+			t.Error("StorageFree field mismatch")
 		}
 	}
 }

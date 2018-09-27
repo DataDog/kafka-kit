@@ -39,7 +39,7 @@ func TestBestCandidateByCount(t *testing.T) {
 
 	_, err := bl.bestCandidate(c, "count", 1)
 	if err == nil {
-		t.Errorf("Expected exhausted candidate list")
+		t.Error("Expected exhausted candidate list")
 	}
 }
 
@@ -80,7 +80,7 @@ func TestBestCandidateByStorage(t *testing.T) {
 
 	_, err := bl.bestCandidate(c, "storage", 1)
 	if err == nil {
-		t.Errorf("Expected exhausted candidate list")
+		t.Error("Expected exhausted candidate list")
 	}
 }
 

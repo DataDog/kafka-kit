@@ -59,7 +59,7 @@ func TestSubstitutionAffinities(t *testing.T) {
 	// broker is available marked as new.
 	_, err := bm.SubstitutionAffinities(pm)
 	if err == nil {
-		t.Errorf("Expected error")
+		t.Error("Expected error")
 	}
 
 	// Should still fail since
@@ -68,7 +68,7 @@ func TestSubstitutionAffinities(t *testing.T) {
 	bm[1002].New = true
 	_, err = bm.SubstitutionAffinities(pm)
 	if err == nil {
-		t.Errorf("Expected error")
+		t.Error("Expected error")
 	}
 
 	bm[1004].New = true
@@ -78,7 +78,7 @@ func TestSubstitutionAffinities(t *testing.T) {
 	}
 
 	if sa[1001].ID != 1004 {
-		t.Errorf("Expected substitution affinity 1001->1004")
+		t.Error("Expected substitution affinity 1001->1004")
 	}
 
 	// Should fail. We have two
@@ -162,7 +162,7 @@ func TestSubstitutionAffinitiesInferred(t *testing.T) {
 		t.Errorf("Unexpected error: %s", err)
 	}
 	if sa[1001].ID != 1007 {
-		t.Errorf("Expected substitution affinity 1001->1007")
+		t.Error("Expected substitution affinity 1001->1007")
 	}
 
 }
