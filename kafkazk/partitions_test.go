@@ -35,7 +35,45 @@ func testGetMapString3(n string) string {
 		{"topic":"%s","partition":3,"replicas":[1004,1005]}]}`, n, n, n, n, n)
 }
 
-// func TestSize(t *testing.T) {} XXX Do.
+func testGetMapString4(n string) string {
+	return fmt.Sprintf(`{"version":1,"partitions":[
+    {"topic":"%s","partition":0,"replicas":[1004,1003]},
+    {"topic":"%s","partition":1,"replicas":[1003,1004]},
+    {"topic":"%s","partition":2,"replicas":[1001,1002]},
+		{"topic":"%s","partition":3,"replicas":[1003,1002]},
+		{"topic":"%s","partition":4,"replicas":[1001,1003]},
+    {"topic":"%s","partition":5,"replicas":[1002,1001]}]}`, n, n, n, n, n, n)
+}
+
+func TestSize(t *testing.T) {
+	z := &Mock{}
+
+	pm, _ := z.GetPartitionMap("test_topic")
+	pmm, _ := z.GetAllPartitionMeta()
+
+	s, err := pmm.Size(pm.Partitions[0])
+	if err != nil {
+		t.Errorf("Unexpected error: %s", err)
+	}
+
+	if s != 1000.00 {
+		t.Errorf("Expected size result 1000.00, got %f", s)
+	}
+
+	// Missing partition.
+	delete(pmm["test_topic"], 3)
+	_, err = pmm.Size(pm.Partitions[3])
+	if err == nil {
+		t.Error("Expected error")
+	}
+
+	// Missing topic.
+	delete(pmm, "test_topic")
+	_, err = pmm.Size(pm.Partitions[3])
+	if err == nil {
+		t.Error("Expected error")
+	}
+}
 
 func TestSortBySize(t *testing.T) {
 	z := &Mock{}
@@ -66,11 +104,49 @@ func TestEqual(t *testing.T) {
 		t.Error("Unexpected inequality")
 	}
 
-	// After modifying the partitions list,
-	// we expect inequality.
+	// Test truncated partition list.
 	pm.Partitions = pm.Partitions[:2]
 	if same, _ := pm.equal(pm2); same {
-		t.Errorf("Unexpected equality")
+		t.Error("Unexpected equality")
+	}
+
+	pm, _ = PartitionMapFromString(testGetMapString("test_topic"))
+
+	// Test version.
+	pm.Version = 2
+	if same, _ := pm.equal(pm2); same {
+		t.Error("Unexpected equality")
+	}
+	pm.Version = 1
+
+	pm, _ = PartitionMapFromString(testGetMapString("test_topic"))
+
+	// Test topic order.
+	pm.Partitions[1].Topic = "test_topic2"
+	if same, _ := pm.equal(pm2); same {
+		t.Error("Unexpected equality")
+	}
+
+	// Test partition order.
+	pm.Partitions[0], pm.Partitions[1] = pm.Partitions[1], pm.Partitions[0]
+	if same, _ := pm.equal(pm2); same {
+		t.Error("Unexpected equality")
+	}
+
+	pm, _ = PartitionMapFromString(testGetMapString("test_topic"))
+
+	// Test replica list.
+	pm.Partitions[0].Replicas = pm.Partitions[0].Replicas[:1]
+	if same, _ := pm.equal(pm2); same {
+		t.Error("Unexpected equality")
+	}
+
+	pm, _ = PartitionMapFromString(testGetMapString("test_topic"))
+
+	// Test replicas.
+	pm.Partitions[0].Replicas[0] = 1337
+	if same, _ := pm.equal(pm2); same {
+		t.Error("Unexpected equality")
 	}
 }
 
@@ -86,7 +162,7 @@ func TestPartitionMapCopy(t *testing.T) {
 	// we expect inequality.
 	pm.Partitions = pm.Partitions[:2]
 	if same, _ := pm.equal(pm2); same {
-		t.Errorf("Unexpected equality")
+		t.Error("Unexpected equality")
 	}
 }
 
@@ -97,7 +173,7 @@ func TestPartitionMapFromString(t *testing.T) {
 
 	// We expect equality here.
 	if same, _ := pm.equal(pm2); !same {
-		t.Errorf("Unexpected inequality")
+		t.Error("Unexpected inequality")
 	}
 }
 
@@ -113,7 +189,7 @@ func TestPartitionMapFromZK(t *testing.T) {
 	// from PartitionMapFromZK doesn't have
 	// any matches.
 	if pm != nil || err.Error() != "No topics found matching: [/^null$/]" {
-		t.Errorf("Expected topic lookup failure")
+		t.Error("Expected topic lookup failure")
 	}
 
 	r = r[:0]
@@ -208,7 +284,7 @@ func TestUseStats(t *testing.T) {
 	}
 }
 
-func TestRebuild(t *testing.T) {
+func TestRebuildByCount(t *testing.T) {
 	forceRebuild := true
 	withMetrics := false
 
@@ -273,7 +349,7 @@ func TestRebuild(t *testing.T) {
 	rebuildParams.BM = BrokerMapFromPartitionMap(pm, bm, forceRebuild)
 
 	out, _ = pmStripped.Rebuild(rebuildParams)
-	fmt.Printf("%v\n", out)
+
 	expected = pm.Copy()
 	expected.Partitions[0].Replicas = []int{1001, 1003}
 	expected.Partitions[1].Replicas = []int{1002, 1004}
@@ -289,26 +365,40 @@ func TestRebuild(t *testing.T) {
 	}
 }
 
-func TestRebuildByStorage(t *testing.T) {
+// Storage rebuild, distribution optimization.
+func TestRebuildByStorageDistribution(t *testing.T) {
 	forceRebuild := true
 	withMetrics := true
 
 	zk := &Mock{}
 	bm, _ := zk.GetAllBrokerMeta(withMetrics)
-	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
+	pm, _ := PartitionMapFromString(testGetMapString4("test_topic"))
 	pmm, _ := zk.GetAllPartitionMeta()
 
-	pm.SetReplication(2)
-	pmStripped := pm.Strip()
+	// We need to reduce the test partition sizes
+	// for more accurate tests here.
+	for _, partn := range pmm["test_topic"] {
+		partn.Size = partn.Size / 3
+	}
 
 	brokers := BrokerMapFromPartitionMap(pm, bm, forceRebuild)
+
+	pmStripped := pm.Strip()
 	_ = brokers.SubStorageAll(pm, pmm)
 
+	// Normalize storage. The mock broker storage
+	// free vs mock partition sizes would actually
+	// represent brokers with varying storage sizes.
+	for _, b := range brokers {
+		b.StorageFree = 6000.00
+	}
+
 	rebuildParams := RebuildParams{
-		PMM:          pmm,
-		BM:           brokers,
-		Strategy:     "count",
-		Optimization: "distribution",
+		PMM:           pmm,
+		BM:            brokers,
+		Strategy:      "storage",
+		Optimization:  "distribution",
+		PartnSzFactor: 1,
 	}
 
 	out, errs := pmStripped.Rebuild(rebuildParams)
@@ -316,13 +406,22 @@ func TestRebuildByStorage(t *testing.T) {
 		t.Errorf("Unexpected error(s): %s", errs)
 	}
 
-	// TODO
-	_ = out
-	/*
-		for _, b := range brokers {
-			fmt.Printf("%d %f\n", b.ID, b.StorageFree)
-		}*/
+	expected := pm.Copy()
+	expected.Partitions[0].Replicas = []int{1003, 1001}
+	expected.Partitions[1].Replicas = []int{1004, 1002}
+	expected.Partitions[2].Replicas = []int{1004, 1003}
+	expected.Partitions[3].Replicas = []int{1002, 1003}
+	expected.Partitions[4].Replicas = []int{1003, 1004}
+	expected.Partitions[5].Replicas = []int{1001, 1002}
+
+	same, err := out.equal(expected)
+	if !same {
+		t.Errorf("Unexpected inequality after rebuild: %s", err)
+	}
 }
+
+// Storage rebuild, storage optimization.
+// func TestRebuildByStorageStorage(t *testing.T) {}
 
 func TestLocalitiesAvailable(t *testing.T) {
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
@@ -335,7 +434,43 @@ func TestLocalitiesAvailable(t *testing.T) {
 	expected := []string{"a", "c"}
 	for i, l := range localities {
 		if expected[i] != l {
-			t.Errorf("Unexpected localities available")
+			t.Error("Unexpected localities available")
 		}
+	}
+}
+
+func TestShuffle(t *testing.T) {
+	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
+
+	expected := &PartitionMap{
+		Version: 1,
+		Partitions: partitionList{
+			Partition{
+				Topic:     "test_topic",
+				Partition: 0,
+				Replicas:  []int{1001, 1002},
+			},
+			Partition{
+				Topic:     "test_topic",
+				Partition: 1,
+				Replicas:  []int{1001, 1002},
+			},
+			Partition{
+				Topic:     "test_topic",
+				Partition: 2,
+				Replicas:  []int{1004, 1003, 1001},
+			},
+			Partition{
+				Topic:     "test_topic",
+				Partition: 3,
+				Replicas:  []int{1002, 1004, 1003},
+			},
+		},
+	}
+
+	pm.shuffle()
+
+	if same, _ := pm.equal(expected); !same {
+		t.Errorf("Unexpected shuffle results")
 	}
 }

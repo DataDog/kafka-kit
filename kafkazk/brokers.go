@@ -166,7 +166,7 @@ func (b brokerList) SortPseudoShuffle(seed int64) {
 	}
 }
 
-// Update takes a BrokerMap and a []int of broker IDs and adds
+// Update takes a []int of broker IDs and BrokerMap then adds
 // them to the BrokerMap, returning the count of marked for replacement,
 // newly included, and brokers that weren't found in ZooKeeper.
 func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) *BrokerStatus {
@@ -336,7 +336,7 @@ func (b BrokerMap) filteredList() brokerList {
 }
 
 // BrokerMapFromPartitionMap creates a BrokerMap
-// from a partitionMap. Counts occurance is counted.
+// from a partitionMap.
 // TODO can we remove marked for replacement here too?
 func BrokerMapFromPartitionMap(pm *PartitionMap, bm BrokerMetaMap, force bool) BrokerMap {
 	bmap := BrokerMap{}

@@ -47,7 +47,7 @@ func (p partitionList) Less(i, j int) bool {
 	return p[i].Partition < p[j].Partition
 }
 
-// PartitionMap sorty by partition size.
+// PartitionMap sort by partition size.
 
 type partitionsBySize struct {
 	pl partitionList
@@ -114,6 +114,13 @@ type RebuildParams struct {
 	Optimization  string
 	Affinities    SubstitutionAffinities
 	PartnSzFactor float64
+}
+
+// NewRebuildParams initializes a RebuildParams.
+func NewRebuildParams() RebuildParams {
+	return RebuildParams{
+		PartnSzFactor: 1.00,
+	}
 }
 
 // Rebuild takes a BrokerMap and rebuild strategy.
@@ -586,7 +593,7 @@ func (pm *PartitionMap) equal(pm2 *PartitionMap) (bool, error) {
 		case len(p1.Replicas) != len(p2.Replicas):
 			return false, errors.New("replica list")
 		}
-		// This is fine...
+
 		for n := range p1.Replicas {
 			if p1.Replicas[n] != p2.Replicas[n] {
 				return false, errors.New("replica")
