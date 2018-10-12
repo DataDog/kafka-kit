@@ -397,3 +397,39 @@ func TestLocalitiesAvailable(t *testing.T) {
 		}
 	}
 }
+
+func TestShuffle(t *testing.T) {
+	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
+
+	expected := &PartitionMap{
+		Version: 1,
+		Partitions: partitionList{
+			Partition{
+				Topic:     "test_topic",
+				Partition: 0,
+				Replicas:  []int{1001, 1002},
+			},
+			Partition{
+				Topic:     "test_topic",
+				Partition: 1,
+				Replicas:  []int{1001, 1002},
+			},
+			Partition{
+				Topic:     "test_topic",
+				Partition: 2,
+				Replicas:  []int{1004, 1003, 1001},
+			},
+			Partition{
+				Topic:     "test_topic",
+				Partition: 3,
+				Replicas:  []int{1002, 1004, 1003},
+			},
+		},
+	}
+
+	pm.shuffle()
+
+	if same, _ := pm.equal(expected); !same {
+		t.Errorf("Unexpected shuffle results")
+	}
+}
