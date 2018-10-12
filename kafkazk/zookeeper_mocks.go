@@ -182,7 +182,8 @@ func (zk *Mock) GetAllPartitionMeta() (PartitionMetaMap, error) {
 	pm["test_topic"][1] = &PartitionMeta{Size: 1500.00}
 	pm["test_topic"][2] = &PartitionMeta{Size: 2000.00}
 	pm["test_topic"][3] = &PartitionMeta{Size: 2500.00}
-	pm["test_topic"][4] = &PartitionMeta{Size: 3000.00}
+	pm["test_topic"][4] = &PartitionMeta{Size: 2200.00}
+	pm["test_topic"][5] = &PartitionMeta{Size: 4000.00}
 
 	return pm, nil
 }

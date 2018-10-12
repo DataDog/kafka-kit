@@ -116,6 +116,13 @@ type RebuildParams struct {
 	PartnSzFactor float64
 }
 
+// NewRebuildParams initializes a RebuildParams.
+func NewRebuildParams() RebuildParams {
+	return RebuildParams{
+		PartnSzFactor: 1.00,
+	}
+}
+
 // Rebuild takes a BrokerMap and rebuild strategy.
 // It then traverses the partition map, replacing brokers marked removal
 // with the best available candidate based on the selected

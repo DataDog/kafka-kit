@@ -336,7 +336,7 @@ func (b BrokerMap) filteredList() brokerList {
 }
 
 // BrokerMapFromPartitionMap creates a BrokerMap
-// from a partitionMap. Counts occurance is counted.
+// from a partitionMap.
 // TODO can we remove marked for replacement here too?
 func BrokerMapFromPartitionMap(pm *PartitionMap, bm BrokerMetaMap, force bool) BrokerMap {
 	bmap := BrokerMap{}
