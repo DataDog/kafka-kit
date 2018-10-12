@@ -109,7 +109,15 @@ func TestEqual(t *testing.T) {
 	}
 	pm.Version = 1
 
-	// Test order.
+	pm, _ = PartitionMapFromString(testGetMapString("test_topic"))
+
+	// Test topic order.
+	pm.Partitions[1].Topic = "test_topic2"
+	if same, _ := pm.equal(pm2); same {
+		t.Error("Unexpected equality")
+	}
+
+	// Test partition order.
 	pm.Partitions[0], pm.Partitions[1] = pm.Partitions[1], pm.Partitions[0]
 	if same, _ := pm.equal(pm2); same {
 		t.Error("Unexpected equality")
