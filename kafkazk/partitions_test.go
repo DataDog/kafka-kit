@@ -94,9 +94,39 @@ func TestEqual(t *testing.T) {
 		t.Error("Unexpected inequality")
 	}
 
-	// After modifying the partitions list,
-	// we expect inequality.
+	// Test truncated partition list.
 	pm.Partitions = pm.Partitions[:2]
+	if same, _ := pm.equal(pm2); same {
+		t.Error("Unexpected equality")
+	}
+
+	pm, _ = PartitionMapFromString(testGetMapString("test_topic"))
+
+	// Test version.
+	pm.Version = 2
+	if same, _ := pm.equal(pm2); same {
+		t.Error("Unexpected equality")
+	}
+	pm.Version = 1
+
+	// Test order.
+	pm.Partitions[0], pm.Partitions[1] = pm.Partitions[1], pm.Partitions[0]
+	if same, _ := pm.equal(pm2); same {
+		t.Error("Unexpected equality")
+	}
+
+	pm, _ = PartitionMapFromString(testGetMapString("test_topic"))
+
+	// Test replica list.
+	pm.Partitions[0].Replicas = pm.Partitions[0].Replicas[:1]
+	if same, _ := pm.equal(pm2); same {
+		t.Error("Unexpected equality")
+	}
+
+	pm, _ = PartitionMapFromString(testGetMapString("test_topic"))
+
+	// Test replicas.
+	pm.Partitions[0].Replicas[0] = 1337
 	if same, _ := pm.equal(pm2); same {
 		t.Error("Unexpected equality")
 	}

@@ -586,7 +586,7 @@ func (pm *PartitionMap) equal(pm2 *PartitionMap) (bool, error) {
 		case len(p1.Replicas) != len(p2.Replicas):
 			return false, errors.New("replica list")
 		}
-		// This is fine...
+
 		for n := range p1.Replicas {
 			if p1.Replicas[n] != p2.Replicas[n] {
 				return false, errors.New("replica")
