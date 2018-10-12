@@ -72,10 +72,20 @@ func TestBestCandidateByStorage(t *testing.T) {
 		t.Errorf("Expected candidate with ID 1003, got %d", b.ID)
 	}
 
+	// Ensure that the request size was deducted
+	// from the broker storage.
+	if b.StorageFree != 2000.00 {
+		t.Errorf("Expected StorageFree of 2000.00, got %2.f", b.StorageFree)
+	}
+
 	b, _ = bl.bestCandidate(c, "storage", 1)
 	// 1003 should be next available.
 	if b.ID != 1001 {
 		t.Errorf("Expected candidate with ID 1001, got %d", b.ID)
+	}
+
+	if b.StorageFree != 0.00 {
+		t.Errorf("Expected StorageFree of 0.00, got %2.f", b.StorageFree)
 	}
 
 	_, err := bl.bestCandidate(c, "storage", 1)
