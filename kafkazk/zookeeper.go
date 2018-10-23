@@ -56,6 +56,7 @@ type Handler interface {
 	GetAllBrokerMeta(bool) (BrokerMetaMap, []error)
 	GetAllPartitionMeta() (PartitionMetaMap, error)
 	GetPartitionMap(string) (*PartitionMap, error)
+	Ready() bool
 }
 
 // TopicState is used for unmarshing
@@ -166,6 +167,18 @@ func NewHandler(c *Config) (Handler, error) {
 	}
 
 	return z, nil
+}
+
+// Ready returns true if the client is in either state
+// StateConnected or StateHasSession.
+// See https://godoc.org/github.com/samuel/go-zookeeper/zk#State.
+func (z *zkHandler) Ready() bool {
+	switch z.client.State() {
+	case 100, 101:
+		return true
+	default:
+		return false
+	}
 }
 
 // Close calls close on

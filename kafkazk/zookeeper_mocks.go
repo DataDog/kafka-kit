@@ -93,6 +93,11 @@ func (zk *Mock) Close() {
 	return
 }
 
+// Ready mocks Ready.
+func (zk *Mock) Ready() bool {
+	return true
+}
+
 // InitRawClient mocks InitRawClient.
 func (zk *Mock) InitRawClient() error {
 	return nil
