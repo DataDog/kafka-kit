@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"time"
 
 	"github.com/DataDog/kafka-kit/kafkazk"
 
@@ -21,15 +22,26 @@ import (
 func initZooKeeper(cmd *cobra.Command) kafkazk.Handler {
 	m, _ := cmd.Flags().GetBool("use-meta")
 	p := cmd.Flag("placement").Value.String()
+	zkAddr := cmd.Parent().Flag("zk-addr").Value.String()
+
+	timeout := 3 * time.Second
 
 	if m || len(Config.rebuildTopics) > 0 || p == "storage" {
 		zk, err := kafkazk.NewHandler(&kafkazk.Config{
-			Connect:       cmd.Flag("zk-addr").Value.String(),
-			Prefix:        cmd.Flag("zk-prefix").Value.String(),
+			Connect:       zkAddr,
+			Prefix:        cmd.Parent().Flag("zk-prefix").Value.String(),
 			MetricsPrefix: cmd.Flag("zk-metrics-prefix").Value.String(),
 		})
+
 		if err != nil {
 			fmt.Printf("Error connecting to ZooKeeper: %s\n", err)
+			os.Exit(1)
+		}
+
+		time.Sleep(timeout)
+
+		if !zk.Ready() {
+			fmt.Printf("Failed to connect to ZooKeeper %s within %s\n", zkAddr, timeout)
 			os.Exit(1)
 		}
 
