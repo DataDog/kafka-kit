@@ -35,40 +35,61 @@ Tested with Go 1.10+ (required), Kafka 0.10.x, ZooKeeper 3.4.x.
 
 # Usage
 
-## Flags
+## Commands
+
+Currently, all topicmappr actions are performed through the `rebuild-topics` command.
 
 ```
-Usage of topicmappr:
-  -brokers string
-    	Broker list to scope all partition placements to [TOPICMAPPR_BROKERS]
-  -force-rebuild
-    	Forces a complete map rebuild [TOPICMAPPR_FORCE_REBUILD]
-  -ignore-warns
-    	Produce a map even if warnings are encountered [TOPICMAPPR_IGNORE_WARNS]
-  -optimize string
-    	Optimization priority for the storage placement strategy: [distribution, storage] [TOPICMAPPR_OPTIMIZE] (default "distribution")
-  -out-file string
-    	If defined, write a combined map of all topics to a file [TOPICMAPPR_OUT_FILE]
-  -out-path string
-    	Path to write output map files to [TOPICMAPPR_OUT_PATH]
-  -placement string
-    	Partition placement strategy: [count, storage] [TOPICMAPPR_PLACEMENT] (default "count")
-  -rebuild-map string
-    	Rebuild a partition map provided as a string literal [TOPICMAPPR_REBUILD_MAP]
-  -rebuild-topics string
-    	Rebuild topics (comma delim. list) by lookup in ZooKeeper [TOPICMAPPR_REBUILD_TOPICS]
-  -replication int
-    	Normalize the topic replication factor across all replica sets [TOPICMAPPR_REPLICATION]
-  -sub-affinity
-    	Replacement broker substitution affinity [TOPICMAPPR_SUB_AFFINITY]
-  -use-meta
-    	Use broker metadata in placement constraints [TOPICMAPPR_USE_META] (default true)
-  -zk-addr string
-    	ZooKeeper connect string (for broker metadata or rebuild-topic lookups) [TOPICMAPPR_ZK_ADDR] (default "localhost:2181")
-  -zk-metrics-prefix string
-    	ZooKeeper namespace prefix (for Kafka metrics) [TOPICMAPPR_ZK_METRICS_PREFIX] (default "topicmappr")
-  -zk-prefix string
-    	ZooKeeper namespace prefix (for Kafka brokers) [TOPICMAPPR_ZK_PREFIX]
+Usage:
+  topicmappr [command]
+
+Available Commands:
+  help           Help about any command
+  rebuild-topics Build a partition map for one or more topics
+
+Flags:
+  -h, --help               help for topicmappr
+      --zk-addr string     ZooKeeper connect string (for broker metadata or rebuild-topic lookups) (default "localhost:2181")
+      --zk-prefix string   ZooKeeper namespace prefix (for Kafka brokers)
+
+Use "topicmappr [command] --help" for more information about a command.
+```
+
+
+
+## rebuild-topics usage
+
+```
+rebuild-topics requires at least two inputs: a reference of
+target topics and a list of broker IDs to which those topics should be mapped.
+Target topics are provided as a comma delimited list of topic names and/or regex patterns
+via the --topics parameter, which discovers matching topics in ZooKeeper (additionally,
+the --zk-addr and --zk-prefix global flags should be set). Alternatively, a JSON map can be
+provided via the --map-string flag. Target broker IDs are provided via the --broker flag.
+
+Usage:
+  topicmappr rebuild-topics [flags]
+
+Flags:
+      --brokers string                Broker list to scope all partition placements to
+      --force-rebuild                 Forces a complete map rebuild
+  -h, --help                          help for rebuild-topics
+      --ignore-warns                  Produce a map even if warnings are encountered
+      --map-string string             Rebuild a partition map provided as a string literal
+      --optimize string               Optimization priority for the storage placement strategy: [distribution, storage] (default "distribution")
+      --out-file string               If defined, write a combined map of all topics to a file
+      --out-path string               Path to write output map files to
+      --partition-size-factor float   Factor by which to multiply partition sizes when using storage placement (default 1)
+      --placement string              Partition placement strategy: [count, storage] (default "count")
+      --replication int               Normalize the topic replication factor across all replica sets (0 results in a no-op)
+      --sub-affinity                  Replacement broker substitution affinity
+      --topics string                 Rebuild topics (comma delim. list) by lookup in ZooKeeper
+      --use-meta                      Use broker metadata in placement constraints (default true)
+      --zk-metrics-prefix string      ZooKeeper namespace prefix for Kafka metrics (when using storage placement) (default "topicmappr")
+
+Global Flags:
+      --zk-addr string     ZooKeeper connect string (for broker metadata or rebuild-topic lookups) (default "localhost:2181")
+      --zk-prefix string   ZooKeeper namespace prefix (for Kafka brokers)
 ```
 
 ## Managing and Repairing Topics

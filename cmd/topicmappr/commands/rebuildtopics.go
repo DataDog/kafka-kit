@@ -32,7 +32,7 @@ target topics and a list of broker IDs to which those topics should be mapped.
 Target topics are provided as a comma delimited list of topic names and/or regex patterns
 via the --topics parameter, which discovers matching topics in ZooKeeper (additionally,
 the --zk-addr and --zk-prefix global flags should be set). Alternatively, a JSON map can be
-provided via the --map-string flag. Targe broker IDs are provided via the --broker flag.`,
+provided via the --map-string flag. Target broker IDs are provided via the --broker flag.`,
 	Run: rebuild,
 }
 
