@@ -24,7 +24,7 @@ func initZooKeeper(cmd *cobra.Command) kafkazk.Handler {
 	p := cmd.Flag("placement").Value.String()
 	zkAddr := cmd.Parent().Flag("zk-addr").Value.String()
 
-	timeout := 3 * time.Second
+	timeout := 250 * time.Millisecond
 
 	if m || len(Config.rebuildTopics) > 0 || p == "storage" {
 		zk, err := kafkazk.NewHandler(&kafkazk.Config{
