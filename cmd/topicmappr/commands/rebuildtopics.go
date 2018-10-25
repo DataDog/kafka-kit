@@ -197,6 +197,13 @@ func rebuild(cmd *cobra.Command, _ []string) {
 		fmt.Printf("%s[none]\n", indent)
 	}
 
+	// Ignore no-ops in the case of a substitution affinity. As we only care
+	// about broker replacement, the no-ops would inflate the assignment size,
+	// which would put load on the controller for no useful reason.
+	if sa {
+		originalMap, partitionMapOut = ignoreNoOpRemappings(originalMap, partitionMapOut)
+	}
+
 	// Print map change results.
 	printMapChanges(originalMap, partitionMapOut)
 

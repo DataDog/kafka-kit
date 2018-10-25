@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"sort"
 	"time"
 
@@ -331,6 +332,23 @@ func buildMap(cmd *cobra.Command, pm *kafkazk.PartitionMap, pmm kafkazk.Partitio
 		// Rebuild directly on the input map.
 		return pm.Rebuild(rebuildParams)
 	}
+}
+
+// ignoreNoOps removes no-op partition map changes
+// from the input and final output PartitionMap
+func ignoreNoOpRemappings(pm1, pm2 *kafkazk.PartitionMap) (*kafkazk.PartitionMap, *kafkazk.PartitionMap) {
+	prunedInputPartitionMap := kafkazk.NewPartitionMap()
+	prunedOutputPartitionMap := kafkazk.NewPartitionMap()
+	for i := range pm1.Partitions {
+		r1, r2 := pm1.Partitions[i].Replicas, pm2.Partitions[i].Replicas
+		if !reflect.DeepEqual(r1, r2) {
+			prunedInputPartitionMap.Partitions = append(
+				prunedInputPartitionMap.Partitions, pm1.Partitions[i])
+			prunedOutputPartitionMap.Partitions = append(
+				prunedOutputPartitionMap.Partitions, pm2.Partitions[i])
+		}
+	}
+	return prunedInputPartitionMap, prunedOutputPartitionMap
 }
 
 // printMapChanges takes the original input PartitionMap
