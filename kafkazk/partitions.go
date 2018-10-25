@@ -18,6 +18,26 @@ type Partition struct {
 	Replicas  []int  `json:"replicas"`
 }
 
+// Equal defines equalty between two Partition objects
+// as an equality of topic, partition and replicas.
+func (p Partition) Equal(p2 Partition) bool {
+	if p.Topic != p2.Topic {
+		return false
+	}
+	if p.Partition != p2.Partition {
+		return false
+	}
+	if len(p.Replicas) != len(p2.Replicas) {
+		return false
+	}
+	for i := range p.Replicas {
+		if p.Replicas[i] != p2.Replicas[i] {
+			return false
+		}
+	}
+	return true
+}
+
 type partitionList []Partition
 
 // PartitionMap maps the
