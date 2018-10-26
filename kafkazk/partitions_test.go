@@ -7,6 +7,27 @@ import (
 	"testing"
 )
 
+func TestPartitionEquality(t *testing.T) {
+	p1 := Partition{Topic: "test_topic", Partition: 1, Replicas: []int{1, 2, 3}}
+	p2 := Partition{Topic: "test_topic", Partition: 1, Replicas: []int{1, 2, 3}}
+	p3 := Partition{Topic: "other_topic", Partition: 1, Replicas: []int{1, 2, 3}}
+	p4 := Partition{Topic: "test_topic", Partition: 2, Replicas: []int{1, 2, 3}}
+	p5 := Partition{Topic: "test_topic", Partition: 1, Replicas: []int{4, 5, 6}}
+
+	if !p1.Equal(p2) {
+		t.Error("Unexpected inequality between p1 and p2")
+	}
+	if p1.Equal(p3) {
+		t.Error("Unexpected equality between p1 and p3")
+	}
+	if p1.Equal(p4) {
+		t.Error("Unexpected equality between p1 and p4")
+	}
+	if p1.Equal(p5) {
+		t.Error("Unexpected equality between p1 and p5")
+	}
+}
+
 func testGetMapString(n string) string {
 	return fmt.Sprintf(`{"version":1,"partitions":[
     {"topic":"%s","partition":0,"replicas":[1001,1002]},
