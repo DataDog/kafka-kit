@@ -6,14 +6,15 @@ import (
 	"sort"
 	"testing"
 )
-func TestPartitionEquality(t *testing.T) {
-	p1 := Partition{Topic: "test_topic", Partition: 1, Replicas: []int{1, 2, 3} }
-	p2 := Partition{Topic: "test_topic", Partition: 1, Replicas: []int{1, 2, 3} }
-	p3 := Partition{Topic: "other_topic", Partition: 1, Replicas: []int{1, 2, 3} }
-	p4 := Partition{Topic: "test_topic", Partition: 2, Replicas: []int{1, 2, 3} }
-	p5 := Partition{Topic: "test_topic", Partition: 1, Replicas: []int{4, 5, 6} }
 
-	if ! p1.Equal(p2) {
+func TestPartitionEquality(t *testing.T) {
+	p1 := Partition{Topic: "test_topic", Partition: 1, Replicas: []int{1, 2, 3}}
+	p2 := Partition{Topic: "test_topic", Partition: 1, Replicas: []int{1, 2, 3}}
+	p3 := Partition{Topic: "other_topic", Partition: 1, Replicas: []int{1, 2, 3}}
+	p4 := Partition{Topic: "test_topic", Partition: 2, Replicas: []int{1, 2, 3}}
+	p5 := Partition{Topic: "test_topic", Partition: 1, Replicas: []int{4, 5, 6}}
+
+	if !p1.Equal(p2) {
 		t.Error("Unexpected inequality between p1 and p2")
 	}
 	if p1.Equal(p3) {

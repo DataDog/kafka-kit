@@ -8,7 +8,7 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "topicmappr",
+	Use: "topicmappr",
 }
 
 func Execute() {
