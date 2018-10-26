@@ -53,6 +53,7 @@ func init() {
 	rebuildTopicsCmd.Flags().Float64("partition-size-factor", 1.0, "Factor by which to multiply partition sizes when using storage placement")
 	rebuildTopicsCmd.Flags().String("brokers", "", "Broker list to scope all partition placements to")
 	rebuildTopicsCmd.Flags().String("zk-metrics-prefix", "topicmappr", "ZooKeeper namespace prefix for Kafka metrics (when using storage placement)")
+	rebuildTopicsCmd.Flags().Bool("skip-no-ops", false, "Do not include no-op partition mapppings in the reassignment json file")
 
 	// Required.
 	rebuildTopicsCmd.MarkFlagRequired("brokers")
@@ -73,6 +74,7 @@ func rebuild(cmd *cobra.Command, _ []string) {
 	fr, _ := cmd.Flags().GetBool("force-rebuild")
 	sa, _ := cmd.Flags().GetBool("sub-affinity")
 	m, _ := cmd.Flags().GetBool("use-meta")
+	sno, _ := cmd.Flags().GetBool("skip-no-ops")
 
 	switch {
 	case p != "count" && p != "storage":
@@ -197,10 +199,8 @@ func rebuild(cmd *cobra.Command, _ []string) {
 		fmt.Printf("%s[none]\n", indent)
 	}
 
-	// Ignore no-ops in the case of a substitution affinity. As we only care
-	// about broker replacement, the no-ops would inflate the assignment size,
-	// which would put load on the controller for no useful reason.
-	if sa {
+	// Filter out no-op partition mappings if the corresponding flag was passed
+	if sno {
 		originalMap, partitionMapOut = ignoreNoOpRemappings(originalMap, partitionMapOut)
 	}
 
