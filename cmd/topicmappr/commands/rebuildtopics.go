@@ -98,22 +98,24 @@ func rebuild(cmd *cobra.Command, _ []string) {
 
 	// Determine if regexp was provided in the topic
 	// name. If not, set the topic name to ^name$.
-	topicNames := strings.Split(topics, ",")
-	for n, t := range topicNames {
-		if !containsRegex(t) {
-			topicNames[n] = fmt.Sprintf(`^%s$`, t)
-		}
-	}
-
-	// Compile topic regex.
-	for _, t := range topicNames {
-		r, err := regexp.Compile(t)
-		if err != nil {
-			fmt.Printf("Invalid topic regex: %s\n", t)
-			os.Exit(1)
+	if topics != "" {
+		topicNames := strings.Split(topics, ",")
+		for n, t := range topicNames {
+			if !containsRegex(t) {
+				topicNames[n] = fmt.Sprintf(`^%s$`, t)
+			}
 		}
 
-		Config.rebuildTopics = append(Config.rebuildTopics, r)
+		// Compile topic regex.
+		for _, t := range topicNames {
+			r, err := regexp.Compile(t)
+			if err != nil {
+				fmt.Printf("Invalid topic regex: %s\n", t)
+				os.Exit(1)
+			}
+
+			Config.rebuildTopics = append(Config.rebuildTopics, r)
+		}
 	}
 
 	// ZooKeeper init.
