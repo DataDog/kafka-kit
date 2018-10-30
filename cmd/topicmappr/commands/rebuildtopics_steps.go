@@ -249,11 +249,13 @@ func printChangesActions(cmd *cobra.Command, bs *kafkazk.BrokerStatus) {
 			indent, bs.New)
 	case change < 0:
 		fmt.Printf("%sShrinking topic by %d broker(s)\n", indent, -change)
-	case r > 0:
-		fmt.Printf("%sSetting replication factor to %d\n", indent, r)
-		fallthrough
-	case fr:
-		fmt.Printf("%sForce rebuilding map\n", indent)
+	case fr, r > 0:
+		if fr {
+			fmt.Printf("%sForce rebuilding map\n", indent)
+		}
+		if r > 0 {
+			fmt.Printf("%sSetting replication factor to %d\n", indent, r)
+		}
 	default:
 		fmt.Printf("%sno-op\n", indent)
 	}
@@ -268,8 +270,6 @@ func updateReplicationFactor(cmd *cobra.Command, pm *kafkazk.PartitionMap) {
 	// brokers appended (r factor increase) or
 	// existing brokers removed (r factor decrease).
 	if r > 0 {
-		fmt.Printf("%sUpdating replication factor to %d\n", indent, r)
-
 		pm.SetReplication(r)
 	}
 }
