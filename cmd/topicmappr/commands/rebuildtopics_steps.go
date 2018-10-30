@@ -231,6 +231,7 @@ func getBrokers(cmd *cobra.Command, pm *kafkazk.PartitionMap, bm kafkazk.BrokerM
 func printChangesActions(cmd *cobra.Command, bs *kafkazk.BrokerStatus) {
 	change := bs.New - bs.Replace
 	r, _ := cmd.Flags().GetInt("replication")
+	fr, _ := cmd.Flags().GetBool("force-rebuild")
 
 	// Print change summary.
 	fmt.Printf("%sReplacing %d, added %d, missing %d, total count changed by %d\n",
@@ -247,9 +248,13 @@ func printChangesActions(cmd *cobra.Command, bs *kafkazk.BrokerStatus) {
 		fmt.Printf("%sExpanding/rebalancing topic with %d additional broker(s) (this is a no-op unless --force-rebuild is specified)\n",
 			indent, bs.New)
 	case change < 0:
-		fmt.Printf("%sShrinking topic by %d broker(s)\n",
-			indent, -change)
-	case r == 0:
+		fmt.Printf("%sShrinking topic by %d broker(s)\n", indent, -change)
+	case r > 0:
+		fmt.Printf("%sSetting replication factor to %d\n", indent, r)
+		fallthrough
+	case fr:
+		fmt.Printf("%sForce rebuilding map\n", indent)
+	default:
 		fmt.Printf("%sno-op\n", indent)
 	}
 }
