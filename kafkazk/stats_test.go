@@ -99,11 +99,19 @@ func TestBrokerMapStorageDiff(t *testing.T) {
 
 func TestBrokerMapStorageRangeSpread(t *testing.T) {
 	bm := newMockBrokerMap()
-
 	rs := bm.StorageRangeSpread()
 
 	if rs != 300.00 {
 		t.Errorf("Expected storage range spread 300, got %f", rs)
+	}
+}
+
+func TestBrokerMapStorageRange(t *testing.T) {
+	bm := newMockBrokerMap()
+	r := bm.StorageRange()
+
+	if r != 300 {
+		t.Errorf("Expected storage range of 300, got %f", r)
 	}
 }
 
