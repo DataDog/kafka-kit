@@ -420,6 +420,10 @@ func printBrokerAssignmentStats(cmd *cobra.Command, pm1, pm2 *kafkazk.PartitionM
 		// particularly to balance out the storage of the input broker list).
 		mb1, mb2 := bm1.MappedBrokers(pm1), bm2.NonReplacedBrokers()
 
+		// Range before/after.
+		r1, r2 := mb1.StorageRange(), mb2.StorageRange()
+		fmt.Printf("%srange: %.2fGB -> %.2fGB\n", indent, r1/div, r2/div)
+
 		// Range spread before/after.
 		rs1, rs2 := mb1.StorageRangeSpread(), mb2.StorageRangeSpread()
 		fmt.Printf("%srange spread: %.2f%% -> %.2f%%\n", indent, rs1, rs2)
