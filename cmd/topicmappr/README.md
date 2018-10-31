@@ -44,8 +44,8 @@ Usage:
   topicmappr [command]
 
 Available Commands:
-  help           Help about any command
-  rebuild Build a partition map for one or more topics
+  help        Help about any command
+  rebuild     Rebuild a partition map for one or more topics
 
 Flags:
   -h, --help               help for topicmappr
