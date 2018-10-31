@@ -107,7 +107,7 @@ func getPartitionMeta(cmd *cobra.Command, zk kafkazk.Handler) kafkazk.PartitionM
 // (particuarly what brokers compose every replica set) for all
 // topics specified. A partition map is either built from a string
 // literal input (json from off-the-shelf Kafka tools output) provided
-// via the --rebuild-map flag, or, by building a map based on topic
+// via the ---map-string flag, or, by building a map based on topic
 // config found in ZooKeeper for all topics matching input provided
 // via the --topics flag.
 func getPartitionMap(cmd *cobra.Command, zk kafkazk.Handler) *kafkazk.PartitionMap {

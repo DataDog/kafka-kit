@@ -10,38 +10,16 @@ import (
 	"sort"
 )
 
-// Partition maps the partition objects
-// in the Kafka partition mapping syntax.
+// Partition represents the Kafka partition structure.
 type Partition struct {
 	Topic     string `json:"topic"`
 	Partition int    `json:"partition"`
 	Replicas  []int  `json:"replicas"`
 }
 
-// Equal defines equalty between two Partition objects
-// as an equality of topic, partition and replicas.
-func (p Partition) Equal(p2 Partition) bool {
-	if p.Topic != p2.Topic {
-		return false
-	}
-	if p.Partition != p2.Partition {
-		return false
-	}
-	if len(p.Replicas) != len(p2.Replicas) {
-		return false
-	}
-	for i := range p.Replicas {
-		if p.Replicas[i] != p2.Replicas[i] {
-			return false
-		}
-	}
-	return true
-}
-
 type partitionList []Partition
 
-// PartitionMap maps the
-// Kafka partition mapping syntax.
+// PartitionMap represents the Kafka partition map structure.
 type PartitionMap struct {
 	Version    int           `json:"version"`
 	Partitions partitionList `json:"partitions"`
@@ -701,4 +679,24 @@ func (pm *PartitionMap) UseStats() []*BrokerUseStats {
 	sort.Sort(stats)
 
 	return stats
+}
+
+// Equal defines equalty between two Partition objects
+// as an equality of topic, partition and replicas.
+func (p Partition) Equal(p2 Partition) bool {
+	if p.Topic != p2.Topic {
+		return false
+	}
+	if p.Partition != p2.Partition {
+		return false
+	}
+	if len(p.Replicas) != len(p2.Replicas) {
+		return false
+	}
+	for i := range p.Replicas {
+		if p.Replicas[i] != p2.Replicas[i] {
+			return false
+		}
+	}
+	return true
 }
