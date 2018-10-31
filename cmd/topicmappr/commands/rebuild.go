@@ -24,7 +24,7 @@ var (
 	}
 )
 
-var rebuildTopicsCmd = &cobra.Command{
+var rebuildCmd = &cobra.Command{
 	Use:   "rebuild",
 	Short: "Rebuild a partition map for one or more topics",
 	Long: `rebuild requires at least two inputs: a reference of
@@ -37,26 +37,26 @@ provided via the --map-string flag. Target broker IDs are provided via the --bro
 }
 
 func init() {
-	rootCmd.AddCommand(rebuildTopicsCmd)
+	rootCmd.AddCommand(rebuildCmd)
 
-	rebuildTopicsCmd.Flags().String("topics", "", "Rebuild topics (comma delim. list) by lookup in ZooKeeper")
-	rebuildTopicsCmd.Flags().String("map-string", "", "Rebuild a partition map provided as a string literal")
-	rebuildTopicsCmd.Flags().Bool("use-meta", true, "Use broker metadata in placement constraints")
-	rebuildTopicsCmd.Flags().String("out-path", "", "Path to write output map files to")
-	rebuildTopicsCmd.Flags().String("out-file", "", "If defined, write a combined map of all topics to a file")
-	rebuildTopicsCmd.Flags().Bool("ignore-warns", false, "Produce a map even if warnings are encountered")
-	rebuildTopicsCmd.Flags().Bool("force-rebuild", false, "Forces a complete map rebuild")
-	rebuildTopicsCmd.Flags().Int("replication", 0, "Normalize the topic replication factor across all replica sets (0 results in a no-op)")
-	rebuildTopicsCmd.Flags().Bool("sub-affinity", false, "Replacement broker substitution affinity")
-	rebuildTopicsCmd.Flags().String("placement", "count", "Partition placement strategy: [count, storage]")
-	rebuildTopicsCmd.Flags().String("optimize", "distribution", "Optimization priority for the storage placement strategy: [distribution, storage]")
-	rebuildTopicsCmd.Flags().Float64("partition-size-factor", 1.0, "Factor by which to multiply partition sizes when using storage placement")
-	rebuildTopicsCmd.Flags().String("brokers", "", "Broker list to scope all partition placements to")
-	rebuildTopicsCmd.Flags().String("zk-metrics-prefix", "topicmappr", "ZooKeeper namespace prefix for Kafka metrics (when using storage placement)")
-	rebuildTopicsCmd.Flags().Bool("skip-no-ops", false, "Do not include no-op partition mapppings in the reassignment json file")
+	rebuildCmd.Flags().String("topics", "", "Rebuild topics (comma delim. list) by lookup in ZooKeeper")
+	rebuildCmd.Flags().String("map-string", "", "Rebuild a partition map provided as a string literal")
+	rebuildCmd.Flags().Bool("use-meta", true, "Use broker metadata in placement constraints")
+	rebuildCmd.Flags().String("out-path", "", "Path to write output map files to")
+	rebuildCmd.Flags().String("out-file", "", "If defined, write a combined map of all topics to a file")
+	rebuildCmd.Flags().Bool("ignore-warns", false, "Produce a map even if warnings are encountered")
+	rebuildCmd.Flags().Bool("force-rebuild", false, "Forces a complete map rebuild")
+	rebuildCmd.Flags().Int("replication", 0, "Normalize the topic replication factor across all replica sets (0 results in a no-op)")
+	rebuildCmd.Flags().Bool("sub-affinity", false, "Replacement broker substitution affinity")
+	rebuildCmd.Flags().String("placement", "count", "Partition placement strategy: [count, storage]")
+	rebuildCmd.Flags().String("optimize", "distribution", "Optimization priority for the storage placement strategy: [distribution, storage]")
+	rebuildCmd.Flags().Float64("partition-size-factor", 1.0, "Factor by which to multiply partition sizes when using storage placement")
+	rebuildCmd.Flags().String("brokers", "", "Broker list to scope all partition placements to")
+	rebuildCmd.Flags().String("zk-metrics-prefix", "topicmappr", "ZooKeeper namespace prefix for Kafka metrics (when using storage placement)")
+	rebuildCmd.Flags().Bool("skip-no-ops", false, "Do not include no-op partition mapppings in the reassignment json file")
 
 	// Required.
-	rebuildTopicsCmd.MarkFlagRequired("brokers")
+	rebuildCmd.MarkFlagRequired("brokers")
 }
 
 func rebuild(cmd *cobra.Command, _ []string) {
