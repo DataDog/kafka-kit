@@ -37,7 +37,7 @@ Tested with Go 1.10+ (required), Kafka 0.10.x, ZooKeeper 3.4.x.
 
 ## Commands
 
-Currently, all topicmappr actions are performed through the `rebuild-topics` command.
+Currently, all topicmappr actions are performed through the `rebuild` command.
 
 ```
 Usage:
@@ -45,7 +45,7 @@ Usage:
 
 Available Commands:
   help           Help about any command
-  rebuild-topics Build a partition map for one or more topics
+  rebuild Build a partition map for one or more topics
 
 Flags:
   -h, --help               help for topicmappr
@@ -57,10 +57,10 @@ Use "topicmappr [command] --help" for more information about a command.
 
 
 
-## rebuild-topics usage
+## rebuild usage
 
 ```
-rebuild-topics requires at least two inputs: a reference of
+rebuild requires at least two inputs: a reference of
 target topics and a list of broker IDs to which those topics should be mapped.
 Target topics are provided as a comma delimited list of topic names and/or regex patterns
 via the --topics parameter, which discovers matching topics in ZooKeeper (additionally,
@@ -68,12 +68,12 @@ the --zk-addr and --zk-prefix global flags should be set). Alternatively, a JSON
 provided via the --map-string flag. Target broker IDs are provided via the --broker flag.
 
 Usage:
-  topicmappr rebuild-topics [flags]
+  topicmappr rebuild [flags]
 
 Flags:
       --brokers string                Broker list to scope all partition placements to
       --force-rebuild                 Forces a complete map rebuild
-  -h, --help                          help for rebuild-topics
+  -h, --help                          help for rebuild
       --ignore-warns                  Produce a map even if warnings are encountered
       --map-string string             Rebuild a partition map provided as a string literal
       --optimize string               Optimization priority for the storage placement strategy: [distribution, storage] (default "distribution")
