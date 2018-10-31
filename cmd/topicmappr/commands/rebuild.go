@@ -9,8 +9,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/DataDog/kafka-kit/kafkazk"
-
 	"github.com/spf13/cobra"
 )
 
@@ -64,7 +62,7 @@ func rebuild(cmd *cobra.Command, _ []string) {
 	log.SetOutput(ioutil.Discard)
 
 	b, _ := cmd.Flags().GetString("brokers")
-	Config.brokers = kafkazk.BrokerStringToSlice(b)
+	Config.brokers = brokerStringToSlice(b)
 	topics, _ := cmd.Flags().GetString("topics")
 
 	// Sanity check params.
