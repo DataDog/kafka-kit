@@ -19,36 +19,28 @@ import (
 //    topic discovery` via ZooKeeper.
 //  - that the --placement flag was set to 'storage', which expects
 //    metrics metadata to be stored in ZooKeeper.
-func initZooKeeper(cmd *cobra.Command) kafkazk.Handler {
-	m, _ := cmd.Flags().GetBool("use-meta")
-	p := cmd.Flag("placement").Value.String()
+func initZooKeeper(cmd *cobra.Command) (kafkazk.Handler, error) {
 	zkAddr := cmd.Parent().Flag("zk-addr").Value.String()
-
 	timeout := 250 * time.Millisecond
 
-	if m || len(Config.rebuildTopics) > 0 || p == "storage" {
-		zk, err := kafkazk.NewHandler(&kafkazk.Config{
-			Connect:       zkAddr,
-			Prefix:        cmd.Parent().Flag("zk-prefix").Value.String(),
-			MetricsPrefix: cmd.Flag("zk-metrics-prefix").Value.String(),
-		})
+	zk, err := kafkazk.NewHandler(&kafkazk.Config{
+		Connect:       zkAddr,
+		Prefix:        cmd.Parent().Flag("zk-prefix").Value.String(),
+		MetricsPrefix: cmd.Flag("zk-metrics-prefix").Value.String(),
+	})
 
-		if err != nil {
-			fmt.Printf("Error connecting to ZooKeeper: %s\n", err)
-			os.Exit(1)
-		}
-
-		time.Sleep(timeout)
-
-		if !zk.Ready() {
-			fmt.Printf("Failed to connect to ZooKeeper %s within %s\n", zkAddr, timeout)
-			os.Exit(1)
-		}
-
-		return zk
+	if err != nil {
+		return nil, fmt.Errorf("Error connecting to ZooKeeper: %s\n", err)
 	}
 
-	return nil
+	time.Sleep(timeout)
+
+	if !zk.Ready() {
+		return nil, fmt.Errorf("Failed to connect to ZooKeeper %s within %s\n", zkAddr, timeout)
+		os.Exit(1)
+	}
+
+	return zk, nil
 }
 
 // *References to metrics metadata persisted in ZooKeeper, see:

@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/DataDog/kafka-kit/kafkazk"
+
 	"github.com/spf13/cobra"
 )
 
@@ -51,7 +53,7 @@ func init() {
 	rebuildCmd.Flags().Float64("partition-size-factor", 1.0, "Factor by which to multiply partition sizes when using storage placement")
 	rebuildCmd.Flags().String("brokers", "", "Broker list to scope all partition placements to")
 	rebuildCmd.Flags().String("zk-metrics-prefix", "topicmappr", "ZooKeeper namespace prefix for Kafka metrics (when using storage placement)")
-	rebuildCmd.Flags().Bool("skip-no-ops", false, "Do not include no-op partition mapppings in the reassignment json file")
+	rebuildCmd.Flags().Bool("skip-no-ops", false, "Skip no-op partition assigments")
 
 	// Required.
 	rebuildCmd.MarkFlagRequired("brokers")
@@ -72,9 +74,12 @@ func rebuild(cmd *cobra.Command, _ []string) {
 	fr, _ := cmd.Flags().GetBool("force-rebuild")
 	sa, _ := cmd.Flags().GetBool("sub-affinity")
 	m, _ := cmd.Flags().GetBool("use-meta")
-	sno, _ := cmd.Flags().GetBool("skip-no-ops")
+	ms, _ := cmd.Flags().GetString("map-string")
 
 	switch {
+	case ms == "" && topics == "":
+		fmt.Println("\n[ERROR] must specify either --topics or --map-string")
+		defaultsAndExit()
 	case p != "count" && p != "storage":
 		fmt.Println("\n[ERROR] --placement must be either 'count' or 'storage'")
 		defaultsAndExit()
@@ -117,8 +122,14 @@ func rebuild(cmd *cobra.Command, _ []string) {
 	}
 
 	// ZooKeeper init.
-	zk := initZooKeeper(cmd)
-	if zk != nil {
+	var zk kafkazk.Handler
+	if m || len(Config.rebuildTopics) > 0 || p == "storage" {
+		var err error
+		zk, err = initZooKeeper(cmd)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 		defer zk.Close()
 	}
 
@@ -199,8 +210,8 @@ func rebuild(cmd *cobra.Command, _ []string) {
 		fmt.Printf("%s[none]\n", indent)
 	}
 
-	// Filter out no-op partition mappings if the corresponding flag was passed
-	if sno {
+	// Skip no-ops if configured.
+	if sno, _ := cmd.Flags().GetBool("skip-no-ops"); sno {
 		originalMap, partitionMapOut = ignoreNoOpRemappings(originalMap, partitionMapOut)
 	}
 
