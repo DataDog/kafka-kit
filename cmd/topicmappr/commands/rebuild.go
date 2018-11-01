@@ -100,9 +100,27 @@ func rebuild(cmd *cobra.Command, _ []string) {
 	//   are detected and reported.
 	// 5) The new PartitionMap is split by topic. Map(s) are written.
 
-	// Fetch broker and partition Metadata.
-	brokerMeta := getbrokerMeta(cmd, zk)
-	partitionMeta := getPartitionMeta(cmd, zk)
+	// Fetch broker metadata.
+	var withMetrics bool
+	if cmd.Flag("placement").Value.String() == "storage" {
+		withMetrics = true
+	}
+
+	var brokerMeta kafkazk.BrokerMetaMap
+	if m, _ := cmd.Flags().GetBool("use-meta"); m {
+		brokerMeta = getBrokerMeta(cmd, zk, withMetrics)
+	}
+
+	// Fetch partition metadata.
+	var partitionMeta kafkazk.PartitionMetaMap
+	if cmd.Flag("placement").Value.String() == "storage" {
+		var err error
+		partitionMeta, err = getPartitionMeta(cmd, zk)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	}
 
 	// Build a partition map either from literal map text input or by fetching the
 	// map data from ZooKeeper. Store a copy of the original.

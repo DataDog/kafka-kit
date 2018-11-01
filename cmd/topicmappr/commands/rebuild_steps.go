@@ -13,55 +13,6 @@ import (
 // *References to metrics metadata persisted in ZooKeeper, see:
 // https://github.com/DataDog/kafka-kit/tree/master/cmd/metricsfetcher#data-structures)
 
-// getbrokerMeta returns a map of brokers and broker metadata
-// for those registered in ZooKeeper. Optionally, metrics metadata
-// persisted in ZooKeeper (via an external mechanism*) can be merged
-// into the metadata.
-func getbrokerMeta(cmd *cobra.Command, zk kafkazk.Handler) kafkazk.BrokerMetaMap {
-	if m, _ := cmd.Flags().GetBool("use-meta"); m {
-		// Whether or not we want to include
-		// additional broker metrics Metadata.
-		var withMetrics bool
-		if cmd.Flag("placement").Value.String() == "storage" {
-			withMetrics = true
-		}
-
-		brokerMeta, errs := zk.GetAllBrokerMeta(withMetrics)
-		// If no data is returned, report and exit.
-		// Otherwise, it's possible that complete
-		// data for a few brokers wasn't returned.
-		// We check in subsequent steps as to whether any
-		// brokers that matter are missing metrics.
-		if errs != nil && brokerMeta == nil {
-			for _, e := range errs {
-				fmt.Println(e)
-			}
-			os.Exit(1)
-		}
-
-		return brokerMeta
-	}
-
-	return nil
-}
-
-// getPartitionMeta returns a map of topic, partition metadata
-// persisted in ZooKeeper (via an external mechanism*). This is
-// primarily partition size metrics data used for the storage
-// placement strategy.
-func getPartitionMeta(cmd *cobra.Command, zk kafkazk.Handler) kafkazk.PartitionMetaMap {
-	if cmd.Flag("placement").Value.String() == "storage" {
-		partitionMeta, err := zk.GetAllPartitionMeta()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		return partitionMeta
-	}
-
-	return nil
-}
-
 // getPartitionMap returns a map of of partition, topic config
 // (particuarly what brokers compose every replica set) for all
 // topics specified. A partition map is either built from a string
@@ -309,6 +260,7 @@ func ignoreNoOpRemappings(pm1, pm2 *kafkazk.PartitionMap) (*kafkazk.PartitionMap
 			prunedOutputPartitionMap.Partitions = append(prunedOutputPartitionMap.Partitions, p2)
 		}
 	}
+
 	return prunedInputPartitionMap, prunedOutputPartitionMap
 }
 

@@ -17,12 +17,12 @@ import (
 )
 
 const (
-	indent = "  "
+	indent = "\x20\x20"
 )
 
 var (
 	// Characters allowed in Kafka topic names
-	topicNormalChar, _ = regexp.Compile(`[a-zA-Z0-9_\\-]`)
+	topicNormalChar = regexp.MustCompile(`[a-zA-Z0-9_\\-]`)
 
 	Config struct {
 		rebuildTopics []*regexp.Regexp
@@ -120,7 +120,7 @@ func brokerStringToSlice(s string) []int {
 	var info int
 
 	parts := strings.Split(s, ",")
-	is := []int{}
+	var is []int
 
 	// Iterate and convert
 	// each broker ID.

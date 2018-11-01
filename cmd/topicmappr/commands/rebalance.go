@@ -37,4 +37,14 @@ func rebalance(cmd *cobra.Command, _ []string) {
 		os.Exit(1)
 	}
 	defer zk.Close()
+
+	// Get broker and partition metadata.
+	brokerMeta := getBrokerMeta(cmd, zk, true)
+	partitionMeta, err := getPartitionMeta(cmd, zk)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	_, _ = brokerMeta, partitionMeta
 }
