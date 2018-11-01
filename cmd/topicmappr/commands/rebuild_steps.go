@@ -4,44 +4,11 @@ import (
 	"fmt"
 	"os"
 	"sort"
-	"time"
 
 	"github.com/DataDog/kafka-kit/kafkazk"
 
 	"github.com/spf13/cobra"
 )
-
-// initZooKeeper inits a ZooKeeper connection if one is needed.
-// Scenarios that would require a connection:
-//  - the --use-meta flag is true (default), which requests
-//    that broker metadata (such as rack ID or registration liveness).
-//  - that topics were specified via --topics, which requires
-//    topic discovery` via ZooKeeper.
-//  - that the --placement flag was set to 'storage', which expects
-//    metrics metadata to be stored in ZooKeeper.
-func initZooKeeper(cmd *cobra.Command) (kafkazk.Handler, error) {
-	zkAddr := cmd.Parent().Flag("zk-addr").Value.String()
-	timeout := 250 * time.Millisecond
-
-	zk, err := kafkazk.NewHandler(&kafkazk.Config{
-		Connect:       zkAddr,
-		Prefix:        cmd.Parent().Flag("zk-prefix").Value.String(),
-		MetricsPrefix: cmd.Flag("zk-metrics-prefix").Value.String(),
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("Error connecting to ZooKeeper: %s\n", err)
-	}
-
-	time.Sleep(timeout)
-
-	if !zk.Ready() {
-		return nil, fmt.Errorf("Failed to connect to ZooKeeper %s within %s\n", zkAddr, timeout)
-		os.Exit(1)
-	}
-
-	return zk, nil
-}
 
 // *References to metrics metadata persisted in ZooKeeper, see:
 // https://github.com/DataDog/kafka-kit/tree/master/cmd/metricsfetcher#data-structures)
