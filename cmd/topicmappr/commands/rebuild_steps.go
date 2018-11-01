@@ -19,36 +19,28 @@ import (
 //    topic discovery` via ZooKeeper.
 //  - that the --placement flag was set to 'storage', which expects
 //    metrics metadata to be stored in ZooKeeper.
-func initZooKeeper(cmd *cobra.Command) kafkazk.Handler {
-	m, _ := cmd.Flags().GetBool("use-meta")
-	p := cmd.Flag("placement").Value.String()
+func initZooKeeper(cmd *cobra.Command) (kafkazk.Handler, error) {
 	zkAddr := cmd.Parent().Flag("zk-addr").Value.String()
-
 	timeout := 250 * time.Millisecond
 
-	if m || len(Config.rebuildTopics) > 0 || p == "storage" {
-		zk, err := kafkazk.NewHandler(&kafkazk.Config{
-			Connect:       zkAddr,
-			Prefix:        cmd.Parent().Flag("zk-prefix").Value.String(),
-			MetricsPrefix: cmd.Flag("zk-metrics-prefix").Value.String(),
-		})
+	zk, err := kafkazk.NewHandler(&kafkazk.Config{
+		Connect:       zkAddr,
+		Prefix:        cmd.Parent().Flag("zk-prefix").Value.String(),
+		MetricsPrefix: cmd.Flag("zk-metrics-prefix").Value.String(),
+	})
 
-		if err != nil {
-			fmt.Printf("Error connecting to ZooKeeper: %s\n", err)
-			os.Exit(1)
-		}
-
-		time.Sleep(timeout)
-
-		if !zk.Ready() {
-			fmt.Printf("Failed to connect to ZooKeeper %s within %s\n", zkAddr, timeout)
-			os.Exit(1)
-		}
-
-		return zk
+	if err != nil {
+		return nil, fmt.Errorf("Error connecting to ZooKeeper: %s\n", err)
 	}
 
-	return nil
+	time.Sleep(timeout)
+
+	if !zk.Ready() {
+		return nil, fmt.Errorf("Failed to connect to ZooKeeper %s within %s\n", zkAddr, timeout)
+		os.Exit(1)
+	}
+
+	return zk, nil
 }
 
 // *References to metrics metadata persisted in ZooKeeper, see:
@@ -107,7 +99,7 @@ func getPartitionMeta(cmd *cobra.Command, zk kafkazk.Handler) kafkazk.PartitionM
 // (particuarly what brokers compose every replica set) for all
 // topics specified. A partition map is either built from a string
 // literal input (json from off-the-shelf Kafka tools output) provided
-// via the --rebuild-map flag, or, by building a map based on topic
+// via the ---map-string flag, or, by building a map based on topic
 // config found in ZooKeeper for all topics matching input provided
 // via the --topics flag.
 func getPartitionMap(cmd *cobra.Command, zk kafkazk.Handler) *kafkazk.PartitionMap {

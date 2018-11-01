@@ -357,21 +357,6 @@ func TestBrokerMapCopy(t *testing.T) {
 	}
 }
 
-func TestBrokerStringToSlice(t *testing.T) {
-	bs := BrokerStringToSlice("1001,1002,1003,1003")
-	expected := []int{1001, 1002, 1003}
-
-	if len(bs) != 3 {
-		t.Errorf("Expected slice len of 3, got %d", len(bs))
-	}
-
-	for i, b := range bs {
-		if b != expected[i] {
-			t.Errorf("Expected ID %d, got %d", expected[i], b)
-		}
-	}
-}
-
 func newMockBrokerMap() BrokerMap {
 	return BrokerMap{
 		0:    &Broker{ID: 0, Replace: true},
