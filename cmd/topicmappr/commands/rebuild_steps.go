@@ -34,8 +34,8 @@ func getPartitionMap(cmd *cobra.Command, zk kafkazk.Handler) *kafkazk.PartitionM
 		return pm
 	// Build a map using ZooKeeper metadata
 	// for all specified topics.
-	case len(Config.rebuildTopics) > 0:
-		pm, err := kafkazk.PartitionMapFromZK(Config.rebuildTopics, zk)
+	case len(Config.topics) > 0:
+		pm, err := kafkazk.PartitionMapFromZK(Config.topics, zk)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)

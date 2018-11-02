@@ -76,7 +76,7 @@ func rebuild(cmd *cobra.Command, _ []string) {
 
 	// ZooKeeper init.
 	var zk kafkazk.Handler
-	if m || len(Config.rebuildTopics) > 0 || p == "storage" {
+	if m || len(Config.topics) > 0 || p == "storage" {
 		var err error
 		zk, err = initZooKeeper(cmd)
 		if err != nil {

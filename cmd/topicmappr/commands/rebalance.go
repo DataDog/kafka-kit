@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/DataDog/kafka-kit/kafkazk"
+
 	"github.com/spf13/cobra"
 )
 
@@ -39,12 +41,20 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	defer zk.Close()
 
 	// Get broker and partition metadata.
-	brokerMeta := getBrokerMeta(cmd, zk, true)
+	brokers := getBrokerMeta(cmd, zk, true)
 	partitionMeta, err := getPartitionMeta(cmd, zk)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
-	_, _ = brokerMeta, partitionMeta
+	_, _ = brokers, partitionMeta
+
+	pm, err := kafkazk.PartitionMapFromZK(Config.topics, zk)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	_ = pm
 }

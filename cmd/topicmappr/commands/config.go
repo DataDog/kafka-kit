@@ -25,8 +25,8 @@ var (
 	topicNormalChar = regexp.MustCompile(`[a-zA-Z0-9_\\-]`)
 
 	Config struct {
-		rebuildTopics []*regexp.Regexp
-		brokers       []int
+		topics  []*regexp.Regexp
+		brokers []int
 	}
 )
 
@@ -58,7 +58,7 @@ func bootstrap(cmd *cobra.Command) {
 				os.Exit(1)
 			}
 
-			Config.rebuildTopics = append(Config.rebuildTopics, r)
+			Config.topics = append(Config.topics, r)
 		}
 	}
 }

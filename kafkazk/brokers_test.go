@@ -1,6 +1,7 @@
 package kafkazk
 
 import (
+	"fmt"
 	"sort"
 	"testing"
 )
@@ -354,6 +355,15 @@ func TestBrokerMapCopy(t *testing.T) {
 		case bm1[b].StorageFree != bm2[b].StorageFree:
 			t.Error("StorageFree field mismatch")
 		}
+	}
+}
+
+func TestHMean(t *testing.T) {
+	bm1 := newMockBrokerMap2()
+
+	m := fmt.Sprintf("%.4f", bm1.HMean())
+	if m != "247.0588" {
+		t.Errorf("Expected harmonic mean of 247.0588, got %s", m)
 	}
 }
 
