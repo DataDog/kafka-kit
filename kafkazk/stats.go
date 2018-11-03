@@ -203,11 +203,10 @@ func (b BrokerMap) HMean() float64 {
 	return c / t
 }
 
-// AboveMean returns broker IDs that are above
-// the mean by d percent (0.00 < d).
+// AboveMean returns a sorted []int of broker IDs
+// that are above the mean by d percent (0.00 < d).
 func (b BrokerMap) AboveMean(d float64) []int {
 	m := b.HMean()
-
 	var ids []int
 
 	if d <= 0.00 {
