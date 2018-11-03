@@ -67,8 +67,8 @@ func (bs BrokerStatus) Changes() bool {
 	return false
 }
 
-// Broker is used for internal
-// metadata / accounting.
+// Broker associates metadata
+// with a real broker by ID.
 type Broker struct {
 	ID          int
 	Locality    string
@@ -445,20 +445,4 @@ func (b BrokerMap) Copy() BrokerMap {
 	}
 
 	return c
-}
-
-// HMean returns the harmonic mean of broker
-// storage free.
-func (b BrokerMap) HMean() float64 {
-	var t float64
-	var c float64
-
-	for _, br := range b {
-		if br.ID != 0 && br.StorageFree > 0 {
-			c++
-			t += (1.00 / br.StorageFree)
-		}
-	}
-
-	return c / t
 }

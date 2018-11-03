@@ -186,3 +186,41 @@ func (b BrokerMap) StorageStdDev() float64 {
 
 	return math.Sqrt(msq)
 }
+
+// HMean returns the harmonic mean of broker
+// storage free.
+func (b BrokerMap) HMean() float64 {
+	var t float64
+	var c float64
+
+	for _, br := range b {
+		if br.ID != 0 && br.StorageFree > 0 {
+			c++
+			t += (1.00 / br.StorageFree)
+		}
+	}
+
+	return c / t
+}
+
+// AboveMean returns broker IDs that are above
+// the mean by d percent (0.00 < d).
+func (b BrokerMap) AboveMean(d float64) []int {
+	m := b.HMean()
+
+	var ids []int
+
+	if d <= 0.00 {
+		return ids
+	}
+
+	for _, br := range b {
+		if (br.StorageFree-m)/m > d {
+			ids = append(ids, br.ID)
+		}
+	}
+
+	sort.Ints(ids)
+
+	return ids
+}
