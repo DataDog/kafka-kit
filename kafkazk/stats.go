@@ -214,7 +214,36 @@ func (b BrokerMap) AboveMean(d float64) []int {
 	}
 
 	for _, br := range b {
+		if br.ID == 0 {
+			continue
+		}
+
 		if (br.StorageFree-m)/m > d {
+			ids = append(ids, br.ID)
+		}
+	}
+
+	sort.Ints(ids)
+
+	return ids
+}
+
+// BelowMean returns a sorted []int of broker IDs
+// that are below the mean by d percent (0.00 < d).
+func (b BrokerMap) BelowMean(d float64) []int {
+	m := b.HMean()
+	var ids []int
+
+	if d <= 0.00 {
+		return ids
+	}
+
+	for _, br := range b {
+		if br.ID == 0 {
+			continue
+		}
+
+		if (m-br.StorageFree)/m > d {
 			ids = append(ids, br.ID)
 		}
 	}

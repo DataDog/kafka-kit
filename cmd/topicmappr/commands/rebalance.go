@@ -50,6 +50,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 
 	_, _ = brokers, partitionMeta
 
+	// Get the current partition map.
 	pm, err := kafkazk.PartitionMapFromZK(Config.topics, zk)
 	if err != nil {
 		fmt.Println(err)
@@ -57,4 +58,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	}
 
 	_ = pm
+
+	// Find brokers where the storage utilization is d %
+	// above the harmonic mean.
 }

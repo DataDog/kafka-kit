@@ -9,11 +9,6 @@ func NewMappings() Mappings {
 	return map[int]map[string]partitionList{}
 }
 
-// // Add takes a broker ID and Partition and
-// // adds the association to the Mapping.
-// func (m Mapping) Add(id int, p Partition) {
-// }
-
 // Mappings returns a Mappings from a *PartitionMap.
 func (pm *PartitionMap) Mappings() Mappings {
 	m := NewMappings()
