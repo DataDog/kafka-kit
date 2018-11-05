@@ -1,12 +1,12 @@
 package kafkazk
 
 // Mappings is a mapping of broker IDs
-// to currently held partitions numbers.
-type Mappings map[int]map[string][]int
+// to currently held partition as a partitionList.
+type Mappings map[int]map[string]partitionList
 
 // NewMappings returns a new Mappings.
 func NewMappings() Mappings {
-	return map[int]map[string][]int{}
+	return map[int]map[string]partitionList{}
 }
 
 // // Add takes a broker ID and Partition and
@@ -22,11 +22,11 @@ func (pm *PartitionMap) Mappings() Mappings {
 		for _, id := range p.Replicas {
 			// Create if not exists.
 			if _, exist := m[id]; !exist {
-				m[id] = map[string][]int{}
+				m[id] = map[string]partitionList{}
 			}
 
 			// Add the partition to the list.
-			m[id][p.Topic] = append(m[id][p.Topic], p.Partition)
+			m[id][p.Topic] = append(m[id][p.Topic], p)
 		}
 	}
 
