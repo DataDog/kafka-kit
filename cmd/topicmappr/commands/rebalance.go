@@ -23,6 +23,7 @@ func init() {
 	rebalanceCmd.Flags().String("out-path", "", "Path to write output map files to")
 	rebalanceCmd.Flags().String("out-file", "", "If defined, write a combined map of all topics to a file")
 	rebalanceCmd.Flags().String("brokers", "", "Broker list to scope all partition placements to")
+	rebalanceCmd.Flags().Float64("storage-threshold", 0.20, "storage-threshold")
 	rebalanceCmd.Flags().String("zk-metrics-prefix", "topicmappr", "ZooKeeper namespace prefix for Kafka metrics (when using storage placement)")
 
 	// Required.
@@ -41,14 +42,14 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	defer zk.Close()
 
 	// Get broker and partition metadata.
-	brokers := getBrokerMeta(cmd, zk, true)
+	brokerMeta := getBrokerMeta(cmd, zk, true)
 	partitionMeta, err := getPartitionMeta(cmd, zk)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
-	_, _ = brokers, partitionMeta
+	_ = partitionMeta
 
 	// Get the current partition map.
 	pm, err := kafkazk.PartitionMapFromZK(Config.topics, zk)
@@ -57,8 +58,16 @@ func rebalance(cmd *cobra.Command, _ []string) {
 		os.Exit(1)
 	}
 
-	_ = pm
+	brokers := kafkazk.BrokerMapFromPartitionMap(pm, brokerMeta, false)
+
+	// Update the currentBrokers list with
+	// the provided broker list.
+	bs := brokers.Update(Config.brokers, brokerMeta)
+
+	fmt.Printf("%+v\n", bs)
 
 	// Find brokers where the storage utilization is d %
 	// above the harmonic mean.
+	t, _ := cmd.Flags().GetFloat64("storage-threshold")
+	fmt.Println(brokers.BelowMean(t))
 }
