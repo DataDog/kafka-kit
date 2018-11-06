@@ -121,7 +121,7 @@ func (b BrokerMap) SubstitutionAffinities(pm *PartitionMap) (SubstitutionAffinit
 // the map and returned. Otherwise, an error is returned.
 func constraintsMatch(b *Broker, bm map[*Broker]struct{}) (*Broker, error) {
 	// Need a predictable selection.
-	brokers := brokerList{}
+	brokers := BrokerList{}
 	for broker := range bm {
 		brokers = append(brokers, broker)
 	}

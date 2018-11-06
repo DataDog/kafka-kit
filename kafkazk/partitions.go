@@ -229,10 +229,10 @@ func placeByPosition(params RebuildParams) (*PartitionMap, []string) {
 			} else {
 				// Otherwise, we need to find a replacement.
 
-				// Build a brokerList from the
+				// Build a BrokerList from the
 				// IDs in the old replica set to
 				// get a *constraints.
-				replicaSet := brokerList{}
+				replicaSet := BrokerList{}
 				for _, bid := range partn.Replicas {
 					replicaSet = append(replicaSet, params.BM[bid])
 				}
@@ -341,10 +341,10 @@ func placeByPartition(params RebuildParams) (*PartitionMap, []string) {
 			} else {
 				// Otherwise, we need to find a replacement.
 
-				// Build a brokerList from the
+				// Build a BrokerList from the
 				// IDs in the old replica set to
 				// get a *constraints.
-				replicaSet := brokerList{}
+				replicaSet := BrokerList{}
 				for _, bid := range partn.Replicas {
 					replicaSet = append(replicaSet, params.BM[bid])
 				}

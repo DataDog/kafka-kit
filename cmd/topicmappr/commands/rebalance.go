@@ -63,8 +63,10 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	// Update the currentBrokers list with
 	// the provided broker list.
 	bs := brokers.Update(Config.brokers, brokerMeta)
-
 	fmt.Printf("%+v\n", bs)
+
+	BrokerList := brokers.List()
+	BrokerList.SortByStorage()
 
 	// Find brokers where the storage utilization is d %
 	// above the harmonic mean.
