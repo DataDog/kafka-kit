@@ -65,11 +65,17 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	bs := brokers.Update(Config.brokers, brokerMeta)
 	fmt.Printf("%+v\n", bs)
 
-	BrokerList := brokers.List()
-	BrokerList.SortByStorage()
+	brokerList := brokers.List()
+	brokerList.SortByStorage()
 
 	// Find brokers where the storage utilization is d %
 	// above the harmonic mean.
 	t, _ := cmd.Flags().GetFloat64("storage-threshold")
-	fmt.Println(brokers.BelowMean(t))
+	offloadTargets := brokers.BelowMean(t)
+
+	fmt.Printf("Brokers targeted for partition offloading: %v\n", offloadTargets)
+
+	// for br := range offloadTargets {
+	// 	topPartn :=
+	// }
 }

@@ -68,6 +68,12 @@ func (p partitionsBySize) Less(i, j int) bool {
 	return p.pl[i].Partition < p.pl[j].Partition
 }
 
+// SortBySize takes a PartitionMetaMap and sorts the
+// partitionList by partition size.
+func (p partitionList) SortBySize(m PartitionMetaMap) {
+	sort.Sort(partitionsBySize{pl: p, pm: m})
+}
+
 // PartitionMeta holds partition metadata.
 type PartitionMeta struct {
 	Size float64 // In bytes.
