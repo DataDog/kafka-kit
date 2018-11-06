@@ -49,8 +49,6 @@ func rebalance(cmd *cobra.Command, _ []string) {
 		os.Exit(1)
 	}
 
-	_ = partitionMeta
-
 	// Get the current partition map.
 	pm, err := kafkazk.PartitionMapFromZK(Config.topics, zk)
 	if err != nil {
@@ -58,10 +56,15 @@ func rebalance(cmd *cobra.Command, _ []string) {
 		os.Exit(1)
 	}
 
+	// Get a mapping of broker IDs to topics, partitions.
+	mappings := pm.Mappings()
+
+	// Get a broker map.
 	brokers := kafkazk.BrokerMapFromPartitionMap(pm, brokerMeta, false)
 
 	// Update the currentBrokers list with
 	// the provided broker list.
+	// TODO we should only take New brokers in a rebalance.
 	bs := brokers.Update(Config.brokers, brokerMeta)
 	fmt.Printf("%+v\n", bs)
 
@@ -73,9 +76,68 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	t, _ := cmd.Flags().GetFloat64("storage-threshold")
 	offloadTargets := brokers.BelowMean(t)
 
+	// Storage the StorageFree harmonic mean.
+	meanStorageFree := brokers.HMean()
+
+	var div = 1073741824.00
+
 	fmt.Printf("Brokers targeted for partition offloading: %v\n", offloadTargets)
 
-	// for br := range offloadTargets {
-	// 	topPartn :=
-	// }
+	// Iterate over offload target brokers.
+	for _, br := range offloadTargets {
+		// Get the top 5 partitions for the broker.
+		topPartn, _ := mappings.LargestPartitions(br, 5, partitionMeta)
+
+		fmt.Printf("\nBroker %d has a storage free of %.2fGB. Top partitions:\n",
+			br, brokers[br].StorageFree/div)
+
+		for _, p := range topPartn {
+			pSize, _ := partitionMeta.Size(p)
+			fmt.Printf("%stopic: %s, partition: %d, size: %.2fGB\n",
+				indent, p.Topic, p.Partition, pSize/div)
+		}
+
+		// Find the broker with the highest storage free
+		// in the target locality.
+		targetLocality := brokers[br].Locality
+		var destinationTarget *kafkazk.Broker
+
+		for _, b := range brokers {
+			if b.Locality == targetLocality {
+				destinationTarget = b
+				break
+			}
+		}
+
+		fmt.Printf("%sDestination %d free: %.2fGB\n",
+			indent, destinationTarget.ID, destinationTarget.StorageFree/div)
+
+		// Find the largest partition that won't drop the
+		// current target below the mean nor push the destination
+		// over the mean.
+		var partitionToMove *kafkazk.Partition
+		var sourceFree, destFree float64
+		for _, p := range topPartn {
+			pSize, _ := partitionMeta.Size(p)
+
+			sourceFree = brokers[br].StorageFree + pSize
+			destFree = destinationTarget.StorageFree - pSize
+
+			if sourceFree <= meanStorageFree && destFree > meanStorageFree {
+				partitionToMove = &p
+				break
+			}
+		}
+
+		if partitionToMove == nil {
+			fmt.Printf("%sFound no partition to move\n", indent)
+			continue
+		}
+
+		fmt.Printf("%sMoving partition %s:%d from %d -> %d\n",
+			indent, partitionToMove.Topic, partitionToMove.Partition, br, destinationTarget.ID)
+
+		fmt.Printf("%sEstimated storage free: %d:%.2fGB, %d:%.2fGB\n",
+			indent, br, sourceFree/div, destinationTarget.ID, destFree/div)
+	}
 }
