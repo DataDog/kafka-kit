@@ -54,3 +54,25 @@ func TestMappings(t *testing.T) {
 		}
 	}
 }
+
+func TestLArgestPartitions(t *testing.T) {
+	var topic string = "test_topic"
+	pm, _ := PartitionMapFromString(testGetMapString4(topic))
+	zk := &Mock{}
+	pmm, _ := zk.GetAllPartitionMeta()
+	mappings := pm.Mappings()
+
+	l, _ := mappings.LargestPartitions(1003, 3, pmm)
+
+	expected := []int{3, 4, 1}
+
+	if len(l) != 3 {
+		t.Errorf("Expected result length 3, got %d", len(l))
+	}
+
+	for i, p := range l {
+		if p.Partition != expected[i] {
+			t.Errorf("Expected partition # %d, got %d", expected[i], p.Partition)
+		}
+	}
+}
