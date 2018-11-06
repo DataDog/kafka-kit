@@ -1,7 +1,6 @@
 package kafkazk
 
 import (
-	"sort"
 	"testing"
 )
 
@@ -40,13 +39,18 @@ func TestSortBrokerListByCount(t *testing.T) {
 	b := newMockBrokerMap2()
 	bl := b.filteredList()
 
-	sort.Sort(brokersByCount(bl))
+	bl.SortByCount()
+
+	var blIDs []int
+	for _, br := range bl {
+		blIDs = append(blIDs, br.ID)
+	}
 
 	expected := []int{1001, 1002, 1004, 1005, 1003, 1006, 1007}
 
 	for i, br := range bl {
 		if br.ID != expected[i] {
-			t.Error("Unexpected sort results")
+			t.Fatalf("Expected %v, got %v", expected, blIDs)
 		}
 	}
 }
@@ -55,13 +59,38 @@ func TestSortBrokerListByStorage(t *testing.T) {
 	b := newMockBrokerMap2()
 	bl := b.filteredList()
 
-	sort.Sort(brokersByStorage(bl))
+	bl.SortByStorage()
+
+	var blIDs []int
+	for _, br := range bl {
+		blIDs = append(blIDs, br.ID)
+	}
 
 	expected := []int{1004, 1005, 1006, 1007, 1003, 1002, 1001}
 
 	for i, br := range bl {
 		if br.ID != expected[i] {
-			t.Error("Unexpected sort results")
+			t.Fatalf("Expected %v, got %v", expected, blIDs)
+		}
+	}
+}
+
+func TestSortBrokerListByID(t *testing.T) {
+	b := newMockBrokerMap2()
+	bl := b.filteredList()
+
+	bl.SortByID()
+
+	var blIDs []int
+	for _, br := range bl {
+		blIDs = append(blIDs, br.ID)
+	}
+
+	expected := []int{1001, 1002, 1003, 1004, 1005, 1006, 1007}
+
+	for i, br := range bl {
+		if br.ID != expected[i] {
+			t.Fatalf("Expected %v, got %v", expected, blIDs)
 		}
 	}
 }

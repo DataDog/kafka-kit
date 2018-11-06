@@ -130,9 +130,22 @@ func (b brokersByID) Less(i, j int) bool { return b[i].ID < b[j].ID }
 
 // Sort methods.
 
-// SortByStorage sorts the BrokerList
+// SortByCount sorts the BrokerList by
+// Used values.
+func (b BrokerList) SortByCount() {
+	sort.Sort(brokersByCount(b))
+}
+
+// SortByStorage sorts the BrokerList by
+// StorageFree values.
 func (b BrokerList) SortByStorage() {
 	sort.Sort(brokersByStorage(b))
+}
+
+// SortByID sorts the BrokerList by
+// ID values.
+func (b BrokerList) SortByID() {
+	sort.Sort(brokersByID(b))
 }
 
 // SortPseudoShuffle takes a BrokerList and performs a sort by count.
