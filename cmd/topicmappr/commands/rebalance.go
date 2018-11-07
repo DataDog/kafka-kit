@@ -24,6 +24,7 @@ func init() {
 	rebalanceCmd.Flags().String("out-file", "", "If defined, write a combined map of all topics to a file")
 	rebalanceCmd.Flags().String("brokers", "", "Broker list to scope all partition placements to")
 	rebalanceCmd.Flags().Float64("storage-threshold", 0.20, "storage-threshold")
+	rebalanceCmd.Flags().Bool("locality-scoped", true, "Disallow a relocation to traverse rack.id values among brokers")
 	rebalanceCmd.Flags().String("zk-metrics-prefix", "topicmappr", "ZooKeeper namespace prefix for Kafka metrics (when using storage placement)")
 
 	// Required.
@@ -69,23 +70,26 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	fmt.Printf("%+v\n", bs)
 
 	brokerList := brokers.List()
-	brokerList.SortByStorage()
 
 	// Find brokers where the storage utilization is d %
 	// above the harmonic mean.
 	t, _ := cmd.Flags().GetFloat64("storage-threshold")
-	offloadTargets := brokers.BelowMean(t)
+	offloadTargets := brokers.BelowMean(t, brokers.HMean)
 
 	// Storage the StorageFree harmonic mean.
 	meanStorageFree := brokers.HMean()
 
 	var div = 1073741824.00
+	localityScoped, _ := cmd.Flags().GetBool("locality-scoped")
+
+	fmt.Printf("HMean: %.2fGB\n", meanStorageFree/div)
 
 	fmt.Printf("Brokers targeted for partition offloading: %v\n", offloadTargets)
 
 	// Iterate over offload target brokers.
 	for _, br := range offloadTargets {
-		// Get the top 5 partitions for the broker.
+
+		// Get the top 5 partitions for the target broker.
 		topPartn, _ := mappings.LargestPartitions(br, 5, partitionMeta)
 
 		fmt.Printf("\nBroker %d has a storage free of %.2fGB. Top partitions:\n",
@@ -97,47 +101,55 @@ func rebalance(cmd *cobra.Command, _ []string) {
 				indent, p.Topic, p.Partition, pSize/div)
 		}
 
-		// Find the broker with the highest storage free
-		// in the target locality.
 		targetLocality := brokers[br].Locality
-		var destinationTarget *kafkazk.Broker
+		partnsToMove := map[int][]kafkazk.Partition{}
 
-		for _, b := range brokers {
-			if b.Locality == targetLocality {
-				destinationTarget = b
-				break
-			}
-		}
-
-		fmt.Printf("%sDestination %d free: %.2fGB\n",
-			indent, destinationTarget.ID, destinationTarget.StorageFree/div)
-
-		// Find the largest partition that won't drop the
-		// current target below the mean nor push the destination
-		// over the mean.
-		var partitionToMove *kafkazk.Partition
-		var sourceFree, destFree float64
+		// Plan partition movements.
 		for _, p := range topPartn {
 			pSize, _ := partitionMeta.Size(p)
 
-			sourceFree = brokers[br].StorageFree + pSize
-			destFree = destinationTarget.StorageFree - pSize
+			// Find a destination broker.
+			var destinationTarget *kafkazk.Broker
+
+			// Sort brokerList by storage.
+			brokerList.SortByStorage()
+
+			// Whether or not the destination broker have the same rack.id
+			// as the target. If so, choose the lowest utilized broker in
+			// same locality. If not, choose the lowest utilized broker.
+			switch localityScoped {
+			case true:
+				for _, b := range brokers {
+					if b.Locality == targetLocality {
+						destinationTarget = b
+						break
+					}
+				}
+			default:
+				destinationTarget = brokerList[0]
+			}
+
+			fmt.Printf("%sDestination %d free: %.2fGB\n",
+				indent, destinationTarget.ID, destinationTarget.StorageFree/div)
+
+			sourceFree := brokers[br].StorageFree + pSize
+			destFree := destinationTarget.StorageFree - pSize
+
+			fmt.Printf("%s%d estimated %.2fGB -> %.2fGB\n",
+				indent, destinationTarget.ID, destinationTarget.StorageFree/div, destFree/div)
 
 			if sourceFree <= meanStorageFree && destFree > meanStorageFree {
-				partitionToMove = &p
-				break
+				partnsToMove[br] = append(partnsToMove[br], p)
 			}
 		}
 
-		if partitionToMove == nil {
-			fmt.Printf("%sFound no partition to move\n", indent)
-			continue
-		}
+		fmt.Printf("%sPartitions to move for %d: %v\n",
+			indent, br, partnsToMove[br])
 
-		fmt.Printf("%sMoving partition %s:%d from %d -> %d\n",
-			indent, partitionToMove.Topic, partitionToMove.Partition, br, destinationTarget.ID)
-
-		fmt.Printf("%sEstimated storage free: %d:%.2fGB, %d:%.2fGB\n",
-			indent, br, sourceFree/div, destinationTarget.ID, destFree/div)
+		// fmt.Printf("%sMoving partition %s:%d from %d -> %d\n",
+		// 	indent, partitionToMove.Topic, partitionToMove.Partition, br, destinationTarget.ID)
+		//
+		// fmt.Printf("%sEstimated storage free: %d:%.2fGB, %d:%.2fGB\n",
+		// 	indent, br, sourceFree/div, destinationTarget.ID, destFree/div)
 	}
 }

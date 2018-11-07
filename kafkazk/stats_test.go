@@ -160,9 +160,19 @@ func TestHMean(t *testing.T) {
 	}
 }
 
+func TestMean(t *testing.T) {
+	bm := newMockBrokerMap2()
+
+	m := fmt.Sprintf("%.4f", bm.Mean())
+	if m != "314.2857" {
+		t.Errorf("Expected harmonic mean of 314.2857, got %s", m)
+	}
+}
+
 func TestAboveMean(t *testing.T) {
 	bm := newMockBrokerMap2()
 
+	// With HMean.
 	tests := map[float64][]int{
 		0.20: []int{1003, 1004, 1005, 1006, 1007},
 		0.60: []int{1004, 1005, 1006, 1007},
@@ -170,7 +180,19 @@ func TestAboveMean(t *testing.T) {
 	}
 
 	for d, expected := range tests {
-		if results := bm.AboveMean(d); !sameIDs(results, expected) {
+		if results := bm.AboveMean(d, bm.HMean); !sameIDs(results, expected) {
+			t.Errorf("Expected %v, got %v for distance %.2f", expected, results, d)
+		}
+	}
+
+	// With Mean.
+	tests = map[float64][]int{
+		0.20: []int{1004, 1005, 1006, 1007},
+		0.60: []int{},
+	}
+
+	for d, expected := range tests {
+		if results := bm.AboveMean(d, bm.Mean); !sameIDs(results, expected) {
 			t.Errorf("Expected %v, got %v for distance %.2f", expected, results, d)
 		}
 	}
@@ -179,13 +201,27 @@ func TestAboveMean(t *testing.T) {
 func TestBelowMean(t *testing.T) {
 	bm := newMockBrokerMap2()
 
+	// With HMean.
 	tests := map[float64][]int{
 		0.10: []int{1001, 1002},
 		0.20: []int{1001},
 	}
 
 	for d, expected := range tests {
-		if results := bm.BelowMean(d); !sameIDs(results, expected) {
+		if results := bm.BelowMean(d, bm.HMean); !sameIDs(results, expected) {
+			t.Errorf("Expected %v, got %v for distance %.2f", expected, results, d)
+		}
+	}
+
+	// With Mean
+	tests = map[float64][]int{
+		0.10: []int{1001, 1002},
+		0.20: []int{1001, 1002},
+		0.60: []int{1001},
+	}
+
+	for d, expected := range tests {
+		if results := bm.BelowMean(d, bm.Mean); !sameIDs(results, expected) {
 			t.Errorf("Expected %v, got %v for distance %.2f", expected, results, d)
 		}
 	}
