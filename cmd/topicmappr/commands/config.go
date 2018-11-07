@@ -18,6 +18,7 @@ import (
 
 const (
 	indent = "\x20\x20"
+	div    = 1073741824.00
 )
 
 var (

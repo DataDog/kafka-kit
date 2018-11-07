@@ -62,7 +62,6 @@ func printBrokerAssignmentStats(cmd *cobra.Command, pm1, pm2 *kafkazk.PartitionM
 
 	// If we're using the storage placement strategy,
 	// write anticipated storage changes.
-	var div = 1073741824.00 // Fixed on GB for now.
 	psf, _ := cmd.Flags().GetFloat64("partition-size-factor")
 
 	if cmd.Use == "rebalance" || cmd.Flag("placement").Value.String() == "storage" {
