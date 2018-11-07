@@ -11,8 +11,8 @@ import (
 
 var rebalanceCmd = &cobra.Command{
 	Use:   "rebalance",
-	Short: "Rebalance a partition map for one or more topics",
-	Long:  `Rebalance`,
+	Short: "Rebalance partition allotments among a set of topics and brokers",
+	Long:  `Rebalance partition allotments among a set of topics and brokers`,
 	Run:   rebalance,
 }
 
@@ -87,7 +87,6 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	// TODO test what is best.
 	meanStorageFree := brokers.Mean()
 
-	var div = 1073741824.00
 	tolerance, _ := cmd.Flags().GetFloat64("tolerance")
 	localityScoped, _ := cmd.Flags().GetBool("locality-scoped")
 
@@ -122,6 +121,10 @@ func rebalance(cmd *cobra.Command, _ []string) {
 		targetLocality := brokers[sourceID].Locality
 
 		// Plan partition movements.
+		// Each time a partition is planned
+		// to be moved, it's unmapped from the
+		// broker so that it's not retried the
+		// next iteration.
 		for _, p := range topPartn {
 			// Get a storage sorted brokerList.
 			brokerList := brokers.List()
@@ -132,9 +135,9 @@ func rebalance(cmd *cobra.Command, _ []string) {
 			// Find a destination broker.
 			var dest *kafkazk.Broker
 
-			// Whether or not the destination broker have the same rack.id
-			// as the target. If so, choose the lowest utilized broker in
-			// same locality. If not, choose the lowest utilized broker.
+			// Whether or not the destination broker should have the same
+			// rack.id as the target. If so, choose the lowest utilized broker
+			// in same locality. If not, choose the lowest utilized broker.
 			switch localityScoped {
 			case true:
 				for _, b := range brokers {
@@ -185,14 +188,21 @@ func rebalance(cmd *cobra.Command, _ []string) {
 				brokers[sourceID].StorageFree = sourceFree
 				brokers[dest.ID].StorageFree = destFree
 
+				// Remove the partition as being mapped
+				// to the source broker.
+				mappings.Remove(sourceID, p)
+
 				if verbose {
 					fmt.Printf("%sPlanning relocation to candidate\n", indent)
 				}
+
+				// Move on to the next broker.
+				// break
 			}
 		}
 	}
 
-	// Print planned relocations.
+	// Print planned relocations.``
 	printPlannedRelocations(offloadTargets, relos, partitionMeta)
 
 	// Print map change results.

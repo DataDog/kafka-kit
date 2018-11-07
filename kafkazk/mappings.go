@@ -13,6 +13,23 @@ func NewMappings() Mappings {
 	return map[int]map[string]partitionList{}
 }
 
+type NoMappingForBroker struct {
+	id int
+}
+
+func (e NoMappingForBroker) Error() string {
+	return fmt.Sprintf("No mapping for ID %d", e.id)
+}
+
+type NoMappingForTopic struct {
+	id    int
+	topic string
+}
+
+func (e NoMappingForTopic) Error() string {
+	return fmt.Sprintf("No mapping for ID %d topic %s", e.id, e.topic)
+}
+
 // Mappings returns a Mappings from a *PartitionMap.
 func (pm *PartitionMap) Mappings() Mappings {
 	m := NewMappings()
@@ -39,7 +56,7 @@ func (m Mappings) LargestPartitions(id int, k int, pm PartitionMetaMap) (partiti
 	var allBySize partitionList
 
 	if _, exist := m[id]; !exist {
-		return nil, fmt.Errorf("no mapping for ID %d", id)
+		return nil, NoMappingForBroker{id: id}
 	}
 
 	for topic := range m[id] {
@@ -56,4 +73,28 @@ func (m Mappings) LargestPartitions(id int, k int, pm PartitionMetaMap) (partiti
 	copy(pl, allBySize)
 
 	return pl, nil
+}
+
+// Remove takes a broker ID and partition and
+// removes the mapping association.
+func (m Mappings) Remove(id int, p Partition) error {
+	if _, exist := m[id]; !exist {
+		return NoMappingForBroker{id: id}
+	}
+
+	if _, exist := m[id][p.Topic]; !exist {
+		return NoMappingForTopic{id: id, topic: p.Topic}
+	}
+
+	var newPl partitionList
+	for _, partn := range m[id][p.Topic] {
+		if !partn.Equal(p) {
+			newPl = append(newPl, partn)
+		} else {
+		}
+	}
+
+	m[id][p.Topic] = newPl
+
+	return nil
 }

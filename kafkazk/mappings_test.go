@@ -55,7 +55,7 @@ func TestMappings(t *testing.T) {
 	}
 }
 
-func TestLArgestPartitions(t *testing.T) {
+func TestLargestPartitions(t *testing.T) {
 	var topic string = "test_topic"
 	pm, _ := PartitionMapFromString(testGetMapString4(topic))
 	zk := &Mock{}
@@ -73,6 +73,34 @@ func TestLArgestPartitions(t *testing.T) {
 	for i, p := range l {
 		if p.Partition != expected[i] {
 			t.Errorf("Expected partition # %d, got %d", expected[i], p.Partition)
+		}
+	}
+}
+
+func TestRemove(t *testing.T) {
+	var topic string = "test_topic"
+	pm, _ := PartitionMapFromString(testGetMapString4(topic))
+	mappings := pm.Mappings()
+
+	expected := partitionList{
+		Partition{Topic: topic, Partition: 2, Replicas: []int{1001, 1002}},
+		Partition{Topic: topic, Partition: 5, Replicas: []int{1002, 1001}},
+	}
+
+	p := Partition{Topic: topic, Partition: 4, Replicas: []int{1001, 1003}}
+	mappings.Remove(1001, p)
+
+	l, el := len(mappings[1001]["test_topic"]), len(expected)
+	if l != el {
+		t.Errorf("Expected mappings len %d, got %d", el, l)
+	}
+
+	sort.Sort(mappings[1001]["test_topic"])
+	sort.Sort(expected)
+
+	for i, p := range mappings[1001]["test_topic"] {
+		if !p.Equal(expected[i]) {
+			t.Errorf("Expected %+v, got %+v", expected[i], p)
 		}
 	}
 }
