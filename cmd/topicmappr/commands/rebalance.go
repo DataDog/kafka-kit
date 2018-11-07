@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"sort"
 
 	"github.com/DataDog/kafka-kit/kafkazk"
 
@@ -28,6 +27,7 @@ func init() {
 	rebalanceCmd.Flags().Float64("storage-threshold", 0.20, "storage-threshold")
 	rebalanceCmd.Flags().Float64("tolerance", 0.10, "tolerance")
 	rebalanceCmd.Flags().Bool("locality-scoped", true, "Disallow a relocation to traverse rack.id values among brokers")
+	rebalanceCmd.Flags().Bool("verbose", false, "Verbose output")
 	rebalanceCmd.Flags().String("zk-metrics-prefix", "topicmappr", "ZooKeeper namespace prefix for Kafka metrics (when using storage placement)")
 
 	// Required.
@@ -36,6 +36,8 @@ func init() {
 
 func rebalance(cmd *cobra.Command, _ []string) {
 	bootstrap(cmd)
+
+	verbose, _ := cmd.Flags().GetBool("verbose")
 
 	// ZooKeeper init.
 	zk, err := initZooKeeper(cmd)
@@ -60,6 +62,8 @@ func rebalance(cmd *cobra.Command, _ []string) {
 		os.Exit(1)
 	}
 
+	partitionMapOrig := pm.Copy()
+
 	// Get a mapping of broker IDs to topics, partitions.
 	mappings := pm.Mappings()
 
@@ -71,7 +75,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	// the provided broker list.
 	// TODO we should only take New brokers in a rebalance.
 	bs := brokers.Update(Config.brokers, brokerMeta)
-	fmt.Printf("%+v\n", bs)
+	_ = bs
 
 	// Find brokers where the storage utilization is d %
 	// above the harmonic mean.
@@ -80,6 +84,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 
 	// Use the arithmetic mean for target
 	// thresholds.
+	// TODO test what is best.
 	meanStorageFree := brokers.Mean()
 
 	var div = 1073741824.00
@@ -90,23 +95,34 @@ func rebalance(cmd *cobra.Command, _ []string) {
 
 	fmt.Printf("Brokers targeted for partition offloading: %v\n", offloadTargets)
 
+	plan := relocationPlan{}
+
 	// Iterate over offload target brokers.
+	// TODO we should move only one partition per pass,
+	// continue performing passes until either no more
+	// movements can be done or a configured limit is hit.
 	for _, sourceID := range offloadTargets {
 
-		// Get the top 5 partitions for the target broker.
-		topPartn, _ := mappings.LargestPartitions(sourceID, 5, partitionMeta)
+		// Get the top partitions for the target broker.
+		topPartn, _ := mappings.LargestPartitions(sourceID, 10, partitionMeta)
 
-		fmt.Printf("\nBroker %d has a storage free of %.2fGB. Top partitions:\n",
-			sourceID, brokers[sourceID].StorageFree/div)
+		if verbose {
+			fmt.Printf("\nBroker %d has a storage free of %.2fGB. Top partitions:\n",
+				sourceID, brokers[sourceID].StorageFree/div)
 
-		for _, p := range topPartn {
-			pSize, _ := partitionMeta.Size(p)
-			fmt.Printf("%stopic: %s, partition: %d, size: %.2fGB\n",
-				indent, p.Topic, p.Partition, pSize/div)
+			for _, p := range topPartn {
+				pSize, _ := partitionMeta.Size(p)
+				fmt.Printf("%s%s p%d: %.2fGB\n",
+					indent, p.Topic, p.Partition, pSize/div)
+			}
 		}
 
 		targetLocality := brokers[sourceID].Locality
-		partnsToMove := map[int][]kafkazk.Partition{}
+
+		// This map tracks planned moves per
+		// offload target as a partition to
+		// destination ID.
+		var relos []relocation
 
 		// Plan partition movements.
 		for _, p := range topPartn {
@@ -134,59 +150,90 @@ func rebalance(cmd *cobra.Command, _ []string) {
 				dest = brokerList[0]
 			}
 
+			if verbose {
+				fmt.Printf("%s-\n", indent)
+				fmt.Printf("%sAttempting migration plan for %s p%d\n", indent, p.Topic, p.Partition)
+				fmt.Printf("%sCandidate destination broker %d has a storage free of %.2fGB\n",
+					indent, dest.ID, dest.StorageFree/div)
+			}
+
 			sourceFree := brokers[sourceID].StorageFree + pSize
 			destFree := dest.StorageFree - pSize
 
+			// Don't plan a migration that'd push a destination
+			// beyond the point the source already is at + the
+			// allowable tolerance.
+			destinationTolerance := sourceFree * (1 - tolerance)
+			if destFree < destinationTolerance {
+				if verbose {
+					fmt.Printf("%sCannot move partition to candidate: "+
+						"expected storage free %.2fGB below tolerated threshold of %.2fGB\n",
+						indent, destFree/div, destinationTolerance/div)
+
+				}
+
+				continue
+			}
+
 			// If the estimated storage change pushes neither the
 			// target nor destination beyond the threshold distance
-			// from the mean, we schedule the partition migration.
+			// from the mean, plan the partition migration.
 			if absDistance(sourceFree, meanStorageFree) <= tolerance && absDistance(destFree, meanStorageFree) <= tolerance {
-				partnsToMove[sourceID] = append(partnsToMove[sourceID], p)
+				relos = append(relos, relocation{partition: p, destination: dest.ID})
+
+				// Add to plan.
+				plan.add(p, [2]int{sourceID, dest.ID})
+
 				// Update StorageFree values.
 				brokers[sourceID].StorageFree = sourceFree
 				brokers[dest.ID].StorageFree = destFree
+
+				if verbose {
+					fmt.Printf("%sPlanning relocation to candidate\n", indent)
+				}
 			}
 		}
 
-		fmt.Printf("%sPartitions to move for %d: %v\n",
-			indent, sourceID, partnsToMove[sourceID])
+		fmt.Printf("\nBroker %d relocations planned:\n", sourceID)
 
-		// fmt.Printf("%sMoving partition %s:%d from %d -> %d\n",
-		// 	indent, partitionToMove.Topic, partitionToMove.Partition, br, dest.ID)
-		//
-		// fmt.Printf("%sEstimated storage free: %d:%.2fGB, %d:%.2fGB\n",
-		// 	indent, br, sourceFree/div, dest.ID, destFree/div)
-	}
-
-	// Get changes in storage utilization.
-	storageDiffs := brokersOrig.StorageDiff(brokers)
-
-	// Pop IDs into a slice for sorted ouptut.
-	ids := []int{}
-	for id := range storageDiffs {
-		ids = append(ids, id)
-	}
-
-	sort.Ints(ids)
-
-	fmt.Printf("\nBroker Storage Changes:\n")
-	for _, id := range ids {
-		// Skip the internal reserved ID.
-		if id == 0 {
-			continue
+		if len(relos) == 0 {
+			fmt.Printf("%s[none]\n", indent)
 		}
 
-		diff := storageDiffs[id]
-
-		originalStorage := brokersOrig[id].StorageFree / div
-		newStorage := brokers[id].StorageFree / div
-		if diff[1] != 0.00 {
-			fmt.Printf("%sBroker %d: %.2f -> %.2f (%+.2fGB, %.2f%%)\n",
-				indent, id, originalStorage, newStorage, diff[0]/div, diff[1])
+		for _, r := range relos {
+			pSize, _ := partitionMeta.Size(r.partition)
+			fmt.Printf("%s%s[%.2fGB] %s p%d -> %d\n",
+				indent, indent, pSize/div, r.partition.Topic, r.partition.Partition, r.destination)
 		}
+
 	}
+
+	// Print map change results.
+	printMapChanges(partitionMapOrig, pm)
+
+	// Print broker assignment statistics.
+	printBrokerAssignmentStats(cmd, partitionMapOrig, pm, brokersOrig, brokers)
 }
 
 func absDistance(x, t float64) float64 {
 	return math.Abs(t-x) / t
+}
+
+type relocation struct {
+	partition   kafkazk.Partition
+	destination int
+}
+
+// relocationPlan is a mapping of topic,
+// partition to a [2]int describing the
+// source and destination broker to relocate
+// a partition to and from.
+type relocationPlan map[string]map[int][2]int
+
+func (r relocationPlan) add(p kafkazk.Partition, ids [2]int) {
+	if _, exist := r[p.Topic]; !exist {
+		r[p.Topic] = make(map[int][2]int)
+	}
+
+	r[p.Topic][p.Partition] = ids
 }
