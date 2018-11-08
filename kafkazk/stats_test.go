@@ -1,6 +1,7 @@
 package kafkazk
 
 import (
+	"fmt"
 	"math"
 	"sort"
 	"testing"
@@ -148,4 +149,94 @@ func TestBrokerListSort(t *testing.T) {
 			t.Errorf("Expected broker %d, got %d", expected[i], b.ID)
 		}
 	}
+}
+
+func TestHMean(t *testing.T) {
+	bm := newMockBrokerMap2()
+
+	m := fmt.Sprintf("%.4f", bm.HMean())
+	if m != "247.0588" {
+		t.Errorf("Expected harmonic mean of 247.0588, got %s", m)
+	}
+}
+
+func TestMean(t *testing.T) {
+	bm := newMockBrokerMap2()
+
+	m := fmt.Sprintf("%.4f", bm.Mean())
+	if m != "314.2857" {
+		t.Errorf("Expected harmonic mean of 314.2857, got %s", m)
+	}
+}
+
+func TestAboveMean(t *testing.T) {
+	bm := newMockBrokerMap2()
+
+	// With HMean.
+	tests := map[float64][]int{
+		0.20: []int{1003, 1004, 1005, 1006, 1007},
+		0.60: []int{1004, 1005, 1006, 1007},
+		0.80: []int{},
+	}
+
+	for d, expected := range tests {
+		if results := bm.AboveMean(d, bm.HMean); !sameIDs(results, expected) {
+			t.Errorf("Expected %v, got %v for distance %.2f", expected, results, d)
+		}
+	}
+
+	// With Mean.
+	tests = map[float64][]int{
+		0.20: []int{1004, 1005, 1006, 1007},
+		0.60: []int{},
+	}
+
+	for d, expected := range tests {
+		if results := bm.AboveMean(d, bm.Mean); !sameIDs(results, expected) {
+			t.Errorf("Expected %v, got %v for distance %.2f", expected, results, d)
+		}
+	}
+}
+
+func TestBelowMean(t *testing.T) {
+	bm := newMockBrokerMap2()
+
+	// With HMean.
+	tests := map[float64][]int{
+		0.10: []int{1001, 1002},
+		0.20: []int{1001},
+	}
+
+	for d, expected := range tests {
+		if results := bm.BelowMean(d, bm.HMean); !sameIDs(results, expected) {
+			t.Errorf("Expected %v, got %v for distance %.2f", expected, results, d)
+		}
+	}
+
+	// With Mean
+	tests = map[float64][]int{
+		0.10: []int{1001, 1002},
+		0.20: []int{1001, 1002},
+		0.60: []int{1001},
+	}
+
+	for d, expected := range tests {
+		if results := bm.BelowMean(d, bm.Mean); !sameIDs(results, expected) {
+			t.Errorf("Expected %v, got %v for distance %.2f", expected, results, d)
+		}
+	}
+}
+
+func sameIDs(a, b []int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for n := range a {
+		if a[n] != b[n] {
+			return false
+		}
+	}
+
+	return true
 }

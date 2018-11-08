@@ -102,12 +102,7 @@ func TestSortBySize(t *testing.T) {
 	partitionMap, _ := z.GetPartitionMap("test_topic")
 	partitionMetaMap, _ := z.GetAllPartitionMeta()
 
-	s := partitionsBySize{
-		pl: partitionMap.Partitions,
-		pm: partitionMetaMap,
-	}
-
-	sort.Sort(partitionsBySize(s))
+	partitionMap.Partitions.SortBySize(partitionMetaMap)
 
 	expected := []int{3, 2, 1, 0}
 	for i, p := range partitionMap.Partitions {

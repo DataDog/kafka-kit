@@ -67,8 +67,8 @@ func (bs BrokerStatus) Changes() bool {
 	return false
 }
 
-// Broker is used for internal
-// metadata / accounting.
+// Broker associates metadata
+// with a real broker by ID.
 type Broker struct {
 	ID          int
 	Locality    string
@@ -83,17 +83,17 @@ type Broker struct {
 // broker IDs to *Broker.
 type BrokerMap map[int]*Broker
 
-// brokerList is a slice of
+// BrokerList is a slice of
 // brokers for sorting by used count.
-type brokerList []*Broker
+type BrokerList []*Broker
 
 // Wrapper types for sort by
 // methods.
-type brokersByCount brokerList
-type brokersByStorage brokerList
-type brokersByID brokerList
+type brokersByCount BrokerList
+type brokersByStorage BrokerList
+type brokersByID BrokerList
 
-// Satisfy the sort interface for brokerList types.
+// Satisfy the sort interface for BrokerList types.
 
 // By used field value.
 func (b brokersByCount) Len() int      { return len(b) }
@@ -128,10 +128,30 @@ func (b brokersByID) Len() int           { return len(b) }
 func (b brokersByID) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
 func (b brokersByID) Less(i, j int) bool { return b[i].ID < b[j].ID }
 
-// SortPseudoShuffle takes a brokerList and performs a sort by count.
+// Sort methods.
+
+// SortByCount sorts the BrokerList by
+// Used values.
+func (b BrokerList) SortByCount() {
+	sort.Sort(brokersByCount(b))
+}
+
+// SortByStorage sorts the BrokerList by
+// StorageFree values.
+func (b BrokerList) SortByStorage() {
+	sort.Sort(brokersByStorage(b))
+}
+
+// SortByID sorts the BrokerList by
+// ID values.
+func (b BrokerList) SortByID() {
+	sort.Sort(brokersByID(b))
+}
+
+// SortPseudoShuffle takes a BrokerList and performs a sort by count.
 // For each sequence of brokers with equal counts, the sub-slice is
 // pseudo random shuffled using the provided seed value s.
-func (b brokerList) SortPseudoShuffle(seed int64) {
+func (b BrokerList) SortPseudoShuffle(seed int64) {
 	sort.Sort(brokersByCount(b))
 
 	if len(b) <= 2 {
@@ -318,15 +338,26 @@ func (b BrokerMap) SubStorageReplacements(pm *PartitionMap, pmm PartitionMetaMap
 	return nil
 }
 
-// filteredList converts a BrokerMap to a brokerList,
+// filteredList converts a BrokerMap to a BrokerList,
 // excluding nodes marked for replacement.
-func (b BrokerMap) filteredList() brokerList {
-	bl := brokerList{}
+// TODO this should take a func. Export.
+func (b BrokerMap) filteredList() BrokerList {
+	bl := BrokerList{}
 
 	for broker := range b {
 		if !b[broker].Replace {
 			bl = append(bl, b[broker])
 		}
+	}
+
+	return bl
+}
+
+func (b BrokerMap) List() BrokerList {
+	bl := BrokerList{}
+
+	for broker := range b {
+		bl = append(bl, b[broker])
 	}
 
 	return bl

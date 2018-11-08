@@ -186,3 +186,87 @@ func (b BrokerMap) StorageStdDev() float64 {
 
 	return math.Sqrt(msq)
 }
+
+// HMean returns the harmonic mean of broker
+// storage free.
+func (b BrokerMap) HMean() float64 {
+	var t float64
+	var c float64
+
+	for _, br := range b {
+		if br.ID != 0 && br.StorageFree > 0 {
+			c++
+			t += (1.00 / br.StorageFree)
+		}
+	}
+
+	return c / t
+}
+
+// Mean returns the arithmetic mean of broker
+// storage free.
+func (b BrokerMap) Mean() float64 {
+	var t float64
+	var c float64
+
+	for _, br := range b {
+		if br.ID != 0 && br.StorageFree > 0 {
+			c++
+			t += br.StorageFree
+		}
+	}
+
+	return t / c
+}
+
+// AboveMean returns a sorted []int of broker IDs
+// that are above the mean by d percent (0.00 < d).
+// The mean type is provided as a function parameter f.
+func (b BrokerMap) AboveMean(d float64, f func() float64) []int {
+	m := f()
+	var ids []int
+
+	if d <= 0.00 {
+		return ids
+	}
+
+	for _, br := range b {
+		if br.ID == 0 {
+			continue
+		}
+
+		if (br.StorageFree-m)/m > d {
+			ids = append(ids, br.ID)
+		}
+	}
+
+	sort.Ints(ids)
+
+	return ids
+}
+
+// BelowMean returns a sorted []int of broker IDs
+// that are below the mean by d percent (0.00 < d).
+// The mean type is provided as a function parameter f.
+func (b BrokerMap) BelowMean(d float64, f func() float64) []int {
+	m := f()
+	var ids []int
+
+	if d <= 0.00 {
+		return ids
+	}
+
+	for _, br := range b {
+		if br.ID == 0 {
+			continue
+		}
+
+		if (m-br.StorageFree)/m > d {
+			ids = append(ids, br.ID)
+		}
+	}
+
+	sort.Ints(ids)
+
+	return ids
+}

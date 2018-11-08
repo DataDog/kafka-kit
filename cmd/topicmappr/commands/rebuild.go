@@ -2,26 +2,12 @@ package commands
 
 import (
 	"fmt"
-	"io/ioutil"
-	"log"
 	"os"
-	"regexp"
 	"sort"
-	"strings"
 
 	"github.com/DataDog/kafka-kit/kafkazk"
 
 	"github.com/spf13/cobra"
-)
-
-var (
-	// Characters allowed in Kafka topic names
-	topicNormalChar, _ = regexp.Compile(`[a-zA-Z0-9_\\-]`)
-
-	Config struct {
-		rebuildTopics []*regexp.Regexp
-		brokers       []int
-	}
 )
 
 var rebuildCmd = &cobra.Command{
@@ -60,24 +46,17 @@ func init() {
 }
 
 func rebuild(cmd *cobra.Command, _ []string) {
-	// Suppress underlying ZK client noise.
-	log.SetOutput(ioutil.Discard)
-
-	b, _ := cmd.Flags().GetString("brokers")
-	Config.brokers = brokerStringToSlice(b)
-	topics, _ := cmd.Flags().GetString("topics")
-
 	// Sanity check params.
-
+	t, _ := cmd.Flags().GetString("topics")
+	ms, _ := cmd.Flags().GetString("map-string")
 	p := cmd.Flag("placement").Value.String()
 	o := cmd.Flag("optimize").Value.String()
 	fr, _ := cmd.Flags().GetBool("force-rebuild")
 	sa, _ := cmd.Flags().GetBool("sub-affinity")
 	m, _ := cmd.Flags().GetBool("use-meta")
-	ms, _ := cmd.Flags().GetString("map-string")
 
 	switch {
-	case ms == "" && topics == "":
+	case ms == "" && t == "":
 		fmt.Println("\n[ERROR] must specify either --topics or --map-string")
 		defaultsAndExit()
 	case p != "count" && p != "storage":
@@ -93,37 +72,11 @@ func rebuild(cmd *cobra.Command, _ []string) {
 		fmt.Println("\n[INFO] --force-rebuild disables --sub-affinity")
 	}
 
-	// Append trailing slash if not included.
-	op := cmd.Flag("out-path").Value.String()
-	if op != "" && !strings.HasSuffix(op, "/") {
-		cmd.Flags().Set("out-path", op+"/")
-	}
-
-	// Determine if regexp was provided in the topic
-	// name. If not, set the topic name to ^name$.
-	if topics != "" {
-		topicNames := strings.Split(topics, ",")
-		for n, t := range topicNames {
-			if !containsRegex(t) {
-				topicNames[n] = fmt.Sprintf(`^%s$`, t)
-			}
-		}
-
-		// Compile topic regex.
-		for _, t := range topicNames {
-			r, err := regexp.Compile(t)
-			if err != nil {
-				fmt.Printf("Invalid topic regex: %s\n", t)
-				os.Exit(1)
-			}
-
-			Config.rebuildTopics = append(Config.rebuildTopics, r)
-		}
-	}
+	bootstrap(cmd)
 
 	// ZooKeeper init.
 	var zk kafkazk.Handler
-	if m || len(Config.rebuildTopics) > 0 || p == "storage" {
+	if m || len(Config.topics) > 0 || p == "storage" {
 		var err error
 		zk, err = initZooKeeper(cmd)
 		if err != nil {
@@ -147,9 +100,27 @@ func rebuild(cmd *cobra.Command, _ []string) {
 	//   are detected and reported.
 	// 5) The new PartitionMap is split by topic. Map(s) are written.
 
-	// Fetch broker and partition Metadata.
-	brokerMeta := getbrokerMeta(cmd, zk)
-	partitionMeta := getPartitionMeta(cmd, zk)
+	// Fetch broker metadata.
+	var withMetrics bool
+	if cmd.Flag("placement").Value.String() == "storage" {
+		withMetrics = true
+	}
+
+	var brokerMeta kafkazk.BrokerMetaMap
+	if m, _ := cmd.Flags().GetBool("use-meta"); m {
+		brokerMeta = getBrokerMeta(cmd, zk, withMetrics)
+	}
+
+	// Fetch partition metadata.
+	var partitionMeta kafkazk.PartitionMetaMap
+	if cmd.Flag("placement").Value.String() == "storage" {
+		var err error
+		partitionMeta, err = getPartitionMeta(cmd, zk)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	}
 
 	// Build a partition map either from literal map text input or by fetching the
 	// map data from ZooKeeper. Store a copy of the original.
@@ -210,16 +181,16 @@ func rebuild(cmd *cobra.Command, _ []string) {
 		fmt.Printf("%s[none]\n", indent)
 	}
 
-	// Skip no-ops if configured.
-	if sno, _ := cmd.Flags().GetBool("skip-no-ops"); sno {
-		originalMap, partitionMapOut = ignoreNoOpRemappings(originalMap, partitionMapOut)
-	}
-
 	// Print map change results.
 	printMapChanges(originalMap, partitionMapOut)
 
 	// Print broker assignment statistics.
 	printBrokerAssignmentStats(cmd, originalMap, partitionMapOut, brokersOrig, brokers)
+
+	// Skip no-ops if configured.
+	if sno, _ := cmd.Flags().GetBool("skip-no-ops"); sno {
+		originalMap, partitionMapOut = skipReassignmentNoOps(originalMap, partitionMapOut)
+	}
 
 	// If no warnings were encountered, write out the output partition map(s).
 	iw, _ := cmd.Flags().GetBool("ignore-warns")

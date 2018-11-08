@@ -68,6 +68,12 @@ func (p partitionsBySize) Less(i, j int) bool {
 	return p.pl[i].Partition < p.pl[j].Partition
 }
 
+// SortBySize takes a PartitionMetaMap and sorts the
+// partitionList by partition size.
+func (p partitionList) SortBySize(m PartitionMetaMap) {
+	sort.Sort(partitionsBySize{pl: p, pm: m})
+}
+
 // PartitionMeta holds partition metadata.
 type PartitionMeta struct {
 	Size float64 // In bytes.
@@ -229,10 +235,10 @@ func placeByPosition(params RebuildParams) (*PartitionMap, []string) {
 			} else {
 				// Otherwise, we need to find a replacement.
 
-				// Build a brokerList from the
+				// Build a BrokerList from the
 				// IDs in the old replica set to
 				// get a *constraints.
-				replicaSet := brokerList{}
+				replicaSet := BrokerList{}
 				for _, bid := range partn.Replicas {
 					replicaSet = append(replicaSet, params.BM[bid])
 				}
@@ -341,10 +347,10 @@ func placeByPartition(params RebuildParams) (*PartitionMap, []string) {
 			} else {
 				// Otherwise, we need to find a replacement.
 
-				// Build a brokerList from the
+				// Build a BrokerList from the
 				// IDs in the old replica set to
 				// get a *constraints.
-				replicaSet := brokerList{}
+				replicaSet := BrokerList{}
 				for _, bid := range partn.Replicas {
 					replicaSet = append(replicaSet, params.BM[bid])
 				}
@@ -684,19 +690,20 @@ func (pm *PartitionMap) UseStats() []*BrokerUseStats {
 // Equal defines equalty between two Partition objects
 // as an equality of topic, partition and replicas.
 func (p Partition) Equal(p2 Partition) bool {
-	if p.Topic != p2.Topic {
+	switch {
+	case p.Topic != p2.Topic:
+		return false
+	case p.Partition != p2.Partition:
+		return false
+	case len(p.Replicas) != len(p2.Replicas):
 		return false
 	}
-	if p.Partition != p2.Partition {
-		return false
-	}
-	if len(p.Replicas) != len(p2.Replicas) {
-		return false
-	}
+
 	for i := range p.Replicas {
 		if p.Replicas[i] != p2.Replicas[i] {
 			return false
 		}
 	}
+
 	return true
 }

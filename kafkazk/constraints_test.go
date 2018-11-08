@@ -6,7 +6,7 @@ import (
 
 func TestBestCandidateByCount(t *testing.T) {
 	localities := []string{"a", "b", "c"}
-	bl := brokerList{}
+	bl := BrokerList{}
 
 	for i := 0; i < 4; i++ {
 		b := &Broker{
@@ -45,7 +45,7 @@ func TestBestCandidateByCount(t *testing.T) {
 
 func TestBestCandidateByStorage(t *testing.T) {
 	localities := []string{"a", "b", "c"}
-	bl := brokerList{}
+	bl := BrokerList{}
 
 	for i := 0; i < 4; i++ {
 		b := &Broker{
@@ -98,7 +98,7 @@ func TestConstraintsAdd(t *testing.T) {
 	b1 := &Broker{ID: 1000, Locality: "a"}
 	b2 := &Broker{ID: 1001, Locality: "b"}
 
-	bl := brokerList{b1}
+	bl := BrokerList{b1}
 	c := mergeConstraints(bl)
 	c.add(b2)
 
@@ -128,7 +128,7 @@ func TestConstraintsPasses(t *testing.T) {
 	// Pass.
 	b4 := &Broker{ID: 1001, Locality: "c"}
 
-	bl := brokerList{b1, b2, b3, b4}
+	bl := BrokerList{b1, b2, b3, b4}
 
 	expected := []bool{false, false, false, true}
 
@@ -141,7 +141,7 @@ func TestConstraintsPasses(t *testing.T) {
 
 func TestMergeConstraints(t *testing.T) {
 	localities := []string{"a", "b", "c"}
-	bl := brokerList{}
+	bl := BrokerList{}
 
 	for i := 0; i < 5; i++ {
 		b := &Broker{

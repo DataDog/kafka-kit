@@ -30,7 +30,7 @@ func newConstraints() *constraints {
 // and pass / iteration number (for use as a seed value
 // for pseudo-random number generation) and returns
 // the most suitable broker.
-func (b brokerList) bestCandidate(c *constraints, by string, p int64) (*Broker, error) {
+func (b BrokerList) bestCandidate(c *constraints, by string, p int64) (*Broker, error) {
 	// Sort type based on the
 	// desired placement criteria.
 	switch by {
@@ -101,7 +101,7 @@ func (c *constraints) passes(b *Broker) bool {
 // mergeConstraints takes a brokerlist and
 // builds a *constraints by merging the
 // attributes of all brokers from the supplied list.
-func mergeConstraints(bl brokerList) *constraints {
+func mergeConstraints(bl BrokerList) *constraints {
 	c := newConstraints()
 
 	for _, b := range bl {

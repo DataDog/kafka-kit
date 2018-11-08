@@ -37,7 +37,7 @@ Tested with Go 1.10+ (required), Kafka 0.10.x, ZooKeeper 3.4.x.
 
 ## Commands
 
-Currently, all topicmappr actions are performed through the `rebuild` command.
+Most operations are performed through the `rebuild` command. Partial rebalances are performed through a dedicated `rebalance` command (beta).
 
 ```
 Usage:
@@ -45,6 +45,7 @@ Usage:
 
 Available Commands:
   help        Help about any command
+  rebalance   [BETA] Rebalance partition allotments among a set of topics and brokers
   rebuild     Rebuild a partition map for one or more topics
 
 Flags:
@@ -86,6 +87,31 @@ Flags:
       --topics string                 Rebuild topics (comma delim. list) by lookup in ZooKeeper
       --use-meta                      Use broker metadata in placement constraints (default true)
       --zk-metrics-prefix string      ZooKeeper namespace prefix for Kafka metrics (when using storage placement) (default "topicmappr")
+
+Global Flags:
+      --zk-addr string     ZooKeeper connect string (for broker metadata or rebuild-topic lookups) (default "localhost:2181")
+      --zk-prefix string   ZooKeeper namespace prefix (for Kafka brokers)
+```
+
+## rebalance usage
+
+```
+[BETA] Rebalance partition allotments among a set of topics and brokers
+
+Usage:
+  topicmappr rebalance [flags]
+
+Flags:
+      --brokers string             Broker list to scope all partition placements to
+  -h, --help                       help for rebalance
+      --locality-scoped            Disallow a relocation to traverse rack.id values among brokers (default true)
+      --out-file string            If defined, write a combined map of all topics to a file
+      --out-path string            Path to write output map files to
+      --storage-threshold float    Percent below the mean storage free to target for partition offload (default 0.2)
+      --tolerance float            Percent below the source broker or mean storage free that a destination target will tolerate (default 0.1)
+      --topics string              Rebuild topics (comma delim. list) by lookup in ZooKeeper
+      --verbose                    Verbose output
+      --zk-metrics-prefix string   ZooKeeper namespace prefix for Kafka metrics (when using storage placement) (default "topicmappr")
 
 Global Flags:
       --zk-addr string     ZooKeeper connect string (for broker metadata or rebuild-topic lookups) (default "localhost:2181")
