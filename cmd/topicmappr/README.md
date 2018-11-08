@@ -104,7 +104,7 @@ Usage:
 Flags:
       --brokers string             Broker list to scope all partition placements to
   -h, --help                       help for rebalance
-      --locality-scoped            Disallow a relocation to traverse rack.id values among brokers (default true)
+      --locality-scoped            [WARN: disabling breaks rack.id constraints] Disallow a relocation to traverse rack.id values among brokers (default true)
       --out-file string            If defined, write a combined map of all topics to a file
       --out-path string            Path to write output map files to
       --storage-threshold float    Percent below the mean storage free to target for partition offload (default 0.2)
