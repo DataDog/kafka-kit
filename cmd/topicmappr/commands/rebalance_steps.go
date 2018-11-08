@@ -19,13 +19,14 @@ type relocation struct {
 }
 
 type planRelocationsForBrokerParams struct {
-	sourceID      int
-	relos         map[int][]relocation
-	mappings      kafkazk.Mappings
-	brokers       kafkazk.BrokerMap
-	partitionMeta kafkazk.PartitionMetaMap
-	plan          relocationPlan
-	pass          int
+	sourceID           int
+	relos              map[int][]relocation
+	mappings           kafkazk.Mappings
+	brokers            kafkazk.BrokerMap
+	partitionMeta      kafkazk.PartitionMetaMap
+	plan               relocationPlan
+	pass               int
+	topPartitionsLimit int
 }
 
 // relocationPlan is a mapping of topic,
@@ -74,6 +75,7 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 	partitionMeta := params.partitionMeta
 	plan := params.plan
 	sourceID := params.sourceID
+	topPartitionsLimit := params.topPartitionsLimit
 
 	// Use the arithmetic mean for target
 	// thresholds.
@@ -81,7 +83,7 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 	meanStorageFree := brokers.Mean()
 
 	// Get the top partitions for the target broker.
-	topPartn, _ := mappings.LargestPartitions(sourceID, 10, partitionMeta)
+	topPartn, _ := mappings.LargestPartitions(sourceID, topPartitionsLimit, partitionMeta)
 
 	if verbose {
 		fmt.Printf("\n[pass %d] Broker %d has a storage free of %.2fGB. Top partitions:\n",
