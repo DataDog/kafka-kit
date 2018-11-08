@@ -33,12 +33,33 @@ type planRelocationsForBrokerParams struct {
 // a partition to and from.
 type relocationPlan map[string]map[int][2]int
 
+// add takes a kafkazk.Partition and a [2]int pair of
+// source and destination broker IDs which the partition
+// is scheduled to relocate from and to.
 func (r relocationPlan) add(p kafkazk.Partition, ids [2]int) {
 	if _, exist := r[p.Topic]; !exist {
 		r[p.Topic] = make(map[int][2]int)
 	}
 
 	r[p.Topic][p.Partition] = ids
+}
+
+// isPlanned takes a kafkazk.Partition and returns whether
+// a relocation is planned for the partition, along with
+// the [2]int pair of source and destination broker IDs.
+func (r relocationPlan) isPlanned(p kafkazk.Partition) (bool, [2]int) {
+	var pair [2]int
+	if _, exist := r[p.Topic]; !exist {
+		return false, pair
+	}
+
+	if _, exist := r[p.Topic][p.Partition]; !exist {
+		return false, pair
+	} else {
+		pair = r[p.Topic][p.Partition]
+	}
+
+	return true, pair
 }
 
 func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBrokerParams) int {
@@ -156,6 +177,13 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 	}
 
 	return reloCount
+}
+
+func applyRelocationPlan(partitionMap *kafkazk.PartitionMap, plan relocationPlan) {
+	// Traverse the partition list.
+	for _, partn := range partitionMap.Partitions {
+		_ = partn
+	}
 }
 
 func printPlannedRelocations(targets []int, relos map[int][]relocation, pmm kafkazk.PartitionMetaMap) {

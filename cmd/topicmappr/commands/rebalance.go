@@ -11,8 +11,8 @@ import (
 
 var rebalanceCmd = &cobra.Command{
 	Use:   "rebalance",
-	Short: "Rebalance partition allotments among a set of topics and brokers",
-	Long:  `Rebalance partition allotments among a set of topics and brokers`,
+	Short: "[BETA] Rebalance partition allotments among a set of topics and brokers",
+	Long:  `[BETA] Rebalance partition allotments among a set of topics and brokers`,
 	Run:   rebalance,
 }
 
@@ -54,26 +54,25 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	}
 
 	// Get the current partition map.
-	pm, err := kafkazk.PartitionMapFromZK(Config.topics, zk)
+	partitionMap, err := kafkazk.PartitionMapFromZK(Config.topics, zk)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
-	partitionMapOrig := pm.Copy()
+	partitionMapOrig := partitionMap.Copy()
 
 	// Get a mapping of broker IDs to topics, partitions.
-	mappings := pm.Mappings()
+	mappings := partitionMap.Mappings()
 
 	// Get a broker map.
-	brokers := kafkazk.BrokerMapFromPartitionMap(pm, brokerMeta, false)
+	brokers := kafkazk.BrokerMapFromPartitionMap(partitionMap, brokerMeta, false)
 	brokersOrig := brokers.Copy()
 
 	// Update the currentBrokers list with
 	// the provided broker list.
 	// TODO we should only take New brokers in a rebalance.
-	bs := brokers.Update(Config.brokers, brokerMeta)
-	_ = bs
+	_ = brokers.Update(Config.brokers, brokerMeta)
 
 	// Find brokers where the storage free is t %
 	// below the harmonic mean.
@@ -82,13 +81,9 @@ func rebalance(cmd *cobra.Command, _ []string) {
 
 	fmt.Printf("Brokers targeted for partition offloading: %v\n", offloadTargets)
 
-	// This map tracks planned moves from source
-	// broker ID to a []relocation.
-	var relos = map[int][]relocation{}
-
 	// Bundle planRelocationsForBrokerParams.
 	params := planRelocationsForBrokerParams{
-		relos:         relos,
+		relos:         map[int][]relocation{},
 		mappings:      mappings,
 		brokers:       brokers,
 		partitionMeta: partitionMeta,
@@ -113,12 +108,15 @@ func rebalance(cmd *cobra.Command, _ []string) {
 		}
 	}
 
-	// Print planned relocations.``
-	printPlannedRelocations(offloadTargets, relos, partitionMeta)
+	// Print planned relocations.
+	printPlannedRelocations(offloadTargets, params.relos, partitionMeta)
+
+	// Update the partition map with the relocation plan.
+	applyRelocationPlan(partitionMap, params.plan)
 
 	// Print map change results.
-	printMapChanges(partitionMapOrig, pm)
+	printMapChanges(partitionMapOrig, partitionMap)
 
 	// Print broker assignment statistics.
-	printBrokerAssignmentStats(cmd, partitionMapOrig, pm, brokersOrig, brokers)
+	printBrokerAssignmentStats(cmd, partitionMapOrig, partitionMap, brokersOrig, brokers)
 }
