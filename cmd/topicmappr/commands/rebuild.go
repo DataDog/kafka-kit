@@ -181,16 +181,16 @@ func rebuild(cmd *cobra.Command, _ []string) {
 		fmt.Printf("%s[none]\n", indent)
 	}
 
-	// Skip no-ops if configured.
-	if sno, _ := cmd.Flags().GetBool("skip-no-ops"); sno {
-		originalMap, partitionMapOut = skipReassignmentNoOps(originalMap, partitionMapOut)
-	}
-
 	// Print map change results.
 	printMapChanges(originalMap, partitionMapOut)
 
 	// Print broker assignment statistics.
 	printBrokerAssignmentStats(cmd, originalMap, partitionMapOut, brokersOrig, brokers)
+
+	// Skip no-ops if configured.
+	if sno, _ := cmd.Flags().GetBool("skip-no-ops"); sno {
+		originalMap, partitionMapOut = skipReassignmentNoOps(originalMap, partitionMapOut)
+	}
 
 	// If no warnings were encountered, write out the output partition map(s).
 	iw, _ := cmd.Flags().GetBool("ignore-warns")
