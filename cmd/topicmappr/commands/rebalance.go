@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"os"
+	"sort"
 
 	"github.com/DataDog/kafka-kit/kafkazk"
 
@@ -79,6 +80,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	// below the harmonic mean.
 	t, _ := cmd.Flags().GetFloat64("storage-threshold")
 	offloadTargets := brokers.BelowMean(t, brokers.HMean)
+	sort.Ints(offloadTargets)
 
 	fmt.Printf("Brokers targeted for partition offloading: %v\n", offloadTargets)
 
