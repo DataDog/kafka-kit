@@ -135,6 +135,22 @@ func printBrokerAssignmentStats(cmd *cobra.Command, pm1, pm2 *kafkazk.PartitionM
 	}
 }
 
+// skipReassignmentNoOps removes no-op partition map changes
+// from the input and final output PartitionMap
+func skipReassignmentNoOps(pm1, pm2 *kafkazk.PartitionMap) (*kafkazk.PartitionMap, *kafkazk.PartitionMap) {
+	prunedInputPartitionMap := kafkazk.NewPartitionMap()
+	prunedOutputPartitionMap := kafkazk.NewPartitionMap()
+	for i := range pm1.Partitions {
+		p1, p2 := pm1.Partitions[i], pm2.Partitions[i]
+		if !p1.Equal(p2) {
+			prunedInputPartitionMap.Partitions = append(prunedInputPartitionMap.Partitions, p1)
+			prunedOutputPartitionMap.Partitions = append(prunedOutputPartitionMap.Partitions, p2)
+		}
+	}
+
+	return prunedInputPartitionMap, prunedOutputPartitionMap
+}
+
 // writeMaps takes a PartitionMap and writes out
 // files.
 func writeMaps(cmd *cobra.Command, pm *kafkazk.PartitionMap) {

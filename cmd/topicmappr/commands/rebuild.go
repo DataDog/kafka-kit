@@ -183,7 +183,7 @@ func rebuild(cmd *cobra.Command, _ []string) {
 
 	// Skip no-ops if configured.
 	if sno, _ := cmd.Flags().GetBool("skip-no-ops"); sno {
-		originalMap, partitionMapOut = ignoreNoOpRemappings(originalMap, partitionMapOut)
+		originalMap, partitionMapOut = skipReassignmentNoOps(originalMap, partitionMapOut)
 	}
 
 	// Print map change results.
