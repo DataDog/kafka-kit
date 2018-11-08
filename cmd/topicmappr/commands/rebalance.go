@@ -96,8 +96,11 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	// can be planned.
 	for exhaustedCount := 0; exhaustedCount < len(offloadTargets); {
 		for _, sourceID := range offloadTargets {
-			// Update the source broker ID.
+			// Update the source broker ID and
+			// iteration pass count.
 			params.sourceID = sourceID
+			params.pass++
+
 			relos := planRelocationsForBroker(cmd, params)
 
 			// If no relocations could be planned,
