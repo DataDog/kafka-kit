@@ -182,7 +182,16 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 func applyRelocationPlan(partitionMap *kafkazk.PartitionMap, plan relocationPlan) {
 	// Traverse the partition list.
 	for _, partn := range partitionMap.Partitions {
-		_ = partn
+		// If a relocation is planned for the partition,
+		// replace the source ID with the planned
+		// destination ID.
+		if planned, p := plan.isPlanned(partn); planned {
+			for i, r := range partn.Replicas {
+				if r == p[0] {
+					partn.Replicas[i] = p[1]
+				}
+			}
+		}
 	}
 }
 
