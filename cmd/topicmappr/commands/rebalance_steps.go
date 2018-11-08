@@ -19,12 +19,14 @@ type relocation struct {
 }
 
 type planRelocationsForBrokerParams struct {
-	sourceID      int
-	relos         map[int][]relocation
-	mappings      kafkazk.Mappings
-	brokers       kafkazk.BrokerMap
-	partitionMeta kafkazk.PartitionMetaMap
-	plan          relocationPlan
+	sourceID           int
+	relos              map[int][]relocation
+	mappings           kafkazk.Mappings
+	brokers            kafkazk.BrokerMap
+	partitionMeta      kafkazk.PartitionMetaMap
+	plan               relocationPlan
+	pass               int
+	topPartitionsLimit int
 }
 
 // relocationPlan is a mapping of topic,
@@ -73,6 +75,7 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 	partitionMeta := params.partitionMeta
 	plan := params.plan
 	sourceID := params.sourceID
+	topPartitionsLimit := params.topPartitionsLimit
 
 	// Use the arithmetic mean for target
 	// thresholds.
@@ -80,11 +83,11 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 	meanStorageFree := brokers.Mean()
 
 	// Get the top partitions for the target broker.
-	topPartn, _ := mappings.LargestPartitions(sourceID, 10, partitionMeta)
+	topPartn, _ := mappings.LargestPartitions(sourceID, topPartitionsLimit, partitionMeta)
 
 	if verbose {
-		fmt.Printf("\nBroker %d has a storage free of %.2fGB. Top partitions:\n",
-			sourceID, brokers[sourceID].StorageFree/div)
+		fmt.Printf("\n[pass %d] Broker %d has a storage free of %.2fGB. Top partitions:\n",
+			params.pass, sourceID, brokers[sourceID].StorageFree/div)
 
 		for _, p := range topPartn {
 			pSize, _ := partitionMeta.Size(p)
@@ -115,13 +118,18 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 		switch localityScoped {
 		case true:
 			for _, b := range brokers {
-				if b.Locality == targetLocality {
+				if b.Locality == targetLocality && b.ID != sourceID {
 					dest = b
 					break
 				}
 			}
 		default:
 			dest = brokerList[0]
+		}
+
+		if dest == nil {
+
+			return reloCount
 		}
 
 		if verbose {
@@ -134,46 +142,52 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 		sourceFree := brokers[sourceID].StorageFree + pSize
 		destFree := dest.StorageFree - pSize
 
-		// Don't plan a migration that'd push a destination
-		// beyond the point the source already is at + the
-		// allowable tolerance.
-		destinationTolerance := sourceFree * (1 - tolerance)
-		if destFree < destinationTolerance {
-			if verbose {
-				fmt.Printf("%sCannot move partition to candidate: "+
-					"expected storage free %.2fGB below tolerated threshold of %.2fGB\n",
-					indent, destFree/div, destinationTolerance/div)
+		// If the estimated storage change pushes either the
+		// target or destination beyond the threshold distance
+		// from the mean, try the next partition.
 
+		if absDistance(sourceFree, meanStorageFree) > tolerance {
+			if verbose {
+				fmt.Printf("%sCannot move partition from target: "+
+					"expected storage free %.2fGB above tolerated threshold of %.2fGB\n",
+					indent, destFree/div, meanStorageFree*(1+tolerance)/div)
 			}
 
 			continue
 		}
 
-		// If the estimated storage change pushes neither the
-		// target nor destination beyond the threshold distance
-		// from the mean, plan the partition migration.
-		if absDistance(sourceFree, meanStorageFree) <= tolerance && absDistance(destFree, meanStorageFree) <= tolerance {
-			relos[sourceID] = append(relos[sourceID], relocation{partition: p, destination: dest.ID})
-			reloCount++
-
-			// Add to plan.
-			plan.add(p, [2]int{sourceID, dest.ID})
-
-			// Update StorageFree values.
-			brokers[sourceID].StorageFree = sourceFree
-			brokers[dest.ID].StorageFree = destFree
-
-			// Remove the partition as being mapped
-			// to the source broker.
-			mappings.Remove(sourceID, p)
-
+		if absDistance(destFree, meanStorageFree) > tolerance {
 			if verbose {
-				fmt.Printf("%sPlanning relocation to candidate\n", indent)
+				fmt.Printf("%sCannot move partition to candidate: "+
+					"expected storage free %.2fGB below tolerated threshold of %.2fGB\n",
+					indent, destFree/div, meanStorageFree*(1-tolerance)/div)
 			}
 
-			// Move on to the next broker.
-			break
+			continue
 		}
+
+		// Otherwise, schedule the relocation.
+
+		relos[sourceID] = append(relos[sourceID], relocation{partition: p, destination: dest.ID})
+		reloCount++
+
+		// Add to plan.
+		plan.add(p, [2]int{sourceID, dest.ID})
+
+		// Update StorageFree values.
+		brokers[sourceID].StorageFree = sourceFree
+		brokers[dest.ID].StorageFree = destFree
+
+		// Remove the partition as being mapped
+		// to the source broker.
+		mappings.Remove(sourceID, p)
+
+		if verbose {
+			fmt.Printf("%sPlanning relocation to candidate\n", indent)
+		}
+
+		// Break at the first placement.
+		break
 	}
 
 	return reloCount

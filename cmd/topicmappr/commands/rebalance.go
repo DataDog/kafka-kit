@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"os"
+	"sort"
 
 	"github.com/DataDog/kafka-kit/kafkazk"
 
@@ -25,6 +26,7 @@ func init() {
 	rebalanceCmd.Flags().String("brokers", "", "Broker list to scope all partition placements to")
 	rebalanceCmd.Flags().Float64("storage-threshold", 0.20, "Percent below the mean storage free to target for partition offload")
 	rebalanceCmd.Flags().Float64("tolerance", 0.10, "Percent below the source broker or mean storage free that a destination target will tolerate")
+	rebalanceCmd.Flags().Int("partition-limit", 10, "Limit the number of top partitions by size eligible for relocation per broker")
 	rebalanceCmd.Flags().Bool("locality-scoped", true, "[WARN: disabling breaks rack.id constraints] Disallow a relocation to traverse rack.id values among brokers")
 	rebalanceCmd.Flags().Bool("verbose", false, "Verbose output")
 	rebalanceCmd.Flags().String("zk-metrics-prefix", "topicmappr", "ZooKeeper namespace prefix for Kafka metrics (when using storage placement)")
@@ -78,16 +80,20 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	// below the harmonic mean.
 	t, _ := cmd.Flags().GetFloat64("storage-threshold")
 	offloadTargets := brokers.BelowMean(t, brokers.HMean)
+	sort.Ints(offloadTargets)
 
 	fmt.Printf("Brokers targeted for partition offloading: %v\n", offloadTargets)
 
+	partitionLimit, _ := cmd.Flags().GetInt("partition-limit")
+
 	// Bundle planRelocationsForBrokerParams.
 	params := planRelocationsForBrokerParams{
-		relos:         map[int][]relocation{},
-		mappings:      mappings,
-		brokers:       brokers,
-		partitionMeta: partitionMeta,
-		plan:          relocationPlan{},
+		relos:              map[int][]relocation{},
+		mappings:           mappings,
+		brokers:            brokers,
+		partitionMeta:      partitionMeta,
+		plan:               relocationPlan{},
+		topPartitionsLimit: partitionLimit,
 	}
 
 	// Iterate over offload targets, planning
@@ -96,8 +102,11 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	// can be planned.
 	for exhaustedCount := 0; exhaustedCount < len(offloadTargets); {
 		for _, sourceID := range offloadTargets {
-			// Update the source broker ID.
+			// Update the source broker ID and
+			// iteration pass count.
 			params.sourceID = sourceID
+			params.pass++
+
 			relos := planRelocationsForBroker(cmd, params)
 
 			// If no relocations could be planned,

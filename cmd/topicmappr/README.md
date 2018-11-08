@@ -107,6 +107,7 @@ Flags:
       --locality-scoped            [WARN: disabling breaks rack.id constraints] Disallow a relocation to traverse rack.id values among brokers (default true)
       --out-file string            If defined, write a combined map of all topics to a file
       --out-path string            Path to write output map files to
+      --partition-limit int        Limit the number of top partitions by size eligible for relocation per broker (default 10)
       --storage-threshold float    Percent below the mean storage free to target for partition offload (default 0.2)
       --tolerance float            Percent below the source broker or mean storage free that a destination target will tolerate (default 0.1)
       --topics string              Rebuild topics (comma delim. list) by lookup in ZooKeeper
