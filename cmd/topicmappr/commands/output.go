@@ -154,6 +154,11 @@ func skipReassignmentNoOps(pm1, pm2 *kafkazk.PartitionMap) (*kafkazk.PartitionMa
 // writeMaps takes a PartitionMap and writes out
 // files.
 func writeMaps(cmd *cobra.Command, pm *kafkazk.PartitionMap) {
+	if len(pm.Partitions) == 0 {
+		fmt.Println("\nNo partition reassignments, skipping map generation")
+		return
+	}
+
 	op := cmd.Flag("out-path").Value.String()
 	of := cmd.Flag("out-file").Value.String()
 
