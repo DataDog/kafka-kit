@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"math"
+	"os"
 
 	"github.com/DataDog/kafka-kit/kafkazk"
 
@@ -64,6 +65,60 @@ func (r relocationPlan) isPlanned(p kafkazk.Partition) (bool, [2]int) {
 	return true, pair
 }
 
+func validateBrokersForRebalance(cmd *cobra.Command, brokers kafkazk.BrokerMap, bm kafkazk.BrokerMetaMap, targets []int) {
+	// No broker changes are permitted in rebalance
+	// other than new broker additions.
+	fmt.Println("\nValidating broker list:")
+
+	// Update the current BrokerList with
+	// the provided broker list.
+	c := brokers.Update(Config.brokers, bm)
+
+	if c.Changes() {
+		fmt.Printf("%s-\n", indent)
+	}
+
+	switch {
+	case c.Missing > 0, c.OldMissing > 0, c.Replace > 0:
+		fmt.Printf("%s[ERROR] rebalance only allows broker additions\n", indent)
+		os.Exit(1)
+	case c.New > 0:
+		fmt.Printf("%s%d additional brokers added\n", indent, c.New)
+		fallthrough
+	default:
+		fmt.Printf("%sOK\n", indent)
+	}
+
+	// Print rebalance parameters as a result of
+	// input configurations and brokers found
+	// to be beyond the storage threshold.
+	fmt.Println("\nRebalance parameters:")
+
+	t, _ := cmd.Flags().GetFloat64("storage-threshold")
+	tol, _ := cmd.Flags().GetFloat64("tolerance")
+	mean, hMean := brokers.Mean(), brokers.HMean()
+
+	fmt.Printf("%sFree storage mean, harmonic mean: %.2fGB, %.2fGB\n",
+		indent, mean/div, hMean/div)
+
+	fmt.Printf("%sBroker free storage limits (with a %.2f%% tolerance from mean):\n",
+		indent, tol*100)
+
+	fmt.Printf("%s%sSources limited to <= %.2fGB\n", indent, indent, mean*(1+tol)/div)
+	fmt.Printf("%s%sDestinations limited to >= %.2fGB\n", indent, indent, mean*(1-tol)/div)
+
+	fmt.Printf("\nBrokers targeted for partition offloading (>= %.2f%% threshold below hmean):\n", t*100)
+	// Exit if no target brokers were found.
+	if len(targets) == 0 {
+		fmt.Printf("%s[none]\n", indent)
+		os.Exit(0)
+	} else {
+		for _, id := range targets {
+			fmt.Printf("%s%d\n", indent, id)
+		}
+	}
+}
+
 func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBrokerParams) int {
 	verbose, _ := cmd.Flags().GetBool("verbose")
 	tolerance, _ := cmd.Flags().GetFloat64("tolerance")
@@ -115,8 +170,8 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 		// rack.id as the target. If so, choose the lowest utilized broker
 		// in same locality. If not, choose the lowest utilized broker
 		// the satisfies placement constraints considering the brokers
-		// in the ISR (excluding the sourceID broker since it would be
-		// replaced by the destination).
+		// in the replica list (excluding the sourceID broker since it
+		// would be replaced by the destination).
 		switch localityScoped {
 		case true:
 			for _, b := range brokers {
@@ -125,14 +180,14 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 					break
 				}
 			}
-		default:
+		case false:
 			// Get constraints for all brokers in the
 			// partition replica set, excluding the
 			// sourceID broker.
 			replicaSet := kafkazk.BrokerList{}
 			for _, id := range p.Replicas {
 				if id != sourceID {
-					replicaSet = append(replicaSet)
+					replicaSet = append(replicaSet, brokers[id])
 				}
 			}
 
