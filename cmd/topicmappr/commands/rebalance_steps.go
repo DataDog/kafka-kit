@@ -115,7 +115,7 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 		// rack.id as the target. If so, choose the lowest utilized broker
 		// in same locality. If not, choose the lowest utilized broker
 		// the satisfies placement constraints considering the brokers
-		// in the ISR (excluding the SourceID broker since it would be
+		// in the ISR (excluding the sourceID broker since it would be
 		// replaced by the destination).
 		switch localityScoped {
 		case true:
@@ -126,11 +126,23 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 				}
 			}
 		default:
-			dest = brokerList[0]
+			// Get constraints for all brokers in the
+			// partition replica set, excluding the
+			// sourceID broker.
+			replicaSet := kafkazk.BrokerList{}
+			for _, id := range p.Replicas {
+				if id != sourceID {
+					replicaSet = append(replicaSet)
+				}
+			}
+
+			c := kafkazk.MergeConstraints(replicaSet)
+
+			// Select the best candidate by storage.
+			dest, _ = brokerList.BestCandidate(c, "storage", 0)
 		}
 
 		if dest == nil {
-
 			return reloCount
 		}
 
