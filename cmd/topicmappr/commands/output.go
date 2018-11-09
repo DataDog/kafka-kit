@@ -10,6 +10,20 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// printTopics takes a partition map and prints out
+// the names of all topics referenced in the map.
+func printTopics(pm *kafkazk.PartitionMap) {
+	topics := map[string]interface{}{}
+	for _, p := range pm.Partitions {
+		topics[p.Topic] = nil
+	}
+
+	fmt.Printf("\nTopics:\n")
+	for t := range topics {
+		fmt.Printf("%s%s\n", indent, t)
+	}
+}
+
 // printMapChanges takes the original input PartitionMap
 // and the final output PartitionMap and prints what's changed.
 func printMapChanges(pm1, pm2 *kafkazk.PartitionMap) {

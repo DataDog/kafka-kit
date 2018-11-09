@@ -64,6 +64,9 @@ func rebalance(cmd *cobra.Command, _ []string) {
 
 	partitionMapOrig := partitionMap.Copy()
 
+	// Print topics matched to input params.
+	printTopics(partitionMap)
+
 	// Get a mapping of broker IDs to topics, partitions.
 	mappings := partitionMap.Mappings()
 
@@ -71,10 +74,29 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	brokers := kafkazk.BrokerMapFromPartitionMap(partitionMap, brokerMeta, false)
 	brokersOrig := brokers.Copy()
 
+	// No broker changes are permitted in rebalance
+	// other than new broker additions.
+	fmt.Println("\nValidating broker list:")
+
 	// Update the currentBrokers list with
 	// the provided broker list.
-	// TODO we should only take New brokers in a rebalance.
-	_ = brokers.Update(Config.brokers, brokerMeta)
+	c := brokers.Update(Config.brokers, brokerMeta)
+
+	if c.Changes() {
+		fmt.Printf("%s-\n", indent)
+	}
+
+	switch {
+	case c.Missing > 0, c.OldMissing > 0, c.Replace > 0:
+		fmt.Printf("%s[ERROR] rebalance only allows broker additions\n", indent)
+		os.Exit(1)
+	case c.New > 0:
+		fmt.Printf("%s%d additional brokers added\n", indent, c.New)
+		fallthrough
+	default:
+		fmt.Printf("%sOK\n", indent)
+	}
+
 
 	// Find brokers where the storage free is t %
 	// below the harmonic mean.
@@ -82,17 +104,43 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	offloadTargets := brokers.BelowMean(t, brokers.HMean)
 	sort.Ints(offloadTargets)
 
-	fmt.Printf("Brokers targeted for partition offloading: %v\n", offloadTargets)
+	// Print rebalance parameters as a result of
+	// input configurations and brokers found
+	// to be beyond the storage threshold.
+	fmt.Println("\nRebalance parameters:")
 
-	partitionLimit, _ := cmd.Flags().GetInt("partition-limit")
+	tol, _ := cmd.Flags().GetFloat64("tolerance")
+	mean, hMean := brokers.Mean(), brokers.HMean()
+
+	fmt.Printf("%sFree storage mean, harmonic mean: %.2fGB, %.2fGB\n",
+		indent, mean/div, hMean/div)
+
+	fmt.Printf("%sBroker free storage limits (with a %.2f%% tolerance from mean):\n",
+	indent, tol*100)
+
+ 	fmt.Printf("%s%sSources limited to <= %.2fGB\n", indent, indent, mean*(1+tol)/div)
+	fmt.Printf("%s%sDestinations limited to >= %.2fGB\n", indent, indent, mean*(1-tol)/div)
+
+	fmt.Printf("\nBrokers targeted for partition offloading (>= %.2f%% threshold below hmean):\n", t*100)
+	// Exit if no target brokers were found.
+	if len(offloadTargets) == 0 {
+		fmt.Printf("%s[none]\n", indent)
+		os.Exit(0)
+	} else {
+		for _, id := range offloadTargets {
+			fmt.Printf("%s%d\n", indent, id)
+		}
+	}
 
 	// Bundle planRelocationsForBrokerParams.
+	partitionLimit, _ := cmd.Flags().GetInt("partition-limit")
+
 	params := planRelocationsForBrokerParams{
-		relos:              map[int][]relocation{},
-		mappings:           mappings,
-		brokers:            brokers,
-		partitionMeta:      partitionMeta,
-		plan:               relocationPlan{},
+		relos:         map[int][]relocation{},
+		mappings:      mappings,
+		brokers:       brokers,
+		partitionMeta: partitionMeta,
+		plan:          relocationPlan{},
 		topPartitionsLimit: partitionLimit,
 	}
 
