@@ -79,7 +79,6 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 
 	// Use the arithmetic mean for target
 	// thresholds.
-	// TODO test what is best.
 	meanStorageFree := brokers.Mean()
 
 	// Get the top partitions for the target broker.
@@ -114,7 +113,10 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 
 		// Whether or not the destination broker should have the same
 		// rack.id as the target. If so, choose the lowest utilized broker
-		// in same locality. If not, choose the lowest utilized broker.
+		// in same locality. If not, choose the lowest utilized broker
+		// the satisfies placement constraints considering the brokers
+		// in the ISR (excluding the SourceID broker since it would be
+		// replaced by the destination).
 		switch localityScoped {
 		case true:
 			for _, b := range brokers {

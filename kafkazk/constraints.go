@@ -2,35 +2,34 @@ package kafkazk
 
 import (
 	"errors"
-	"sort"
 )
 
 var (
-	errNoBrokers              = errors.New("No additional brokers that meet constraints")
-	errInvalidSelectionMethod = errors.New("Invalid selection method")
+	ErrNoBrokers              = errors.New("No additional brokers that meet Constraints")
+	ErrInvalidSelectionMethod = errors.New("Invalid selection method")
 )
 
 // Constraints holds a map of
 // IDs and locality key-values.
-type constraints struct {
+type Constraints struct {
 	requestSize float64
 	locality    map[string]bool
 	id          map[int]bool
 }
 
-// newConstraints returns an empty *constraints.
-func newConstraints() *constraints {
-	return &constraints{
+// NewConstraints returns an empty *Constraints.
+func NewConstraints() *Constraints {
+	return &Constraints{
 		locality: make(map[string]bool),
 		id:       make(map[int]bool),
 	}
 }
 
-// bestCandidate takes a *constraints, selection method
+// BestCandidate takes a *Constraints, selection method
 // and pass / iteration number (for use as a seed value
 // for pseudo-random number generation) and returns
 // the most suitable broker.
-func (b BrokerList) bestCandidate(c *constraints, by string, p int64) (*Broker, error) {
+func (b BrokerList) BestCandidate(c *Constraints, by string, p int64) (*Broker, error) {
 	// Sort type based on the
 	// desired placement criteria.
 	switch by {
@@ -39,9 +38,9 @@ func (b BrokerList) bestCandidate(c *constraints, by string, p int64) (*Broker, 
 		// a dedicated Rand for this.
 		b.SortPseudoShuffle(p)
 	case "storage":
-		sort.Sort(brokersByStorage(b))
+		b.SortByStorage()
 	default:
-		return nil, errInvalidSelectionMethod
+		return nil, ErrInvalidSelectionMethod
 	}
 
 	var candidate *Broker
@@ -58,14 +57,14 @@ func (b BrokerList) bestCandidate(c *constraints, by string, p int64) (*Broker, 
 	}
 
 	// List exhausted, no brokers passed.
-	return nil, errNoBrokers
+	return nil, ErrNoBrokers
 }
 
 // add takes a *Broker and adds its
-// attributes to the *constraints.
+// attributes to the *Constraints.
 // The requestSize is also subtracted
 // from the *Broker.StorageFree.
-func (c *constraints) add(b *Broker) {
+func (c *Constraints) add(b *Broker) {
 	b.StorageFree -= c.requestSize
 
 	if b.Locality != "" {
@@ -76,8 +75,8 @@ func (c *constraints) add(b *Broker) {
 }
 
 // passes takes a *Broker and returns
-// whether or not it passes constraints.
-func (c *constraints) passes(b *Broker) bool {
+// whether or not it passes Constraints.
+func (c *Constraints) passes(b *Broker) bool {
 	switch {
 	// Fail if the candidate is one of the
 	// IDs already in the replica set.
@@ -98,11 +97,11 @@ func (c *constraints) passes(b *Broker) bool {
 	return true
 }
 
-// mergeConstraints takes a brokerlist and
-// builds a *constraints by merging the
+// MergeConstraints takes a brokerlist and
+// builds a *Constraints by merging the
 // attributes of all brokers from the supplied list.
-func mergeConstraints(bl BrokerList) *constraints {
-	c := newConstraints()
+func MergeConstraints(bl BrokerList) *Constraints {
+	c := NewConstraints()
 
 	for _, b := range bl {
 		// Don't merge in attributes

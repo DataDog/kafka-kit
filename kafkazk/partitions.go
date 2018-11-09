@@ -249,7 +249,7 @@ func placeByPosition(params RebuildParams) (*PartitionMap, []string) {
 				}
 
 				// Populate a constraints.
-				constraints := mergeConstraints(replicaSet)
+				constraints := MergeConstraints(replicaSet)
 
 				// Add any necessary meta from current partition
 				// to the constraints.
@@ -281,12 +281,12 @@ func placeByPosition(params RebuildParams) (*PartitionMap, []string) {
 					// sub has to be inferred. We're checking that it passes
 					// here in case the inference logic is faulty.
 					if passes := constraints.passes(replacement); !passes {
-						err = errNoBrokers
+						err = ErrNoBrokers
 					}
 				} else {
 					// Otherwise, use the standard
 					// constraints based selector.
-					replacement, err = bl.bestCandidate(constraints, params.Strategy, int64(pass*n+1))
+					replacement, err = bl.BestCandidate(constraints, params.Strategy, int64(pass*n+1))
 				}
 
 				if err != nil {
@@ -361,7 +361,7 @@ func placeByPartition(params RebuildParams) (*PartitionMap, []string) {
 				}
 
 				// Populate a constraints.
-				constraints := mergeConstraints(replicaSet)
+				constraints := MergeConstraints(replicaSet)
 
 				// Add any necessary meta from current partition
 				// to the constraints.
@@ -377,7 +377,7 @@ func placeByPartition(params RebuildParams) (*PartitionMap, []string) {
 				}
 
 				// Fetch the best candidate and append.
-				replacement, err := bl.bestCandidate(constraints, params.Strategy, 1)
+				replacement, err := bl.BestCandidate(constraints, params.Strategy, 1)
 
 				if err != nil {
 					// Append any caught errors.
