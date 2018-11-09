@@ -45,20 +45,6 @@ func getPartitionMap(cmd *cobra.Command, zk kafkazk.Handler) *kafkazk.PartitionM
 	return nil
 }
 
-// printTopics takes a partition map and prints out
-// the names of all topics referenced in the map.
-func printTopics(pm *kafkazk.PartitionMap) {
-	topics := map[string]interface{}{}
-	for _, p := range pm.Partitions {
-		topics[p.Topic] = nil
-	}
-
-	fmt.Printf("\nTopics:\n")
-	for t := range topics {
-		fmt.Printf("%s%s\n", indent, t)
-	}
-}
-
 // ensureBrokerMetrics takes a map of reference brokers and
 // a map of discovered broker metadata. Any non-missing brokers
 // in the broker map must be present in the broker metadata map

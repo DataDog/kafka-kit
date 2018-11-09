@@ -353,6 +353,7 @@ func (b BrokerMap) filteredList() BrokerList {
 	return bl
 }
 
+// List take a BrokerMap and returns a BrokerList.
 func (b BrokerMap) List() BrokerList {
 	bl := BrokerList{}
 

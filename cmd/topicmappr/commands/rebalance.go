@@ -25,9 +25,9 @@ func init() {
 	rebalanceCmd.Flags().String("out-file", "", "If defined, write a combined map of all topics to a file")
 	rebalanceCmd.Flags().String("brokers", "", "Broker list to scope all partition placements to")
 	rebalanceCmd.Flags().Float64("storage-threshold", 0.20, "Percent below the mean storage free to target for partition offload")
-	rebalanceCmd.Flags().Float64("tolerance", 0.10, "Percent below the source broker or mean storage free that a destination target will tolerate")
+	rebalanceCmd.Flags().Float64("tolerance", 0.10, "Percent distance from the mean storage free to limit storage scheduling")
 	rebalanceCmd.Flags().Int("partition-limit", 10, "Limit the number of top partitions by size eligible for relocation per broker")
-	rebalanceCmd.Flags().Bool("locality-scoped", true, "[WARN: disabling breaks rack.id constraints] Disallow a relocation to traverse rack.id values among brokers")
+	rebalanceCmd.Flags().Bool("locality-scoped", true, "Disallow a relocation to traverse rack.id values among brokers")
 	rebalanceCmd.Flags().Bool("verbose", false, "Verbose output")
 	rebalanceCmd.Flags().String("zk-metrics-prefix", "topicmappr", "ZooKeeper namespace prefix for Kafka metrics (when using storage placement)")
 
@@ -64,6 +64,9 @@ func rebalance(cmd *cobra.Command, _ []string) {
 
 	partitionMapOrig := partitionMap.Copy()
 
+	// Print topics matched to input params.
+	printTopics(partitionMap)
+
 	// Get a mapping of broker IDs to topics, partitions.
 	mappings := partitionMap.Mappings()
 
@@ -71,22 +74,17 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	brokers := kafkazk.BrokerMapFromPartitionMap(partitionMap, brokerMeta, false)
 	brokersOrig := brokers.Copy()
 
-	// Update the currentBrokers list with
-	// the provided broker list.
-	// TODO we should only take New brokers in a rebalance.
-	_ = brokers.Update(Config.brokers, brokerMeta)
-
 	// Find brokers where the storage free is t %
 	// below the harmonic mean.
 	t, _ := cmd.Flags().GetFloat64("storage-threshold")
 	offloadTargets := brokers.BelowMean(t, brokers.HMean)
 	sort.Ints(offloadTargets)
 
-	fmt.Printf("Brokers targeted for partition offloading: %v\n", offloadTargets)
-
-	partitionLimit, _ := cmd.Flags().GetInt("partition-limit")
+	validateBrokersForRebalance(cmd, brokers, brokerMeta, offloadTargets)
 
 	// Bundle planRelocationsForBrokerParams.
+	partitionLimit, _ := cmd.Flags().GetInt("partition-limit")
+
 	params := planRelocationsForBrokerParams{
 		relos:              map[int][]relocation{},
 		mappings:           mappings,
@@ -101,11 +99,10 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	// Continue this loop until no more relocations
 	// can be planned.
 	for exhaustedCount := 0; exhaustedCount < len(offloadTargets); {
+		params.pass++
 		for _, sourceID := range offloadTargets {
-			// Update the source broker ID and
-			// iteration pass count.
+			// Update the source broker ID
 			params.sourceID = sourceID
-			params.pass++
 
 			relos := planRelocationsForBroker(cmd, params)
 
@@ -129,8 +126,8 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	// Print broker assignment statistics.
 	printBrokerAssignmentStats(cmd, partitionMapOrig, partitionMap, brokersOrig, brokers)
 
-	// Ignore no-ops; ebalances will naturally have
-	// a high percentage.
+	// Ignore no-ops; rebalances will naturally have
+	// a high percentage of these.
 	partitionMapOrig, partitionMap = skipReassignmentNoOps(partitionMapOrig, partitionMap)
 
 	// Write maps.
