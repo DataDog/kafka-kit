@@ -139,9 +139,9 @@ func printBrokerAssignmentStats(cmd *cobra.Command, pm1, pm2 *kafkazk.PartitionM
 			newStorage := bm2[id].StorageFree / div
 
 			// Skip reporting non-changes when using rebalance.
-			if cmd.Use == "rebalance" && diff[1] == 0.00 {
-				continue
-			}
+			// if cmd.Use == "rebalance" && diff[1] == 0.00 {
+			// 	continue
+			// }
 
 			fmt.Printf("%sBroker %d: %.2f -> %.2f (%+.2fGB, %.2f%%) %s\n",
 				indent, id, originalStorage, newStorage, diff[0]/div, diff[1], replace)

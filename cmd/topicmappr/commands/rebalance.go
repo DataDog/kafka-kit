@@ -3,7 +3,6 @@ package commands
 import (
 	"fmt"
 	"os"
-	"sort"
 
 	"github.com/DataDog/kafka-kit/kafkazk"
 
@@ -73,13 +72,9 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	// Get a broker map.
 	brokers := kafkazk.BrokerMapFromPartitionMap(partitionMap, brokerMeta, false)
 
-	// Find brokers where the storage free is t %
-	// below the harmonic mean.
-	t, _ := cmd.Flags().GetFloat64("storage-threshold")
-	offloadTargets := brokers.BelowMean(t, brokers.HMean)
-	sort.Ints(offloadTargets)
-
-	validateBrokersForRebalance(cmd, brokers, brokerMeta, offloadTargets)
+	// Validate all broker params, get a copy of the
+	// broker IDs targeted for partition offloading.
+	offloadTargets := validateBrokersForRebalance(cmd, brokers, brokerMeta)
 
 	// Store a copy of the original
 	// broker map, post updates.
