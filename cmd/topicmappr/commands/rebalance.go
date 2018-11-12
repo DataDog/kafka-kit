@@ -72,7 +72,6 @@ func rebalance(cmd *cobra.Command, _ []string) {
 
 	// Get a broker map.
 	brokers := kafkazk.BrokerMapFromPartitionMap(partitionMap, brokerMeta, false)
-	brokersOrig := brokers.Copy()
 
 	// Find brokers where the storage free is t %
 	// below the harmonic mean.
@@ -81,6 +80,10 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	sort.Ints(offloadTargets)
 
 	validateBrokersForRebalance(cmd, brokers, brokerMeta, offloadTargets)
+
+	// Store a copy of the original
+	// broker map, post updates.
+	brokersOrig := brokers.Copy()
 
 	// Bundle planRelocationsForBrokerParams.
 	partitionLimit, _ := cmd.Flags().GetInt("partition-limit")
