@@ -215,21 +215,23 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 		// target or destination beyond the threshold distance
 		// from the mean, try the next partition.
 
-		if absDistance(sourceFree, meanStorageFree) > tolerance {
+		sLim := meanStorageFree * (1 + tolerance)
+		if sourceFree > sLim {
 			if verbose {
 				fmt.Printf("%sCannot move partition from target: "+
 					"expected storage free %.2fGB above tolerated threshold of %.2fGB\n",
-					indent, destFree/div, meanStorageFree*(1+tolerance)/div)
+					indent, destFree/div, sLim/div)
 			}
 
 			continue
 		}
 
-		if absDistance(destFree, meanStorageFree) > tolerance {
+		dLim := meanStorageFree * (1 - tolerance)
+		if destFree < dLim {
 			if verbose {
 				fmt.Printf("%sCannot move partition to candidate: "+
 					"expected storage free %.2fGB below tolerated threshold of %.2fGB\n",
-					indent, destFree/div, meanStorageFree*(1-tolerance)/div)
+					indent, destFree/div, dLim/div)
 			}
 
 			continue
