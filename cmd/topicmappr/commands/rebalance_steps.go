@@ -91,9 +91,21 @@ func validateBrokersForRebalance(cmd *cobra.Command, brokers kafkazk.BrokerMap, 
 	}
 
 	// Find brokers where the storage free is t %
-	// below the harmonic mean.
+	// below the harmonic mean. Specifying 0 targets
+	// all brokers.
+	var offloadTargets []int
 	thresh, _ := cmd.Flags().GetFloat64("storage-threshold")
-	offloadTargets := brokers.BelowMean(thresh, brokers.HMean)
+
+	switch thresh {
+	case 0.00:
+		for _, b := range brokers {
+			if !b.New && b.ID != 0 {
+				offloadTargets = append(offloadTargets, b.ID)
+			}
+		}
+	default:
+		offloadTargets = brokers.BelowMean(thresh, brokers.HMean)
+	}
 
 	// Print rebalance parameters as a result of
 	// input configurations and brokers found
