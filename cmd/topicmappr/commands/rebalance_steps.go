@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"sort"
 
 	"github.com/DataDog/kafka-kit/kafkazk"
 
@@ -65,7 +66,7 @@ func (r relocationPlan) isPlanned(p kafkazk.Partition) (bool, [2]int) {
 	return true, pair
 }
 
-func validateBrokersForRebalance(cmd *cobra.Command, brokers kafkazk.BrokerMap, bm kafkazk.BrokerMetaMap, targets []int) {
+func validateBrokersForRebalance(cmd *cobra.Command, brokers kafkazk.BrokerMap, bm kafkazk.BrokerMetaMap) []int {
 	// No broker changes are permitted in rebalance
 	// other than new broker additions.
 	fmt.Println("\nValidating broker list:")
@@ -84,9 +85,28 @@ func validateBrokersForRebalance(cmd *cobra.Command, brokers kafkazk.BrokerMap, 
 		os.Exit(1)
 	case c.New > 0:
 		fmt.Printf("%s%d additional brokers added\n", indent, c.New)
+		fmt.Printf("%s-\n", indent)
 		fallthrough
 	default:
 		fmt.Printf("%sOK\n", indent)
+	}
+
+	// Find brokers where the storage free is t %
+	// below the harmonic mean. Specifying 0 targets
+	// all brokers.
+	var offloadTargets []int
+	thresh, _ := cmd.Flags().GetFloat64("storage-threshold")
+
+	switch thresh {
+	case 0.00:
+		for _, b := range brokers {
+			if !b.New && b.ID != 0 {
+				offloadTargets = append(offloadTargets, b.ID)
+			}
+			sort.Ints(offloadTargets)
+		}
+	default:
+		offloadTargets = brokers.BelowMean(thresh, brokers.HMean)
 	}
 
 	// Print rebalance parameters as a result of
@@ -94,7 +114,6 @@ func validateBrokersForRebalance(cmd *cobra.Command, brokers kafkazk.BrokerMap, 
 	// to be beyond the storage threshold.
 	fmt.Println("\nRebalance parameters:")
 
-	t, _ := cmd.Flags().GetFloat64("storage-threshold")
 	tol, _ := cmd.Flags().GetFloat64("tolerance")
 	mean, hMean := brokers.Mean(), brokers.HMean()
 
@@ -107,16 +126,19 @@ func validateBrokersForRebalance(cmd *cobra.Command, brokers kafkazk.BrokerMap, 
 	fmt.Printf("%s%sSources limited to <= %.2fGB\n", indent, indent, mean*(1+tol)/div)
 	fmt.Printf("%s%sDestinations limited to >= %.2fGB\n", indent, indent, mean*(1-tol)/div)
 
-	fmt.Printf("\nBrokers targeted for partition offloading (>= %.2f%% threshold below hmean):\n", t*100)
+	fmt.Printf("\nBrokers targeted for partition offloading (>= %.2f%% threshold below hmean):\n", thresh*100)
+
 	// Exit if no target brokers were found.
-	if len(targets) == 0 {
+	if len(offloadTargets) == 0 {
 		fmt.Printf("%s[none]\n", indent)
 		os.Exit(0)
 	} else {
-		for _, id := range targets {
+		for _, id := range offloadTargets {
 			fmt.Printf("%s%d\n", indent, id)
 		}
 	}
+
+	return offloadTargets
 }
 
 func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBrokerParams) int {
@@ -174,7 +196,7 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 		// would be replaced by the destination).
 		switch localityScoped {
 		case true:
-			for _, b := range brokers {
+			for _, b := range brokerList {
 				if b.Locality == targetLocality && b.ID != sourceID {
 					dest = b
 					break
@@ -215,21 +237,23 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 		// target or destination beyond the threshold distance
 		// from the mean, try the next partition.
 
-		if absDistance(sourceFree, meanStorageFree) > tolerance {
+		sLim := meanStorageFree * (1 + tolerance)
+		if sourceFree > sLim {
 			if verbose {
 				fmt.Printf("%sCannot move partition from target: "+
 					"expected storage free %.2fGB above tolerated threshold of %.2fGB\n",
-					indent, destFree/div, meanStorageFree*(1+tolerance)/div)
+					indent, destFree/div, sLim/div)
 			}
 
 			continue
 		}
 
-		if absDistance(destFree, meanStorageFree) > tolerance {
+		dLim := meanStorageFree * (1 - tolerance)
+		if destFree < dLim {
 			if verbose {
 				fmt.Printf("%sCannot move partition to candidate: "+
 					"expected storage free %.2fGB below tolerated threshold of %.2fGB\n",
-					indent, destFree/div, meanStorageFree*(1-tolerance)/div)
+					indent, destFree/div, dLim/div)
 			}
 
 			continue
@@ -262,9 +286,9 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 	return reloCount
 }
 
-func applyRelocationPlan(partitionMap *kafkazk.PartitionMap, plan relocationPlan) {
+func applyRelocationPlan(pm *kafkazk.PartitionMap, plan relocationPlan) {
 	// Traverse the partition list.
-	for _, partn := range partitionMap.Partitions {
+	for _, partn := range pm.Partitions {
 		// If a relocation is planned for the partition,
 		// replace the source ID with the planned
 		// destination ID.
@@ -276,6 +300,9 @@ func applyRelocationPlan(partitionMap *kafkazk.PartitionMap, plan relocationPlan
 			}
 		}
 	}
+
+	// Optimize leaders.
+	pm.SimpleLeaderOptimization()
 }
 
 func printPlannedRelocations(targets []int, relos map[int][]relocation, pmm kafkazk.PartitionMetaMap) {

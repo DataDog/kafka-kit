@@ -127,6 +127,51 @@ func NewRebuildParams() RebuildParams {
 	}
 }
 
+// SimpleLeaderOptimization is a naive leadership
+// optimization algorithm. It gets leadership counts
+// for all brokers in the partition map and shuffles
+// partition replica sets for those holding brokers
+// with below average leadership.
+func (pm *PartitionMap) SimpleLeaderOptimization() {
+	stats := pm.UseStats()
+
+	// Get avg.
+	var t float64
+	for _, b := range stats {
+		t += float64(b.Leader)
+	}
+
+	// Brute force with multiple iterations.
+	for i := 0; i < 5; i++ {
+		avg := t / float64(len(stats))
+		belowAvg := map[int]interface{}{}
+
+		// Get IDs below avg. leadership counts.
+		for _, b := range stats {
+			if float64(b.Leader) == 0 || (avg-float64(b.Leader))/avg > 0.40 {
+				belowAvg[b.ID] = nil
+			}
+		}
+
+		if len(belowAvg) == 0 {
+			return
+		}
+
+		// Shuffle all replica sets containing
+		// below average brokers.
+		f := func(p Partition) bool {
+			for _, id := range p.Replicas {
+				if _, exists := belowAvg[id]; exists {
+					return true
+				}
+			}
+			return false
+		}
+
+		pm.shuffle(f)
+	}
+}
+
 // Rebuild takes a BrokerMap and rebuild strategy.
 // It then traverses the partition map, replacing brokers marked removal
 // with the best available candidate based on the selected
@@ -165,7 +210,7 @@ func (pm *PartitionMap) Rebuild(params RebuildParams) (*PartitionMap, []string) 
 			// to placeByPosition). Shuffling has proven so far
 			// to distribute leadership even though it's purely
 			// by probability. TODO eventually, write a real optimizer.
-			newMap.shuffle()
+			newMap.shuffle(func(_ Partition) bool { return true })
 		// Invalid optimization.
 		default:
 			return nil, []string{fmt.Sprintf("Invalid optimization '%s'", params.Optimization)}
@@ -473,12 +518,16 @@ func (pm *PartitionMap) LocalitiesAvailable(bm BrokerMap, b *Broker) []string {
 	return diff
 }
 
-func (pm *PartitionMap) shuffle() {
+func (pm *PartitionMap) shuffle(f func(Partition) bool) {
+	var s int
 	for n := range pm.Partitions {
-		rand.Seed(int64(n << 20))
-		rand.Shuffle(len(pm.Partitions[n].Replicas), func(i, j int) {
-			pm.Partitions[n].Replicas[i], pm.Partitions[n].Replicas[j] = pm.Partitions[n].Replicas[j], pm.Partitions[n].Replicas[i]
-		})
+		if f(pm.Partitions[n]) {
+			rand.Seed(int64(s << 20))
+			s++
+			rand.Shuffle(len(pm.Partitions[n].Replicas), func(i, j int) {
+				pm.Partitions[n].Replicas[i], pm.Partitions[n].Replicas[j] = pm.Partitions[n].Replicas[j], pm.Partitions[n].Replicas[i]
+			})
+		}
 	}
 }
 
