@@ -107,9 +107,9 @@ Flags:
       --locality-scoped            Disallow a relocation to traverse rack.id values among brokers (default true)
       --out-file string            If defined, write a combined map of all topics to a file
       --out-path string            Path to write output map files to
-      --partition-limit int        Limit the number of top partitions by size eligible for relocation per broker (default 10)
-      --storage-threshold float    Percent below the mean storage free to target for partition offload (default 0.2)
-      --tolerance float            Percent distance from the mean storage free to limit storage scheduling (default 0.1)
+      --partition-limit int        Limit the number of top partitions by size eligible for relocation per broker (default 30)
+      --storage-threshold float    Percent below the harmonic mean storage free to target for partition offload (default 0.2)
+      --tolerance float            Percent distance from the mean storage free to limit storage scheduling (0 targets a brokers) (default 0.1)
       --topics string              Rebuild topics (comma delim. list) by lookup in ZooKeeper
       --verbose                    Verbose output
       --zk-metrics-prefix string   ZooKeeper namespace prefix for Kafka metrics (when using storage placement) (default "topicmappr")

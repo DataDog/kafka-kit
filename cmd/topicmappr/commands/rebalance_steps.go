@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"sort"
 
 	"github.com/DataDog/kafka-kit/kafkazk"
 
@@ -102,6 +103,7 @@ func validateBrokersForRebalance(cmd *cobra.Command, brokers kafkazk.BrokerMap, 
 			if !b.New && b.ID != 0 {
 				offloadTargets = append(offloadTargets, b.ID)
 			}
+			sort.Ints(offloadTargets)
 		}
 	default:
 		offloadTargets = brokers.BelowMean(thresh, brokers.HMean)
