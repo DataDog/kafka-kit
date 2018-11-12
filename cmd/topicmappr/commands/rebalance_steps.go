@@ -286,9 +286,9 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 	return reloCount
 }
 
-func applyRelocationPlan(partitionMap *kafkazk.PartitionMap, plan relocationPlan) {
+func applyRelocationPlan(pm *kafkazk.PartitionMap, plan relocationPlan) {
 	// Traverse the partition list.
-	for _, partn := range partitionMap.Partitions {
+	for _, partn := range pm.Partitions {
 		// If a relocation is planned for the partition,
 		// replace the source ID with the planned
 		// destination ID.
@@ -300,6 +300,9 @@ func applyRelocationPlan(partitionMap *kafkazk.PartitionMap, plan relocationPlan
 			}
 		}
 	}
+
+	// Optimize leaders.
+	pm.SimpleLeaderOptimization()
 }
 
 func printPlannedRelocations(targets []int, relos map[int][]relocation, pmm kafkazk.PartitionMetaMap) {
