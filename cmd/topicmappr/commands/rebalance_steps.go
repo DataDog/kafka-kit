@@ -174,7 +174,7 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 		// would be replaced by the destination).
 		switch localityScoped {
 		case true:
-			for _, b := range brokers {
+			for _, b := range brokerList {
 				if b.Locality == targetLocality && b.ID != sourceID {
 					dest = b
 					break
