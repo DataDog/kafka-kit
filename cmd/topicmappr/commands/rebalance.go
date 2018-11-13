@@ -81,9 +81,14 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	// broker map, post updates.
 	brokersOrig := brokers.Copy()
 
-	// Bundle planRelocationsForBrokerParams.
 	partitionLimit, _ := cmd.Flags().GetInt("partition-limit")
 
+	otm := map[int]interface{}{}
+	for _, id := range offloadTargets {
+		otm[id] = nil
+	}
+
+	// Bundle planRelocationsForBrokerParams.
 	params := planRelocationsForBrokerParams{
 		relos:              map[int][]relocation{},
 		mappings:           mappings,
@@ -91,6 +96,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 		partitionMeta:      partitionMeta,
 		plan:               relocationPlan{},
 		topPartitionsLimit: partitionLimit,
+		offloadTargetsMap:  otm,
 	}
 
 	// Iterate over offload targets, planning
