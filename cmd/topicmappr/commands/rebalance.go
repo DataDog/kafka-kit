@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"os"
+	"sort"
 
 	"github.com/DataDog/kafka-kit/kafkazk"
 
@@ -98,6 +99,9 @@ func rebalance(cmd *cobra.Command, _ []string) {
 		topPartitionsLimit: partitionLimit,
 		offloadTargetsMap:  otm,
 	}
+
+	// Sort offloadTargets by storage free ascending.
+	sort.Sort(offloadTargetsBySize{t: offloadTargets, bm: brokers})
 
 	// Iterate over offload targets, planning
 	// at most one relocation per iteration.
