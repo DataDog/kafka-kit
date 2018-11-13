@@ -100,7 +100,7 @@ func TestConstraintsAdd(t *testing.T) {
 
 	bl := BrokerList{b1}
 	c := MergeConstraints(bl)
-	c.add(b2)
+	c.Add(b2)
 
 	bl = append(bl, b2)
 

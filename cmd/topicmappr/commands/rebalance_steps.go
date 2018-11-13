@@ -11,8 +11,29 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func absDistance(x, t float64) float64 {
-	return math.Abs(t-x) / t
+// Sort offload targets by size.
+type offloadTargetsBySize struct {
+	t  []int
+	bm kafkazk.BrokerMap
+}
+
+// We work with storage free, so a sort by utilization
+// descending requires an ascending sort.
+func (o offloadTargetsBySize) Len() int      { return len(o.t) }
+func (o offloadTargetsBySize) Swap(i, j int) { o.t[i], o.t[j] = o.t[j], o.t[i] }
+func (o offloadTargetsBySize) Less(i, j int) bool {
+	s1 := o.bm[o.t[i]].StorageFree
+	s2 := o.bm[o.t[j]].StorageFree
+
+	if s1 < s2 {
+		return true
+	}
+
+	if s1 > s2 {
+		return false
+	}
+
+	return o.t[i] < o.t[j]
 }
 
 type relocation struct {
@@ -333,4 +354,8 @@ func printPlannedRelocations(targets []int, relos map[int][]relocation, pmm kafk
 				indent, indent, pSize/div, r.partition.Topic, r.partition.Partition, r.destination)
 		}
 	}
+}
+
+func absDistance(x, t float64) float64 {
+	return math.Abs(t-x) / t
 }

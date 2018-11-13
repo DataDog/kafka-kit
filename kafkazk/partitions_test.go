@@ -592,7 +592,7 @@ func TestShuffle(t *testing.T) {
 		},
 	}
 
-	pm.shuffle()
+	pm.shuffle((func(_ Partition) bool { return true }))
 
 	if same, _ := pm.equal(expected); !same {
 		t.Errorf("Unexpected shuffle results")
