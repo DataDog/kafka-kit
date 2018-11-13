@@ -300,9 +300,6 @@ func applyRelocationPlan(pm *kafkazk.PartitionMap, plan relocationPlan) {
 			}
 		}
 	}
-
-	// Optimize leaders.
-	pm.SimpleLeaderOptimization()
 }
 
 func printPlannedRelocations(targets []int, relos map[int][]relocation, pmm kafkazk.PartitionMetaMap) {
