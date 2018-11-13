@@ -142,7 +142,7 @@ func (pm *PartitionMap) SimpleLeaderOptimization() {
 	}
 
 	// Brute force with multiple iterations.
-	for i := 0; i < 5; i++ {
+	for i := 0; i < len(pm.Partitions); i++ {
 		avg := t / float64(len(stats))
 		belowAvg := map[int]interface{}{}
 
@@ -162,6 +162,7 @@ func (pm *PartitionMap) SimpleLeaderOptimization() {
 		f := func(p Partition) bool {
 			for _, id := range p.Replicas {
 				if _, exists := belowAvg[id]; exists {
+					delete(belowAvg, id)
 					return true
 				}
 			}

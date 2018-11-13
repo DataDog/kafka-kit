@@ -29,6 +29,7 @@ func init() {
 	rebalanceCmd.Flags().Bool("locality-scoped", true, "Disallow a relocation to traverse rack.id values among brokers")
 	rebalanceCmd.Flags().Bool("verbose", false, "Verbose output")
 	rebalanceCmd.Flags().String("zk-metrics-prefix", "topicmappr", "ZooKeeper namespace prefix for Kafka metrics (when using storage placement)")
+	rebalanceCmd.Flags().Bool("optimize-leaders", false, "Perform a naive leadership optimization")
 
 	// Required.
 	rebalanceCmd.MarkFlagRequired("brokers")
@@ -80,9 +81,14 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	// broker map, post updates.
 	brokersOrig := brokers.Copy()
 
-	// Bundle planRelocationsForBrokerParams.
 	partitionLimit, _ := cmd.Flags().GetInt("partition-limit")
 
+	otm := map[int]interface{}{}
+	for _, id := range offloadTargets {
+		otm[id] = nil
+	}
+
+	// Bundle planRelocationsForBrokerParams.
 	params := planRelocationsForBrokerParams{
 		relos:              map[int][]relocation{},
 		mappings:           mappings,
@@ -90,6 +96,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 		partitionMeta:      partitionMeta,
 		plan:               relocationPlan{},
 		topPartitionsLimit: partitionLimit,
+		offloadTargetsMap:  otm,
 	}
 
 	// Iterate over offload targets, planning
@@ -116,7 +123,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	printPlannedRelocations(offloadTargets, params.relos, partitionMeta)
 
 	// Update the partition map with the relocation plan.
-	applyRelocationPlan(partitionMap, params.plan)
+	applyRelocationPlan(cmd, partitionMap, params.plan)
 
 	// Print map change results.
 	printMapChanges(partitionMapOrig, partitionMap)

@@ -29,6 +29,7 @@ type planRelocationsForBrokerParams struct {
 	plan               relocationPlan
 	pass               int
 	topPartitionsLimit int
+	offloadTargetsMap  map[int]interface{}
 }
 
 // relocationPlan is a mapping of topic,
@@ -153,6 +154,7 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 	plan := params.plan
 	sourceID := params.sourceID
 	topPartitionsLimit := params.topPartitionsLimit
+	offloadTargetsMap := params.offloadTargetsMap
 
 	// Use the arithmetic mean for target
 	// thresholds.
@@ -198,6 +200,10 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 		case true:
 			for _, b := range brokerList {
 				if b.Locality == targetLocality && b.ID != sourceID {
+					// Don't select from offload targets.
+					if _, t := offloadTargetsMap[b.ID]; t {
+						continue
+					}
 					dest = b
 					break
 				}
@@ -214,6 +220,11 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 			}
 
 			c := kafkazk.MergeConstraints(replicaSet)
+
+			// Add all offload targets to the constraints.
+			for t := range offloadTargetsMap {
+				c.Add(brokers[t])
+			}
 
 			// Select the best candidate by storage.
 			dest, _ = brokerList.BestCandidate(c, "storage", 0)
@@ -286,7 +297,7 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 	return reloCount
 }
 
-func applyRelocationPlan(pm *kafkazk.PartitionMap, plan relocationPlan) {
+func applyRelocationPlan(cmd *cobra.Command, pm *kafkazk.PartitionMap, plan relocationPlan) {
 	// Traverse the partition list.
 	for _, partn := range pm.Partitions {
 		// If a relocation is planned for the partition,
@@ -299,6 +310,11 @@ func applyRelocationPlan(pm *kafkazk.PartitionMap, plan relocationPlan) {
 				}
 			}
 		}
+	}
+
+	// Optimize leaders.
+	if t, _ := cmd.Flags().GetBool("optimize-leaders"); t {
+		pm.SimpleLeaderOptimization()
 	}
 }
 

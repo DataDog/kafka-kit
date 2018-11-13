@@ -25,10 +25,10 @@ func NewConstraints() *Constraints {
 	}
 }
 
-// BestCandidate takes a *Constraints, selection method
-// and pass / iteration number (for use as a seed value
-// for pseudo-random number generation) and returns
-// the most suitable broker.
+// BestCandidate takes a *Constraints, selection method and
+// pass / iteration number (for use as a seed value for
+// pseudo-random number generation) and returns the
+// most suitable broker.
 func (b BrokerList) BestCandidate(c *Constraints, by string, p int64) (*Broker, error) {
 	// Sort type based on the
 	// desired placement criteria.
@@ -49,7 +49,7 @@ func (b BrokerList) BestCandidate(c *Constraints, by string, p int64) (*Broker, 
 	for _, candidate = range b {
 		// Candidate passes, return.
 		if c.passes(candidate) {
-			c.add(candidate)
+			c.Add(candidate)
 			candidate.Used++
 
 			return candidate, nil
@@ -60,11 +60,9 @@ func (b BrokerList) BestCandidate(c *Constraints, by string, p int64) (*Broker, 
 	return nil, ErrNoBrokers
 }
 
-// add takes a *Broker and adds its
-// attributes to the *Constraints.
-// The requestSize is also subtracted
-// from the *Broker.StorageFree.
-func (c *Constraints) add(b *Broker) {
+// Add takes a *Broker and adds its attributes to the *Constraints.
+// The requestSize is also subtracted from the *Broker.StorageFree.
+func (c *Constraints) Add(b *Broker) {
 	b.StorageFree -= c.requestSize
 
 	if b.Locality != "" {
@@ -74,8 +72,8 @@ func (c *Constraints) add(b *Broker) {
 	c.id[b.ID] = true
 }
 
-// passes takes a *Broker and returns
-// whether or not it passes Constraints.
+// passes takes a *Broker and returns whether
+// or not it passes Constraints.
 func (c *Constraints) passes(b *Broker) bool {
 	switch {
 	// Fail if the candidate is one of the
@@ -97,9 +95,9 @@ func (c *Constraints) passes(b *Broker) bool {
 	return true
 }
 
-// MergeConstraints takes a brokerlist and
-// builds a *Constraints by merging the
-// attributes of all brokers from the supplied list.
+// MergeConstraints takes a brokerlist and builds a
+// *Constraints by merging the attributes of all brokers
+// from the supplied list.
 func MergeConstraints(bl BrokerList) *Constraints {
 	c := NewConstraints()
 
