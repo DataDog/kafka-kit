@@ -47,6 +47,10 @@ func (b BrokerList) BestCandidate(c *Constraints, by string, p int64) (*Broker, 
 
 	// Iterate over candidates.
 	for _, candidate = range b {
+		if candidate.ID == 0 {
+			continue
+		}
+
 		// Candidate passes, return.
 		if c.passes(candidate) {
 			c.Add(candidate)

@@ -243,8 +243,10 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 			c := kafkazk.MergeConstraints(replicaSet)
 
 			// Add all offload targets to the constraints.
-			for t := range offloadTargetsMap {
-				c.Add(brokers[t])
+			// We're populating empty Brokers using just
+			// the IDs so that the rack IDs aren't excluded.
+			for id := range offloadTargetsMap {
+				c.Add(&kafkazk.Broker{ID: id})
 			}
 
 			// Select the best candidate by storage.
