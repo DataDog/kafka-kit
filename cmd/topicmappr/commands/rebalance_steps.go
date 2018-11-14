@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"bytes"
 	"fmt"
 	"math"
 	"os"
@@ -113,22 +114,45 @@ func validateBrokersForRebalance(cmd *cobra.Command, brokers kafkazk.BrokerMap, 
 		fmt.Printf("%sOK\n", indent)
 	}
 
-	// Find brokers where the storage free is t %
-	// below the harmonic mean. Specifying 0 targets
-	// all brokers.
-	var offloadTargets []int
-	thresh, _ := cmd.Flags().GetFloat64("storage-threshold")
+	st, _ := cmd.Flags().GetFloat64("storage-threshold")
+	stg, _ := cmd.Flags().GetFloat64("storage-threshold-gb")
 
-	switch thresh {
-	case 0.00:
+	var selectorMethod bytes.Buffer
+	selectorMethod.WriteString("Brokers targeted for partition offloading ")
+
+	var offloadTargets []int
+
+	// Switch on the target selection method. If
+	// a storage threshold in gigabytes is specified,
+	// prefer this. Otherwise, use the percentage below
+	// mean threshold.
+	switch {
+	case stg > 0.00:
+		selectorMethod.WriteString(fmt.Sprintf("(< %.2fGB storage free)", stg))
+		// TODO replace these iterations with
+		// a broker selector method in kafkazk.
 		for _, b := range brokers {
-			if !b.New && b.ID != 0 {
+			if !b.New && b.ID != 0 && b.StorageFree < stg*div {
 				offloadTargets = append(offloadTargets, b.ID)
 			}
-			sort.Ints(offloadTargets)
 		}
+		sort.Ints(offloadTargets)
 	default:
-		offloadTargets = brokers.BelowMean(thresh, brokers.HMean)
+		selectorMethod.WriteString(fmt.Sprintf("(>= %.2f%% threshold below hmean)", st*100))
+		// Find brokers where the storage free is t %
+		// below the harmonic mean. Specifying 0 targets
+		// all brokers.
+		switch st {
+		case 0.00:
+			for _, b := range brokers {
+				if !b.New && b.ID != 0 {
+					offloadTargets = append(offloadTargets, b.ID)
+				}
+			}
+			sort.Ints(offloadTargets)
+		default:
+			offloadTargets = brokers.BelowMean(st, brokers.HMean)
+		}
 	}
 
 	// Print rebalance parameters as a result of
@@ -148,7 +172,7 @@ func validateBrokersForRebalance(cmd *cobra.Command, brokers kafkazk.BrokerMap, 
 	fmt.Printf("%s%sSources limited to <= %.2fGB\n", indent, indent, mean*(1+tol)/div)
 	fmt.Printf("%s%sDestinations limited to >= %.2fGB\n", indent, indent, mean*(1-tol)/div)
 
-	fmt.Printf("\nBrokers targeted for partition offloading (>= %.2f%% threshold below hmean):\n", thresh*100)
+	fmt.Printf("\n%s:\n", selectorMethod.String())
 
 	// Exit if no target brokers were found.
 	if len(offloadTargets) == 0 {

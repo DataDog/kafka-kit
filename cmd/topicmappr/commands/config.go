@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -153,6 +152,5 @@ func brokerStringToSlice(s string) []int {
 
 func defaultsAndExit() {
 	fmt.Println()
-	flag.PrintDefaults()
 	os.Exit(1)
 }
