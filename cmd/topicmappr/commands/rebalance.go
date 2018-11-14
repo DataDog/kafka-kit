@@ -25,6 +25,7 @@ func init() {
 	rebalanceCmd.Flags().String("out-file", "", "If defined, write a combined map of all topics to a file")
 	rebalanceCmd.Flags().String("brokers", "", "Broker list to scope all partition placements to")
 	rebalanceCmd.Flags().Float64("storage-threshold", 0.20, "Percent below the harmonic mean storage free to target for partition offload")
+	rebalanceCmd.Flags().Float64("storage-threshold-gb", 0.00, "Storage free in gigabytes to target for partition offload (those below the specified value); 0 [default] defers target selection to --storage-threshold")
 	rebalanceCmd.Flags().Float64("tolerance", 0.10, "Percent distance from the mean storage free to limit storage scheduling (0 targets a brokers)")
 	rebalanceCmd.Flags().Int("partition-limit", 30, "Limit the number of top partitions by size eligible for relocation per broker")
 	rebalanceCmd.Flags().Bool("locality-scoped", true, "Disallow a relocation to traverse rack.id values among brokers")
@@ -34,6 +35,7 @@ func init() {
 
 	// Required.
 	rebalanceCmd.MarkFlagRequired("brokers")
+	rebalanceCmd.MarkFlagRequired("topics")
 }
 
 func rebalance(cmd *cobra.Command, _ []string) {
