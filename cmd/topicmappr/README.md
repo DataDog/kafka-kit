@@ -50,8 +50,8 @@ Available Commands:
 
 Flags:
   -h, --help               help for topicmappr
-      --zk-addr string     ZooKeeper connect string (for broker metadata or rebuild-topic lookups) (default "localhost:2181")
-      --zk-prefix string   ZooKeeper namespace prefix (for Kafka brokers)
+      --zk-addr string     ZooKeeper connect string (for broker metadata or rebuild-topic lookups) (default "localhost:2181") [TOPICMAPPR_ZK_ADDR]
+      --zk-prefix string   ZooKeeper namespace prefix (for Kafka brokers) [TOPICMAPPR_ZK_PREFIX]
 
 Use "topicmappr [command] --help" for more information about a command.
 ```
@@ -89,8 +89,8 @@ Flags:
       --zk-metrics-prefix string      ZooKeeper namespace prefix for Kafka metrics (when using storage placement) (default "topicmappr")
 
 Global Flags:
-      --zk-addr string     ZooKeeper connect string (for broker metadata or rebuild-topic lookups) (default "localhost:2181")
-      --zk-prefix string   ZooKeeper namespace prefix (for Kafka brokers)
+      --zk-addr string     ZooKeeper connect string (for broker metadata or rebuild-topic lookups) (default "localhost:2181") [TOPICMAPPR_ZK_ADDR]
+      --zk-prefix string   ZooKeeper namespace prefix (for Kafka brokers) [TOPICMAPPR_ZK_PREFIX]
 ```
 
 ## rebalance usage
@@ -115,8 +115,8 @@ Flags:
       --zk-metrics-prefix string   ZooKeeper namespace prefix for Kafka metrics (when using storage placement) (default "topicmappr")
 
 Global Flags:
-      --zk-addr string     ZooKeeper connect string (for broker metadata or rebuild-topic lookups) (default "localhost:2181")
-      --zk-prefix string   ZooKeeper namespace prefix (for Kafka brokers)
+      --zk-addr string     ZooKeeper connect string (for broker metadata or rebuild-topic lookups) (default "localhost:2181") [TOPICMAPPR_ZK_ADDR]
+      --zk-prefix string   ZooKeeper namespace prefix (for Kafka brokers) [TOPICMAPPR_ZK_PREFIX]
 ```
 
 ## Managing and Repairing Topics

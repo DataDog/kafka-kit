@@ -76,12 +76,22 @@ func initZooKeeper(cmd *cobra.Command) (kafkazk.Handler, error) {
 	// Suppress underlying ZK client noise.
 	log.SetOutput(ioutil.Discard)
 
-	zkAddr := cmd.Parent().Flag("zk-addr").Value.String()
-	timeout := 250 * time.Millisecond
+	// Try to get zk-addr and/or zk-prefix from env first
+	var zkAddr = ""
+	zkAddr = os.Getenv("TOPICMAPPR_ZK_ADDR")
+	if zkAddr == "" {
+		zkAddr = cmd.Parent().Flag("zk-addr").Value.String()
+	}
+	var zkPrefix = ""
+	zkPrefix = os.Getenv("TOPICMAPPR_ZK_PREFIX")
+	if zkPrefix == "" {
+		zkPrefix = cmd.Parent().Flag("zk-prefix").Value.String()
+	}
 
+	timeout := 250 * time.Millisecond
 	zk, err := kafkazk.NewHandler(&kafkazk.Config{
 		Connect:       zkAddr,
-		Prefix:        cmd.Parent().Flag("zk-prefix").Value.String(),
+		Prefix:        zkPrefix,
 		MetricsPrefix: cmd.Flag("zk-metrics-prefix").Value.String(),
 	})
 
