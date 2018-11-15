@@ -55,38 +55,38 @@ type planRelocationsForBrokerParams struct {
 }
 
 // relocationPlan is a mapping of topic,
-// partition to a [2]int describing the
-// source and destination broker to relocate
+// partition to a [][2]int describing a series of
+// source and destination brokers to relocate
 // a partition to and from.
-type relocationPlan map[string]map[int][2]int
+type relocationPlan map[string]map[int][][2]int
 
 // add takes a kafkazk.Partition and a [2]int pair of
 // source and destination broker IDs which the partition
 // is scheduled to relocate from and to.
 func (r relocationPlan) add(p kafkazk.Partition, ids [2]int) {
 	if _, exist := r[p.Topic]; !exist {
-		r[p.Topic] = make(map[int][2]int)
+		r[p.Topic] = make(map[int][][2]int)
 	}
 
-	r[p.Topic][p.Partition] = ids
+	r[p.Topic][p.Partition] = append(r[p.Topic][p.Partition], ids)
 }
 
 // isPlanned takes a kafkazk.Partition and returns whether
-// a relocation is planned for the partition, along with
-// the [2]int pair of source and destination broker IDs.
-func (r relocationPlan) isPlanned(p kafkazk.Partition) (bool, [2]int) {
-	var pair [2]int
+// a relocation is planned for the partition, along with the
+// [][2]int list of source and destination broker ID pairs.
+func (r relocationPlan) isPlanned(p kafkazk.Partition) ([][2]int, bool) {
+	var pairs [][2]int
 	if _, exist := r[p.Topic]; !exist {
-		return false, pair
+		return pairs, false
 	}
 
 	if _, exist := r[p.Topic][p.Partition]; !exist {
-		return false, pair
+		return pairs, false
 	} else {
-		pair = r[p.Topic][p.Partition]
+		pairs = r[p.Topic][p.Partition]
 	}
 
-	return true, pair
+	return pairs, true
 }
 
 func validateBrokersForRebalance(cmd *cobra.Command, brokers kafkazk.BrokerMap, bm kafkazk.BrokerMetaMap) []int {
@@ -350,10 +350,12 @@ func applyRelocationPlan(cmd *cobra.Command, pm *kafkazk.PartitionMap, plan relo
 		// If a relocation is planned for the partition,
 		// replace the source ID with the planned
 		// destination ID.
-		if planned, p := plan.isPlanned(partn); planned {
+		if pairs, planned := plan.isPlanned(partn); planned {
 			for i, r := range partn.Replicas {
-				if r == p[0] {
-					partn.Replicas[i] = p[1]
+				for _, relo := range pairs {
+					if r == relo[0] {
+						partn.Replicas[i] = relo[1]
+					}
 				}
 			}
 		}
