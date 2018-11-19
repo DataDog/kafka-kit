@@ -98,21 +98,6 @@ func initZooKeeper(cmd *cobra.Command) (kafkazk.Handler, error) {
 	return zk, nil
 }
 
-// ensureBrokerMetrics takes a map of reference brokers and
-// a map of discovered broker metadata. Any non-missing brokers
-// in the broker map must be present in the broker metadata map
-// and have a non-true MetricsIncomplete value.
-func ensureBrokerMetrics(cmd *cobra.Command, bm kafkazk.BrokerMap, bmm kafkazk.BrokerMetaMap) {
-	for id, b := range bm {
-		// Missing brokers won't even
-		// be found in the brokerMeta.
-		if !b.Missing && id != 0 && bmm[id].MetricsIncomplete {
-			fmt.Printf("Metrics not found for broker %d\n", id)
-			os.Exit(1)
-		}
-	}
-}
-
 // containsRegex takes a topic name
 // reference and returns whether or not
 // it should be interpreted as regex.
