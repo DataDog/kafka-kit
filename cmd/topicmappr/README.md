@@ -11,7 +11,7 @@ Avoids reassigning partitions where movement isn't necessary, greatly reducing r
 
 **Balancing Partition Placement With Constraints**
 
-For each partition placement, topicmappr chooses the least-utilized candidate broker (based on partition counts or storage available, configurable via the `-placement` param) that satisfies the following constraints:
+For each partition placement, topicmappr chooses the least utilized candidate broker (configurable as by storage or by partition counts) that satisfies the following constraints:
 
 - the broker isn't already in the replica set
 - the broker isn't in any of the existing replica set localities (using the Kafka `rack-id` parameter)
