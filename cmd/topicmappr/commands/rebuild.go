@@ -139,7 +139,9 @@ func rebuild(cmd *cobra.Command, _ []string) {
 
 	// Check if any referenced brokers are marked as having
 	// missing/partial metrics data.
-	ensureBrokerMetrics(cmd, brokers, brokerMeta)
+	if m, _ := cmd.Flags().GetBool("use-meta"); m {
+		ensureBrokerMetrics(cmd, brokers, brokerMeta)
+	}
 
 	// Create substitution affinities.
 	affinities := getSubAffinities(cmd, brokers, brokersOrig, partitionMapIn)

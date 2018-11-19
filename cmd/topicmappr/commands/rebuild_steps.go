@@ -45,23 +45,6 @@ func getPartitionMap(cmd *cobra.Command, zk kafkazk.Handler) *kafkazk.PartitionM
 	return nil
 }
 
-// ensureBrokerMetrics takes a map of reference brokers and
-// a map of discovered broker metadata. Any non-missing brokers
-// in the broker map must be present in the broker metadata map
-// and have a non-true MetricsIncomplete value.
-func ensureBrokerMetrics(cmd *cobra.Command, bm kafkazk.BrokerMap, bmm kafkazk.BrokerMetaMap) {
-	if m, _ := cmd.Flags().GetBool("use-meta"); m {
-		for id, b := range bm {
-			// Missing brokers won't even
-			// be found in the brokerMeta.
-			if !b.Missing && id != 0 && bmm[id].MetricsIncomplete {
-				fmt.Printf("Metrics not found for broker %d\n", id)
-				os.Exit(1)
-			}
-		}
-	}
-}
-
 // getSubAffinities, if enabled via --sub-affinity, takes reference broker maps
 // and a partition map and attempts to return a complete SubstitutionAffinities.
 func getSubAffinities(cmd *cobra.Command, bm kafkazk.BrokerMap, bmo kafkazk.BrokerMap, pm *kafkazk.PartitionMap) kafkazk.SubstitutionAffinities {

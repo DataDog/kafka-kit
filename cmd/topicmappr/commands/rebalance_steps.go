@@ -102,6 +102,10 @@ func validateBrokersForRebalance(cmd *cobra.Command, brokers kafkazk.BrokerMap, 
 		fmt.Printf("%s-\n", indent)
 	}
 
+	// Check if any referenced brokers are marked as having
+	// missing/partial metrics data.
+	ensureBrokerMetrics(cmd, brokers, bm)
+
 	switch {
 	case c.Missing > 0, c.OldMissing > 0, c.Replace > 0:
 		fmt.Printf("%s[ERROR] rebalance only allows broker additions\n", indent)
