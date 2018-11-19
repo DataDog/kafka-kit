@@ -30,6 +30,21 @@ func getBrokerMeta(cmd *cobra.Command, zk kafkazk.Handler, m bool) kafkazk.Broke
 	return brokerMeta
 }
 
+// ensureBrokerMetrics takes a map of reference brokers and
+// a map of discovered broker metadata. Any non-missing brokers
+// in the broker map must be present in the broker metadata map
+// and have a non-true MetricsIncomplete value.
+func ensureBrokerMetrics(cmd *cobra.Command, bm kafkazk.BrokerMap, bmm kafkazk.BrokerMetaMap) {
+	for id, b := range bm {
+		// Missing brokers won't even
+		// be found in the brokerMeta.
+		if !b.Missing && id != 0 && bmm[id].MetricsIncomplete {
+			fmt.Printf("Metrics not found for broker %d\n", id)
+			os.Exit(1)
+		}
+	}
+}
+
 // getPartitionMeta returns a map of topic, partition metadata
 // persisted in ZooKeeper (via an external mechanism*). This is
 // primarily partition size metrics data used for the storage

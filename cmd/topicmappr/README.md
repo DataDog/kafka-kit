@@ -11,7 +11,7 @@ Avoids reassigning partitions where movement isn't necessary, greatly reducing r
 
 **Balancing Partition Placement With Constraints**
 
-For each partition placement, topicmappr chooses the least-utilized candidate broker (based on partition counts or storage available, configurable via the `-placement` param) that satisfies the following constraints:
+For each partition placement, topicmappr chooses the least utilized candidate broker (configurable as by storage or by partition counts) that satisfies the following constraints:
 
 - the broker isn't already in the replica set
 - the broker isn't in any of the existing replica set localities (using the Kafka `rack-id` parameter)
@@ -45,13 +45,13 @@ Usage:
 
 Available Commands:
   help        Help about any command
-  rebalance   [BETA] Rebalance partition allotments among a set of topics and brokers
+  rebalance   Rebalance partition allotments among a set of topics and brokers
   rebuild     Rebuild a partition map for one or more topics
 
 Flags:
   -h, --help               help for topicmappr
-      --zk-addr string     ZooKeeper connect string (for broker metadata or rebuild-topic lookups) (default "localhost:2181")
-      --zk-prefix string   ZooKeeper namespace prefix (for Kafka brokers)
+      --zk-addr string     ZooKeeper connect string [TOPICMAPPR_ZK_ADDR] (default "localhost:2181")
+      --zk-prefix string   ZooKeeper prefix (if Kafka is configured with a chroot path prefix) [TOPICMAPPR_ZK_PREFIX]
 
 Use "topicmappr [command] --help" for more information about a command.
 ```
@@ -96,7 +96,7 @@ Global Flags:
 ## rebalance usage
 
 ```
-[BETA] Rebalance partition allotments among a set of topics and brokers
+Rebalance partition allotments among a set of topics and brokers
 
 Usage:
   topicmappr rebalance [flags]
@@ -123,4 +123,4 @@ Global Flags:
 
 ## Managing and Repairing Topics
 
-See the wiki [Usage Guide](https://github.com/DataDog/kafka-kit/wiki/Usage-Guide) section for examples of common topic management tasks.
+See the wiki [Usage Guide](https://github.com/DataDog/kafka-kit/wiki/Topicmappr-Usage-Guide) section for examples of common topic management tasks.

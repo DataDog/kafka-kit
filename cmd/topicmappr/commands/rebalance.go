@@ -12,8 +12,8 @@ import (
 
 var rebalanceCmd = &cobra.Command{
 	Use:   "rebalance",
-	Short: "[BETA] Rebalance partition allotments among a set of topics and brokers",
-	Long:  `[BETA] Rebalance partition allotments among a set of topics and brokers`,
+	Short: "Rebalance partition allotments among a set of topics and brokers",
+	Long:  `Rebalance partition allotments among a set of topics and brokers`,
 	Run:   rebalance,
 }
 
