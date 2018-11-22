@@ -3,7 +3,6 @@ package kafkazk
 import (
 	"fmt"
 	"regexp"
-	"sort"
 	"testing"
 )
 
@@ -222,9 +221,6 @@ func TestPartitionMapFromZK(t *testing.T) {
 		pmap, _ := PartitionMapFromString(testGetMapString(t))
 		pm2.Partitions = append(pm2.Partitions, pmap.Partitions...)
 	}
-
-	sort.Sort(pm.Partitions)
-	sort.Sort(pm2.Partitions)
 
 	// Compare.
 	if same, err := pm.equal(pm2); !same {

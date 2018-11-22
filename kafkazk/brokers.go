@@ -6,15 +6,13 @@ import (
 	"sort"
 )
 
-// BrokerMetaMap is a map of broker IDs
-// to BrokerMeta metadata fetched from
-// ZooKeeper. Currently, just the rack
-// field is retrieved.
+// BrokerMetaMap is a map of broker IDs to BrokerMeta
+// metadata fetched from ZooKeeper. Currently, just
+// the rack field is retrieved.
 type BrokerMetaMap map[int]*BrokerMeta
 
-// BrokerMeta holds metadata that
-// describes a broker, used in satisfying
-// constraints.
+// BrokerMeta holds metadata that describes a broker,
+// used in satisfying constraints.
 type BrokerMeta struct {
 	Rack              string  `json:"rack"`
 	StorageFree       float64 // In bytes.
@@ -55,9 +53,8 @@ type BrokerStatus struct {
 	Replace    int
 }
 
-// Changes returns a bool that indicates
-// whether a BrokerStatus values represent
-// a change in brokers.
+// Changes returns a bool that indicates whether a
+// BrokerStatus values represent a change in brokers.
 func (bs BrokerStatus) Changes() bool {
 	switch {
 	case bs.New != 0, bs.Missing != 0, bs.OldMissing != 0, bs.Replace != 0:
@@ -67,8 +64,7 @@ func (bs BrokerStatus) Changes() bool {
 	return false
 }
 
-// Broker associates metadata
-// with a real broker by ID.
+// Broker associates metadata with a real broker by ID.
 type Broker struct {
 	ID          int
 	Locality    string
@@ -79,16 +75,13 @@ type Broker struct {
 	New         bool
 }
 
-// BrokerMap holds a mapping of
-// broker IDs to *Broker.
+// BrokerMap holds a mapping of broker IDs to *Broker.
 type BrokerMap map[int]*Broker
 
-// BrokerList is a slice of
-// brokers for sorting by used count.
+// BrokerList is a slice of brokers for sorting by used count.
 type BrokerList []*Broker
 
-// Wrapper types for sort by
-// methods.
+// Wrapper types for sort by methods.
 type brokersByCount BrokerList
 type brokersByStorage BrokerList
 type brokersByID BrokerList
@@ -130,20 +123,17 @@ func (b brokersByID) Less(i, j int) bool { return b[i].ID < b[j].ID }
 
 // Sort methods.
 
-// SortByCount sorts the BrokerList by
-// Used values.
+// SortByCount sorts the BrokerList by Used values.
 func (b BrokerList) SortByCount() {
 	sort.Sort(brokersByCount(b))
 }
 
-// SortByStorage sorts the BrokerList by
-// StorageFree values.
+// SortByStorage sorts the BrokerList by StorageFree values.
 func (b BrokerList) SortByStorage() {
 	sort.Sort(brokersByStorage(b))
 }
 
-// SortByID sorts the BrokerList by
-// ID values.
+// SortByID sorts the BrokerList by ID values.
 func (b BrokerList) SortByID() {
 	sort.Sort(brokersByID(b))
 }
@@ -286,10 +276,9 @@ func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) *BrokerStatus {
 }
 
 // SubStorageAll takes a PartitionMap + PartitionMetaMap and adds
-// the size of each partition back to the StorageFree value
-// of any broker it was originally mapped to.
-// This is used in a force rebuild where the assumption
-// is that partitions will be lifted and repositioned.
+// the size of each partition back to the StorageFree value of any
+// broker it was originally mapped to. This is used in a force rebuild
+// where the assumption is that partitions will be lifted and repositioned.
 func (b BrokerMap) SubStorageAll(pm *PartitionMap, pmm PartitionMetaMap) error {
 	// Get the size of each partition.
 	for _, partn := range pm.Partitions {
@@ -312,8 +301,8 @@ func (b BrokerMap) SubStorageAll(pm *PartitionMap, pmm PartitionMetaMap) error {
 	return nil
 }
 
-// SubStorageReplacements works similarly to SubStorageAll except
-// that storage usage is only subtraced from brokers marked for replacement.
+// SubStorageReplacements works similarly to SubStorageAll except that
+// storage usage is only subtraced from brokers marked for replacement.
 func (b BrokerMap) SubStorageReplacements(pm *PartitionMap, pmm PartitionMetaMap) error {
 	// Get the size of each partition.
 	for _, partn := range pm.Partitions {
@@ -364,9 +353,7 @@ func (b BrokerMap) List() BrokerList {
 	return bl
 }
 
-// BrokerMapFromPartitionMap creates a BrokerMap
-// from a partitionMap.
-// TODO can we remove marked for replacement here too?
+// BrokerMapFromPartitionMap creates a BrokerMap from a partitionMap.
 func BrokerMapFromPartitionMap(pm *PartitionMap, bm BrokerMetaMap, force bool) BrokerMap {
 	bmap := BrokerMap{}
 	// For each partition.
@@ -407,9 +394,8 @@ func BrokerMapFromPartitionMap(pm *PartitionMap, bm BrokerMetaMap, force bool) B
 	return bmap
 }
 
-// MappedBrokers takes a PartitionMap and returns a
-// new BrokerMap that only includes brokers found
-// in the partition map holding a partition.
+// MappedBrokers takes a PartitionMap and returns a new BrokerMap
+// that only includes brokers found in the partition map holding a partition.
 func (b BrokerMap) MappedBrokers(pm *PartitionMap) BrokerMap {
 	bmap := BrokerMap{}
 

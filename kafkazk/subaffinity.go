@@ -6,11 +6,10 @@ import (
 	"sort"
 )
 
-// SubstitutionAffinities is a mapping of
-// an ID belonging to a *Broker marked for replacement
-// and a replacement *Broker that will fill
-// all previously filled replica slots held by the
-// *Broker being replaced.
+// SubstitutionAffinities is a mapping of an ID belonging
+// to a *Broker marked for replacement and a replacement
+// *Broker that will fill all previously filled replica
+// slots held by the *Broker being replaced.
 type SubstitutionAffinities map[int]*Broker
 
 // Get takes a broker ID and returns a *Broker

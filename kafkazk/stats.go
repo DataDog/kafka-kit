@@ -5,8 +5,7 @@ import (
 	"sort"
 )
 
-// DegreeDistribution holds broker to
-// broker relationships.
+// DegreeDistribution counts broker to broker relationships.
 type DegreeDistribution struct {
 	// Relationships is a an adjacency list
 	// where an edge between brokers is defined as
@@ -40,8 +39,7 @@ func (dd DegreeDistribution) Add(nodes []int) {
 	}
 }
 
-// Count takes a node ID and returns the
-// degree distribution.
+// Count takes a node ID and returns the degree distribution.
 func (dd DegreeDistribution) Count(n int) int {
 	c, exists := dd.Relationships[n]
 	if !exists {
@@ -51,9 +49,8 @@ func (dd DegreeDistribution) Count(n int) int {
 	return len(c)
 }
 
-// DegreeDistributionStats holds general
-// statistical information describing the
-// DegreeDistribution counts.
+// DegreeDistributionStats holds general statistical
+// information describing the DegreeDistribution counts.
 type DegreeDistributionStats struct {
 	Min float64
 	Max float64
@@ -86,8 +83,7 @@ func (dd DegreeDistribution) Stats() DegreeDistributionStats {
 	return dds
 }
 
-// DegreeDistribution returns the DegreeDistribution
-// for the PartitionMap.
+// DegreeDistribution returns the DegreeDistribution for the PartitionMap.
 func (pm *PartitionMap) DegreeDistribution() DegreeDistribution {
 	d := NewDegreeDistribution()
 
@@ -98,9 +94,8 @@ func (pm *PartitionMap) DegreeDistribution() DegreeDistribution {
 	return d
 }
 
-// StorageDiff takes two BrokerMaps and returns
-// a per broker ID diff in storage as a [2]float64:
-// [absolute, percentage] diff.
+// StorageDiff takes two BrokerMaps and returns a per broker ID
+// diff in storage as a [2]float64: [absolute, percentage] diff.
 func (b BrokerMap) StorageDiff(b2 BrokerMap) map[int][2]float64 {
 	d := map[int][2]float64{}
 
@@ -187,8 +182,7 @@ func (b BrokerMap) StorageStdDev() float64 {
 	return math.Sqrt(msq)
 }
 
-// HMean returns the harmonic mean of broker
-// storage free.
+// HMean returns the harmonic mean of broker storage free.
 func (b BrokerMap) HMean() float64 {
 	var t float64
 	var c float64
@@ -203,8 +197,7 @@ func (b BrokerMap) HMean() float64 {
 	return c / t
 }
 
-// Mean returns the arithmetic mean of broker
-// storage free.
+// Mean returns the arithmetic mean of broker storage free.
 func (b BrokerMap) Mean() float64 {
 	var t float64
 	var c float64
@@ -219,9 +212,8 @@ func (b BrokerMap) Mean() float64 {
 	return t / c
 }
 
-// AboveMean returns a sorted []int of broker IDs
-// that are above the mean by d percent (0.00 < d).
-// The mean type is provided as a function parameter f.
+// AboveMean returns a sorted []int of broker IDs that are above the mean
+// by d percent (0.00 < d). The mean type is provided as a function f.
 func (b BrokerMap) AboveMean(d float64, f func() float64) []int {
 	m := f()
 	var ids []int
@@ -245,9 +237,8 @@ func (b BrokerMap) AboveMean(d float64, f func() float64) []int {
 	return ids
 }
 
-// BelowMean returns a sorted []int of broker IDs
-// that are below the mean by d percent (0.00 < d).
-// The mean type is provided as a function parameter f.
+// BelowMean returns a sorted []int of broker IDs that are below the mean
+// by d percent (0.00 < d). The mean type is provided as a function f.
 func (b BrokerMap) BelowMean(d float64, f func() float64) []int {
 	m := f()
 	var ids []int

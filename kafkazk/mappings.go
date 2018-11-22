@@ -4,8 +4,8 @@ import (
 	"fmt"
 )
 
-// Mappings is a mapping of broker IDs
-// to currently held partition as a PartitionList.
+// Mappings is a mapping of broker IDs to currently held
+// partition as a PartitionList.
 type Mappings map[int]map[string]PartitionList
 
 // NewMappings returns a new Mappings.

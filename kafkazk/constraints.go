@@ -92,8 +92,6 @@ func (c *Constraints) passes(b *Broker) bool {
 		return false
 	// Fail if the candidate would run
 	// out of storage.
-	// TODO this needs thresholds and
-	// more intelligent controls.
 	case b.StorageFree-c.requestSize < 0:
 		return false
 	}
