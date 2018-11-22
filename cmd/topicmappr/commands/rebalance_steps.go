@@ -76,17 +76,16 @@ func (r relocationPlan) add(p kafkazk.Partition, ids [2]int) {
 // [][2]int list of source and destination broker ID pairs.
 func (r relocationPlan) isPlanned(p kafkazk.Partition) ([][2]int, bool) {
 	var pairs [][2]int
+
 	if _, exist := r[p.Topic]; !exist {
 		return pairs, false
 	}
 
 	if _, exist := r[p.Topic][p.Partition]; !exist {
 		return pairs, false
-	} else {
-		pairs = r[p.Topic][p.Partition]
 	}
 
-	return pairs, true
+	return r[p.Topic][p.Partition], true
 }
 
 func validateBrokersForRebalance(cmd *cobra.Command, brokers kafkazk.BrokerMap, bm kafkazk.BrokerMetaMap) []int {

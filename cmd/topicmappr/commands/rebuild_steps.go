@@ -200,18 +200,18 @@ func buildMap(cmd *cobra.Command, pm *kafkazk.PartitionMap, pmm kafkazk.Partitio
 
 		// Rebuild.
 		return partitionMapInStripped.Rebuild(rebuildParams)
-	} else {
-		// Update the StorageFree only on brokers
-		// marked for replacement.
-		if placement == "storage" {
-			err := rebuildParams.BM.SubStorageReplacements(pm, pmm)
-			if err != nil {
-				fmt.Println(err)
-				os.Exit(1)
-			}
-		}
-
-		// Rebuild directly on the input map.
-		return pm.Rebuild(rebuildParams)
 	}
+
+	// Update the StorageFree only on brokers
+	// marked for replacement.
+	if placement == "storage" {
+		err := rebuildParams.BM.SubStorageReplacements(pm, pmm)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	}
+
+	// Rebuild directly on the input map.
+	return pm.Rebuild(rebuildParams)
 }

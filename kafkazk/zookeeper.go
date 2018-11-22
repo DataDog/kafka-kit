@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	// ErrInvalidKafkaConfigType indicates invalid Kafka config types.
+	// ErrInvalidKafkaConfigType error.
 	ErrInvalidKafkaConfigType = errors.New("Invalid Kafka config type")
 	// validKafkaConfigTypes is used as a set
 	// to define valid configuration type names.
@@ -30,7 +30,6 @@ type ErrNoNode struct {
 	s string
 }
 
-// Error returns an errror.
 func (e ErrNoNode) Error() string {
 	return e.s
 }
@@ -532,7 +531,7 @@ func (z *ZKHandler) GetTopicState(t string) (*TopicState, error) {
 	return ts, nil
 }
 
-// GetTopicStateCurrentISR takes a topic name. If the topic exists,
+// GetTopicStateISR takes a topic name. If the topic exists,
 // the topic state is returned as a TopicStateISR. GetTopicStateCurrentISR
 // differs from GetTopicState in that the actual, current broker IDs
 // in the ISR are returned for each partition. This method is notably more

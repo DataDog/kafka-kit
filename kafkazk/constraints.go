@@ -5,7 +5,9 @@ import (
 )
 
 var (
-	ErrNoBrokers              = errors.New("No additional brokers that meet Constraints")
+	// ErrNoBrokers error.
+	ErrNoBrokers = errors.New("No additional brokers that meet Constraints")
+	// ErrInvalidSelectionMethod error.
 	ErrInvalidSelectionMethod = errors.New("Invalid selection method")
 )
 

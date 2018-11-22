@@ -6,7 +6,7 @@ import (
 )
 
 func TestMappings(t *testing.T) {
-	var topic string = "test_topic"
+	var topic = "test_topic"
 	pm, _ := PartitionMapFromString(testGetMapString4(topic))
 	mappings := pm.Mappings()
 
@@ -56,7 +56,7 @@ func TestMappings(t *testing.T) {
 }
 
 func TestLargestPartitions(t *testing.T) {
-	var topic string = "test_topic"
+	var topic = "test_topic"
 	pm, _ := PartitionMapFromString(testGetMapString4(topic))
 	zk := &Mock{}
 	pmm, _ := zk.GetAllPartitionMeta()
@@ -78,7 +78,7 @@ func TestLargestPartitions(t *testing.T) {
 }
 
 func TestRemove(t *testing.T) {
-	var topic string = "test_topic"
+	var topic = "test_topic"
 	pm, _ := PartitionMapFromString(testGetMapString4(topic))
 	mappings := pm.Mappings()
 

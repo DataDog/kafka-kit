@@ -13,6 +13,7 @@ func NewMappings() Mappings {
 	return map[int]map[string]partitionList{}
 }
 
+// NoMappingForBroker error.
 type NoMappingForBroker struct {
 	id int
 }
@@ -21,6 +22,7 @@ func (e NoMappingForBroker) Error() string {
 	return fmt.Sprintf("No mapping for ID %d", e.id)
 }
 
+// NoMappingForTopic error.
 type NoMappingForTopic struct {
 	id    int
 	topic string

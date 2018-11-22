@@ -12,6 +12,7 @@ var rootCmd = &cobra.Command{
 	Use: "topicmappr",
 }
 
+// Execute rootCmd.
 func Execute() {
 	envy.ParseCobra(rootCmd, envy.CobraConfig{Prefix: "TOPICMAPPR", Persistent: true, Recursive: false})
 
