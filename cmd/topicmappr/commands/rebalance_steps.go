@@ -95,7 +95,10 @@ func validateBrokersForRebalance(cmd *cobra.Command, brokers kafkazk.BrokerMap, 
 
 	// Update the current BrokerList with
 	// the provided broker list.
-	c := brokers.Update(Config.brokers, bm)
+	c, msgs := brokers.Update(Config.brokers, bm)
+	for m := range msgs {
+		fmt.Printf("%s%s\n", indent, m)
+	}
 
 	if c.Changes() {
 		fmt.Printf("%s-\n", indent)

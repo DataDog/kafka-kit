@@ -133,7 +133,7 @@ func TestUpdate(t *testing.T) {
 
 	// 1006 doesn't exist in the meta map.
 	// This should also add to the missing.
-	stat := bm.Update([]int{1002, 1003, 1005, 1006}, bmm)
+	stat, _ := bm.Update([]int{1002, 1003, 1005, 1006}, bmm)
 
 	if stat.New != 1 {
 		t.Errorf("Expected New count of 1, got %d", stat.New)

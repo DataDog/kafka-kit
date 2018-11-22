@@ -173,11 +173,13 @@ func (b BrokerList) SortPseudoShuffle(seed int64) {
 	}
 }
 
-// Update takes a []int of broker IDs and BrokerMap then adds
-// them to the BrokerMap, returning the count of marked for replacement,
-// newly included, and brokers that weren't found in ZooKeeper.
-func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) *BrokerStatus {
+// Update takes a []int of broker IDs and BrokerMap then adds them to the
+// BrokerMap, returning the count of marked for replacement, newly included,
+// and brokers that weren't found in ZooKeeper. Additionally, a channel
+// of msgs describing changes is returned.
+func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) (*BrokerStatus, <-chan string) {
 	bs := &BrokerStatus{}
+	msgs := make(chan string, len(b)+len(bl))
 
 	// Build a map from the new broker list.
 	newBrokers := map[int]bool{}
@@ -195,8 +197,7 @@ func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) *BrokerStatus {
 			}
 
 			if _, exist := bm[id]; !exist {
-				fmt.Printf("%sPrevious broker %d missing\n",
-					indent, id)
+				msgs <- fmt.Sprintf("Previous broker %d missing", id)
 				b[id].Replace = true
 				b[id].Missing = true
 				// If this broker is missing and was provided in
@@ -223,8 +224,7 @@ func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) *BrokerStatus {
 		if _, ok := newBrokers[broker.ID]; !ok {
 			bs.Replace++
 			b[broker.ID].Replace = true
-			fmt.Printf("%sBroker %d marked for removal\n",
-				indent, broker.ID)
+			msgs <- fmt.Sprintf("Broker %d marked for removal", broker.ID)
 		}
 	}
 
@@ -259,8 +259,7 @@ func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) *BrokerStatus {
 				bs.New++
 			} else {
 				bs.Missing++
-				fmt.Printf("%sBroker %d not found in ZooKeeper\n",
-					indent, id)
+				msgs <- fmt.Sprintf("Broker %d not found in ZooKeeper", id)
 			}
 		}
 	}
@@ -268,11 +267,13 @@ func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) *BrokerStatus {
 	// Log new brokers.
 	for _, broker := range b {
 		if broker.New {
-			fmt.Printf("%sNew broker %d\n", indent, broker.ID)
+			msgs <- fmt.Sprintf("New broker %d", broker.ID)
 		}
 	}
 
-	return bs
+	close(msgs)
+
+	return bs, msgs
 }
 
 // SubStorageAll takes a PartitionMap + PartitionMetaMap and adds
