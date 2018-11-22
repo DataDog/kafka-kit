@@ -603,7 +603,7 @@ func (z *ZKHandler) GetPartitionMap(t string) (*PartitionMap, error) {
 	// Map TopicState to a
 	// PartitionMap.
 	pm := NewPartitionMap()
-	pl := partitionList{}
+	pl := PartitionList{}
 
 	for partition, replicas := range ts.Partitions {
 		i, _ := strconv.Atoi(partition)

@@ -568,7 +568,7 @@ func TestShuffle(t *testing.T) {
 
 	expected := &PartitionMap{
 		Version: 1,
-		Partitions: partitionList{
+		Partitions: PartitionList{
 			Partition{
 				Topic:     "test_topic",
 				Partition: 0,

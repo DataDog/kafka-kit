@@ -314,7 +314,7 @@ func TestMappedBrokers(t *testing.T) {
 	// Drop some partitions. This should leave
 	// the only mapped partitions to brokers
 	// 1001 and 1002.
-	pl := partitionList{}
+	pl := PartitionList{}
 	for _, p := range pm.Partitions {
 		if p.Partition == 0 || p.Partition == 1 {
 			pl = append(pl, p)

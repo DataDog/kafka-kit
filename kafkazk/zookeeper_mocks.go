@@ -197,7 +197,7 @@ func (zk *Mock) GetAllPartitionMeta() (PartitionMetaMap, error) {
 func (zk *Mock) GetPartitionMap(t string) (*PartitionMap, error) {
 	p := &PartitionMap{
 		Version: 1,
-		Partitions: partitionList{
+		Partitions: PartitionList{
 			Partition{Topic: t, Partition: 0, Replicas: []int{1001, 1002}},
 			Partition{Topic: t, Partition: 1, Replicas: []int{1002, 1001}},
 			Partition{Topic: t, Partition: 2, Replicas: []int{1003, 1004, 1001}},

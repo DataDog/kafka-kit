@@ -17,12 +17,13 @@ type Partition struct {
 	Replicas  []int  `json:"replicas"`
 }
 
-type partitionList []Partition
+// PartitionList is a []Partition.
+type PartitionList []Partition
 
 // PartitionMap represents the Kafka partition map structure.
 type PartitionMap struct {
 	Version    int           `json:"version"`
-	Partitions partitionList `json:"partitions"`
+	Partitions PartitionList `json:"partitions"`
 }
 
 // NewPartitionMap returns an empty *PartitionMap.
@@ -30,11 +31,11 @@ func NewPartitionMap() *PartitionMap {
 	return &PartitionMap{Version: 1}
 }
 
-// Satisfy the sort interface for partitionList.
+// Satisfy the sort interface for PartitionList.
 
-func (p partitionList) Len() int      { return len(p) }
-func (p partitionList) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
-func (p partitionList) Less(i, j int) bool {
+func (p PartitionList) Len() int      { return len(p) }
+func (p PartitionList) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
+func (p PartitionList) Less(i, j int) bool {
 	if p[i].Topic < p[j].Topic {
 		return true
 	}
@@ -48,7 +49,7 @@ func (p partitionList) Less(i, j int) bool {
 // PartitionMap sort by partition size.
 
 type partitionsBySize struct {
-	pl partitionList
+	pl PartitionList
 	pm PartitionMetaMap
 }
 
@@ -69,8 +70,8 @@ func (p partitionsBySize) Less(i, j int) bool {
 }
 
 // SortBySize takes a PartitionMetaMap and sorts the
-// partitionList by partition size.
-func (p partitionList) SortBySize(m PartitionMetaMap) {
+// PartitionList by partition size.
+func (p PartitionList) SortBySize(m PartitionMetaMap) {
 	sort.Sort(partitionsBySize{pl: p, pm: m})
 }
 
