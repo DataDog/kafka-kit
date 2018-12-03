@@ -237,10 +237,16 @@ func (pm *PartitionMap) Rebuild(params RebuildParams) (*PartitionMap, []string) 
 func placeByPosition(params RebuildParams) (*PartitionMap, []string) {
 	newMap := NewPartitionMap()
 
-	// We need a filtered list for
-	// usage sorting and exclusion
+	// We need a filtered list for usage sorting and exclusion
 	// of nodes marked for removal.
-	bl := params.BM.filteredList()
+	f := func(b *Broker) bool {
+		if b.Replace {
+			return false
+		}
+		return true
+	}
+
+	bl := params.BM.Filter(f).List()
 
 	var errs []string
 	var pass int
@@ -367,10 +373,16 @@ func placeByPosition(params RebuildParams) (*PartitionMap, []string) {
 func placeByPartition(params RebuildParams) (*PartitionMap, []string) {
 	newMap := NewPartitionMap()
 
-	// We need a filtered list for
-	// usage sorting and exclusion
+	// We need a filtered list for usage sorting and exclusion
 	// of nodes marked for removal.
-	bl := params.BM.filteredList()
+	f := func(b *Broker) bool {
+		if b.Replace {
+			return false
+		}
+		return true
+	}
+
+	bl := params.BM.Filter(f).List()
 
 	var errs []string
 

@@ -37,7 +37,7 @@ func TestChanges(t *testing.T) {
 
 func TestSortBrokerListByCount(t *testing.T) {
 	b := newMockBrokerMap2()
-	bl := b.filteredList()
+	bl := b.Filter(func(b *Broker) bool { return true }).List()
 
 	bl.SortByCount()
 
@@ -57,7 +57,7 @@ func TestSortBrokerListByCount(t *testing.T) {
 
 func TestSortBrokerListByStorage(t *testing.T) {
 	b := newMockBrokerMap2()
-	bl := b.filteredList()
+	bl := b.Filter(func(b *Broker) bool { return true }).List()
 
 	bl.SortByStorage()
 
@@ -77,7 +77,7 @@ func TestSortBrokerListByStorage(t *testing.T) {
 
 func TestSortBrokerListByID(t *testing.T) {
 	b := newMockBrokerMap2()
-	bl := b.filteredList()
+	bl := b.Filter(func(b *Broker) bool { return true }).List()
 
 	bl.SortByID()
 
@@ -96,15 +96,16 @@ func TestSortBrokerListByID(t *testing.T) {
 }
 
 func TestSortPseudoShuffle(t *testing.T) {
-	bl := newMockBrokerMap2().filteredList()
+	b := newMockBrokerMap2()
+	bl := b.Filter(func(b *Broker) bool { return true }).List()
 
 	// Test with seed val of 1.
 	expected := []int{1001, 1002, 1005, 1004, 1007, 1003, 1006}
 	bl.SortPseudoShuffle(1)
 
-	for i, b := range bl {
-		if b.ID != expected[i] {
-			t.Errorf("Expected broker %d, got %d", expected[i], b.ID)
+	for i, br := range bl {
+		if br.ID != expected[i] {
+			t.Errorf("Expected broker %d, got %d", expected[i], br.ID)
 		}
 	}
 
@@ -280,24 +281,6 @@ func TestFilter(t *testing.T) {
 	for _, id := range []int{1001, 1004, 1007} {
 		if _, exist := bm2[id]; !exist {
 			t.Errorf("Expected ID %d in BrokerMap", id)
-		}
-	}
-}
-
-func TestFilteredList(t *testing.T) {
-	bm := newMockBrokerMap()
-	bm[1003].Replace = true
-
-	nl := bm.filteredList()
-	expected := map[int]struct{}{
-		1001: struct{}{},
-		1002: struct{}{},
-		1004: struct{}{},
-	}
-
-	for _, b := range nl {
-		if _, exist := expected[b.ID]; !exist {
-			t.Errorf("Broker ID %d shouldn't exist", b.ID)
 		}
 	}
 }

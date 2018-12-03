@@ -329,21 +329,6 @@ func (b BrokerMap) SubStorageReplacements(pm *PartitionMap, pmm PartitionMetaMap
 	return nil
 }
 
-// filteredList converts a BrokerMap to a BrokerList,
-// excluding nodes marked for replacement.
-// TODO deprecate this and use a filtered map.
-func (b BrokerMap) filteredList() BrokerList {
-	bl := BrokerList{}
-
-	for broker := range b {
-		if !b[broker].Replace {
-			bl = append(bl, b[broker])
-		}
-	}
-
-	return bl
-}
-
 // Filter returns a BrokerMap of brokers that return
 // true as an input to function f.
 func (b BrokerMap) Filter(f func(*Broker) bool) BrokerMap {
