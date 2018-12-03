@@ -135,26 +135,37 @@ func validateBrokersForRebalance(cmd *cobra.Command, brokers kafkazk.BrokerMap, 
 	switch {
 	case stg > 0.00:
 		selectorMethod.WriteString(fmt.Sprintf("(< %.2fGB storage free)", stg))
-		// TODO replace these iterations with
-		// a broker selector method in kafkazk.
-		for _, b := range brokers {
-			if !b.New && b.ID != 0 && b.StorageFree < stg*div {
-				offloadTargets = append(offloadTargets, b.ID)
+
+		// Get all non-new brokers with a StorageFree
+		// below the storage threshold in GB.
+		f := func(b *kafkazk.Broker) bool {
+			if !b.New && b.StorageFree < stg*div {
+				return true
 			}
+			return false
 		}
+
+		matches := brokers.Filter(f)
+		for _, b := range matches {
+			offloadTargets = append(offloadTargets, b.ID)
+		}
+
 		sort.Ints(offloadTargets)
 	default:
 		selectorMethod.WriteString(fmt.Sprintf("(>= %.2f%% threshold below hmean)", st*100))
+
 		// Find brokers where the storage free is t %
 		// below the harmonic mean. Specifying 0 targets
-		// all brokers.
+		// all non-new brokers.
 		switch st {
 		case 0.00:
-			for _, b := range brokers {
-				if !b.New && b.ID != 0 {
-					offloadTargets = append(offloadTargets, b.ID)
-				}
+			f := func(b *kafkazk.Broker) bool { return !b.New }
+
+			matches := brokers.Filter(f)
+			for _, b := range matches {
+				offloadTargets = append(offloadTargets, b.ID)
 			}
+
 			sort.Ints(offloadTargets)
 		default:
 			offloadTargets = brokers.BelowMean(st, brokers.HMean)
