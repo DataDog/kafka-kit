@@ -400,37 +400,6 @@ func BrokerMapFromPartitionMap(pm *PartitionMap, bm BrokerMetaMap, force bool) B
 	return bmap
 }
 
-// MappedBrokers takes a PartitionMap and returns a new BrokerMap
-// that only includes brokers found in the partition map holding a partition.
-func (b BrokerMap) MappedBrokers(pm *PartitionMap) BrokerMap {
-	bmap := BrokerMap{}
-
-	ids := map[int]struct{}{}
-
-	// Get all IDs.
-	for _, partition := range pm.Partitions {
-		for _, id := range partition.Replicas {
-			ids[id] = struct{}{}
-		}
-	}
-
-	// For each ID that's in the BrokerMap,
-	// add to the new BrokerMap.
-	for id := range ids {
-		if _, exists := b[id]; exists {
-			bmap[id] = &Broker{
-				ID:          id,
-				Locality:    b[id].Locality,
-				Used:        b[id].Used,
-				StorageFree: b[id].StorageFree,
-				Replace:     b[id].Replace,
-			}
-		}
-	}
-
-	return bmap
-}
-
 // Copy returns a copy of a BrokerMap.
 func (b BrokerMap) Copy() BrokerMap {
 	c := BrokerMap{}

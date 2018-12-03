@@ -312,38 +312,6 @@ func TestBrokerMapFromPartitionMap(t *testing.T) {
 	}
 }
 
-func TestMappedBrokers(t *testing.T) {
-	bm := newMockBrokerMap()
-	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
-
-	// Drop some partitions. This should leave
-	// the only mapped partitions to brokers
-	// 1001 and 1002.
-	pl := PartitionList{}
-	for _, p := range pm.Partitions {
-		if p.Partition == 0 || p.Partition == 1 {
-			pl = append(pl, p)
-		}
-	}
-	pm.Partitions = pl
-
-	mapped := bm.MappedBrokers(pm)
-	expected := []int{1001, 1002}
-
-	for _, id := range expected {
-		if _, exists := mapped[id]; !exists {
-			t.Errorf("Expected ID %d in mapped", id)
-		}
-	}
-
-	// This implicitly catches IDs present
-	// that shouldn't be; if we have only 2 and
-	// the previous test passed, it's the correct 2.
-	if len(mapped) != 2 {
-		t.Error("Unexpected BrokerMap size")
-	}
-}
-
 func TestBrokerMapCopy(t *testing.T) {
 	bm1 := newMockBrokerMap()
 	bm2 := bm1.Copy()
