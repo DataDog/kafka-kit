@@ -69,8 +69,8 @@ func (p partitionsBySize) Less(i, j int) bool {
 	return p.pl[i].Partition < p.pl[j].Partition
 }
 
-// SortBySize takes a PartitionMetaMap and sorts the
-// PartitionList by partition size.
+// SortBySize takes a PartitionMetaMap and sorts the PartitionList
+// by partition size.
 func (p PartitionList) SortBySize(m PartitionMetaMap) {
 	sort.Sort(partitionsBySize{pl: p, pm: m})
 }
@@ -80,8 +80,7 @@ type PartitionMeta struct {
 	Size float64 // In bytes.
 }
 
-// PartitionMetaMap is a mapping of topic,
-// partition number to PartitionMeta.
+// PartitionMetaMap is a mapping of topic, partition number to PartitionMeta.
 type PartitionMetaMap map[string]map[int]*PartitionMeta
 
 // NewPartitionMetaMap returns an empty PartitionMetaMap.
@@ -89,9 +88,8 @@ func NewPartitionMetaMap() PartitionMetaMap {
 	return map[string]map[int]*PartitionMeta{}
 }
 
-// Size takes a Partition and returns the
-// size. An error is returned if the partition
-// isn't in the PartitionMetaMap.
+// Size takes a Partition and returns the size. An error is returned if
+// the partition isn't in the PartitionMetaMap.
 func (pmm PartitionMetaMap) Size(p Partition) (float64, error) {
 	// Check for the topic.
 	t, exists := pmm[p.Topic]
@@ -108,8 +106,7 @@ func (pmm PartitionMetaMap) Size(p Partition) (float64, error) {
 	return partn.Size, nil
 }
 
-// RebuildParams holds required
-// parameters to call the Rebuild
+// RebuildParams holds required parameters to call the Rebuild
 // method on a *PartitionMap.
 type RebuildParams struct {
 	pm            *PartitionMap
@@ -128,11 +125,10 @@ func NewRebuildParams() RebuildParams {
 	}
 }
 
-// SimpleLeaderOptimization is a naive leadership
-// optimization algorithm. It gets leadership counts
-// for all brokers in the partition map and shuffles
-// partition replica sets for those holding brokers
-// with below average leadership.
+// SimpleLeaderOptimization is a naive leadership optimization algorithm.
+// It gets leadership counts for all brokers in the partition map and
+// shuffles partition replica sets for those holding brokers with below
+// average leadership.
 func (pm *PartitionMap) SimpleLeaderOptimization() {
 	stats := pm.UseStats()
 
@@ -174,11 +170,10 @@ func (pm *PartitionMap) SimpleLeaderOptimization() {
 	}
 }
 
-// Rebuild takes a BrokerMap and rebuild strategy.
-// It then traverses the partition map, replacing brokers marked removal
-// with the best available candidate based on the selected
-// rebuild strategy. A rebuilt *PartitionMap and []string of
-// errors is returned.
+// Rebuild takes a BrokerMap and rebuild strategy. It then traverses the
+// partition map, replacing brokers marked removal with the best available
+// candidate based on the selected rebuild strategy. A rebuilt *PartitionMap
+// and []string of errors is returned.
 func (pm *PartitionMap) Rebuild(params RebuildParams) (*PartitionMap, []string) {
 	var newMap *PartitionMap
 	var errs []string
@@ -226,13 +221,12 @@ func (pm *PartitionMap) Rebuild(params RebuildParams) (*PartitionMap, []string) 
 	return newMap, errs
 }
 
-// placeByPosition builds a PartitionMap by doing placements
-// for all partitions, one broker index at a time. For instance,
-// if all partitions required a broker set length of 3 (aka a replication
-// factor of 3), we'd do all placements in 3 passes.
-// The first pass would be leaders for all partitions, the second
-// pass would be the first follower, and the third pass would be
-// the second follower. This placement pattern is optimal
+// placeByPosition builds a PartitionMap by doing placements for all
+// partitions, one broker index at a time. For instance, if all partitions
+// required a broker set length of 3 (aka a replication factor of 3), we'd
+// do all placements in 3 passes. The first pass would be leaders for all
+// partitions, the second pass would be the first follower, and the third
+// pass would be the second follower. This placement pattern is optimal
 // for the count strategy.
 func placeByPosition(params RebuildParams) (*PartitionMap, []string) {
 	newMap := NewPartitionMap()
@@ -465,13 +459,12 @@ func placeByPartition(params RebuildParams) (*PartitionMap, []string) {
 	return newMap, errs
 }
 
-// LocalitiesAvailable takes a broker map and broker and
-// returns a []string of localities that are unused by any
-// of the brokers in any replica sets that the reference
-// broker was found in. This is done by building a set of
-// all localities observed across all replica sets and a set
-// of all localities observed in replica sets containing the
-// reference broker, then returning the diff.
+// LocalitiesAvailable takes a broker map and broker and returns a []string
+// of localities that are unused by any of the brokers in any replica sets that
+// the reference broker was found in. This is done by building a set of all
+// localities observed across all replica sets and a set of all localities
+// observed in replica sets containing the reference broker,
+// then returning the diff.
 func (pm *PartitionMap) LocalitiesAvailable(bm BrokerMap, b *Broker) []string {
 	all := map[string]struct{}{}
 	reference := map[string]struct{}{}
@@ -543,8 +536,7 @@ func (pm *PartitionMap) shuffle(f func(Partition) bool) {
 	}
 }
 
-// PartitionMapFromString takes a json encoded string
-// and returns a *PartitionMap.
+// PartitionMapFromString takes a json encoded string and returns a *PartitionMap.
 func PartitionMapFromString(s string) (*PartitionMap, error) {
 	pm := NewPartitionMap()
 
@@ -558,10 +550,8 @@ func PartitionMapFromString(s string) (*PartitionMap, error) {
 	return pm, nil
 }
 
-// PartitionMapFromZK takes a slice of regexp
-// and finds all matching topics for each. A
-// merged *PartitionMap of all matching topic
-// maps is returned.
+// PartitionMapFromZK takes a slice of regexp and finds all matching topics for
+// each. A merged *PartitionMap of all matching topic maps is returned.
 func PartitionMapFromZK(t []*regexp.Regexp, zk Handler) (*PartitionMap, error) {
 	// Get a list of topic names from Handler
 	// matching the provided list.
@@ -592,10 +582,9 @@ func PartitionMapFromZK(t []*regexp.Regexp, zk Handler) (*PartitionMap, error) {
 	return pmapMerged, nil
 }
 
-// SetReplication ensures that replica sets
-// is reset to the replication factor r. Sets
-// exceeding r are truncated, sets below r
-// are extended with stub brokers.
+// SetReplication ensures that replica sets is reset to the replication
+// factor r. Sets exceeding r are truncated, sets below r are extended
+// with stub brokers.
 func (pm *PartitionMap) SetReplication(r int) {
 	// 0 is a no-op.
 	if r == 0 {
@@ -635,9 +624,8 @@ func (pm *PartitionMap) Copy() *PartitionMap {
 	return cpy
 }
 
-// Equal checks the equality betwee two partition maps.
-// Equality requires that the total order is exactly
-// the same.
+// Equal checks the equality betwee two partition maps. Equality requires
+// that the total order is exactly the same.
 func (pm *PartitionMap) equal(pm2 *PartitionMap) (bool, error) {
 	// Crude checks.
 	switch {
@@ -669,12 +657,10 @@ func (pm *PartitionMap) equal(pm2 *PartitionMap) (bool, error) {
 	return true, nil
 }
 
-// Strip takes a PartitionMap and returns a
-// copy where all broker ID references are replaced
-// with the stub broker with ID 0 where the replace
-// field is set to true. This ensures that the
-// entire map is rebuilt, even if the provided broker
-// list matches what's already in the map.
+// Strip takes a PartitionMap and returns a copy where all broker ID
+// references are replaced with the stub broker with ID 0 where the replace
+// field is set to true. This ensures that the entire map is rebuilt, even
+// if the provided broker list matches what's already in the map.
 func (pm *PartitionMap) Strip() *PartitionMap {
 	Stripped := NewPartitionMap()
 
@@ -715,9 +701,8 @@ func WriteMap(pm *PartitionMap, path string) error {
 	return nil
 }
 
-// UseStats returns a map of broker IDs
-// to BrokerUseStats; each contains a count
-// of leader and follower partition assignments.
+// UseStats returns a map of broker IDs to BrokerUseStats; each
+// contains a count of leader and follower partition assignments.
 func (pm *PartitionMap) UseStats() []*BrokerUseStats {
 	smap := map[int]*BrokerUseStats{}
 	// Get counts.

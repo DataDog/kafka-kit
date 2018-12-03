@@ -148,11 +148,6 @@ func printBrokerAssignmentStats(cmd *cobra.Command, pm1, pm2 *kafkazk.PartitionM
 		sort.Ints(ids)
 
 		for _, id := range ids {
-			// Skip the internal reserved ID.
-			if id == 0 {
-				continue
-			}
-
 			diff := storageDiffs[id]
 
 			// Indicate if the broker

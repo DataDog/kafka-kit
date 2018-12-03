@@ -100,6 +100,10 @@ func (b BrokerMap) StorageDiff(b2 BrokerMap) map[int][2]float64 {
 	d := map[int][2]float64{}
 
 	for bid := range b {
+		if bid == 0 {
+			continue
+		}
+
 		if _, exist := b2[bid]; !exist {
 			continue
 		}
