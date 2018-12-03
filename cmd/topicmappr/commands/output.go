@@ -93,7 +93,14 @@ func printBrokerAssignmentStats(cmd *cobra.Command, pm1, pm2 *kafkazk.PartitionM
 		// It's ideal to still include that broker's storage metrics since it was a provided
 		// input and wasn't marked for replacement (generally, users are doing storage placements
 		// particularly to balance out the storage of the input broker list).
-		mb1, mb2 := bm1.MappedBrokers(pm1), bm2.NonReplacedBrokers()
+		nonReplaced := func(b *kafkazk.Broker) bool {
+			if b.Replace {
+				return false
+			}
+			return true
+		}
+
+		mb1, mb2 := bm1.MappedBrokers(pm1), bm2.Filter(nonReplaced)
 
 		// Range before/after.
 		r1, r2 := mb1.StorageRange(), mb2.StorageRange()

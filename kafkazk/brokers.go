@@ -431,25 +431,6 @@ func (b BrokerMap) MappedBrokers(pm *PartitionMap) BrokerMap {
 	return bmap
 }
 
-// NonReplacedBrokers returns a copy of a BrokerMap
-// that excludes all brokers marked for replacement.
-// TODO deprecate this and use a filtered map.
-func (b BrokerMap) NonReplacedBrokers() BrokerMap {
-	bmap := BrokerMap{}
-
-	// For each ID that's in the BrokerMap
-	// and not marked for replacement,
-	// add to the new BrokerMap.
-	for id := range b {
-		if !b[id].Replace {
-			c := b[id].Copy()
-			bmap[id] = &c
-		}
-	}
-
-	return bmap
-}
-
 // Copy returns a copy of a BrokerMap.
 func (b BrokerMap) Copy() BrokerMap {
 	c := BrokerMap{}
