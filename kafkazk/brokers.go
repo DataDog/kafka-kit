@@ -314,8 +314,7 @@ func (b BrokerMap) Filter(f func(*Broker) bool) BrokerMap {
 		}
 
 		if f(broker) {
-			c := broker.Copy()
-			bmap[broker.ID] = &c
+			bmap[broker.ID] = broker
 		}
 	}
 
