@@ -208,7 +208,8 @@ func TestSubStorageAll(t *testing.T) {
 		3: &PartitionMeta{Size: 45},
 	}
 
-	err := bm.SubStorageAll(pm, pmm)
+	allBrokers := func(b *Broker) bool { return true }
+	err := bm.SubStorage(pm, pmm, allBrokers)
 	if err != nil {
 		t.Errorf("Unexpected error: %s", err)
 	}
@@ -242,7 +243,8 @@ func TestSubStorageReplacements(t *testing.T) {
 
 	bm[1003].Replace = true
 
-	err := bm.SubStorageReplacements(pm, pmm)
+	replacedBrokers := func(b *Broker) bool { return b.Replace }
+	err := bm.SubStorage(pm, pmm, replacedBrokers)
 	if err != nil {
 		t.Errorf("Unexpected error: %s", err)
 	}

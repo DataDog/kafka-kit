@@ -452,7 +452,8 @@ func TestRebuildByStorageDistribution(t *testing.T) {
 	brokers := BrokerMapFromPartitionMap(pm, bm, forceRebuild)
 
 	pmStripped := pm.Strip()
-	_ = brokers.SubStorageAll(pm, pmm)
+	allBrokers := func(b *Broker) bool { return true }
+	_ = brokers.SubStorage(pm, pmm, allBrokers)
 
 	// Normalize storage. The mock broker storage
 	// free vs mock partition sizes would actually
@@ -507,7 +508,8 @@ func TestRebuildByStorageStorage(t *testing.T) {
 	brokers := BrokerMapFromPartitionMap(pm, bm, forceRebuild)
 
 	pmStripped := pm.Strip()
-	_ = brokers.SubStorageAll(pm, pmm)
+	allBrokers := func(b *Broker) bool { return true }
+	_ = brokers.SubStorage(pm, pmm, allBrokers)
 
 	// Normalize storage. The mock broker storage
 	// free vs mock partition sizes would actually

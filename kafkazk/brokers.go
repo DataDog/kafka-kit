@@ -276,11 +276,10 @@ func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) (*BrokerStatus, <-chan str
 	return bs, msgs
 }
 
-// SubStorageAll takes a PartitionMap + PartitionMetaMap and adds
-// the size of each partition back to the StorageFree value of any
-// broker it was originally mapped to. This is used in a force rebuild
-// where the assumption is that partitions will be lifted and repositioned.
-func (b BrokerMap) SubStorageAll(pm *PartitionMap, pmm PartitionMetaMap) error {
+// SubStorageAll takes a PartitionMap, PartitionMetaMap, and a function. For all
+// brokers that return true as an input to function f, the size of all partitions
+// held is added back to the broker StorageFree value.
+func (b BrokerMap) SubStorage(pm *PartitionMap, pmm PartitionMetaMap, f func(*Broker) bool) error {
 	// Get the size of each partition.
 	for _, partn := range pm.Partitions {
 		size, err := pmm.Size(partn)
@@ -292,35 +291,10 @@ func (b BrokerMap) SubStorageAll(pm *PartitionMap, pmm PartitionMetaMap) error {
 		// StorageFree for all mapped brokers.
 		for _, bid := range partn.Replicas {
 			if broker, exists := b[bid]; exists {
-				broker.StorageFree += size
+				if f(broker) {
+					broker.StorageFree += size
+				}
 			} else {
-				return fmt.Errorf("Broker %d not found in broker map", bid)
-			}
-		}
-	}
-
-	return nil
-}
-
-// SubStorageReplacements works similarly to SubStorageAll except that
-// storage usage is only subtraced from brokers marked for replacement.
-// TODO deprecate this and use a filtered map.
-func (b BrokerMap) SubStorageReplacements(pm *PartitionMap, pmm PartitionMetaMap) error {
-	// Get the size of each partition.
-	for _, partn := range pm.Partitions {
-		size, err := pmm.Size(partn)
-		if err != nil {
-			return err
-		}
-
-		// Add this size back to the
-		// StorageFree for all mapped brokers.
-		for _, bid := range partn.Replicas {
-			broker, exists := b[bid]
-			if exists && broker.Replace {
-				broker.StorageFree += size
-			}
-			if !exists {
 				return fmt.Errorf("Broker %d not found in broker map", bid)
 			}
 		}
