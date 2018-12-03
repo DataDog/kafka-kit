@@ -304,6 +304,7 @@ func (b BrokerMap) SubStorageAll(pm *PartitionMap, pmm PartitionMetaMap) error {
 
 // SubStorageReplacements works similarly to SubStorageAll except that
 // storage usage is only subtraced from brokers marked for replacement.
+// TODO deprecate this and use a filtered map.
 func (b BrokerMap) SubStorageReplacements(pm *PartitionMap, pmm PartitionMetaMap) error {
 	// Get the size of each partition.
 	for _, partn := range pm.Partitions {
@@ -330,7 +331,7 @@ func (b BrokerMap) SubStorageReplacements(pm *PartitionMap, pmm PartitionMetaMap
 
 // filteredList converts a BrokerMap to a BrokerList,
 // excluding nodes marked for replacement.
-// TODO this should take a func. Export.
+// TODO deprecate this and use a filtered map.
 func (b BrokerMap) filteredList() BrokerList {
 	bl := BrokerList{}
 
@@ -341,6 +342,25 @@ func (b BrokerMap) filteredList() BrokerList {
 	}
 
 	return bl
+}
+
+// Filter returns a BrokerMap of brokers that return
+// true as an input to function f.
+func (b BrokerMap) Filter(f func(*Broker) bool) BrokerMap {
+	bmap := BrokerMap{}
+
+	for _, broker := range b {
+		if broker.ID == 0 {
+			continue
+		}
+
+		if f(broker) {
+			c := broker.Copy()
+			bmap[broker.ID] = &c
+		}
+	}
+
+	return bmap
 }
 
 // List take a BrokerMap and returns a BrokerList.
@@ -428,6 +448,7 @@ func (b BrokerMap) MappedBrokers(pm *PartitionMap) BrokerMap {
 
 // NonReplacedBrokers returns a copy of a BrokerMap
 // that excludes all brokers marked for replacement.
+// TODO deprecate this and use a filtered map.
 func (b BrokerMap) NonReplacedBrokers() BrokerMap {
 	bmap := BrokerMap{}
 
@@ -436,12 +457,8 @@ func (b BrokerMap) NonReplacedBrokers() BrokerMap {
 	// add to the new BrokerMap.
 	for id := range b {
 		if !b[id].Replace {
-			bmap[id] = &Broker{
-				ID:          id,
-				Locality:    b[id].Locality,
-				Used:        b[id].Used,
-				StorageFree: b[id].StorageFree,
-			}
+			c := b[id].Copy()
+			bmap[id] = &c
 		}
 	}
 
@@ -464,4 +481,17 @@ func (b BrokerMap) Copy() BrokerMap {
 	}
 
 	return c
+}
+
+// Copy returns a copy of a Broker.
+func (b Broker) Copy() Broker {
+	return Broker{
+		ID:          b.ID,
+		Locality:    b.Locality,
+		Used:        b.Used,
+		StorageFree: b.StorageFree,
+		Replace:     b.Replace,
+		Missing:     b.Missing,
+		New:         b.New,
+	}
 }

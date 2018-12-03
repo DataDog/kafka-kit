@@ -262,6 +262,28 @@ func TestSubStorageReplacements(t *testing.T) {
 	}
 }
 
+func TestFilter(t *testing.T) {
+	bm1 := newMockBrokerMap2()
+	f := func(b *Broker) bool {
+		if b.Locality == "a" {
+			return true
+		}
+		return false
+	}
+
+	bm2 := bm1.Filter(f)
+
+	if len(bm2) != 3 {
+		t.Errorf("Expected BrokerMap len of 3, got %d", len(bm2))
+	}
+
+	for _, id := range []int{1001, 1004, 1007} {
+		if _, exist := bm2[id]; !exist {
+			t.Errorf("Expected ID %d in BrokerMap", id)
+		}
+	}
+}
+
 func TestFilteredList(t *testing.T) {
 	bm := newMockBrokerMap()
 	bm[1003].Replace = true
@@ -383,6 +405,29 @@ func TestBrokerMapCopy(t *testing.T) {
 		case bm1[b].StorageFree != bm2[b].StorageFree:
 			t.Error("StorageFree field mismatch")
 		}
+	}
+}
+
+func TestBrokerCopy(t *testing.T) {
+	bm := newMockBrokerMap()
+	b1 := bm[1001]
+	b2 := b1.Copy()
+
+	switch {
+	case b1.ID != b2.ID:
+		t.Error("ID field mistmatch")
+	case b1.Locality != b2.Locality:
+		t.Error("Locality field mistmatch")
+	case b1.Used != b2.Used:
+		t.Error("Used field mistmatch")
+	case b1.StorageFree != b2.StorageFree:
+		t.Error("StorageFree field mistmatch")
+	case b1.Replace != b2.Replace:
+		t.Error("Replace field mistmatch")
+	case b1.Missing != b2.Missing:
+		t.Error("Missing field mistmatch")
+	case b1.New != b2.New:
+		t.Error("New field mistmatch")
 	}
 }
 
