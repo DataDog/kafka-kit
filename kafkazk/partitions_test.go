@@ -3,7 +3,6 @@ package kafkazk
 import (
 	"fmt"
 	"regexp"
-	"sort"
 	"testing"
 )
 
@@ -222,9 +221,6 @@ func TestPartitionMapFromZK(t *testing.T) {
 		pmap, _ := PartitionMapFromString(testGetMapString(t))
 		pm2.Partitions = append(pm2.Partitions, pmap.Partitions...)
 	}
-
-	sort.Sort(pm.Partitions)
-	sort.Sort(pm2.Partitions)
 
 	// Compare.
 	if same, err := pm.equal(pm2); !same {
@@ -456,7 +452,8 @@ func TestRebuildByStorageDistribution(t *testing.T) {
 	brokers := BrokerMapFromPartitionMap(pm, bm, forceRebuild)
 
 	pmStripped := pm.Strip()
-	_ = brokers.SubStorageAll(pm, pmm)
+	allBrokers := func(b *Broker) bool { return true }
+	_ = brokers.SubStorage(pm, pmm, allBrokers)
 
 	// Normalize storage. The mock broker storage
 	// free vs mock partition sizes would actually
@@ -511,7 +508,8 @@ func TestRebuildByStorageStorage(t *testing.T) {
 	brokers := BrokerMapFromPartitionMap(pm, bm, forceRebuild)
 
 	pmStripped := pm.Strip()
-	_ = brokers.SubStorageAll(pm, pmm)
+	allBrokers := func(b *Broker) bool { return true }
+	_ = brokers.SubStorage(pm, pmm, allBrokers)
 
 	// Normalize storage. The mock broker storage
 	// free vs mock partition sizes would actually
@@ -568,7 +566,7 @@ func TestShuffle(t *testing.T) {
 
 	expected := &PartitionMap{
 		Version: 1,
-		Partitions: partitionList{
+		Partitions: PartitionList{
 			Partition{
 				Topic:     "test_topic",
 				Partition: 0,

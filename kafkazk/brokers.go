@@ -6,15 +6,13 @@ import (
 	"sort"
 )
 
-// BrokerMetaMap is a map of broker IDs
-// to BrokerMeta metadata fetched from
-// ZooKeeper. Currently, just the rack
-// field is retrieved.
+// BrokerMetaMap is a map of broker IDs to BrokerMeta
+// metadata fetched from ZooKeeper. Currently, just
+// the rack field is retrieved.
 type BrokerMetaMap map[int]*BrokerMeta
 
-// BrokerMeta holds metadata that
-// describes a broker, used in satisfying
-// constraints.
+// BrokerMeta holds metadata that describes a broker,
+// used in satisfying constraints.
 type BrokerMeta struct {
 	Rack              string  `json:"rack"`
 	StorageFree       float64 // In bytes.
@@ -55,9 +53,8 @@ type BrokerStatus struct {
 	Replace    int
 }
 
-// Changes returns a bool that indicates
-// whether a BrokerStatus values represent
-// a change in brokers.
+// Changes returns a bool that indicates whether a
+// BrokerStatus values represent a change in brokers.
 func (bs BrokerStatus) Changes() bool {
 	switch {
 	case bs.New != 0, bs.Missing != 0, bs.OldMissing != 0, bs.Replace != 0:
@@ -67,8 +64,7 @@ func (bs BrokerStatus) Changes() bool {
 	return false
 }
 
-// Broker associates metadata
-// with a real broker by ID.
+// Broker associates metadata with a real broker by ID.
 type Broker struct {
 	ID          int
 	Locality    string
@@ -79,16 +75,13 @@ type Broker struct {
 	New         bool
 }
 
-// BrokerMap holds a mapping of
-// broker IDs to *Broker.
+// BrokerMap holds a mapping of broker IDs to *Broker.
 type BrokerMap map[int]*Broker
 
-// BrokerList is a slice of
-// brokers for sorting by used count.
+// BrokerList is a slice of brokers for sorting by used count.
 type BrokerList []*Broker
 
-// Wrapper types for sort by
-// methods.
+// Wrapper types for sort by methods.
 type brokersByCount BrokerList
 type brokersByStorage BrokerList
 type brokersByID BrokerList
@@ -130,20 +123,17 @@ func (b brokersByID) Less(i, j int) bool { return b[i].ID < b[j].ID }
 
 // Sort methods.
 
-// SortByCount sorts the BrokerList by
-// Used values.
+// SortByCount sorts the BrokerList by Used values.
 func (b BrokerList) SortByCount() {
 	sort.Sort(brokersByCount(b))
 }
 
-// SortByStorage sorts the BrokerList by
-// StorageFree values.
+// SortByStorage sorts the BrokerList by StorageFree values.
 func (b BrokerList) SortByStorage() {
 	sort.Sort(brokersByStorage(b))
 }
 
-// SortByID sorts the BrokerList by
-// ID values.
+// SortByID sorts the BrokerList by ID values.
 func (b BrokerList) SortByID() {
 	sort.Sort(brokersByID(b))
 }
@@ -183,11 +173,13 @@ func (b BrokerList) SortPseudoShuffle(seed int64) {
 	}
 }
 
-// Update takes a []int of broker IDs and BrokerMap then adds
-// them to the BrokerMap, returning the count of marked for replacement,
-// newly included, and brokers that weren't found in ZooKeeper.
-func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) *BrokerStatus {
+// Update takes a []int of broker IDs and BrokerMap then adds them to the
+// BrokerMap, returning the count of marked for replacement, newly included,
+// and brokers that weren't found in ZooKeeper. Additionally, a channel
+// of msgs describing changes is returned.
+func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) (*BrokerStatus, <-chan string) {
 	bs := &BrokerStatus{}
+	msgs := make(chan string, len(b)+len(bl))
 
 	// Build a map from the new broker list.
 	newBrokers := map[int]bool{}
@@ -205,8 +197,7 @@ func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) *BrokerStatus {
 			}
 
 			if _, exist := bm[id]; !exist {
-				fmt.Printf("%sPrevious broker %d missing\n",
-					indent, id)
+				msgs <- fmt.Sprintf("Previous broker %d missing", id)
 				b[id].Replace = true
 				b[id].Missing = true
 				// If this broker is missing and was provided in
@@ -233,8 +224,7 @@ func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) *BrokerStatus {
 		if _, ok := newBrokers[broker.ID]; !ok {
 			bs.Replace++
 			b[broker.ID].Replace = true
-			fmt.Printf("%sBroker %d marked for removal\n",
-				indent, broker.ID)
+			msgs <- fmt.Sprintf("Broker %d marked for removal", broker.ID)
 		}
 	}
 
@@ -269,8 +259,7 @@ func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) *BrokerStatus {
 				bs.New++
 			} else {
 				bs.Missing++
-				fmt.Printf("%sBroker %d not found in ZooKeeper\n",
-					indent, id)
+				msgs <- fmt.Sprintf("Broker %d not found in ZooKeeper", id)
 			}
 		}
 	}
@@ -278,19 +267,19 @@ func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) *BrokerStatus {
 	// Log new brokers.
 	for _, broker := range b {
 		if broker.New {
-			fmt.Printf("%sNew broker %d\n", indent, broker.ID)
+			msgs <- fmt.Sprintf("New broker %d", broker.ID)
 		}
 	}
 
-	return bs
+	close(msgs)
+
+	return bs, msgs
 }
 
-// SubStorageAll takes a PartitionMap + PartitionMetaMap and adds
-// the size of each partition back to the StorageFree value
-// of any broker it was originally mapped to.
-// This is used in a force rebuild where the assumption
-// is that partitions will be lifted and repositioned.
-func (b BrokerMap) SubStorageAll(pm *PartitionMap, pmm PartitionMetaMap) error {
+// SubStorageAll takes a PartitionMap, PartitionMetaMap, and a function. For all
+// brokers that return true as an input to function f, the size of all partitions
+// held is added back to the broker StorageFree value.
+func (b BrokerMap) SubStorage(pm *PartitionMap, pmm PartitionMetaMap, f func(*Broker) bool) error {
 	// Get the size of each partition.
 	for _, partn := range pm.Partitions {
 		size, err := pmm.Size(partn)
@@ -302,7 +291,9 @@ func (b BrokerMap) SubStorageAll(pm *PartitionMap, pmm PartitionMetaMap) error {
 		// StorageFree for all mapped brokers.
 		for _, bid := range partn.Replicas {
 			if broker, exists := b[bid]; exists {
-				broker.StorageFree += size
+				if f(broker) {
+					broker.StorageFree += size
+				}
 			} else {
 				return fmt.Errorf("Broker %d not found in broker map", bid)
 			}
@@ -312,45 +303,22 @@ func (b BrokerMap) SubStorageAll(pm *PartitionMap, pmm PartitionMetaMap) error {
 	return nil
 }
 
-// SubStorageReplacements works similarly to SubStorageAll except
-// that storage usage is only subtraced from brokers marked for replacement.
-func (b BrokerMap) SubStorageReplacements(pm *PartitionMap, pmm PartitionMetaMap) error {
-	// Get the size of each partition.
-	for _, partn := range pm.Partitions {
-		size, err := pmm.Size(partn)
-		if err != nil {
-			return err
+// Filter returns a BrokerMap of brokers that return
+// true as an input to function f.
+func (b BrokerMap) Filter(f func(*Broker) bool) BrokerMap {
+	bmap := BrokerMap{}
+
+	for _, broker := range b {
+		if broker.ID == 0 {
+			continue
 		}
 
-		// Add this size back to the
-		// StorageFree for all mapped brokers.
-		for _, bid := range partn.Replicas {
-			broker, exists := b[bid]
-			if exists && broker.Replace {
-				broker.StorageFree += size
-			}
-			if !exists {
-				return fmt.Errorf("Broker %d not found in broker map", bid)
-			}
+		if f(broker) {
+			bmap[broker.ID] = broker
 		}
 	}
 
-	return nil
-}
-
-// filteredList converts a BrokerMap to a BrokerList,
-// excluding nodes marked for replacement.
-// TODO this should take a func. Export.
-func (b BrokerMap) filteredList() BrokerList {
-	bl := BrokerList{}
-
-	for broker := range b {
-		if !b[broker].Replace {
-			bl = append(bl, b[broker])
-		}
-	}
-
-	return bl
+	return bmap
 }
 
 // List take a BrokerMap and returns a BrokerList.
@@ -364,9 +332,7 @@ func (b BrokerMap) List() BrokerList {
 	return bl
 }
 
-// BrokerMapFromPartitionMap creates a BrokerMap
-// from a partitionMap.
-// TODO can we remove marked for replacement here too?
+// BrokerMapFromPartitionMap creates a BrokerMap from a partitionMap.
 func BrokerMapFromPartitionMap(pm *PartitionMap, bm BrokerMetaMap, force bool) BrokerMap {
 	bmap := BrokerMap{}
 	// For each partition.
@@ -407,60 +373,6 @@ func BrokerMapFromPartitionMap(pm *PartitionMap, bm BrokerMetaMap, force bool) B
 	return bmap
 }
 
-// MappedBrokers takes a PartitionMap and returns a
-// new BrokerMap that only includes brokers found
-// in the partition map holding a partition.
-func (b BrokerMap) MappedBrokers(pm *PartitionMap) BrokerMap {
-	bmap := BrokerMap{}
-
-	ids := map[int]struct{}{}
-
-	// Get all IDs.
-	for _, partition := range pm.Partitions {
-		for _, id := range partition.Replicas {
-			ids[id] = struct{}{}
-		}
-	}
-
-	// For each ID that's in the BrokerMap,
-	// add to the new BrokerMap.
-	for id := range ids {
-		if _, exists := b[id]; exists {
-			bmap[id] = &Broker{
-				ID:          id,
-				Locality:    b[id].Locality,
-				Used:        b[id].Used,
-				StorageFree: b[id].StorageFree,
-				Replace:     b[id].Replace,
-			}
-		}
-	}
-
-	return bmap
-}
-
-// NonReplacedBrokers returns a copy of a BrokerMap
-// that excludes all brokers marked for replacement.
-func (b BrokerMap) NonReplacedBrokers() BrokerMap {
-	bmap := BrokerMap{}
-
-	// For each ID that's in the BrokerMap
-	// and not marked for replacement,
-	// add to the new BrokerMap.
-	for id := range b {
-		if !b[id].Replace {
-			bmap[id] = &Broker{
-				ID:          id,
-				Locality:    b[id].Locality,
-				Used:        b[id].Used,
-				StorageFree: b[id].StorageFree,
-			}
-		}
-	}
-
-	return bmap
-}
-
 // Copy returns a copy of a BrokerMap.
 func (b BrokerMap) Copy() BrokerMap {
 	c := BrokerMap{}
@@ -477,4 +389,17 @@ func (b BrokerMap) Copy() BrokerMap {
 	}
 
 	return c
+}
+
+// Copy returns a copy of a Broker.
+func (b Broker) Copy() Broker {
+	return Broker{
+		ID:          b.ID,
+		Locality:    b.Locality,
+		Used:        b.Used,
+		StorageFree: b.StorageFree,
+		Replace:     b.Replace,
+		Missing:     b.Missing,
+		New:         b.New,
+	}
 }

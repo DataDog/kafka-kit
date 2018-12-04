@@ -6,32 +6,32 @@ import (
 )
 
 func TestMappings(t *testing.T) {
-	var topic string = "test_topic"
+	var topic = "test_topic"
 	pm, _ := PartitionMapFromString(testGetMapString4(topic))
 	mappings := pm.Mappings()
 
-	expected := map[int]partitionList{}
+	expected := map[int]PartitionList{}
 
-	expected[1001] = partitionList{
+	expected[1001] = PartitionList{
 		Partition{Topic: topic, Partition: 2, Replicas: []int{1001, 1002}},
 		Partition{Topic: topic, Partition: 4, Replicas: []int{1001, 1003}},
 		Partition{Topic: topic, Partition: 5, Replicas: []int{1002, 1001}},
 	}
 
-	expected[1002] = partitionList{
+	expected[1002] = PartitionList{
 		Partition{Topic: topic, Partition: 2, Replicas: []int{1001, 1002}},
 		Partition{Topic: topic, Partition: 3, Replicas: []int{1003, 1002}},
 		Partition{Topic: topic, Partition: 5, Replicas: []int{1002, 1001}},
 	}
 
-	expected[1003] = partitionList{
+	expected[1003] = PartitionList{
 		Partition{Topic: topic, Partition: 0, Replicas: []int{1004, 1003}},
 		Partition{Topic: topic, Partition: 1, Replicas: []int{1003, 1004}},
 		Partition{Topic: topic, Partition: 3, Replicas: []int{1003, 1002}},
 		Partition{Topic: topic, Partition: 4, Replicas: []int{1001, 1003}},
 	}
 
-	expected[1004] = partitionList{
+	expected[1004] = PartitionList{
 		Partition{Topic: topic, Partition: 0, Replicas: []int{1004, 1003}},
 		Partition{Topic: topic, Partition: 1, Replicas: []int{1003, 1004}},
 	}
@@ -41,14 +41,14 @@ func TestMappings(t *testing.T) {
 		sort.Sort(expected[id])
 
 		if len(mappings[id]["test_topic"]) != len(expected[id]) {
-			t.Errorf("Broker %d: expected partitionList len of %d, got %d",
+			t.Errorf("Broker %d: expected PartitionList len of %d, got %d",
 				id, len(expected[id]), len(mappings[id]["test_topic"]))
 			continue
 		}
 
 		for i, p := range mappings[id]["test_topic"] {
 			if !p.Equal(expected[id][i]) {
-				t.Errorf("Broker %d partitionList[%d]: Expected %+v, got %+v",
+				t.Errorf("Broker %d PartitionList[%d]: Expected %+v, got %+v",
 					id, i, expected[id][i], p)
 			}
 		}
@@ -56,7 +56,7 @@ func TestMappings(t *testing.T) {
 }
 
 func TestLargestPartitions(t *testing.T) {
-	var topic string = "test_topic"
+	var topic = "test_topic"
 	pm, _ := PartitionMapFromString(testGetMapString4(topic))
 	zk := &Mock{}
 	pmm, _ := zk.GetAllPartitionMeta()
@@ -78,11 +78,11 @@ func TestLargestPartitions(t *testing.T) {
 }
 
 func TestRemove(t *testing.T) {
-	var topic string = "test_topic"
+	var topic = "test_topic"
 	pm, _ := PartitionMapFromString(testGetMapString4(topic))
 	mappings := pm.Mappings()
 
-	expected := partitionList{
+	expected := PartitionList{
 		Partition{Topic: topic, Partition: 2, Replicas: []int{1001, 1002}},
 		Partition{Topic: topic, Partition: 5, Replicas: []int{1002, 1001}},
 	}

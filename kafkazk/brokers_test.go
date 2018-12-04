@@ -37,7 +37,7 @@ func TestChanges(t *testing.T) {
 
 func TestSortBrokerListByCount(t *testing.T) {
 	b := newMockBrokerMap2()
-	bl := b.filteredList()
+	bl := b.Filter(func(b *Broker) bool { return true }).List()
 
 	bl.SortByCount()
 
@@ -57,7 +57,7 @@ func TestSortBrokerListByCount(t *testing.T) {
 
 func TestSortBrokerListByStorage(t *testing.T) {
 	b := newMockBrokerMap2()
-	bl := b.filteredList()
+	bl := b.Filter(func(b *Broker) bool { return true }).List()
 
 	bl.SortByStorage()
 
@@ -77,7 +77,7 @@ func TestSortBrokerListByStorage(t *testing.T) {
 
 func TestSortBrokerListByID(t *testing.T) {
 	b := newMockBrokerMap2()
-	bl := b.filteredList()
+	bl := b.Filter(func(b *Broker) bool { return true }).List()
 
 	bl.SortByID()
 
@@ -96,15 +96,16 @@ func TestSortBrokerListByID(t *testing.T) {
 }
 
 func TestSortPseudoShuffle(t *testing.T) {
-	bl := newMockBrokerMap2().filteredList()
+	b := newMockBrokerMap2()
+	bl := b.Filter(func(b *Broker) bool { return true }).List()
 
 	// Test with seed val of 1.
 	expected := []int{1001, 1002, 1005, 1004, 1007, 1003, 1006}
 	bl.SortPseudoShuffle(1)
 
-	for i, b := range bl {
-		if b.ID != expected[i] {
-			t.Errorf("Expected broker %d, got %d", expected[i], b.ID)
+	for i, br := range bl {
+		if br.ID != expected[i] {
+			t.Errorf("Expected broker %d, got %d", expected[i], br.ID)
 		}
 	}
 
@@ -133,7 +134,7 @@ func TestUpdate(t *testing.T) {
 
 	// 1006 doesn't exist in the meta map.
 	// This should also add to the missing.
-	stat := bm.Update([]int{1002, 1003, 1005, 1006}, bmm)
+	stat, _ := bm.Update([]int{1002, 1003, 1005, 1006}, bmm)
 
 	if stat.New != 1 {
 		t.Errorf("Expected New count of 1, got %d", stat.New)
@@ -207,7 +208,8 @@ func TestSubStorageAll(t *testing.T) {
 		3: &PartitionMeta{Size: 45},
 	}
 
-	err := bm.SubStorageAll(pm, pmm)
+	allBrokers := func(b *Broker) bool { return true }
+	err := bm.SubStorage(pm, pmm, allBrokers)
 	if err != nil {
 		t.Errorf("Unexpected error: %s", err)
 	}
@@ -241,7 +243,8 @@ func TestSubStorageReplacements(t *testing.T) {
 
 	bm[1003].Replace = true
 
-	err := bm.SubStorageReplacements(pm, pmm)
+	replacedBrokers := func(b *Broker) bool { return b.Replace }
+	err := bm.SubStorage(pm, pmm, replacedBrokers)
 	if err != nil {
 		t.Errorf("Unexpected error: %s", err)
 	}
@@ -262,20 +265,24 @@ func TestSubStorageReplacements(t *testing.T) {
 	}
 }
 
-func TestFilteredList(t *testing.T) {
-	bm := newMockBrokerMap()
-	bm[1003].Replace = true
-
-	nl := bm.filteredList()
-	expected := map[int]struct{}{
-		1001: struct{}{},
-		1002: struct{}{},
-		1004: struct{}{},
+func TestFilter(t *testing.T) {
+	bm1 := newMockBrokerMap2()
+	f := func(b *Broker) bool {
+		if b.Locality == "a" {
+			return true
+		}
+		return false
 	}
 
-	for _, b := range nl {
-		if _, exist := expected[b.ID]; !exist {
-			t.Errorf("Broker ID %d shouldn't exist", b.ID)
+	bm2 := bm1.Filter(f)
+
+	if len(bm2) != 3 {
+		t.Errorf("Expected BrokerMap len of 3, got %d", len(bm2))
+	}
+
+	for _, id := range []int{1001, 1004, 1007} {
+		if _, exist := bm2[id]; !exist {
+			t.Errorf("Expected ID %d in BrokerMap", id)
 		}
 	}
 }
@@ -307,61 +314,6 @@ func TestBrokerMapFromPartitionMap(t *testing.T) {
 	}
 }
 
-func TestMappedBrokers(t *testing.T) {
-	bm := newMockBrokerMap()
-	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
-
-	// Drop some partitions. This should leave
-	// the only mapped partitions to brokers
-	// 1001 and 1002.
-	pl := partitionList{}
-	for _, p := range pm.Partitions {
-		if p.Partition == 0 || p.Partition == 1 {
-			pl = append(pl, p)
-		}
-	}
-	pm.Partitions = pl
-
-	mapped := bm.MappedBrokers(pm)
-	expected := []int{1001, 1002}
-
-	for _, id := range expected {
-		if _, exists := mapped[id]; !exists {
-			t.Errorf("Expected ID %d in mapped", id)
-		}
-	}
-
-	// This implicitly catches IDs present
-	// that shouldn't be; if we have only 2 and
-	// the previous test passed, it's the correct 2.
-	if len(mapped) != 2 {
-		t.Error("Unexpected BrokerMap size")
-	}
-}
-
-func TestNonReplacedBrokers(t *testing.T) {
-	bm := newMockBrokerMap()
-
-	bm[1002].Replace = true
-
-	nr := bm.NonReplacedBrokers()
-
-	expected := []int{1001, 1003, 1004}
-
-	for _, id := range expected {
-		if _, exists := nr[id]; !exists {
-			t.Errorf("Expected ID %d", id)
-		}
-	}
-
-	// This implicitly catches IDs present
-	// that shouldn't be; if we have only 3 and
-	// the previous test passed, it's the correct 3.
-	if len(nr) != 3 {
-		t.Error("Unexpected BrokerMap size")
-	}
-}
-
 func TestBrokerMapCopy(t *testing.T) {
 	bm1 := newMockBrokerMap()
 	bm2 := bm1.Copy()
@@ -383,6 +335,29 @@ func TestBrokerMapCopy(t *testing.T) {
 		case bm1[b].StorageFree != bm2[b].StorageFree:
 			t.Error("StorageFree field mismatch")
 		}
+	}
+}
+
+func TestBrokerCopy(t *testing.T) {
+	bm := newMockBrokerMap()
+	b1 := bm[1001]
+	b2 := b1.Copy()
+
+	switch {
+	case b1.ID != b2.ID:
+		t.Error("ID field mistmatch")
+	case b1.Locality != b2.Locality:
+		t.Error("Locality field mistmatch")
+	case b1.Used != b2.Used:
+		t.Error("Used field mistmatch")
+	case b1.StorageFree != b2.StorageFree:
+		t.Error("StorageFree field mistmatch")
+	case b1.Replace != b2.Replace:
+		t.Error("Replace field mistmatch")
+	case b1.Missing != b2.Missing:
+		t.Error("Missing field mistmatch")
+	case b1.New != b2.New:
+		t.Error("New field mistmatch")
 	}
 }
 

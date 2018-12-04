@@ -569,7 +569,7 @@ func TestGetPartitionMap(t *testing.T) {
 
 	expected := &PartitionMap{
 		Version: 1,
-		Partitions: partitionList{
+		Partitions: PartitionList{
 			Partition{Topic: "topic0", Partition: 0, Replicas: []int{1003, 1004}}, // Via the mock reassign_partitions data.
 			Partition{Topic: "topic0", Partition: 1, Replicas: []int{1002, 1001}},
 			Partition{Topic: "topic0", Partition: 2, Replicas: []int{1003, 1004}},

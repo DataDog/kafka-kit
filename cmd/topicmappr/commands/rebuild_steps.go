@@ -95,10 +95,10 @@ func getBrokers(cmd *cobra.Command, pm *kafkazk.PartitionMap, bm kafkazk.BrokerM
 
 	// Update the currentBrokers list with
 	// the provided broker list.
-	// TODO the information output of broker changes
-	// comes from within this Update call. Should return
-	// this info as a value and print it out here.
-	bs := brokers.Update(Config.brokers, bm)
+	bs, msgs := brokers.Update(Config.brokers, bm)
+	for m := range msgs {
+		fmt.Printf("%s%s\n", indent, m)
+	}
 
 	return brokers, bs
 }
@@ -191,7 +191,8 @@ func buildMap(cmd *cobra.Command, pm *kafkazk.PartitionMap, pmm kafkazk.Partitio
 		// If the storage placement strategy is being used,
 		// update the broker StorageFree values.
 		if placement == "storage" {
-			err := rebuildParams.BM.SubStorageAll(pm, pmm)
+			allBrokers := func(b *kafkazk.Broker) bool { return true }
+			err := rebuildParams.BM.SubStorage(pm, pmm, allBrokers)
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(1)
@@ -200,18 +201,19 @@ func buildMap(cmd *cobra.Command, pm *kafkazk.PartitionMap, pmm kafkazk.Partitio
 
 		// Rebuild.
 		return partitionMapInStripped.Rebuild(rebuildParams)
-	} else {
-		// Update the StorageFree only on brokers
-		// marked for replacement.
-		if placement == "storage" {
-			err := rebuildParams.BM.SubStorageReplacements(pm, pmm)
-			if err != nil {
-				fmt.Println(err)
-				os.Exit(1)
-			}
-		}
-
-		// Rebuild directly on the input map.
-		return pm.Rebuild(rebuildParams)
 	}
+
+	// Update the StorageFree only on brokers
+	// marked for replacement.
+	if placement == "storage" {
+		replacedBrokers := func(b *kafkazk.Broker) bool { return b.Replace }
+		err := rebuildParams.BM.SubStorage(pm, pmm, replacedBrokers)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	}
+
+	// Rebuild directly on the input map.
+	return pm.Rebuild(rebuildParams)
 }

@@ -1,4 +1,4 @@
-package kafkazk
+package commands
 
 import (
 	"testing"
@@ -26,7 +26,7 @@ func TestWhatChanged(t *testing.T) {
 	}
 
 	for i, inputPair := range inputs {
-		c := WhatChanged(inputPair[0], inputPair[1])
+		c := whatChanged(inputPair[0], inputPair[1])
 		if c != expected[i] {
 			t.Errorf("Expected change string '%s', got '%s'", expected[i], c)
 		}

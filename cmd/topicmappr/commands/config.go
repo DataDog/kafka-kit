@@ -24,6 +24,7 @@ var (
 	// Characters allowed in Kafka topic names
 	topicNormalChar = regexp.MustCompile(`[a-zA-Z0-9_\\-]`)
 
+	// Config holds global configs.
 	Config struct {
 		topics  []*regexp.Regexp
 		brokers []int
@@ -85,13 +86,13 @@ func initZooKeeper(cmd *cobra.Command) (kafkazk.Handler, error) {
 	})
 
 	if err != nil {
-		return nil, fmt.Errorf("Error connecting to ZooKeeper: %s\n", err)
+		return nil, fmt.Errorf("Error connecting to ZooKeeper: %s", err)
 	}
 
 	time.Sleep(timeout)
 
 	if !zk.Ready() {
-		return nil, fmt.Errorf("Failed to connect to ZooKeeper %s within %s\n", zkAddr, timeout)
+		return nil, fmt.Errorf("Failed to connect to ZooKeeper %s within %s", zkAddr, timeout)
 		os.Exit(1)
 	}
 

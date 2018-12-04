@@ -160,12 +160,6 @@ func rebuild(cmd *cobra.Command, _ []string) {
 	// This is OK to run even when a no-op is intended.
 	partitionMapOut, warns := buildMap(cmd, partitionMapIn, partitionMeta, brokers, affinities)
 
-	// Sort by topic, partition.
-	// TODO all functions should return lex sorted partition maps. Review for
-	// removal. Also, partitionMapIn shouldn't be further referenced at this point.
-	sort.Sort(partitionMapIn.Partitions)
-	sort.Sort(partitionMapOut.Partitions)
-
 	// Count missing brokers as a warning.
 	if bs.Missing > 0 {
 		w := fmt.Sprintf("%d provided brokers not found in ZooKeeper\n", bs.Missing)

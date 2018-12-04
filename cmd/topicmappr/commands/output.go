@@ -1,7 +1,9 @@
 package commands
 
 import (
+	"bytes"
 	"fmt"
+	"math"
 	"os"
 	"sort"
 
@@ -41,7 +43,7 @@ func printMapChanges(pm1, pm2 *kafkazk.PartitionMap) {
 	// Get a status string of what's changed.
 	fmt.Println("\nPartition map changes:")
 	for i := range pm1.Partitions {
-		change := kafkazk.WhatChanged(pm1.Partitions[i].Replicas,
+		change := whatChanged(pm1.Partitions[i].Replicas,
 			pm2.Partitions[i].Replicas)
 
 		fmt.Printf("%s%s p%d: %v -> %v %s\n",
@@ -93,7 +95,34 @@ func printBrokerAssignmentStats(cmd *cobra.Command, pm1, pm2 *kafkazk.PartitionM
 		// It's ideal to still include that broker's storage metrics since it was a provided
 		// input and wasn't marked for replacement (generally, users are doing storage placements
 		// particularly to balance out the storage of the input broker list).
-		mb1, mb2 := bm1.MappedBrokers(pm1), bm2.NonReplacedBrokers()
+
+		// Filter function for brokers where the Replaced
+		// field is false.
+		nonReplaced := func(b *kafkazk.Broker) bool {
+			if b.Replace {
+				return false
+			}
+			return true
+		}
+
+		// Get all IDs in PartitionMap.
+		mappedIDs := map[int]struct{}{}
+		for _, partn := range pm1.Partitions {
+			for _, id := range partn.Replicas {
+				mappedIDs[id] = struct{}{}
+			}
+		}
+
+		// Filter function for brokers that are in the
+		// partition map.
+		mapped := func(b *kafkazk.Broker) bool {
+			if _, exist := mappedIDs[b.ID]; exist {
+				return true
+			}
+			return false
+		}
+
+		mb1, mb2 := bm1.Filter(mapped), bm2.Filter(nonReplaced)
 
 		// Range before/after.
 		r1, r2 := mb1.StorageRange(), mb2.StorageRange()
@@ -121,11 +150,6 @@ func printBrokerAssignmentStats(cmd *cobra.Command, pm1, pm2 *kafkazk.PartitionM
 		sort.Ints(ids)
 
 		for _, id := range ids {
-			// Skip the internal reserved ID.
-			if id == 0 {
-				continue
-			}
-
 			diff := storageDiffs[id]
 
 			// Indicate if the broker
@@ -204,4 +228,95 @@ func writeMaps(cmd *cobra.Command, pm *kafkazk.PartitionMap) {
 			fmt.Printf("%s%s%s.json\n", indent, op, t)
 		}
 	}
+}
+
+// whatChanged takes a before and after broker replica set
+// and returns a string describing what changed.
+func whatChanged(s1 []int, s2 []int) string {
+	var changes []string
+
+	a, b := make([]int, len(s1)), make([]int, len(s2))
+	copy(a, s1)
+	copy(b, s2)
+
+	var lchanged bool
+	var echanged bool
+
+	// Check if the len is different.
+	switch {
+	case len(a) > len(b):
+		lchanged = true
+		changes = append(changes, "decreased replication")
+	case len(a) < len(b):
+		lchanged = true
+		changes = append(changes, "increased replication")
+	}
+
+	// If the len is the same,
+	// check elements.
+	if !lchanged {
+		for i := range a {
+			if a[i] != b[i] {
+				echanged = true
+			}
+		}
+	}
+
+	// Nothing changed.
+	if !lchanged && !echanged {
+		return "no-op"
+	}
+
+	// Determine what else changed.
+
+	// Get smaller replica set len between
+	// old vs new, then cap both to this len for
+	// comparison.
+	slen := int(math.Min(float64(len(a)), float64(len(b))))
+
+	a = a[:slen]
+	b = b[:slen]
+
+	echanged = false
+	for i := range a {
+		if a[i] != b[i] {
+			echanged = true
+		}
+	}
+
+	sort.Ints(a)
+	sort.Ints(b)
+
+	samePostSort := true
+	for i := range a {
+		if a[i] != b[i] {
+			samePostSort = false
+		}
+	}
+
+	// If the broker lists changed but
+	// are the same after sorting,
+	// we've just changed the preferred
+	// leader.
+	if echanged && samePostSort {
+		changes = append(changes, "preferred leader")
+	}
+
+	// If the broker lists changed and
+	// aren't the same after sorting, we've
+	// replaced a broker.
+	if echanged && !samePostSort {
+		changes = append(changes, "replaced broker")
+	}
+
+	// Construct change string.
+	var buf bytes.Buffer
+	for i, c := range changes {
+		buf.WriteString(c)
+		if i < len(changes)-1 {
+			buf.WriteString(", ")
+		}
+	}
+
+	return buf.String()
 }

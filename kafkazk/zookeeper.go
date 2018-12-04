@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	// ErrInvalidKafkaConfigType indicates invalid Kafka config types.
+	// ErrInvalidKafkaConfigType error.
 	ErrInvalidKafkaConfigType = errors.New("Invalid Kafka config type")
 	// validKafkaConfigTypes is used as a set
 	// to define valid configuration type names.
@@ -30,15 +30,12 @@ type ErrNoNode struct {
 	s string
 }
 
-// Error returns an errror.
 func (e ErrNoNode) Error() string {
 	return e.s
 }
 
-// Handler exposes basic ZooKeeper operations
-// along with additional methods that return
-// kafkazk package specific types, populated
-// with data fetched from ZooKeeper.
+// Handler provides basic ZooKeeper operations along with
+// calls that return kafkazk types describing Kafka states.
 type Handler interface {
 	Exists(string) (bool, error)
 	Create(string, string) error
@@ -59,19 +56,16 @@ type Handler interface {
 	Ready() bool
 }
 
-// TopicState is used for unmarshing
-// ZooKeeper json data from a topic:
+// TopicState is used for unmarshing ZooKeeper json data from a topic:
 // e.g. /brokers/topics/some-topic
 type TopicState struct {
 	Partitions map[string][]int `json:"partitions"`
 }
 
-// TopicStateISR is a map of partition numbers
-// to PartitionState.
+// TopicStateISR is a map of partition numbers to PartitionState.
 type TopicStateISR map[string]PartitionState
 
-// PartitionState is used for unmarshalling
-// json data from a partition state:
+// PartitionState is used for unmarshalling json data from a partition state:
 // e.g. /brokers/topics/some-topic/partitions/0/state
 type PartitionState struct {
 	Version         int   `json:"version"`
@@ -103,9 +97,8 @@ type TopicConfig struct {
 	Config  map[string]string `json:"config"`
 }
 
-// KafkaConfig is used to issue configuration
-// updates to either topics or brokers in
-// ZooKeeper.
+// KafkaConfig is used to issue configuration updates to either
+// topics or brokers in ZooKeeper.
 type KafkaConfig struct {
 	Type    string      // Topic or broker.
 	Name    string      // Entity name.
@@ -242,9 +235,8 @@ func (z *ZKHandler) Create(p string, d string) error {
 	return nil
 }
 
-// Exists takes a path p and returns a bool
-// as to whether the path exists and an error
-// if encountered.
+// Exists takes a path p and returns a bool as to whether the
+// path exists and an error if encountered.
 func (z *ZKHandler) Exists(p string) (bool, error) {
 	b, _, e := z.client.Exists(p)
 	var err error
@@ -272,9 +264,8 @@ func (z *ZKHandler) Children(p string) ([]string, error) {
 	return c, nil
 }
 
-// GetReassignments looks up any ongoing
-// topic reassignments and returns the data
-// as a Reassignments type.
+// GetReassignments looks up any ongoing topic reassignments and
+// returns the data as a Reassignments.
 func (z *ZKHandler) GetReassignments() Reassignments {
 	reassigns := Reassignments{}
 
@@ -306,9 +297,8 @@ func (z *ZKHandler) GetReassignments() Reassignments {
 	return reassigns
 }
 
-// GetTopics takes a []*regexp.Regexp and returns
-// a []string of all topic names that match any of the
-// provided regex.
+// GetTopics takes a []*regexp.Regexp and returns a []string of all topic
+// names that match any of the provided regex.
 func (z *ZKHandler) GetTopics(ts []*regexp.Regexp) ([]string, error) {
 	matchingTopics := []string{}
 
@@ -344,9 +334,8 @@ func (z *ZKHandler) GetTopics(ts []*regexp.Regexp) ([]string, error) {
 	return matchingTopics, nil
 }
 
-// GetTopicConfig takes a topic name. If the
-// topic exists, the topic config is returned
-// as a *TopicConfig.
+// GetTopicConfig takes a topic name. If the topic exists, the topic config
+// is returned as a *TopicConfig.
 func (z *ZKHandler) GetTopicConfig(t string) (*TopicConfig, error) {
 	config := &TopicConfig{}
 
@@ -368,10 +357,9 @@ func (z *ZKHandler) GetTopicConfig(t string) (*TopicConfig, error) {
 	return config, nil
 }
 
-// GetAllBrokerMeta looks up all registered Kafka brokers and
-// returns their metadata as a BrokerMetaMap. A withMetrics
-// bool param determines whether we additionally want to
-// fetch stored broker metrics.
+// GetAllBrokerMeta looks up all registered Kafka brokers and returns their
+// metadata as a BrokerMetaMap. A withMetrics bool param determines whether
+// we additionally want to fetch stored broker metrics.
 func (z *ZKHandler) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, []error) {
 	var errs []error
 
@@ -393,9 +381,8 @@ func (z *ZKHandler) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, []error) 
 	// Map each broker.
 	for _, b := range entries {
 		bm := &BrokerMeta{}
-		// In case we encounter non-ints
-		// (broker IDs) for whatever reason,
-		// just continue.
+		// In case we encounter non-ints (broker IDs) for
+		// whatever reason, just continue.
 		bid, err := strconv.Atoi(b)
 		if err != nil {
 			continue
@@ -441,9 +428,8 @@ func (z *ZKHandler) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, []error) 
 	return bmm, errs
 }
 
-// GetBrokerMetrics fetches broker metrics stored
-// in ZooKeeper and returns a BrokerMetricsMap and
-// an error if encountered.
+// GetBrokerMetrics fetches broker metrics stored in ZooKeeper and returns
+// a BrokerMetricsMap and an error if encountered.
 func (z *ZKHandler) getBrokerMetrics() (BrokerMetricsMap, error) {
 	var path string
 	if z.MetricsPrefix != "" {
@@ -512,18 +498,6 @@ func (z *ZKHandler) GetTopicState(t string) (*TopicState, error) {
 		return nil, err
 	}
 
-	/* Error handling pattern with
-	// previous client.
-	switch err {
-	case store.ErrKeyNotFound:
-		return nil, fmt.Errorf("Topic %s not found in ZooKeeper", t)
-	case nil:
-		break
-	default:
-		return nil, err
-	}
-	*/
-
 	err = json.Unmarshal(data, ts)
 	if err != nil {
 		return nil, err
@@ -532,11 +506,11 @@ func (z *ZKHandler) GetTopicState(t string) (*TopicState, error) {
 	return ts, nil
 }
 
-// GetTopicStateCurrentISR takes a topic name. If the topic exists,
-// the topic state is returned as a TopicStateISR. GetTopicStateCurrentISR
-// differs from GetTopicState in that the actual, current broker IDs
-// in the ISR are returned for each partition. This method is notably more
-// expensive due to the need for a call per partition to ZK.
+// GetTopicStateISR takes a topic name. If the topic exists, the topic state
+// is returned as a TopicStateISR. GetTopicStateCurrentISR differs from
+// GetTopicState in that the actual, current broker IDs in the ISR are
+// returned for each partition. This method is more expensive due to the
+// need for a call per partition to ZK.
 func (z *ZKHandler) GetTopicStateISR(t string) (TopicStateISR, error) {
 	var path string
 	if z.Prefix != "" {
@@ -574,9 +548,8 @@ func (z *ZKHandler) GetTopicStateISR(t string) (TopicStateISR, error) {
 	return ts, nil
 }
 
-// GetPartitionMap takes a topic name. If the topic
-// exists, the state of the topic is fetched and
-// translated into a *PartitionMap.
+// GetPartitionMap takes a topic name. If the topic exists, the state of
+// the topic is fetched and returned as a *PartitionMap.
 func (z *ZKHandler) GetPartitionMap(t string) (*PartitionMap, error) {
 	// Get current topic state.
 	ts, err := z.GetTopicState(t)
@@ -604,7 +577,7 @@ func (z *ZKHandler) GetPartitionMap(t string) (*PartitionMap, error) {
 	// Map TopicState to a
 	// PartitionMap.
 	pm := NewPartitionMap()
-	pl := partitionList{}
+	pl := PartitionList{}
 
 	for partition, replicas := range ts.Partitions {
 		i, _ := strconv.Atoi(partition)
@@ -690,8 +663,7 @@ func (z *ZKHandler) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
 		}
 	}
 
-	// Write the config back
-	// if it's different from
+	// Write the config back if it's different from
 	// what was already set.
 	if changed {
 		newConfig, err := json.Marshal(config)
@@ -708,9 +680,8 @@ func (z *ZKHandler) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
 		return false, err
 	}
 
-	// If there were any config changes,
-	// write a change notification at
-	// /config/changes/config_change_<seq>.
+	// If there were any config changes, write a change
+	// notification at /config/changes/config_change_<seq>.
 	cpath := "/config/changes/config_change_"
 	if z.Prefix != "" {
 		cpath = "/" + z.Prefix + cpath
@@ -719,9 +690,8 @@ func (z *ZKHandler) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
 	cdata := fmt.Sprintf(`{"version":2,"entity_path":"%ss/%s"}`, c.Type, c.Name)
 	err = z.CreateSequential(cpath, cdata)
 	if err != nil {
-		// If we're here, this would
-		// actually be a partial write since
-		// the config was updated but we're
+		// If we're here, this would actually be a partial
+		// write since the config was updated but we're
 		// failing at the watch entry.
 		return false, err
 	}

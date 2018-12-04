@@ -127,16 +127,17 @@ func TestBrokerMapStorageStdDev(t *testing.T) {
 }
 
 func TestBrokerListSort(t *testing.T) {
-	bl := newMockBrokerMap().filteredList()
+	b := newMockBrokerMap()
+	bl := b.Filter(func(b *Broker) bool { return true }).List()
 
 	// Test sort brokersByStorage.
 	sort.Sort(brokersByStorage(bl))
 
 	expected := []int{1004, 1003, 1002, 1001}
 
-	for i, b := range bl {
-		if b.ID != expected[i] {
-			t.Errorf("Expected broker %d, got %d", expected[i], b.ID)
+	for i, br := range bl {
+		if br.ID != expected[i] {
+			t.Errorf("Expected broker %d, got %d", expected[i], br.ID)
 		}
 	}
 	// Test sort brokersByCount.
@@ -144,9 +145,9 @@ func TestBrokerListSort(t *testing.T) {
 
 	expected = []int{1003, 1004, 1001, 1002}
 
-	for i, b := range bl {
-		if b.ID != expected[i] {
-			t.Errorf("Expected broker %d, got %d", expected[i], b.ID)
+	for i, br := range bl {
+		if br.ID != expected[i] {
+			t.Errorf("Expected broker %d, got %d", expected[i], br.ID)
 		}
 	}
 }

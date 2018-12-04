@@ -4,15 +4,16 @@ import (
 	"fmt"
 )
 
-// Mappings is a mapping of broker IDs
-// to currently held partition as a partitionList.
-type Mappings map[int]map[string]partitionList
+// Mappings is a mapping of broker IDs to currently held
+// partition as a PartitionList.
+type Mappings map[int]map[string]PartitionList
 
 // NewMappings returns a new Mappings.
 func NewMappings() Mappings {
-	return map[int]map[string]partitionList{}
+	return map[int]map[string]PartitionList{}
 }
 
+// NoMappingForBroker error.
 type NoMappingForBroker struct {
 	id int
 }
@@ -21,6 +22,7 @@ func (e NoMappingForBroker) Error() string {
 	return fmt.Sprintf("No mapping for ID %d", e.id)
 }
 
+// NoMappingForTopic error.
 type NoMappingForTopic struct {
 	id    int
 	topic string
@@ -38,7 +40,7 @@ func (pm *PartitionMap) Mappings() Mappings {
 		for _, id := range p.Replicas {
 			// Create if not exists.
 			if _, exist := m[id]; !exist {
-				m[id] = map[string]partitionList{}
+				m[id] = map[string]PartitionList{}
 			}
 
 			// Add the partition to the list.
@@ -50,10 +52,10 @@ func (pm *PartitionMap) Mappings() Mappings {
 }
 
 // LargestPartitions takes a broker ID and PartitionMetaMap and
-// returns a partitionList with the top k partitions by size for
+// returns a PartitionList with the top k partitions by size for
 // the provided broker ID.
-func (m Mappings) LargestPartitions(id int, k int, pm PartitionMetaMap) (partitionList, error) {
-	var allBySize partitionList
+func (m Mappings) LargestPartitions(id int, k int, pm PartitionMetaMap) (PartitionList, error) {
+	var allBySize PartitionList
 
 	if _, exist := m[id]; !exist {
 		return nil, NoMappingForBroker{id: id}
@@ -69,7 +71,7 @@ func (m Mappings) LargestPartitions(id int, k int, pm PartitionMetaMap) (partiti
 		k = len(allBySize)
 	}
 
-	pl := make(partitionList, k)
+	pl := make(PartitionList, k)
 	copy(pl, allBySize)
 
 	return pl, nil
@@ -86,7 +88,7 @@ func (m Mappings) Remove(id int, p Partition) error {
 		return NoMappingForTopic{id: id, topic: p.Topic}
 	}
 
-	var newPl partitionList
+	var newPl PartitionList
 	for _, partn := range m[id][p.Topic] {
 		if !partn.Equal(p) {
 			newPl = append(newPl, partn)

@@ -76,17 +76,16 @@ func (r relocationPlan) add(p kafkazk.Partition, ids [2]int) {
 // [][2]int list of source and destination broker ID pairs.
 func (r relocationPlan) isPlanned(p kafkazk.Partition) ([][2]int, bool) {
 	var pairs [][2]int
+
 	if _, exist := r[p.Topic]; !exist {
 		return pairs, false
 	}
 
 	if _, exist := r[p.Topic][p.Partition]; !exist {
 		return pairs, false
-	} else {
-		pairs = r[p.Topic][p.Partition]
 	}
 
-	return pairs, true
+	return r[p.Topic][p.Partition], true
 }
 
 func validateBrokersForRebalance(cmd *cobra.Command, brokers kafkazk.BrokerMap, bm kafkazk.BrokerMetaMap) []int {
@@ -96,7 +95,10 @@ func validateBrokersForRebalance(cmd *cobra.Command, brokers kafkazk.BrokerMap, 
 
 	// Update the current BrokerList with
 	// the provided broker list.
-	c := brokers.Update(Config.brokers, bm)
+	c, msgs := brokers.Update(Config.brokers, bm)
+	for m := range msgs {
+		fmt.Printf("%s%s\n", indent, m)
+	}
 
 	if c.Changes() {
 		fmt.Printf("%s-\n", indent)
@@ -133,26 +135,37 @@ func validateBrokersForRebalance(cmd *cobra.Command, brokers kafkazk.BrokerMap, 
 	switch {
 	case stg > 0.00:
 		selectorMethod.WriteString(fmt.Sprintf("(< %.2fGB storage free)", stg))
-		// TODO replace these iterations with
-		// a broker selector method in kafkazk.
-		for _, b := range brokers {
-			if !b.New && b.ID != 0 && b.StorageFree < stg*div {
-				offloadTargets = append(offloadTargets, b.ID)
+
+		// Get all non-new brokers with a StorageFree
+		// below the storage threshold in GB.
+		f := func(b *kafkazk.Broker) bool {
+			if !b.New && b.StorageFree < stg*div {
+				return true
 			}
+			return false
 		}
+
+		matches := brokers.Filter(f)
+		for _, b := range matches {
+			offloadTargets = append(offloadTargets, b.ID)
+		}
+
 		sort.Ints(offloadTargets)
 	default:
 		selectorMethod.WriteString(fmt.Sprintf("(>= %.2f%% threshold below hmean)", st*100))
+
 		// Find brokers where the storage free is t %
 		// below the harmonic mean. Specifying 0 targets
-		// all brokers.
+		// all non-new brokers.
 		switch st {
 		case 0.00:
-			for _, b := range brokers {
-				if !b.New && b.ID != 0 {
-					offloadTargets = append(offloadTargets, b.ID)
-				}
+			f := func(b *kafkazk.Broker) bool { return !b.New }
+
+			matches := brokers.Filter(f)
+			for _, b := range matches {
+				offloadTargets = append(offloadTargets, b.ID)
 			}
+
 			sort.Ints(offloadTargets)
 		default:
 			offloadTargets = brokers.BelowMean(st, brokers.HMean)
