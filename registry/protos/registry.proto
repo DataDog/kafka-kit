@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+import "google/api/annotations.proto";
+
+package registry;
+
+service Registry {
+  // Brokers
+
+  rpc GetBrokers (BrokerRequest) returns (BrokerResponse) {
+    option (google.api.http) = {
+      get: "/v1/brokers"
+    };
+  }
+
+  rpc ListBrokers (BrokerRequest) returns (BrokerResponse) {
+    option (google.api.http) = {
+      get: "/v1/brokers/ids"
+    };
+  }
+
+  // Topics
+
+  rpc GetTopics (TopicRequest) returns (TopicResponse) {
+    option (google.api.http) = {
+      get: "/v1/topics"
+    };
+  }
+
+  rpc ListTopics (TopicRequest) returns (TopicResponse) {
+    option (google.api.http) = {
+      get: "/v1/topics/names"
+    };
+  }
+
+  // Cluster
+}
+
+// Brokers
+
+message BrokerRequest {
+  repeated string tags = 1;
+  Broker broker = 2;
+}
+
+message BrokerResponse {
+  map<uint32, Broker> brokers = 1;
+  repeated uint32 ids = 2;
+}
+
+message Broker {
+  uint32 id = 1;
+  string rack = 2;
+}
+
+// Topics
+
+message TopicRequest {
+  repeated string tags = 1;
+  Topic topic = 2;
+}
+
+message TopicResponse {
+  map<string, Topic> topics = 1;
+  repeated string names = 2;
+}
+
+message Topic {
+  string name = 1;
+  uint32 partitions = 2;
+  uint32 replication = 3;
+}
+
+// Cluster
