@@ -2,10 +2,11 @@ package server
 
 import (
 	"context"
-	//"fmt"
 	//"log"
 	"errors"
+	"strconv"
 
+	"github.com/DataDog/kafka-kit/kafkazk"
 	pb "github.com/DataDog/kafka-kit/registry/protos"
 )
 
@@ -29,10 +30,7 @@ func (s *Server) GetBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.Bro
 	if req.Broker != nil {
 		// Lookup the broker.
 		if b, ok := brokers[int(req.Broker.Id)]; ok {
-			matchedBrokers[req.Broker.Id] = &pb.Broker{
-				Id:   req.Broker.Id,
-				Rack: b.Rack,
-			}
+			matchedBrokers[req.Broker.Id] = pbBrokerFromMeta(req.Broker.Id, b)
 		}
 
 		return resp, nil
@@ -40,10 +38,7 @@ func (s *Server) GetBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.Bro
 
 	// Populate all brokers.
 	for b, m := range brokers {
-		matchedBrokers[uint32(b)] = &pb.Broker{
-			Id:   uint32(b),
-			Rack: m.Rack,
-		}
+		matchedBrokers[uint32(b)] = pbBrokerFromMeta(uint32(b), m)
 	}
 
 	return resp, nil
@@ -68,4 +63,19 @@ func (s *Server) ListBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.Br
 	resp.Ids = ids
 
 	return resp, nil
+}
+
+func pbBrokerFromMeta(id uint32, b *kafkazk.BrokerMeta) *pb.Broker {
+	ts, _ := strconv.ParseInt(b.Timestamp, 10, 64)
+
+	return &pb.Broker{
+		Id:                          id,
+		ListenerSecurityProtocolMap: b.ListenerSecurityProtocolMap,
+		Rack:                        b.Rack,
+		JmxPort:                     uint32(b.JMXPort),
+		Host:                        b.Host,
+		Timestamp:                   ts,
+		Port:                        uint32(b.Port),
+		Version:                     uint32(b.Version),
+	}
 }

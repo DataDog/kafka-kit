@@ -50,7 +50,14 @@ message BrokerResponse {
 
 message Broker {
   uint32 id = 1;
-  string rack = 2;
+  map<string, string> listener_security_protocol_map = 2;
+  repeated string endpoints = 3;
+  string rack = 4;
+  uint32 jmx_port = 5;
+  string host = 6;
+  int64 timestamp = 7;
+  uint32 port = 8;
+  uint32 version = 9;
 }
 
 // Topics
