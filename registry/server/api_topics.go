@@ -18,8 +18,18 @@ var (
 func (s *Server) GetTopics(ctx context.Context, req *pb.TopicRequest) (*pb.TopicResponse, error) {
 	s.LogRequest(ctx, fmt.Sprintf("%v", req))
 
+	topicRegex := []*regexp.Regexp{}
+
+	// Check if a specific topic is being fetched.
+	if req.Topic != nil {
+		r := regexp.MustCompile(req.Topic.Name)
+		topicRegex = append(topicRegex, r)
+	} else {
+		topicRegex = append(topicRegex, tregex)
+	}
+
 	// Fetch topics from ZK.
-	topics, errs := s.ZK.GetTopics([]*regexp.Regexp{tregex})
+	topics, errs := s.ZK.GetTopics(topicRegex)
 	if errs != nil {
 		return nil, ErrFetchingTopics
 	}
