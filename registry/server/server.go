@@ -14,6 +14,9 @@ import (
 
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
+	"google.golang.org/grpc/transport"
 )
 
 // Server implements the registry APIs.
@@ -147,4 +150,38 @@ func (s *Server) DialZK(ctx context.Context, wg *sync.WaitGroup, c *kafkazk.Conf
 	}()
 
 	return nil
+}
+
+// LogRequest takes a request context and input parameters as a string
+// and logs the request data.
+func (s *Server) LogRequest(ctx context.Context, params string) {
+	var requestor string
+	var reqType string
+	var method string
+
+	if params == "" {
+		params = "none"
+	}
+
+	// Get Peer info.
+	if p, ok := peer.FromContext(ctx); ok {
+		requestor = p.Addr.String()
+	}
+
+	// Get Metadata.
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		if _, ok := md["grpcgateway-user-agent"]; ok {
+			reqType = "http"
+		} else {
+			reqType = "grpc"
+		}
+	}
+
+	// Get Transport info.
+	if s, ok := transport.StreamFromContext(ctx); ok {
+		method = s.Method()
+	}
+
+	log.Printf("[request] requestor:%s type:%s method:%s params:%s",
+		requestor, reqType, method, params)
 }

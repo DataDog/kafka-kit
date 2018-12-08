@@ -2,8 +2,8 @@ package server
 
 import (
 	"context"
-	//"log"
 	"errors"
+	"fmt"
 	"strconv"
 
 	"github.com/DataDog/kafka-kit/kafkazk"
@@ -16,6 +16,8 @@ var (
 
 // GetBrokers gets brokers.
 func (s *Server) GetBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.BrokerResponse, error) {
+	s.LogRequest(ctx, fmt.Sprintf("%v", req))
+
 	// Fetch brokers from ZK.
 	brokers, errs := s.ZK.GetAllBrokerMeta(false)
 	if errs != nil {
@@ -46,6 +48,8 @@ func (s *Server) GetBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.Bro
 
 // ListBrokers gets broker IDs.
 func (s *Server) ListBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.BrokerResponse, error) {
+	s.LogRequest(ctx, fmt.Sprintf("%v", req))
+
 	// Fetch brokers from ZK.
 	brokers, errs := s.ZK.GetAllBrokerMeta(false)
 	if errs != nil {
@@ -57,10 +61,8 @@ func (s *Server) ListBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.Br
 
 	// Populate all brokers.
 	for b := range brokers {
-		ids = append(ids, uint32(b))
+		resp.Ids = append(resp.Ids, uint32(b))
 	}
-
-	resp.Ids = ids
 
 	return resp, nil
 }
