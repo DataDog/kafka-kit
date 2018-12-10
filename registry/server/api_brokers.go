@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strconv"
 
 	"github.com/DataDog/kafka-kit/kafkazk"
@@ -16,7 +15,9 @@ var (
 
 // GetBrokers gets brokers.
 func (s *Server) GetBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.BrokerResponse, error) {
-	s.LogRequest(ctx, fmt.Sprintf("%v", req))
+	if err := s.ValidateRequest(ctx, req, ReadRequest); err != nil {
+		return nil, err
+	}
 
 	// Fetch brokers from ZK.
 	brokers, errs := s.ZK.GetAllBrokerMeta(false)
@@ -48,7 +49,9 @@ func (s *Server) GetBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.Bro
 
 // ListBrokers gets broker IDs.
 func (s *Server) ListBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.BrokerResponse, error) {
-	s.LogRequest(ctx, fmt.Sprintf("%v", req))
+	if err := s.ValidateRequest(ctx, req, ReadRequest); err != nil {
+		return nil, err
+	}
 
 	// Fetch brokers from ZK.
 	brokers, errs := s.ZK.GetAllBrokerMeta(false)
