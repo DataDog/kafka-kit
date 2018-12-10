@@ -5,38 +5,54 @@ import "google/api/annotations.proto";
 package registry;
 
 service Registry {
-  // Brokers
-
+  // GetBrokers returns a BrokerResponse with the brokers field populated
+  // with full broker metadata. If the input BrokerRequest.broker field is
+  // non-nil, a single broker is returned matching the ID specified in the
+  // Broker object. Otherwise all brokers are returned, optionally filtered
+  // by any provided BrokerRequest.tags parameters.
   rpc GetBrokers (BrokerRequest) returns (BrokerResponse) {
     option (google.api.http) = {
       get: "/v1/brokers"
     };
   }
 
+  // ListBrokers returns a BrokerResponse with the ids field populated
+  // with broker IDs. If the input BrokerRequest.broker field is non-nil,
+  // a single broker ID is returned matching the ID specified in the
+  // Broker object if the broker exists. Otherwise all brokers are returned,
+  // optionally filtered by any provided BrokerRequest.tags parameters.
   rpc ListBrokers (BrokerRequest) returns (BrokerResponse) {
     option (google.api.http) = {
       get: "/v1/brokers/ids"
     };
   }
 
-  // Topics
-
+  // GetTopics returns a TopicResponse with the topics field populated
+  // with full topic metadata. If the input TopicRequest.topic field is
+  // non-nil, a single topic is returned matching the name specified in the
+  // Topic object. Otherwise all topics are returned, optionally filtered
+  // by any provided TopicRequest.tags parameters.
   rpc GetTopics (TopicRequest) returns (TopicResponse) {
     option (google.api.http) = {
       get: "/v1/topics"
     };
   }
 
+  // ListTopics returns a TopicResponse with the names field populated
+  // with topic names. If the input TopicRequest.troker field is non-nil,
+  // a single topic name is returned matching the name specified in the
+  // Topic object if the topic exists. Otherwise all topics are returned,
+  // optionally filtered by any provided TopicRequest.tags parameters.
   rpc ListTopics (TopicRequest) returns (TopicResponse) {
     option (google.api.http) = {
       get: "/v1/topics/names"
     };
   }
-
-  // Cluster
 }
 
-// Brokers
+/**********
+* Brokers *
+**********/
 
 message BrokerRequest {
   repeated string tags = 1;
@@ -44,23 +60,28 @@ message BrokerRequest {
 }
 
 message BrokerResponse {
-  map<uint32, Broker> brokers = 1;
-  repeated uint32 ids = 2;
+  map<uint32, Broker> brokers = 5;
+  repeated uint32 ids = 6;
 }
 
 message Broker {
-  uint32 id = 1;
-  map<string, string> listener_security_protocol_map = 2;
-  repeated string endpoints = 3;
-  string rack = 4;
-  uint32 jmx_port = 5;
-  string host = 6;
-  int64 timestamp = 7;
-  uint32 port = 8;
-  uint32 version = 9;
+  // Registry metadata.
+  map<string, string> tags = 1;
+  // Broker metadata from ZooKeeper.
+  uint32 id = 5;
+  map<string, string> listener_security_protocol_map = 6;
+  repeated string endpoints = 7;
+  string rack = 8;
+  uint32 jmx_port = 9;
+  string host = 10;
+  int64 timestamp = 11;
+  uint32 port = 12;
+  uint32 version = 13;
 }
 
-// Topics
+/*********
+* Topics *
+*********/
 
 message TopicRequest {
   repeated string tags = 1;
@@ -68,14 +89,15 @@ message TopicRequest {
 }
 
 message TopicResponse {
-  map<string, Topic> topics = 1;
-  repeated string names = 2;
+  map<string, Topic> topics = 5;
+  repeated string names = 6;
 }
 
 message Topic {
-  string name = 1;
-  uint32 partitions = 2;
-  uint32 replication = 3;
+  // Registry metadata.
+  map<string, string> tags = 1;
+  // Topic metadata from ZooKeeper.
+  string name = 5;
+  uint32 partitions = 6;
+  uint32 replication = 7;
 }
-
-// Cluster
