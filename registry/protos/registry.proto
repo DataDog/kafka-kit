@@ -23,7 +23,7 @@ service Registry {
   // optionally filtered by any provided BrokerRequest.tags parameters.
   rpc ListBrokers (BrokerRequest) returns (BrokerResponse) {
     option (google.api.http) = {
-      get: "/v1/brokers/ids"
+      get: "/v1/brokers/list"
     };
   }
 
@@ -45,7 +45,7 @@ service Registry {
   // optionally filtered by any provided TopicRequest.tags parameters.
   rpc ListTopics (TopicRequest) returns (TopicResponse) {
     option (google.api.http) = {
-      get: "/v1/topics/names"
+      get: "/v1/topics/list"
     };
   }
 }

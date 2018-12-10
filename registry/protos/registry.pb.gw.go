@@ -220,11 +220,11 @@ func RegisterRegistryHandlerClient(ctx context.Context, mux *runtime.ServeMux, c
 var (
 	pattern_Registry_GetBrokers_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "brokers"}, ""))
 
-	pattern_Registry_ListBrokers_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "brokers", "ids"}, ""))
+	pattern_Registry_ListBrokers_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "brokers", "list"}, ""))
 
 	pattern_Registry_GetTopics_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "topics"}, ""))
 
-	pattern_Registry_ListTopics_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "topics", "names"}, ""))
+	pattern_Registry_ListTopics_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "topics", "list"}, ""))
 )
 
 var (
