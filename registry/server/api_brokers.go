@@ -26,7 +26,6 @@ func (s *Server) GetBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.Bro
 	}
 
 	matchedBrokers := map[uint32]*pb.Broker{}
-	resp := &pb.BrokerResponse{Brokers: matchedBrokers}
 
 	// Check if a specific broker is being fetched.
 	if req.Id != 0 {
@@ -34,14 +33,19 @@ func (s *Server) GetBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.Bro
 		if b, ok := brokers[int(req.Id)]; ok {
 			matchedBrokers[req.Id] = pbBrokerFromMeta(req.Id, b)
 		}
-
-		return resp, nil
+	} else {
+		// Otherwise, populate all brokers.
+		for b, m := range brokers {
+			matchedBrokers[uint32(b)] = pbBrokerFromMeta(uint32(b), m)
+		}
 	}
 
-	// Populate all brokers.
-	for b, m := range brokers {
-		matchedBrokers[uint32(b)] = pbBrokerFromMeta(uint32(b), m)
+	filteredBrokers, err := s.Tags.FilterBrokers(matchedBrokers, req.Tag)
+	if err != nil {
+		return nil, err
 	}
+
+	resp := &pb.BrokerResponse{Brokers: filteredBrokers}
 
 	return resp, nil
 }
@@ -59,23 +63,32 @@ func (s *Server) ListBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.Br
 		return nil, ErrFetchingBrokers
 	}
 
-	ids := []uint32{}
-	resp := &pb.BrokerResponse{Ids: ids}
+	matchedBrokers := map[uint32]*pb.Broker{}
 
 	// Check if a specific broker is being fetched.
 	if req.Id != 0 {
 		// Lookup the broker.
-		if _, ok := brokers[int(req.Id)]; ok {
-			resp.Ids = append(resp.Ids, req.Id)
+		if b, ok := brokers[int(req.Id)]; ok {
+			matchedBrokers[req.Id] = pbBrokerFromMeta(req.Id, b)
 		}
-
-		return resp, nil
+	} else {
+		// Otherwise, populate all brokers.
+		for b, m := range brokers {
+			matchedBrokers[uint32(b)] = pbBrokerFromMeta(uint32(b), m)
+		}
 	}
 
-	// Populate all brokers.
-	for b := range brokers {
-		resp.Ids = append(resp.Ids, uint32(b))
+	filteredBrokers, err := s.Tags.FilterBrokers(matchedBrokers, req.Tag)
+	if err != nil {
+		return nil, err
 	}
+
+	var ids = []uint32{}
+	for id := range filteredBrokers {
+		ids = append(ids, id)
+	}
+
+	resp := &pb.BrokerResponse{Ids: ids}
 
 	return resp, nil
 }

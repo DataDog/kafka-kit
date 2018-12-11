@@ -11,6 +11,7 @@ import (
 // TagHandler provides object filtering by tags.
 type TagHandler interface {
 	FilterTopics(map[string]*pb.Topic, tags) (map[string]*pb.Topic, error)
+	FilterBrokers(map[uint32]*pb.Broker, tags) (map[uint32]*pb.Broker, error)
 }
 
 // NewTagHandler initializes a TagHandler.
@@ -28,12 +29,26 @@ type tagHandler struct {
 type tags []string
 type tagSet map[string]string
 
-func tagSetFromTopic(t *pb.Topic) tagSet {
+func tagSetFromObject(o interface{}) tagSet {
 	var ts = tagSet{}
 
-	ts["name"] = t.Name
-	ts["partitions"] = fmt.Sprintf("%d", t.Partitions)
-	ts["replication"] = fmt.Sprintf("%d", t.Replication)
+	switch o.(type) {
+	case *pb.Topic:
+		t := o.(*pb.Topic)
+		ts["name"] = t.Name
+		ts["partitions"] = fmt.Sprintf("%d", t.Partitions)
+		ts["replication"] = fmt.Sprintf("%d", t.Replication)
+	case *pb.Broker:
+		b := o.(*pb.Broker)
+		// TODO deal with map types.
+		// ts["listenersecurityprotocolmap"] = b.ListenerSecurityProtocolMap
+		ts["rack"] = b.Rack
+		ts["jmxport"] = fmt.Sprintf("%d", b.JmxPort)
+		ts["host"] = b.Host
+		ts["timestamp"] = fmt.Sprintf("%d", b.Timestamp)
+		ts["port"] = fmt.Sprintf("%d", b.Port)
+		ts["version"] = fmt.Sprintf("%d", b.Version)
+	}
 
 	return ts
 }
@@ -72,9 +87,40 @@ func (t *tagHandler) FilterTopics(in map[string]*pb.Topic, tags tags) (map[strin
 
 	// Filter input topics.
 	for name, topic := range in {
-		ts := tagSetFromTopic(topic)
+		ts := tagSetFromObject(topic)
 		if ts.matchAll(tagKV) {
 			out[name] = topic
+		}
+	}
+
+	return out, nil
+}
+
+// FilterBrokers TODO DRY this.
+func (t *tagHandler) FilterBrokers(in map[uint32]*pb.Broker, tags tags) (map[uint32]*pb.Broker, error) {
+	if len(tags) == 0 {
+		return in, nil
+	}
+
+	var out = make(map[uint32]*pb.Broker)
+
+	// Get tag key/values.
+	tagKV := tagSet{}
+
+	for _, t := range tags {
+		ts := strings.Split(t, ":")
+		if len(ts) != 2 {
+			return nil, fmt.Errorf("invalid tag: %s", t)
+		}
+
+		tagKV[ts[0]] = ts[1]
+	}
+
+	// Filter input brokers.
+	for id, broker := range in {
+		ts := tagSetFromObject(broker)
+		if ts.matchAll(tagKV) {
+			out[id] = broker
 		}
 	}
 
