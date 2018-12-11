@@ -28,10 +28,10 @@ const (
 
 // Server implements the registry APIs.
 type Server struct {
-	HTTPListen string
-	GRPCListen string
-	ZK         kafkazk.Handler
-
+	HTTPListen       string
+	GRPCListen       string
+	ZK               kafkazk.Handler
+	Tags             TagHandler
 	readReqThrottle  RequestThrottle
 	writeReqThrottle RequestThrottle
 	reqID            uint64
@@ -67,6 +67,7 @@ func NewServer(c ServerConfig) (*Server, error) {
 	return &Server{
 		HTTPListen:       c.HTTPListen,
 		GRPCListen:       c.GRPCListen,
+		Tags:             NewTagHandler(),
 		readReqThrottle:  rrt,
 		writeReqThrottle: wrt,
 	}, nil

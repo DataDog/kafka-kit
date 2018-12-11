@@ -37,7 +37,6 @@ func (s *Server) GetTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topic
 	}
 
 	matchedTopics := map[string]*pb.Topic{}
-	resp := &pb.TopicResponse{Topics: matchedTopics}
 
 	// Populate all topics.
 	for _, t := range topics {
@@ -50,6 +49,13 @@ func (s *Server) GetTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topic
 			Replication: uint32(len(s.Partitions["0"])),
 		}
 	}
+
+	filteredTopics, err := s.Tags.FilterTopics(matchedTopics, req.Tag)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := &pb.TopicResponse{Topics: filteredTopics}
 
 	return resp, nil
 }
@@ -76,7 +82,31 @@ func (s *Server) ListTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topi
 		return nil, ErrFetchingTopics
 	}
 
-	resp := &pb.TopicResponse{Names: topics}
+	matchedTopics := map[string]*pb.Topic{}
+
+	// Populate all topics.
+	for _, t := range topics {
+		s, _ := s.ZK.GetTopicState(t)
+		matchedTopics[t] = &pb.Topic{
+			Name:       t,
+			Partitions: uint32(len(s.Partitions)),
+			// TODO more sophisticated check than the
+			// first partition len.
+			Replication: uint32(len(s.Partitions["0"])),
+		}
+	}
+
+	filteredTopics, err := s.Tags.FilterTopics(matchedTopics, req.Tag)
+	if err != nil {
+		return nil, err
+	}
+
+	var filteredTopicNames []string
+	for t := range filteredTopics {
+		filteredTopicNames = append(filteredTopicNames, t)
+	}
+
+	resp := &pb.TopicResponse{Names: filteredTopicNames}
 
 	return resp, nil
 }

@@ -55,7 +55,7 @@ service Registry {
 **********/
 
 message BrokerRequest {
-  repeated string tags = 1;
+  repeated string tag = 1;
   uint32 id = 2;
 }
 
@@ -84,7 +84,7 @@ message Broker {
 *********/
 
 message TopicRequest {
-  repeated string tags = 1;
+  repeated string tag = 1;
   string name = 2;
 }
 
