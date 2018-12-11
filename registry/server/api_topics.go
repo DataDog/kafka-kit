@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"regexp"
 
 	pb "github.com/DataDog/kafka-kit/registry/protos"
@@ -23,7 +24,7 @@ func (s *Server) GetTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topic
 
 	// Check if a specific topic is being fetched.
 	if req.Topic != nil {
-		r := regexp.MustCompile(req.Topic.Name)
+		r := regexp.MustCompile(fmt.Sprintf("^%s$", req.Topic.Name))
 		topicRegex = append(topicRegex, r)
 	} else {
 		topicRegex = append(topicRegex, tregex)
@@ -59,7 +60,18 @@ func (s *Server) ListTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topi
 		return nil, err
 	}
 
-	topics, errs := s.ZK.GetTopics([]*regexp.Regexp{tregex})
+	topicRegex := []*regexp.Regexp{}
+
+	// Check if a specific topic is being fetched.
+	if req.Topic != nil {
+		r := regexp.MustCompile(fmt.Sprintf("^%s$", req.Topic.Name))
+		topicRegex = append(topicRegex, r)
+	} else {
+		topicRegex = append(topicRegex, tregex)
+	}
+
+	// Fetch topics from ZK.
+	topics, errs := s.ZK.GetTopics(topicRegex)
 	if errs != nil {
 		return nil, ErrFetchingTopics
 	}

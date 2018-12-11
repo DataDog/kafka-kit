@@ -54,6 +54,7 @@ func (s *Server) ListBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.Br
 	}
 
 	// Fetch brokers from ZK.
+	// TODO replace this with a GetChildren call.
 	brokers, errs := s.ZK.GetAllBrokerMeta(false)
 	if errs != nil {
 		return nil, ErrFetchingBrokers
@@ -61,6 +62,17 @@ func (s *Server) ListBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.Br
 
 	ids := []uint32{}
 	resp := &pb.BrokerResponse{Ids: ids}
+
+	// If the Broker field is non-nil, we're fetching
+	// a specific broker by ID.
+	if req.Broker != nil {
+		// Lookup the broker.
+		if _, ok := brokers[int(req.Broker.Id)]; ok {
+			resp.Ids = append(resp.Ids, req.Broker.Id)
+		}
+
+		return resp, nil
+	}
 
 	// Populate all brokers.
 	for b := range brokers {
