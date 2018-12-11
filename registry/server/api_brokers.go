@@ -28,12 +28,11 @@ func (s *Server) GetBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.Bro
 	matchedBrokers := map[uint32]*pb.Broker{}
 	resp := &pb.BrokerResponse{Brokers: matchedBrokers}
 
-	// If the Broker field is non-nil, we're fetching
-	// a specific broker by ID.
-	if req.Broker != nil {
+	// Check if a specific broker is being fetched.
+	if req.Id != 0 {
 		// Lookup the broker.
-		if b, ok := brokers[int(req.Broker.Id)]; ok {
-			matchedBrokers[req.Broker.Id] = pbBrokerFromMeta(req.Broker.Id, b)
+		if b, ok := brokers[int(req.Id)]; ok {
+			matchedBrokers[req.Id] = pbBrokerFromMeta(req.Id, b)
 		}
 
 		return resp, nil
@@ -63,12 +62,11 @@ func (s *Server) ListBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.Br
 	ids := []uint32{}
 	resp := &pb.BrokerResponse{Ids: ids}
 
-	// If the Broker field is non-nil, we're fetching
-	// a specific broker by ID.
-	if req.Broker != nil {
+	// Check if a specific broker is being fetched.
+	if req.Id != 0 {
 		// Lookup the broker.
-		if _, ok := brokers[int(req.Broker.Id)]; ok {
-			resp.Ids = append(resp.Ids, req.Broker.Id)
+		if _, ok := brokers[int(req.Id)]; ok {
+			resp.Ids = append(resp.Ids, req.Id)
 		}
 
 		return resp, nil

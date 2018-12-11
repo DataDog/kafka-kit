@@ -23,8 +23,8 @@ func (s *Server) GetTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topic
 	topicRegex := []*regexp.Regexp{}
 
 	// Check if a specific topic is being fetched.
-	if req.Topic != nil {
-		r := regexp.MustCompile(fmt.Sprintf("^%s$", req.Topic.Name))
+	if req.Name != "" {
+		r := regexp.MustCompile(fmt.Sprintf("^%s$", req.Name))
 		topicRegex = append(topicRegex, r)
 	} else {
 		topicRegex = append(topicRegex, tregex)
@@ -63,8 +63,8 @@ func (s *Server) ListTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topi
 	topicRegex := []*regexp.Regexp{}
 
 	// Check if a specific topic is being fetched.
-	if req.Topic != nil {
-		r := regexp.MustCompile(fmt.Sprintf("^%s$", req.Topic.Name))
+	if req.Name != "" {
+		r := regexp.MustCompile(fmt.Sprintf("^%s$", req.Name))
 		topicRegex = append(topicRegex, r)
 	} else {
 		topicRegex = append(topicRegex, tregex)
