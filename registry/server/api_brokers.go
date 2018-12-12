@@ -98,9 +98,9 @@ func pbBrokerFromMeta(id uint32, b *kafkazk.BrokerMeta) *pb.Broker {
 
 	return &pb.Broker{
 		Id:                          id,
-		ListenerSecurityProtocolMap: b.ListenerSecurityProtocolMap,
+		Listenersecurityprotocolmap: b.ListenerSecurityProtocolMap,
 		Rack:                        b.Rack,
-		JmxPort:                     uint32(b.JMXPort),
+		Jmxport:                     uint32(b.JMXPort),
 		Host:                        b.Host,
 		Timestamp:                   ts,
 		Port:                        uint32(b.Port),

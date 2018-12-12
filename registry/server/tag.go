@@ -43,7 +43,7 @@ func tagSetFromObject(o interface{}) tagSet {
 		// TODO deal with map types.
 		// ts["listenersecurityprotocolmap"] = b.ListenerSecurityProtocolMap
 		ts["rack"] = b.Rack
-		ts["jmxport"] = fmt.Sprintf("%d", b.JmxPort)
+		ts["jmxport"] = fmt.Sprintf("%d", b.Jmxport)
 		ts["host"] = b.Host
 		ts["timestamp"] = fmt.Sprintf("%d", b.Timestamp)
 		ts["port"] = fmt.Sprintf("%d", b.Port)

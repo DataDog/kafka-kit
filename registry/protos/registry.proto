@@ -69,10 +69,10 @@ message Broker {
   map<string, string> tags = 1;
   // Broker metadata from ZooKeeper.
   uint32 id = 5;
-  map<string, string> listener_security_protocol_map = 6;
+  map<string, string> listenersecurityprotocolmap = 6;
   repeated string endpoints = 7;
   string rack = 8;
-  uint32 jmx_port = 9;
+  uint32 jmxport = 9;
   string host = 10;
   int64 timestamp = 11;
   uint32 port = 12;
