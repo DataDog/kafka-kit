@@ -22,32 +22,13 @@ func (s *Server) GetBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.Bro
 		return nil, err
 	}
 
-	// Fetch brokers from ZK.
-	brokers, errs := s.ZK.GetAllBrokerMeta(false)
-	if errs != nil {
-		return nil, ErrFetchingBrokers
-	}
-
-	matchedBrokers := BrokerSet{}
-
-	// Check if a specific broker is being fetched.
-	if req.Id != 0 {
-		// Lookup the broker.
-		if b, ok := brokers[int(req.Id)]; ok {
-			matchedBrokers[req.Id] = pbBrokerFromMeta(req.Id, b)
-		}
-	} else {
-		// Otherwise, populate all brokers.
-		for b, m := range brokers {
-			matchedBrokers[uint32(b)] = pbBrokerFromMeta(uint32(b), m)
-		}
-	}
-
-	filteredBrokers, err := s.Tags.FilterBrokers(matchedBrokers, req.Tag)
+	// Get brokers.
+	filteredBrokers, err := s.fetchBrokerSet(req)
 	if err != nil {
 		return nil, err
 	}
 
+	// Populate response Brokers field.
 	resp := &pb.BrokerResponse{Brokers: filteredBrokers}
 
 	return resp, nil
@@ -59,41 +40,62 @@ func (s *Server) ListBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.Br
 		return nil, err
 	}
 
-	// Fetch brokers from ZK.
-	// TODO replace this with a GetChildren call.
+	// Get brokers.
+	filteredBrokers, err := s.fetchBrokerSet(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Populate response Ids field.
+	resp := &pb.BrokerResponse{Ids: filteredBrokers.IDs()}
+
+	return resp, nil
+}
+
+// fetchBrokerSet fetches metadata for all brokers. If the input *pb.BrokerRequest
+// Id field is non-zero, the specified broker is matched if it exists. Otherwise,
+// all brokers found in ZooKeeper are matched. Matched brokers are then filtered
+// by all tags specified, if specified, in the *pb.BrokerRequest tag field.
+func (s *Server) fetchBrokerSet(req *pb.BrokerRequest) (BrokerSet, error) {
+	// Get brokers from ZK.
 	brokers, errs := s.ZK.GetAllBrokerMeta(false)
 	if errs != nil {
 		return nil, ErrFetchingBrokers
 	}
 
-	matchedBrokers := BrokerSet{}
+	matched := BrokerSet{}
 
 	// Check if a specific broker is being fetched.
 	if req.Id != 0 {
 		// Lookup the broker.
 		if b, ok := brokers[int(req.Id)]; ok {
-			matchedBrokers[req.Id] = pbBrokerFromMeta(req.Id, b)
+			matched[req.Id] = pbBrokerFromMeta(req.Id, b)
 		}
 	} else {
 		// Otherwise, populate all brokers.
 		for b, m := range brokers {
-			matchedBrokers[uint32(b)] = pbBrokerFromMeta(uint32(b), m)
+			matched[uint32(b)] = pbBrokerFromMeta(uint32(b), m)
 		}
 	}
 
-	filteredBrokers, err := s.Tags.FilterBrokers(matchedBrokers, req.Tag)
+	// Filter results by any supplied tags.
+	filtered, err := s.Tags.FilterBrokers(matched, req.Tag)
 	if err != nil {
 		return nil, err
 	}
 
+	return filtered, nil
+}
+
+// IDs returns a []uint32 of IDs
+// from a BrokerSet.
+func (b BrokerSet) IDs() []uint32 {
 	var ids = []uint32{}
-	for id := range filteredBrokers {
+	for id := range b {
 		ids = append(ids, id)
 	}
 
-	resp := &pb.BrokerResponse{Ids: ids}
-
-	return resp, nil
+	return ids
 }
 
 func pbBrokerFromMeta(id uint32, b *kafkazk.BrokerMeta) *pb.Broker {
