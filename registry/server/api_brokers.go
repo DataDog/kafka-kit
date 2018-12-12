@@ -10,8 +10,11 @@ import (
 )
 
 var (
+	// Errors.
 	ErrFetchingBrokers = errors.New("Error fetching brokers")
 )
+
+type BrokerSet map[uint32]*pb.Broker
 
 // GetBrokers gets brokers.
 func (s *Server) GetBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.BrokerResponse, error) {
@@ -25,7 +28,7 @@ func (s *Server) GetBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.Bro
 		return nil, ErrFetchingBrokers
 	}
 
-	matchedBrokers := map[uint32]*pb.Broker{}
+	matchedBrokers := BrokerSet{}
 
 	// Check if a specific broker is being fetched.
 	if req.Id != 0 {
@@ -63,7 +66,7 @@ func (s *Server) ListBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.Br
 		return nil, ErrFetchingBrokers
 	}
 
-	matchedBrokers := map[uint32]*pb.Broker{}
+	matchedBrokers := BrokerSet{}
 
 	// Check if a specific broker is being fetched.
 	if req.Id != 0 {

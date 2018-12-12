@@ -10,9 +10,13 @@ import (
 )
 
 var (
+	// Errors.
 	ErrFetchingTopics = errors.New("Error fetching topics")
-	tregex            = regexp.MustCompile(".*")
+	// Misc.
+	tregex = regexp.MustCompile(".*")
 )
+
+type TopicSet map[string]*pb.Topic
 
 // GetTopics gets topics.
 func (s *Server) GetTopics(ctx context.Context, req *pb.TopicRequest) (*pb.TopicResponse, error) {
@@ -36,7 +40,7 @@ func (s *Server) GetTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topic
 		return nil, ErrFetchingTopics
 	}
 
-	matchedTopics := map[string]*pb.Topic{}
+	matchedTopics := TopicSet{}
 
 	// Populate all topics.
 	for _, t := range topics {
@@ -82,7 +86,7 @@ func (s *Server) ListTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topi
 		return nil, ErrFetchingTopics
 	}
 
-	matchedTopics := map[string]*pb.Topic{}
+	matchedTopics := TopicSet{}
 
 	// Populate all topics.
 	for _, t := range topics {

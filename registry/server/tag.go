@@ -10,8 +10,8 @@ import (
 
 // TagHandler provides object filtering by tags.
 type TagHandler interface {
-	FilterTopics(map[string]*pb.Topic, tags) (map[string]*pb.Topic, error)
-	FilterBrokers(map[uint32]*pb.Broker, tags) (map[uint32]*pb.Broker, error)
+	FilterTopics(TopicSet, tags) (TopicSet, error)
+	FilterBrokers(BrokerSet, tags) (BrokerSet, error)
 }
 
 // NewTagHandler initializes a TagHandler.
@@ -53,6 +53,9 @@ func tagSetFromObject(o interface{}) tagSet {
 	return ts
 }
 
+// matchAll takes a tagSet and returns true
+// if all key/values are present and equal
+// to those in the calling tagSet.
 func (t tagSet) matchAll(kv tagSet) bool {
 	for k, v := range kv {
 		if t[k] != v {
@@ -63,26 +66,38 @@ func (t tagSet) matchAll(kv tagSet) bool {
 	return true
 }
 
+// tagSet takes a tags and returns a tagSet
+// and error for any malformed tags. Tags are
+// expected to be formatted as "key:value" strings.
+func (t tags) tagSet() (tagSet, error) {
+	var ts = tagSet{}
+
+	for _, tag := range t {
+		kv := strings.Split(tag, ":")
+		if len(kv) != 2 {
+			return nil, fmt.Errorf("invalid tag: %s", t)
+		}
+
+		ts[kv[0]] = kv[1]
+	}
+
+	return ts, nil
+}
+
 // FilterTopics takes a map of topic names to *pb.Topic and tags KV list.
 // A filtered map is returned that includes topics where all tags
 // values match the provided input tag KVs.
-func (t *tagHandler) FilterTopics(in map[string]*pb.Topic, tags tags) (map[string]*pb.Topic, error) {
+func (t *tagHandler) FilterTopics(in TopicSet, tags tags) (TopicSet, error) {
 	if len(tags) == 0 {
 		return in, nil
 	}
 
-	var out = make(map[string]*pb.Topic)
+	var out = make(TopicSet)
 
 	// Get tag key/values.
-	tagKV := tagSet{}
-
-	for _, t := range tags {
-		ts := strings.Split(t, ":")
-		if len(ts) != 2 {
-			return nil, fmt.Errorf("invalid tag: %s", t)
-		}
-
-		tagKV[ts[0]] = ts[1]
+	tagKV, err := tags.tagSet()
+	if err != nil {
+		return nil, err
 	}
 
 	// Filter input topics.
@@ -96,24 +111,20 @@ func (t *tagHandler) FilterTopics(in map[string]*pb.Topic, tags tags) (map[strin
 	return out, nil
 }
 
-// FilterBrokers TODO DRY this.
-func (t *tagHandler) FilterBrokers(in map[uint32]*pb.Broker, tags tags) (map[uint32]*pb.Broker, error) {
+// FilterBrokers takes a map of broker IDs to *pb.Broker and tags KV list.
+// A filtered map is returned that includes brokers where all tags
+// values match the provided input tag KVs.
+func (t *tagHandler) FilterBrokers(in BrokerSet, tags tags) (BrokerSet, error) {
 	if len(tags) == 0 {
 		return in, nil
 	}
 
-	var out = make(map[uint32]*pb.Broker)
+	var out = make(BrokerSet)
 
 	// Get tag key/values.
-	tagKV := tagSet{}
-
-	for _, t := range tags {
-		ts := strings.Split(t, ":")
-		if len(ts) != 2 {
-			return nil, fmt.Errorf("invalid tag: %s", t)
-		}
-
-		tagKV[ts[0]] = ts[1]
+	tagKV, err := tags.tagSet()
+	if err != nil {
+		return nil, err
 	}
 
 	// Filter input brokers.
@@ -139,6 +150,8 @@ func restrictedFields() map[string]map[string]struct{} {
 	return fs
 }
 
+// fieldsFromStruct extracts all user-defined fields from proto
+// messages. Discovered fields are returned all lowercase.
 func fieldsFromStruct(s interface{}) map[string]struct{} {
 	var fs = make(map[string]struct{})
 
