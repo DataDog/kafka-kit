@@ -23,13 +23,13 @@ func (s *Server) GetBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.Bro
 	}
 
 	// Get brokers.
-	filteredBrokers, err := s.fetchBrokerSet(req)
+	brokers, err := s.fetchBrokerSet(req)
 	if err != nil {
 		return nil, err
 	}
 
 	// Populate response Brokers field.
-	resp := &pb.BrokerResponse{Brokers: filteredBrokers}
+	resp := &pb.BrokerResponse{Brokers: brokers}
 
 	return resp, nil
 }
@@ -41,13 +41,13 @@ func (s *Server) ListBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.Br
 	}
 
 	// Get brokers.
-	filteredBrokers, err := s.fetchBrokerSet(req)
+	brokers, err := s.fetchBrokerSet(req)
 	if err != nil {
 		return nil, err
 	}
 
 	// Populate response Ids field.
-	resp := &pb.BrokerResponse{Ids: filteredBrokers.IDs()}
+	resp := &pb.BrokerResponse{Ids: brokers.IDs()}
 
 	return resp, nil
 }
@@ -87,8 +87,7 @@ func (s *Server) fetchBrokerSet(req *pb.BrokerRequest) (BrokerSet, error) {
 	return filtered, nil
 }
 
-// IDs returns a []uint32 of IDs
-// from a BrokerSet.
+// IDs returns a []uint32 of IDs from a BrokerSet.
 func (b BrokerSet) IDs() []uint32 {
 	var ids = []uint32{}
 	for id := range b {

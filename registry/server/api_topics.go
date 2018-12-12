@@ -24,42 +24,14 @@ func (s *Server) GetTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topic
 		return nil, err
 	}
 
-	topicRegex := []*regexp.Regexp{}
-
-	// Check if a specific topic is being fetched.
-	if req.Name != "" {
-		r := regexp.MustCompile(fmt.Sprintf("^%s$", req.Name))
-		topicRegex = append(topicRegex, r)
-	} else {
-		topicRegex = append(topicRegex, tregex)
-	}
-
-	// Fetch topics from ZK.
-	topics, errs := s.ZK.GetTopics(topicRegex)
-	if errs != nil {
-		return nil, ErrFetchingTopics
-	}
-
-	matchedTopics := TopicSet{}
-
-	// Populate all topics.
-	for _, t := range topics {
-		s, _ := s.ZK.GetTopicState(t)
-		matchedTopics[t] = &pb.Topic{
-			Name:       t,
-			Partitions: uint32(len(s.Partitions)),
-			// TODO more sophisticated check than the
-			// first partition len.
-			Replication: uint32(len(s.Partitions["0"])),
-		}
-	}
-
-	filteredTopics, err := s.Tags.FilterTopics(matchedTopics, req.Tag)
+	// Get topics.
+	topics, err := s.fetchTopicSet(req)
 	if err != nil {
 		return nil, err
 	}
 
-	resp := &pb.TopicResponse{Topics: filteredTopics}
+	// Populate the response Topics field.
+	resp := &pb.TopicResponse{Topics: topics}
 
 	return resp, nil
 }
@@ -70,6 +42,23 @@ func (s *Server) ListTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topi
 		return nil, err
 	}
 
+	// Get topics.
+	topics, err := s.fetchTopicSet(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Populate the response Names field.
+	resp := &pb.TopicResponse{Names: topics.Names()}
+
+	return resp, nil
+}
+
+// fetchBrokerSet fetches metadata for all topics. If the input *pb.TopicRequest
+// Name field is non-nil, the specified topic is matched if it exists. Otherwise,
+// all topics found in ZooKeeper are matched. Matched topics are then filtered
+// by all tags specified, if specified, in the *pb.TopicRequest tag field.
+func (s *Server) fetchTopicSet(req *pb.TopicRequest) (TopicSet, error) {
 	topicRegex := []*regexp.Regexp{}
 
 	// Check if a specific topic is being fetched.
@@ -86,12 +75,12 @@ func (s *Server) ListTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topi
 		return nil, ErrFetchingTopics
 	}
 
-	matchedTopics := TopicSet{}
+	matched := TopicSet{}
 
 	// Populate all topics.
 	for _, t := range topics {
 		s, _ := s.ZK.GetTopicState(t)
-		matchedTopics[t] = &pb.Topic{
+		matched[t] = &pb.Topic{
 			Name:       t,
 			Partitions: uint32(len(s.Partitions)),
 			// TODO more sophisticated check than the
@@ -100,17 +89,20 @@ func (s *Server) ListTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topi
 		}
 	}
 
-	filteredTopics, err := s.Tags.FilterTopics(matchedTopics, req.Tag)
+	filtered, err := s.Tags.FilterTopics(matched, req.Tag)
 	if err != nil {
 		return nil, err
 	}
 
-	var filteredTopicNames []string
-	for t := range filteredTopics {
-		filteredTopicNames = append(filteredTopicNames, t)
+	return filtered, nil
+}
+
+// Names returns a []string of topic names from a TopicSet.
+func (t TopicSet) Names() []string {
+	var names []string
+	for n := range t {
+		names = append(names, n)
 	}
 
-	resp := &pb.TopicResponse{Names: filteredTopicNames}
-
-	return resp, nil
+	return names
 }
