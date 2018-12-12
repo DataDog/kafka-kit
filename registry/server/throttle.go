@@ -32,19 +32,20 @@ type RequestThrottleConfig struct {
 
 // NewRequestThrottle initializes a RequestThrottle.
 func NewRequestThrottle(cfg RequestThrottleConfig) (RequestThrottle, error) {
-	if cfg.Rate < 1 {
+	switch {
+	case cfg.Rate < 1:
 		return nil, errors.New("rate must be >= 1")
+	case cfg.Capacity < 1:
+		return nil, errors.New("capacity must be >= 1")
 	}
 
 	t := &requestThrottle{
 		c: make(chan struct{}, cfg.Capacity),
 	}
 
+	// Background refill.
 	d := time.Duration(1000000000 / cfg.Rate)
-
 	refill := time.NewTicker(d * time.Nanosecond)
-
-	// Bucket refill.
 	go func() {
 		for _ = range refill.C {
 			<-t.c
