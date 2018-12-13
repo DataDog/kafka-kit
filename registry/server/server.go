@@ -35,6 +35,8 @@ type Server struct {
 	readReqThrottle  RequestThrottle
 	writeReqThrottle RequestThrottle
 	reqID            uint64
+	// For tests.
+	mock bool
 }
 
 // ServerConfig holds Server configurations.
@@ -43,6 +45,8 @@ type ServerConfig struct {
 	GRPCListen   string
 	ReadReqRate  int
 	WriteReqRate int
+
+	mock bool
 }
 
 // NewServer initializes a *Server.
@@ -70,6 +74,7 @@ func NewServer(c ServerConfig) (*Server, error) {
 		Tags:             NewTagHandler(),
 		readReqThrottle:  rrt,
 		writeReqThrottle: wrt,
+		mock:             c.mock,
 	}, nil
 }
 
@@ -161,6 +166,11 @@ func (s *Server) RunHTTP(ctx context.Context, wg *sync.WaitGroup) error {
 // a kafkazk.Handler. A background shutdown procedure is called when the
 // context is cancelled.
 func (s *Server) DialZK(ctx context.Context, wg *sync.WaitGroup, c *kafkazk.Config) error {
+	if s.mock {
+		s.ZK = &kafkazk.Mock{}
+		return nil
+	}
+
 	wg.Add(1)
 
 	// Init.
@@ -235,6 +245,10 @@ func (s *Server) ValidateRequest(ctx context.Context, req interface{}, kind int)
 // LogRequest takes a request context and input parameters as a string
 // and logs the request data.
 func (s *Server) LogRequest(ctx context.Context, params string, reqID uint64) {
+	if s.mock {
+		return
+	}
+
 	var requestor string
 	var reqType string
 	var method string

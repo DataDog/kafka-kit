@@ -127,20 +127,6 @@ func TestFilterTopics(t *testing.T) {
 	}
 }
 
-func stringsEqual(s1, s2 []string) bool {
-	if len(s1) != len(s2) {
-		return false
-	}
-
-	for i := range s1 {
-		if s1[i] != s2[i] {
-			return false
-		}
-	}
-
-	return true
-}
-
 func TestFilterBrokers(t *testing.T) {
 	th := NewTagHandler()
 
@@ -181,19 +167,6 @@ func TestFilterBrokers(t *testing.T) {
 			t.Errorf("Expected %v, got %v", expected[i], filtered.IDs())
 		}
 	}
-}
-func intsEqual(s1, s2 []uint32) bool {
-	if len(s1) != len(s2) {
-		return false
-	}
-
-	for i := range s1 {
-		if s1[i] != s2[i] {
-			return false
-		}
-	}
-
-	return true
 }
 
 func TestRestrictedFields(t *testing.T) {
