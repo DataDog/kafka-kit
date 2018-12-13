@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	serverConfig := server.ServerConfig{}
+	serverConfig := server.Config{}
 	zkConfig := kafkazk.Config{}
 
 	flag.StringVar(&serverConfig.HTTPListen, "http-listen", "localhost:8080", "Server HTTP listen address")

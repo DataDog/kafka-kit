@@ -11,17 +11,21 @@ import (
 )
 
 var (
-	// Errors.
+	// ErrFetchingTopics error.
 	ErrFetchingTopics = errors.New("Error fetching topics")
 	// Misc.
 	tregex = regexp.MustCompile(".*")
 )
 
+// TopicSet is a mapping of topic name to *pb.Topic.
 type TopicSet map[string]*pb.Topic
 
-// GetTopics gets topics.
+// GetTopics gets topics. If the input *pb.TopicRequest Name field is
+// non-nil, the specified topic is matched if it exists. Otherwise, all
+// topics found in ZooKeeper are matched. Matched topics are then filtered
+// by all tags specified, if specified, in the *pb.TopicRequest tag field.
 func (s *Server) GetTopics(ctx context.Context, req *pb.TopicRequest) (*pb.TopicResponse, error) {
-	if err := s.ValidateRequest(ctx, req, ReadRequest); err != nil {
+	if err := s.ValidateRequest(ctx, req, readRequest); err != nil {
 		return nil, err
 	}
 
@@ -37,9 +41,12 @@ func (s *Server) GetTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topic
 	return resp, nil
 }
 
-// ListTopics gets topic names.
+// ListTopics gets topic names. If the input *pb.TopicRequest Name field is
+// non-nil, the specified topic is matched if it exists. Otherwise, all
+// topics found in ZooKeeper are matched. Matched topics are then filtered
+// by all tags specified, if specified, in the *pb.TopicRequest tag field.
 func (s *Server) ListTopics(ctx context.Context, req *pb.TopicRequest) (*pb.TopicResponse, error) {
-	if err := s.ValidateRequest(ctx, req, ReadRequest); err != nil {
+	if err := s.ValidateRequest(ctx, req, readRequest); err != nil {
 		return nil, err
 	}
 
@@ -55,10 +62,7 @@ func (s *Server) ListTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topi
 	return resp, nil
 }
 
-// fetchBrokerSet fetches metadata for all topics. If the input *pb.TopicRequest
-// Name field is non-nil, the specified topic is matched if it exists. Otherwise,
-// all topics found in ZooKeeper are matched. Matched topics are then filtered
-// by all tags specified, if specified, in the *pb.TopicRequest tag field.
+// fetchBrokerSet fetches metadata for all topics.
 func (s *Server) fetchTopicSet(req *pb.TopicRequest) (TopicSet, error) {
 	topicRegex := []*regexp.Regexp{}
 

@@ -7,6 +7,7 @@ import (
 )
 
 var (
+	// ErrRequestThrottleTimeout error.
 	ErrRequestThrottleTimeout = errors.New("wait time exceeded")
 )
 
@@ -47,7 +48,7 @@ func NewRequestThrottle(cfg RequestThrottleConfig) (RequestThrottle, error) {
 	d := time.Duration(1000000000 / cfg.Rate)
 	refill := time.NewTicker(d * time.Nanosecond)
 	go func() {
-		for _ = range refill.C {
+		for range refill.C {
 			<-t.c
 		}
 	}()

@@ -1,7 +1,7 @@
 package server
 
 func mockServer() *Server {
-	s, _ := NewServer(ServerConfig{
+	s, _ := NewServer(Config{
 		ReadReqRate:  1,
 		WriteReqRate: 1,
 		mock:         true,

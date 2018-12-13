@@ -11,15 +11,19 @@ import (
 )
 
 var (
-	// Errors.
+	// ErrFetchingBrokers error.
 	ErrFetchingBrokers = errors.New("Error fetching brokers")
 )
 
+// BrokerSet is a mapping of broker IDs to *pb.Broker.
 type BrokerSet map[uint32]*pb.Broker
 
-// GetBrokers gets brokers.
+// GetBrokers gets brokers. If the input *pb.BrokerRequest Id field is
+// non-zero, the specified broker is matched if it exists. Otherwise, all
+// brokers found in ZooKeeper are matched. Matched brokers are then filtered
+// by all tags specified, if specified, in the *pb.BrokerRequest tag field.
 func (s *Server) GetBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.BrokerResponse, error) {
-	if err := s.ValidateRequest(ctx, req, ReadRequest); err != nil {
+	if err := s.ValidateRequest(ctx, req, readRequest); err != nil {
 		return nil, err
 	}
 
@@ -35,9 +39,12 @@ func (s *Server) GetBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.Bro
 	return resp, nil
 }
 
-// ListBrokers gets broker IDs.
+// ListBrokers gets broker IDs. If the input *pb.BrokerRequest Id field is
+// non-zero, the specified broker is matched if it exists. Otherwise, all
+// brokers found in ZooKeeper are matched. Matched brokers are then filtered
+// by all tags specified, if specified, in the *pb.BrokerRequest tag field.
 func (s *Server) ListBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.BrokerResponse, error) {
-	if err := s.ValidateRequest(ctx, req, ReadRequest); err != nil {
+	if err := s.ValidateRequest(ctx, req, readRequest); err != nil {
 		return nil, err
 	}
 
@@ -53,10 +60,7 @@ func (s *Server) ListBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.Br
 	return resp, nil
 }
 
-// fetchBrokerSet fetches metadata for all brokers. If the input *pb.BrokerRequest
-// Id field is non-zero, the specified broker is matched if it exists. Otherwise,
-// all brokers found in ZooKeeper are matched. Matched brokers are then filtered
-// by all tags specified, if specified, in the *pb.BrokerRequest tag field.
+// fetchBrokerSet fetches metadata for all brokers.
 func (s *Server) fetchBrokerSet(req *pb.BrokerRequest) (BrokerSet, error) {
 	// Get brokers from ZK.
 	brokers, errs := s.ZK.GetAllBrokerMeta(false)

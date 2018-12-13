@@ -22,8 +22,8 @@ import (
 )
 
 const (
-	ReadRequest = iota
-	WriteRequest
+	readRequest = iota
+	writeRequest
 )
 
 // Server implements the registry APIs.
@@ -39,8 +39,8 @@ type Server struct {
 	mock bool
 }
 
-// ServerConfig holds Server configurations.
-type ServerConfig struct {
+// Config holds Server configurations.
+type Config struct {
 	HTTPListen   string
 	GRPCListen   string
 	ReadReqRate  int
@@ -50,7 +50,7 @@ type ServerConfig struct {
 }
 
 // NewServer initializes a *Server.
-func NewServer(c ServerConfig) (*Server, error) {
+func NewServer(c Config) (*Server, error) {
 	switch {
 	case c.ReadReqRate < 1:
 		fallthrough
@@ -186,7 +186,7 @@ func (s *Server) DialZK(ctx context.Context, wg *sync.WaitGroup, c *kafkazk.Conf
 	time.Sleep(zkReadyWait)
 
 	if !zk.Ready() {
-		return fmt.Errorf("Failed to dial ZooKeeper in %s\n", zkReadyWait)
+		return fmt.Errorf("failed to dial ZooKeeper in %s", zkReadyWait)
 	}
 
 	log.Printf("Connected to ZooKeeper: %s\n", c.Connect)
