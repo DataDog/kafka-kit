@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"sort"
 
 	pb "github.com/DataDog/kafka-kit/registry/protos"
 )
@@ -103,6 +104,8 @@ func (t TopicSet) Names() []string {
 	for n := range t {
 		names = append(names, n)
 	}
+
+	sort.Strings(names)
 
 	return names
 }

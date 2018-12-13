@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"sort"
 	"strconv"
 
 	"github.com/DataDog/kafka-kit/kafkazk"
@@ -94,8 +95,16 @@ func (b BrokerSet) IDs() []uint32 {
 		ids = append(ids, id)
 	}
 
+	sort.Sort(idList(ids))
+
 	return ids
 }
+
+type idList []uint32
+
+func (s idList) Len() int           { return len(s) }
+func (s idList) Less(i, j int) bool { return s[i] < s[j] }
+func (s idList) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 func pbBrokerFromMeta(id uint32, b *kafkazk.BrokerMeta) *pb.Broker {
 	ts, _ := strconv.ParseInt(b.Timestamp, 10, 64)
