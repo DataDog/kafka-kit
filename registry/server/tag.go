@@ -42,6 +42,7 @@ func tagSetFromObject(o interface{}) tagSet {
 		b := o.(*pb.Broker)
 		// TODO deal with map types.
 		// ts["listenersecurityprotocolmap"] = b.ListenerSecurityProtocolMap
+		ts["id"] = fmt.Sprintf("%d", b.Id)
 		ts["rack"] = b.Rack
 		ts["jmxport"] = fmt.Sprintf("%d", b.Jmxport)
 		ts["host"] = b.Host

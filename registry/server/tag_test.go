@@ -57,9 +57,144 @@ func TestMatchAll(t *testing.T) {
 	}
 }
 
-// func TestTagSet(t *testing.T) {}
-// func TestFilterTopics(t *testing.T) {}
-// func TestFilterBrokers(t *testing.T) {}
+func TestTagSet(t *testing.T) {
+	tags := tags{"k1:v1", "k2:v2", "k3:v3"}
+
+	ts, err := tags.tagSet()
+	if err != nil {
+		t.Error("Unexpected error")
+	}
+
+	expected := tagSet{
+		"k1": "v1",
+		"k2": "v2",
+		"k3": "v3",
+	}
+
+	if len(ts) != len(expected) {
+		t.Error("Unexpected tagSet size")
+	}
+
+	for k, v := range expected {
+		if ts[k] != v {
+			t.Errorf("Expected value %s for key %s, got %s", v, k, ts[k])
+		}
+	}
+}
+
+func TestFilterTopics(t *testing.T) {
+	th := NewTagHandler()
+
+	topics := TopicSet{
+		"test_topic1": &pb.Topic{
+			Name:        "test_topic1",
+			Partitions:  32,
+			Replication: 3,
+		},
+		"test_topic2": &pb.Topic{
+			Name:        "test_topic2",
+			Partitions:  32,
+			Replication: 2,
+		},
+		"test_topic3": &pb.Topic{
+			Name:        "test_topic3",
+			Partitions:  16,
+			Replication: 2,
+		},
+	}
+
+	expected := map[int][]string{
+		0: []string{"test_topic1", "test_topic2", "test_topic3"},
+		1: []string{"test_topic1", "test_topic2"},
+		2: []string{"test_topic2"},
+	}
+
+	tests := []tags{
+		tags{},
+		tags{"partitions:32"},
+		tags{"partitions:32", "replication:2"},
+	}
+
+	for i, tags := range tests {
+		filtered, err := th.FilterTopics(topics, tags)
+		if err != nil {
+			t.Errorf("Unexpected error: %s", err)
+		}
+
+		if !stringsEqual(filtered.Names(), expected[i]) {
+			t.Errorf("Expected %s, got %s", expected[i], filtered.Names())
+		}
+	}
+}
+
+func stringsEqual(s1, s2 []string) bool {
+	if len(s1) != len(s2) {
+		return false
+	}
+
+	for i := range s1 {
+		if s1[i] != s2[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
+func TestFilterBrokers(t *testing.T) {
+	th := NewTagHandler()
+
+	brokers := BrokerSet{
+		1001: &pb.Broker{
+			Id:   1001,
+			Rack: "rack1",
+		},
+		1002: &pb.Broker{
+			Id:   1002,
+			Rack: "rack2",
+		},
+		1003: &pb.Broker{
+			Id:   1003,
+			Rack: "rack1",
+		},
+	}
+
+	expected := map[int][]uint32{
+		0: []uint32{1001, 1002, 1003},
+		1: []uint32{1001, 1003},
+		2: []uint32{1003},
+	}
+
+	tests := []tags{
+		tags{},
+		tags{"rack:rack1"},
+		tags{"rack:rack1", "id:1003"},
+	}
+
+	for i, tags := range tests {
+		filtered, err := th.FilterBrokers(brokers, tags)
+		if err != nil {
+			t.Errorf("Unexpected error: %s", err)
+		}
+
+		if !intsEqual(filtered.IDs(), expected[i]) {
+			t.Errorf("Expected %v, got %v", expected[i], filtered.IDs())
+		}
+	}
+}
+func intsEqual(s1, s2 []uint32) bool {
+	if len(s1) != len(s2) {
+		return false
+	}
+
+	for i := range s1 {
+		if s1[i] != s2[i] {
+			return false
+		}
+	}
+
+	return true
+}
 
 func TestRestrictedFields(t *testing.T) {
 	rs := restrictedFields()
