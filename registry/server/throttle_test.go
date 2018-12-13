@@ -15,7 +15,7 @@ func TestRequestThrottle(t *testing.T) {
 	ctx, _ := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	expected := []error{nil, nil, nil, ErrRequestThrottleTimeout}
 
-	// Should time out b the 3rd request.
+	// Should time out by the 3rd request.
 	for i := 0; i < 4; i++ {
 		err := rt.Request(ctx)
 		if err != expected[i] {
