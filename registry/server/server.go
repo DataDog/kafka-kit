@@ -18,7 +18,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
-	"google.golang.org/grpc/transport"
 )
 
 const (
@@ -271,10 +270,8 @@ func (s *Server) LogRequest(ctx context.Context, params string, reqID uint64) {
 		}
 	}
 
-	// Get Transport info.
-	if s, ok := transport.StreamFromContext(ctx); ok {
-		method = s.Method()
-	}
+	// Get the gRPC method.
+	method, _ = grpc.Method(ctx)
 
 	log.Printf("[request %d] requestor:%s type:%s method:%s params:%s",
 		reqID, requestor, reqType, method, params)
