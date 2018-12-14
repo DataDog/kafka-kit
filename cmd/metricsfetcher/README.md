@@ -3,7 +3,7 @@
 Metricsfetcher is a simple tool that fetches Kafka broker and partition metrics from the Datadog API and stores it in ZooKeeper. This data is used for the topicmappr [storage placement](https://github.com/DataDog/kafka-kit/tree/master/cmd/topicmappr#placement-strategy) strategy.
 
 # Installation
-- `go get -u github.com/DataDog/kafka-kit/...`
+- `go get github.com/DataDog/kafka-kit/cmd/metricsfetcher`
 
 Binary will be found at `$GOPATH/bin/metricsfetcher`
 

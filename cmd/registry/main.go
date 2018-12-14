@@ -17,9 +17,9 @@ func main() {
 	zkConfig := kafkazk.Config{}
 
 	flag.StringVar(&serverConfig.HTTPListen, "http-listen", "localhost:8080", "Server HTTP listen address")
-	flag.StringVar(&serverConfig.GRPCListen, "grpc-listen", "localhost:1337", "Server gRPC listen address")
-	flag.IntVar(&serverConfig.ReadReqRate, "read-rate-limit", 20, "Read request rate limit (reqs/s)")
-	flag.IntVar(&serverConfig.WriteReqRate, "write-rate-limit", 5, "Write request rate limit (reqs/s)")
+	flag.StringVar(&serverConfig.GRPCListen, "grpc-listen", "localhost:8090", "Server gRPC listen address")
+	flag.IntVar(&serverConfig.ReadReqRate, "read-rate-limit", 5, "Read request rate limit (reqs/s)")
+	flag.IntVar(&serverConfig.WriteReqRate, "write-rate-limit", 1, "Write request rate limit (reqs/s)")
 	flag.StringVar(&zkConfig.Connect, "zk-addr", "localhost:2181", "ZooKeeper connect string")
 	flag.StringVar(&zkConfig.Prefix, "zk-prefix", "", "ZooKeeper prefix (if Kafka is configured with a chroot path prefix)")
 	flag.Parse()

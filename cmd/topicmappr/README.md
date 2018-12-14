@@ -25,7 +25,7 @@ An output of what's changed along with advisory notices (e.g. insufficient broke
 Additional statistical output is included where available. For instance, broker-to-broker relationships are represented as node degree counts (where edges are defined as brokers that belong in a common replica set for any given partition). These values can be used as a probabilistic indicator of replication bandwidth; replacing a broker with more edges will likely replicate from more source brokers than one with fewer edges.
 
 # Installation
-- `go get -u github.com/DataDog/kafka-kit/...`
+- `go get github.com/DataDog/kafka-kit/cmd/topicmappr`
 
 Binary will be found at `$GOPATH/bin/topicmappr`
 
