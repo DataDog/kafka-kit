@@ -3,11 +3,27 @@ package commands
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/DataDog/kafka-kit/kafkazk"
 
 	"github.com/spf13/cobra"
 )
+
+func checkMetaAge(cmd *cobra.Command, zk kafkazk.Handler) {
+	age, err := zk.MaxMetaAge()
+	if err != nil {
+		fmt.Printf("Error fetching metrics metadata: %s\n", err)
+		os.Exit(1)
+	}
+
+	tol, _ := cmd.Flags().GetInt("metrics-age")
+
+	if age > time.Duration(tol)*time.Minute {
+		fmt.Printf("Metrics metadata is older than allowed: %s\n", age)
+		os.Exit(1)
+	}
+}
 
 // getBrokerMeta returns a map of brokers and broker metadata
 // for those registered in ZooKeeper. Optionally, metrics metadata

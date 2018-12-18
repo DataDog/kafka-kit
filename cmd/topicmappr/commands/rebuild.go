@@ -39,6 +39,7 @@ func init() {
 	rebuildCmd.Flags().Float64("partition-size-factor", 1.0, "Factor by which to multiply partition sizes when using storage placement")
 	rebuildCmd.Flags().String("brokers", "", "Broker list to scope all partition placements to")
 	rebuildCmd.Flags().String("zk-metrics-prefix", "topicmappr", "ZooKeeper namespace prefix for Kafka metrics (when using storage placement)")
+	rebuildCmd.Flags().Int("metrics-age", 60, "Kafka metrics age tolerance (in minutes) (when using storage placement)")
 	rebuildCmd.Flags().Bool("skip-no-ops", false, "Skip no-op partition assigments")
 
 	// Required.
@@ -103,6 +104,7 @@ func rebuild(cmd *cobra.Command, _ []string) {
 	// Fetch broker metadata.
 	var withMetrics bool
 	if cmd.Flag("placement").Value.String() == "storage" {
+		checkMetaAge(cmd, zk)
 		withMetrics = true
 	}
 

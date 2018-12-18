@@ -30,7 +30,8 @@ func init() {
 	rebalanceCmd.Flags().Int("partition-limit", 30, "Limit the number of top partitions by size eligible for relocation per broker")
 	rebalanceCmd.Flags().Bool("locality-scoped", true, "Disallow a relocation to traverse rack.id values among brokers")
 	rebalanceCmd.Flags().Bool("verbose", false, "Verbose output")
-	rebalanceCmd.Flags().String("zk-metrics-prefix", "topicmappr", "ZooKeeper namespace prefix for Kafka metrics (when using storage placement)")
+	rebalanceCmd.Flags().String("zk-metrics-prefix", "topicmappr", "ZooKeeper namespace prefix for Kafka metrics")
+	rebalanceCmd.Flags().Int("metrics-age", 60, "Kafka metrics age tolerance (in minutes)")
 	rebalanceCmd.Flags().Bool("optimize-leaders", false, "Perform a naive leadership optimization")
 
 	// Required.
@@ -51,6 +52,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	defer zk.Close()
 
 	// Get broker and partition metadata.
+	checkMetaAge(cmd, zk)
 	brokerMeta := getBrokerMeta(cmd, zk, true)
 	partitionMeta := getPartitionMeta(cmd, zk)
 
