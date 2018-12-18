@@ -49,11 +49,12 @@ func ensureBrokerMetrics(cmd *cobra.Command, bm kafkazk.BrokerMap, bmm kafkazk.B
 // persisted in ZooKeeper (via an external mechanism*). This is
 // primarily partition size metrics data used for the storage
 // placement strategy.
-func getPartitionMeta(cmd *cobra.Command, zk kafkazk.Handler) (kafkazk.PartitionMetaMap, error) {
+func getPartitionMeta(cmd *cobra.Command, zk kafkazk.Handler) kafkazk.PartitionMetaMap {
 	partitionMeta, err := zk.GetAllPartitionMeta()
 	if err != nil {
-		return nil, err
+		fmt.Println(err)
+		os.Exit(1)
 	}
 
-	return partitionMeta, nil
+	return partitionMeta
 }

@@ -52,11 +52,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 
 	// Get broker and partition metadata.
 	brokerMeta := getBrokerMeta(cmd, zk, true)
-	partitionMeta, err := getPartitionMeta(cmd, zk)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+	partitionMeta := getPartitionMeta(cmd, zk)
 
 	// Get the current partition map.
 	partitionMap, err := kafkazk.PartitionMapFromZK(Config.topics, zk)

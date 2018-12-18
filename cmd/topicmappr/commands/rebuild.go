@@ -114,12 +114,7 @@ func rebuild(cmd *cobra.Command, _ []string) {
 	// Fetch partition metadata.
 	var partitionMeta kafkazk.PartitionMetaMap
 	if cmd.Flag("placement").Value.String() == "storage" {
-		var err error
-		partitionMeta, err = getPartitionMeta(cmd, zk)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
+		partitionMeta = getPartitionMeta(cmd, zk)
 	}
 
 	// Build a partition map either from literal map text input or by fetching the

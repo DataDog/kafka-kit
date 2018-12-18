@@ -13,7 +13,6 @@ func partitionMetrics(c *Config) (map[string]map[string]map[string]float64, erro
 		return nil, err
 	}
 
-	// Structure into this abomination.
 	d := map[string]map[string]map[string]float64{}
 
 	for _, ts := range o {
