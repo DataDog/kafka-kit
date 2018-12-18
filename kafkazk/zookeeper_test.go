@@ -54,22 +54,18 @@ func (a byLen) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
 }
 
-// TestSetup is used for long tests that
-// rely on a blank ZooKeeper server listening
-// on localhost:2181. A direct ZooKeeper client
-// is initialized to write test data into ZooKeeper
-// that a Handler interface implementation may be
-// tested against. Any Handler to be tested should
-// also be instantiated here.
-// A usable setup can be done with the official
-// ZooKeeper docker image:
+// TestSetup is used for long tests that rely on a blank ZooKeeper
+// server listening on localhost:2181. A direct ZooKeeper client
+// is initialized to write test data into ZooKeeper that a Handler
+// interface implementation may be tested against. Any Handler to be
+// tested should also be instantiated here. A usable setup can be done
+// with the official ZooKeeper docker image:
 // - $ docker pull zookeeper
 // - $ docker run --rm -d -p 2181:2181 zookeeper
-// While the long tests perform a teardown, it's
-// preferable to run the container with --rm and just
-// using starting a new one for each test run. The removal
-// logic in TestTearDown is quite rudimentary. If any steps fail,
-// subsequent test runs will likely produce errors.
+// While the long tests perform a teardown, it's preferable to run the
+// container with --rm and just using starting a new one for each test
+// run. The removal logic in TestTearDown is quite rudimentary. If any
+// steps fail, subsequent test runs will likely produce errors.
 func TestSetup(t *testing.T) {
 	if !testing.Short() {
 		// Init a direct client.
@@ -478,6 +474,49 @@ func TestGetAllPartitionMeta(t *testing.T) {
 	}
 
 }
+
+// func TestMaxMetaAge(t *testing.T) {
+// 	if testing.Short() {
+// 		t.Skip()
+// 	}
+//
+// 	var m *zkclient.Stat
+// 	var err error
+//
+// 	// Get the lowest Mtime value.
+//
+// 	_, m, err = zkc.Get("/topicmappr/partitionmeta")
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+//
+// 	ts1 := m.Mtime
+//
+// 	_, m, err = zkc.Get("/topicmappr/brokermetrics")
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+//
+// 	ts2 := m.Mtime
+//
+// 	var min int64
+// 	if ts1 < ts2 {
+// 		min = ts1
+// 	} else {
+// 		min = ts2
+// 	}
+//
+// 	// Get the age. TODO this isn't actually comparable this way.
+// 	expected := time.Since(time.Unix(0, min*1000000))
+// 	age, err := zki.MaxMetaAge()
+// 	if err != nil {
+// 		t.Error(err)
+// 	}
+//
+// 	if age != expected {
+// 		t.Errorf("Expected meta age of %s, got %s", expected, age)
+// 	}
+// }
 
 func TestGetTopicState(t *testing.T) {
 	if testing.Short() {

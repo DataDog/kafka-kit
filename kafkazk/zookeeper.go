@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"regexp"
 	"sort"
 	"strconv"
@@ -44,6 +45,8 @@ type Handler interface {
 	Get(string) ([]byte, error)
 	Children(string) ([]string, error)
 	Close()
+	Ready() bool
+	// Kafka specific.
 	GetTopicState(string) (*TopicState, error)
 	GetTopicStateISR(string) (TopicStateISR, error)
 	UpdateKafkaConfig(KafkaConfig) (bool, error)
@@ -52,8 +55,8 @@ type Handler interface {
 	GetTopicConfig(string) (*TopicConfig, error)
 	GetAllBrokerMeta(bool) (BrokerMetaMap, []error)
 	GetAllPartitionMeta() (PartitionMetaMap, error)
+	MaxMetaAge() (time.Duration, error)
 	GetPartitionMap(string) (*PartitionMap, error)
-	Ready() bool
 }
 
 // TopicState is used for unmarshing ZooKeeper json data from a topic:
@@ -176,8 +179,7 @@ func (z *ZKHandler) Close() {
 	z.client.Close()
 }
 
-// Get gets the provided path p and returns the data
-// from the path and an error if encountered.
+// Get returns the data from path p.
 func (z *ZKHandler) Get(p string) ([]byte, error) {
 	r, _, e := z.client.Get(p)
 
@@ -193,8 +195,7 @@ func (z *ZKHandler) Get(p string) ([]byte, error) {
 	return r, nil
 }
 
-// Set sets the provided path p data to the provided
-// string d and returns an error if encountered.
+// Set sets the data at path p.
 func (z *ZKHandler) Set(p string, d string) error {
 	_, e := z.client.Set(p, []byte(d), -1)
 	var err error
@@ -408,7 +409,7 @@ func (z *ZKHandler) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, []error) 
 	if withMetrics {
 		bmetrics, err := z.getBrokerMetrics()
 		if err != nil {
-			return nil, []error{fmt.Errorf("Error fetching broker metrics: %s", err.Error())}
+			return nil, []error{err}
 		}
 
 		// Populate each broker with
@@ -479,6 +480,45 @@ func (z *ZKHandler) GetAllPartitionMeta() (PartitionMetaMap, error) {
 	}
 
 	return pmm, nil
+}
+
+// MaxMetaAge returns the greatest age between the partitionmeta
+// and brokermetrics stuctures.
+func (z *ZKHandler) MaxMetaAge() (time.Duration, error) {
+	var age time.Duration
+	var paths []string
+
+	for _, p := range []string{"partitionmeta", "brokermetrics"} {
+		var path string
+		if z.MetricsPrefix != "" {
+			path = fmt.Sprintf("/%s/%s", z.MetricsPrefix, p)
+		} else {
+			path = fmt.Sprintf("/%s", p)
+		}
+		paths = append(paths, path)
+	}
+
+	var min int64 = math.MaxInt64
+
+	// Get the lowest Mtime (age).
+	for _, p := range paths {
+		_, s, e := z.client.Get(p)
+		if e != nil {
+			switch e {
+			case zkclient.ErrNoNode:
+				return age, ErrNoNode{s: fmt.Sprintf("[%s] %s", p, e.Error())}
+			default:
+				return age, fmt.Errorf("[%s] %s", p, e.Error())
+			}
+		}
+
+		if s.Mtime < min {
+			min = s.Mtime
+			age = time.Since(time.Unix(0, s.Mtime*1000000))
+		}
+	}
+
+	return age, nil
 }
 
 // GetTopicState takes a topic name. If the topic exists,
