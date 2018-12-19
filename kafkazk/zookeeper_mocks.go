@@ -2,6 +2,7 @@ package kafkazk
 
 import (
 	"regexp"
+	"time"
 )
 
 // Mock mocks the Handler interface.
@@ -206,4 +207,9 @@ func (zk *Mock) GetPartitionMap(t string) (*PartitionMap, error) {
 	}
 
 	return p, nil
+}
+
+// MaxMetaAge mocks MaxMetaAge.
+func (zk *Mock) MaxMetaAge() (time.Duration, error) {
+	return time.Since(time.Now()), nil
 }

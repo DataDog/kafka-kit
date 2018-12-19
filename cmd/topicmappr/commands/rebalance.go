@@ -28,9 +28,10 @@ func init() {
 	rebalanceCmd.Flags().Float64("storage-threshold-gb", 0.00, "Storage free in gigabytes to target for partition offload (those below the specified value); 0 [default] defers target selection to --storage-threshold")
 	rebalanceCmd.Flags().Float64("tolerance", 0.10, "Percent distance from the mean storage free to limit storage scheduling (0 targets a brokers)")
 	rebalanceCmd.Flags().Int("partition-limit", 30, "Limit the number of top partitions by size eligible for relocation per broker")
-	rebalanceCmd.Flags().Bool("locality-scoped", true, "Disallow a relocation to traverse rack.id values among brokers")
+	rebalanceCmd.Flags().Bool("locality-scoped", false, "Disallow a relocation to traverse rack.id values among brokers")
 	rebalanceCmd.Flags().Bool("verbose", false, "Verbose output")
-	rebalanceCmd.Flags().String("zk-metrics-prefix", "topicmappr", "ZooKeeper namespace prefix for Kafka metrics (when using storage placement)")
+	rebalanceCmd.Flags().String("zk-metrics-prefix", "topicmappr", "ZooKeeper namespace prefix for Kafka metrics")
+	rebalanceCmd.Flags().Int("metrics-age", 60, "Kafka metrics age tolerance (in minutes)")
 	rebalanceCmd.Flags().Bool("optimize-leaders", false, "Perform a naive leadership optimization")
 
 	// Required.
@@ -51,12 +52,9 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	defer zk.Close()
 
 	// Get broker and partition metadata.
+	checkMetaAge(cmd, zk)
 	brokerMeta := getBrokerMeta(cmd, zk, true)
-	partitionMeta, err := getPartitionMeta(cmd, zk)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+	partitionMeta := getPartitionMeta(cmd, zk)
 
 	// Get the current partition map.
 	partitionMap, err := kafkazk.PartitionMapFromZK(Config.topics, zk)

@@ -77,20 +77,22 @@ Flags:
   -h, --help                          help for rebuild
       --ignore-warns                  Produce a map even if warnings are encountered
       --map-string string             Rebuild a partition map provided as a string literal
+      --metrics-age int               Kafka metrics age tolerance (in minutes) (when using storage placement) (default 60)
       --optimize string               Optimization priority for the storage placement strategy: [distribution, storage] (default "distribution")
       --out-file string               If defined, write a combined map of all topics to a file
       --out-path string               Path to write output map files to
       --partition-size-factor float   Factor by which to multiply partition sizes when using storage placement (default 1)
       --placement string              Partition placement strategy: [count, storage] (default "count")
       --replication int               Normalize the topic replication factor across all replica sets (0 results in a no-op)
+      --skip-no-ops                   Skip no-op partition assigments
       --sub-affinity                  Replacement broker substitution affinity
       --topics string                 Rebuild topics (comma delim. list) by lookup in ZooKeeper
       --use-meta                      Use broker metadata in placement constraints (default true)
       --zk-metrics-prefix string      ZooKeeper namespace prefix for Kafka metrics (when using storage placement) (default "topicmappr")
 
 Global Flags:
-      --zk-addr string     ZooKeeper connect string (for broker metadata or rebuild-topic lookups) (default "localhost:2181")
-      --zk-prefix string   ZooKeeper namespace prefix (for Kafka brokers)
+      --zk-addr string     ZooKeeper connect string [TOPICMAPPR_ZK_ADDR] (default "localhost:2181")
+      --zk-prefix string   ZooKeeper prefix (if Kafka is configured with a chroot path prefix) [TOPICMAPPR_ZK_PREFIX]
 ```
 
 ## rebalance usage
@@ -105,6 +107,7 @@ Flags:
       --brokers string               Broker list to scope all partition placements to
   -h, --help                         help for rebalance
       --locality-scoped              Disallow a relocation to traverse rack.id values among brokers (default true)
+      --metrics-age int              Kafka metrics age tolerance (in minutes) (default 60)
       --optimize-leaders             Perform a naive leadership optimization
       --out-file string              If defined, write a combined map of all topics to a file
       --out-path string              Path to write output map files to
@@ -114,11 +117,11 @@ Flags:
       --tolerance float              Percent distance from the mean storage free to limit storage scheduling (0 targets a brokers) (default 0.1)
       --topics string                Rebuild topics (comma delim. list) by lookup in ZooKeeper
       --verbose                      Verbose output
-      --zk-metrics-prefix string     ZooKeeper namespace prefix for Kafka metrics (when using storage placement) (default "topicmappr")
+      --zk-metrics-prefix string     ZooKeeper namespace prefix for Kafka metrics (default "topicmappr")
 
 Global Flags:
-      --zk-addr string     ZooKeeper connect string (for broker metadata or rebuild-topic lookups) (default "localhost:2181")
-      --zk-prefix string   ZooKeeper namespace prefix (for Kafka brokers)
+      --zk-addr string     ZooKeeper connect string [TOPICMAPPR_ZK_ADDR] (default "localhost:2181")
+      --zk-prefix string   ZooKeeper prefix (if Kafka is configured with a chroot path prefix) [TOPICMAPPR_ZK_PREFIX]
 ```
 
 ## Managing and Repairing Topics
