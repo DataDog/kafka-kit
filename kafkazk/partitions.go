@@ -173,10 +173,10 @@ func (pm *PartitionMap) SimpleLeaderOptimization() {
 // Rebuild takes a BrokerMap and rebuild strategy. It then traverses the
 // partition map, replacing brokers marked removal with the best available
 // candidate based on the selected rebuild strategy. A rebuilt *PartitionMap
-// and []string of errors is returned.
-func (pm *PartitionMap) Rebuild(params RebuildParams) (*PartitionMap, []string) {
+// and []error of errors is returned.
+func (pm *PartitionMap) Rebuild(params RebuildParams) (*PartitionMap, []error) {
 	var newMap *PartitionMap
-	var errs []string
+	var errs []error
 
 	params.pm = pm
 
@@ -208,11 +208,11 @@ func (pm *PartitionMap) Rebuild(params RebuildParams) (*PartitionMap, []string) 
 			newMap.shuffle(func(_ Partition) bool { return true })
 		// Invalid optimization.
 		default:
-			return nil, []string{fmt.Sprintf("Invalid optimization '%s'", params.Optimization)}
+			return nil, []error{fmt.Errorf("Invalid optimization '%s'", params.Optimization)}
 		}
 	// Invalid placement.
 	default:
-		return nil, []string{fmt.Sprintf("Invalid rebuild strategy '%s'", params.Strategy)}
+		return nil, []error{fmt.Errorf("Invalid rebuild strategy '%s'", params.Strategy)}
 	}
 
 	// Final sort.
@@ -228,7 +228,7 @@ func (pm *PartitionMap) Rebuild(params RebuildParams) (*PartitionMap, []string) 
 // partitions, the second pass would be the first follower, and the third
 // pass would be the second follower. This placement pattern is optimal
 // for the count strategy.
-func placeByPosition(params RebuildParams) (*PartitionMap, []string) {
+func placeByPosition(params RebuildParams) (*PartitionMap, []error) {
 	newMap := NewPartitionMap()
 
 	// We need a filtered list for usage sorting and exclusion
@@ -242,7 +242,7 @@ func placeByPosition(params RebuildParams) (*PartitionMap, []string) {
 
 	bl := params.BM.Filter(f).List()
 
-	var errs []string
+	var errs []error
 	var pass int
 
 	// Check if we need more passes.
@@ -301,8 +301,8 @@ func placeByPosition(params RebuildParams) (*PartitionMap, []string) {
 				if params.Strategy == "storage" {
 					s, err := params.PMM.Size(partn)
 					if err != nil {
-						errString := fmt.Sprintf("%s p%d: %s", partn.Topic, partn.Partition, err.Error())
-						errs = append(errs, errString)
+						e := fmt.Errorf("%s p%d: %s", partn.Topic, partn.Partition, err.Error())
+						errs = append(errs, e)
 						continue
 					}
 
@@ -336,8 +336,8 @@ func placeByPosition(params RebuildParams) (*PartitionMap, []string) {
 
 				if err != nil {
 					// Append any caught errors.
-					errString := fmt.Sprintf("%s p%d: %s", partn.Topic, partn.Partition, err.Error())
-					errs = append(errs, errString)
+					e := fmt.Errorf("%s p%d: %s", partn.Topic, partn.Partition, err.Error())
+					errs = append(errs, e)
 					continue
 				}
 
@@ -355,8 +355,8 @@ func placeByPosition(params RebuildParams) (*PartitionMap, []string) {
 	// replica sets were somehow set to 0.
 	for _, partn := range newMap.Partitions {
 		if len(partn.Replicas) == 0 {
-			errString := fmt.Sprintf("%s p%d: configured to zero replicas", partn.Topic, partn.Partition)
-			errs = append(errs, errString)
+			e := fmt.Errorf("%s p%d: configured to zero replicas", partn.Topic, partn.Partition)
+			errs = append(errs, e)
 		}
 	}
 
@@ -364,7 +364,7 @@ func placeByPosition(params RebuildParams) (*PartitionMap, []string) {
 	return newMap, errs
 }
 
-func placeByPartition(params RebuildParams) (*PartitionMap, []string) {
+func placeByPartition(params RebuildParams) (*PartitionMap, []error) {
 	newMap := NewPartitionMap()
 
 	// We need a filtered list for usage sorting and exclusion
@@ -378,7 +378,7 @@ func placeByPartition(params RebuildParams) (*PartitionMap, []string) {
 
 	bl := params.BM.Filter(f).List()
 
-	var errs []string
+	var errs []error
 
 	for _, partn := range params.pm.Partitions {
 		// Create the partition in
@@ -419,8 +419,8 @@ func placeByPartition(params RebuildParams) (*PartitionMap, []string) {
 				if params.Strategy == "storage" {
 					s, err := params.PMM.Size(partn)
 					if err != nil {
-						errString := fmt.Sprintf("%s p%d: %s", partn.Topic, partn.Partition, err.Error())
-						errs = append(errs, errString)
+						e := fmt.Errorf("%s p%d: %s", partn.Topic, partn.Partition, err.Error())
+						errs = append(errs, e)
 						continue
 					}
 
@@ -432,8 +432,8 @@ func placeByPartition(params RebuildParams) (*PartitionMap, []string) {
 
 				if err != nil {
 					// Append any caught errors.
-					errString := fmt.Sprintf("%s p%d: %s", partn.Topic, partn.Partition, err.Error())
-					errs = append(errs, errString)
+					e := fmt.Errorf("%s p%d: %s", partn.Topic, partn.Partition, err.Error())
+					errs = append(errs, e)
 					continue
 				}
 
@@ -450,8 +450,8 @@ func placeByPartition(params RebuildParams) (*PartitionMap, []string) {
 	// replica sets were somehow set to 0.
 	for _, partn := range newMap.Partitions {
 		if len(partn.Replicas) == 0 {
-			errString := fmt.Sprintf("%s p%d: configured to zero replicas", partn.Topic, partn.Partition)
-			errs = append(errs, errString)
+			e := fmt.Errorf("%s p%d: configured to zero replicas", partn.Topic, partn.Partition)
+			errs = append(errs, e)
 		}
 	}
 
