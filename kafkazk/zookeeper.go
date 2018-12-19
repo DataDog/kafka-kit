@@ -485,7 +485,17 @@ func (z *ZKHandler) GetAllPartitionMeta() (PartitionMetaMap, error) {
 // MaxMetaAge returns the greatest age between the partitionmeta
 // and brokermetrics stuctures.
 func (z *ZKHandler) MaxMetaAge() (time.Duration, error) {
-	var age time.Duration
+	t, err := z.oldestMetaTs()
+	if err != nil {
+		return time.Nanosecond, err
+	}
+
+	return time.Since(time.Unix(0, t)), nil
+}
+
+// oldestMetaTs returns returns the oldest unix epoch ns between
+// partitionmeta and brokermetrics stuctures.
+func (z *ZKHandler) oldestMetaTs() (int64, error) {
 	var paths []string
 
 	for _, p := range []string{"partitionmeta", "brokermetrics"} {
@@ -499,26 +509,28 @@ func (z *ZKHandler) MaxMetaAge() (time.Duration, error) {
 	}
 
 	var min int64 = math.MaxInt64
+	var ts int64
 
-	// Get the lowest Mtime (age).
+	// Get the lowest Mtime (ts).
 	for _, p := range paths {
 		_, s, e := z.client.Get(p)
 		if e != nil {
 			switch e {
 			case zkclient.ErrNoNode:
-				return age, ErrNoNode{s: fmt.Sprintf("[%s] %s", p, e.Error())}
+				return 0, ErrNoNode{s: fmt.Sprintf("[%s] %s", p, e.Error())}
 			default:
-				return age, fmt.Errorf("[%s] %s", p, e.Error())
+				return 0, fmt.Errorf("[%s] %s", p, e.Error())
 			}
 		}
 
 		if s.Mtime < min {
 			min = s.Mtime
-			age = time.Since(time.Unix(0, s.Mtime*1000000))
+			// To ns.
+			ts = s.Mtime * 1000000
 		}
 	}
 
-	return age, nil
+	return ts, nil
 }
 
 // GetTopicState takes a topic name. If the topic exists,

@@ -54,6 +54,24 @@ func (a byLen) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
 }
 
+// rawHandler is used for testing unexported ZKHandler
+// methods that are not part of the Handler interface.
+func rawHandler(c *Config) (*ZKHandler, error) {
+	z := &ZKHandler{
+		Connect:       c.Connect,
+		Prefix:        c.Prefix,
+		MetricsPrefix: c.MetricsPrefix,
+	}
+
+	var err error
+	z.client, _, err = zkclient.Connect([]string{z.Connect}, 10*time.Second, zkclient.WithLogInfo(false))
+	if err != nil {
+		return nil, err
+	}
+
+	return z, nil
+}
+
 // TestSetup is used for long tests that rely on a blank ZooKeeper
 // server listening on localhost:2181. A direct ZooKeeper client
 // is initialized to write test data into ZooKeeper that a Handler
@@ -475,48 +493,64 @@ func TestGetAllPartitionMeta(t *testing.T) {
 
 }
 
-// func TestMaxMetaAge(t *testing.T) {
-// 	if testing.Short() {
-// 		t.Skip()
-// 	}
-//
-// 	var m *zkclient.Stat
-// 	var err error
-//
-// 	// Get the lowest Mtime value.
-//
-// 	_, m, err = zkc.Get("/topicmappr/partitionmeta")
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-//
-// 	ts1 := m.Mtime
-//
-// 	_, m, err = zkc.Get("/topicmappr/brokermetrics")
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-//
-// 	ts2 := m.Mtime
-//
-// 	var min int64
-// 	if ts1 < ts2 {
-// 		min = ts1
-// 	} else {
-// 		min = ts2
-// 	}
-//
-// 	// Get the age. TODO this isn't actually comparable this way.
-// 	expected := time.Since(time.Unix(0, min*1000000))
-// 	age, err := zki.MaxMetaAge()
-// 	if err != nil {
-// 		t.Error(err)
-// 	}
-//
-// 	if age != expected {
-// 		t.Errorf("Expected meta age of %s, got %s", expected, age)
-// 	}
-// }
+func TestOldestMetaTs(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	// Init a ZKHandler.
+	var configPrefix string
+	if len(zkprefix) > 0 {
+		configPrefix = zkprefix[1:]
+	} else {
+		configPrefix = ""
+	}
+
+	zkr, err := rawHandler(&Config{
+		Connect:       zkaddr,
+		Prefix:        configPrefix,
+		MetricsPrefix: "topicmappr",
+	})
+	if err != nil {
+		t.Errorf("Error initializing ZooKeeper client: %s", err)
+	}
+
+	var m *zkclient.Stat
+
+	// Get the lowest Mtime value.
+
+	_, m, err = zkc.Get("/topicmappr/partitionmeta")
+	if err != nil {
+		t.Error(err)
+	}
+
+	ts1 := m.Mtime
+
+	_, m, err = zkc.Get("/topicmappr/brokermetrics")
+	if err != nil {
+		t.Error(err)
+	}
+
+	ts2 := m.Mtime
+
+	var min int64
+	if ts1 < ts2 {
+		min = ts1
+	} else {
+		min = ts2
+	}
+
+	// Get the ts.
+	expected := min * 1000000
+	age, err := zkr.oldestMetaTs()
+	if err != nil {
+		t.Error(err)
+	}
+
+	if age != expected {
+		t.Errorf("Expected meta ts of %d, got %d", expected, age)
+	}
+}
 
 func TestGetTopicState(t *testing.T) {
 	if testing.Short() {
