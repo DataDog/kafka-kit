@@ -51,7 +51,7 @@ type planRelocationsForBrokerParams struct {
 	plan               relocationPlan
 	pass               int
 	topPartitionsLimit int
-	offloadTargetsMap  map[int]interface{}
+	offloadTargetsMap  map[int]struct{}
 }
 
 // relocationPlan is a mapping of topic,

@@ -15,9 +15,9 @@ import (
 // printTopics takes a partition map and prints out
 // the names of all topics referenced in the map.
 func printTopics(pm *kafkazk.PartitionMap) {
-	topics := map[string]interface{}{}
+	topics := map[string]struct{}{}
 	for _, p := range pm.Partitions {
-		topics[p.Topic] = nil
+		topics[p.Topic] = struct{}{}
 	}
 
 	fmt.Printf("\nTopics:\n")

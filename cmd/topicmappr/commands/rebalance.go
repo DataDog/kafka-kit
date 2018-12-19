@@ -84,9 +84,9 @@ func rebalance(cmd *cobra.Command, _ []string) {
 
 	partitionLimit, _ := cmd.Flags().GetInt("partition-limit")
 
-	otm := map[int]interface{}{}
+	otm := map[int]struct{}{}
 	for _, id := range offloadTargets {
-		otm[id] = nil
+		otm[id] = struct{}{}
 	}
 
 	// Bundle planRelocationsForBrokerParams.

@@ -141,12 +141,12 @@ func (pm *PartitionMap) SimpleLeaderOptimization() {
 	// Brute force with multiple iterations.
 	for i := 0; i < len(pm.Partitions); i++ {
 		avg := t / float64(len(stats))
-		belowAvg := map[int]interface{}{}
+		belowAvg := map[int]struct{}{}
 
 		// Get IDs below avg. leadership counts.
 		for _, b := range stats {
 			if float64(b.Leader) == 0 || (avg-float64(b.Leader))/avg > 0.40 {
-				belowAvg[b.ID] = nil
+				belowAvg[b.ID] = struct{}{}
 			}
 		}
 
