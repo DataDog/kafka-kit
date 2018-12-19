@@ -3,7 +3,6 @@ package commands
 import (
 	"fmt"
 	"os"
-	"sort"
 
 	"github.com/DataDog/kafka-kit/kafkazk"
 
@@ -154,35 +153,21 @@ func rebuild(cmd *cobra.Command, _ []string) {
 
 	// Build a new map using the provided list of brokers.
 	// This is OK to run even when a no-op is intended.
-	partitionMapOut, warns := buildMap(cmd, partitionMapIn, partitionMeta, brokers, affinities)
+	partitionMapOut, errs := buildMap(cmd, partitionMapIn, partitionMeta, brokers, affinities)
 
 	// Count missing brokers as a warning.
 	if bs.Missing > 0 {
-		warns = append(warns, fmt.Errorf("%d provided brokers not found in ZooKeeper\n", bs.Missing))
+		errs = append(errs, fmt.Errorf("%d provided brokers not found in ZooKeeper\n", bs.Missing))
 	}
 
 	// Print map change results.
 	printMapChanges(originalMap, partitionMapOut)
 
-	// Print warnings.
-	fmt.Println("\nWARN:")
-	if len(warns) > 0 {
-		sort.Sort(errors(warns))
-		for _, e := range warns {
-			fmt.Printf("%s%s\n", indent, e)
-		}
-	} else {
-		fmt.Printf("%s[none]\n", indent)
-	}
-
-	iw, _ := cmd.Flags().GetBool("ignore-warns")
-	if !iw && len(warns) > 0 {
-		fmt.Printf("\n%sWarnings encountered, partition map not created. Override with --ignore-warns.\n", indent)
-		os.Exit(1)
-	}
-
 	// Print broker assignment statistics.
 	printBrokerAssignmentStats(cmd, originalMap, partitionMapOut, brokersOrig, brokers)
+
+	// Print error/warnings.
+	printErrs(cmd, errs)
 
 	// Skip no-ops if configured.
 	if sno, _ := cmd.Flags().GetBool("skip-no-ops"); sno {

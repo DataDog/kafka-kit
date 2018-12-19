@@ -133,7 +133,10 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	printMapChanges(partitionMapOrig, partitionMap)
 
 	// Print broker assignment statistics.
-	printBrokerAssignmentStats(cmd, partitionMapOrig, partitionMap, brokersOrig, brokers)
+	errs := printBrokerAssignmentStats(cmd, partitionMapOrig, partitionMap, brokersOrig, brokers)
+
+	// Print error/warnings.
+	printErrs(cmd, errs)
 
 	// Ignore no-ops; rebalances will naturally have
 	// a high percentage of these.

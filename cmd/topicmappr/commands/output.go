@@ -65,7 +65,9 @@ func printMapChanges(pm1, pm2 *kafkazk.PartitionMap) {
 // printBrokerAssignmentStats prints before and after broker usage stats,
 // such as leadership counts, total partitions owned, degree distribution,
 // and changes in storage usage.
-func printBrokerAssignmentStats(cmd *cobra.Command, pm1, pm2 *kafkazk.PartitionMap, bm1, bm2 kafkazk.BrokerMap) {
+func printBrokerAssignmentStats(cmd *cobra.Command, pm1, pm2 *kafkazk.PartitionMap, bm1, bm2 kafkazk.BrokerMap) errors {
+	var errs errors
+
 	fmt.Println("\nBroker distribution:")
 
 	// Get general info.
@@ -133,6 +135,9 @@ func printBrokerAssignmentStats(cmd *cobra.Command, pm1, pm2 *kafkazk.PartitionM
 		// Range before/after.
 		r1, r2 := mb1.StorageRange(), mb2.StorageRange()
 		fmt.Printf("%srange: %.2fGB -> %.2fGB\n", indent, r1/div, r2/div)
+		if r2 > r1 {
+			errs = append(errs, fmt.Errorf("broker free storage range increased"))
+		}
 
 		// Range spread before/after.
 		rs1, rs2 := mb1.StorageRangeSpread(), mb2.StorageRangeSpread()
@@ -177,6 +182,8 @@ func printBrokerAssignmentStats(cmd *cobra.Command, pm1, pm2 *kafkazk.PartitionM
 				indent, id, originalStorage, newStorage, diff[0]/div, diff[1], replace)
 		}
 	}
+
+	return errs
 }
 
 // skipReassignmentNoOps removes no-op partition map changes
@@ -233,6 +240,24 @@ func writeMaps(cmd *cobra.Command, pm *kafkazk.PartitionMap) {
 		} else {
 			fmt.Printf("%s%s%s.json\n", indent, op, t)
 		}
+	}
+}
+
+func printErrs(cmd *cobra.Command, e errors) {
+	fmt.Println("\nWARN:")
+	if len(e) > 0 {
+		sort.Sort(e)
+		for _, err := range e {
+			fmt.Printf("%s%s\n", indent, err)
+		}
+	} else {
+		fmt.Printf("%s[none]\n", indent)
+	}
+
+	iw, _ := cmd.Flags().GetBool("ignore-warns")
+	if !iw && len(e) > 0 {
+		fmt.Printf("\n%sWarnings encountered, partition map not created. Override with --ignore-warns.\n", indent)
+		os.Exit(1)
 	}
 }
 
