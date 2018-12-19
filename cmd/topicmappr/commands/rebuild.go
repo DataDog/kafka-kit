@@ -30,7 +30,6 @@ func init() {
 	rebuildCmd.Flags().Bool("use-meta", true, "Use broker metadata in placement constraints")
 	rebuildCmd.Flags().String("out-path", "", "Path to write output map files to")
 	rebuildCmd.Flags().String("out-file", "", "If defined, write a combined map of all topics to a file")
-	rebuildCmd.Flags().Bool("ignore-warns", false, "Produce a map even if warnings are encountered")
 	rebuildCmd.Flags().Bool("force-rebuild", false, "Forces a complete map rebuild")
 	rebuildCmd.Flags().Int("replication", 0, "Normalize the topic replication factor across all replica sets (0 results in a no-op)")
 	rebuildCmd.Flags().Bool("sub-affinity", false, "Replacement broker substitution affinity")
@@ -159,14 +158,16 @@ func rebuild(cmd *cobra.Command, _ []string) {
 
 	// Count missing brokers as a warning.
 	if bs.Missing > 0 {
-		w := fmt.Sprintf("%d provided brokers not found in ZooKeeper\n", bs.Missing)
-		warns = append(warns, w)
+		warns = append(warns, fmt.Errorf("%d provided brokers not found in ZooKeeper\n", bs.Missing))
 	}
+
+	// Print map change results.
+	printMapChanges(originalMap, partitionMapOut)
 
 	// Print warnings.
 	fmt.Println("\nWARN:")
 	if len(warns) > 0 {
-		sort.Strings(warns)
+		sort.Sort(errors(warns))
 		for _, e := range warns {
 			fmt.Printf("%s%s\n", indent, e)
 		}
@@ -174,8 +175,11 @@ func rebuild(cmd *cobra.Command, _ []string) {
 		fmt.Printf("%s[none]\n", indent)
 	}
 
-	// Print map change results.
-	printMapChanges(originalMap, partitionMapOut)
+	iw, _ := cmd.Flags().GetBool("ignore-warns")
+	if !iw && len(warns) > 0 {
+		fmt.Printf("\n%sWarnings encountered, partition map not created. Override with --ignore-warns.\n", indent)
+		os.Exit(1)
+	}
 
 	// Print broker assignment statistics.
 	printBrokerAssignmentStats(cmd, originalMap, partitionMapOut, brokersOrig, brokers)
@@ -183,13 +187,6 @@ func rebuild(cmd *cobra.Command, _ []string) {
 	// Skip no-ops if configured.
 	if sno, _ := cmd.Flags().GetBool("skip-no-ops"); sno {
 		originalMap, partitionMapOut = skipReassignmentNoOps(originalMap, partitionMapOut)
-	}
-
-	// If no warnings were encountered, write out the output partition map(s).
-	iw, _ := cmd.Flags().GetBool("ignore-warns")
-	if !iw && len(warns) > 0 {
-		fmt.Printf("\n%sWarnings encountered, partition map not created. Override with --ignore-warns.\n", indent)
-		os.Exit(1)
 	}
 
 	writeMaps(cmd, partitionMapOut)

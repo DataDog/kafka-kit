@@ -12,6 +12,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type errors []error
+
+func (e errors) Len() int           { return len(e) }
+func (e errors) Less(i, j int) bool { return e[i].Error() < e[j].Error() }
+func (e errors) Swap(i, j int)      { e[i], e[j] = e[j], e[i] }
+
 // printTopics takes a partition map and prints out
 // the names of all topics referenced in the map.
 func printTopics(pm *kafkazk.PartitionMap) {

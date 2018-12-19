@@ -155,7 +155,7 @@ func updateReplicationFactor(cmd *cobra.Command, pm *kafkazk.PartitionMap) {
 // buildMap takes an input PartitionMap, rebuild parameters, and all partition/broker
 // metadata structures required to generate the output PartitionMap. A []string of
 // warnings / advisories is returned if any are encountered.
-func buildMap(cmd *cobra.Command, pm *kafkazk.PartitionMap, pmm kafkazk.PartitionMetaMap, bm kafkazk.BrokerMap, af kafkazk.SubstitutionAffinities) (*kafkazk.PartitionMap, []string) {
+func buildMap(cmd *cobra.Command, pm *kafkazk.PartitionMap, pmm kafkazk.PartitionMetaMap, bm kafkazk.BrokerMap, af kafkazk.SubstitutionAffinities) (*kafkazk.PartitionMap, []error) {
 	placement := cmd.Flag("placement").Value.String()
 	psf, _ := cmd.Flags().GetFloat64("partition-size-factor")
 
