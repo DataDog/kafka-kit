@@ -243,7 +243,11 @@ func writeMaps(cmd *cobra.Command, pm *kafkazk.PartitionMap) {
 	}
 }
 
-func printErrs(cmd *cobra.Command, e errors) {
+// handleOverridableErrs handles errors that can be optionally ignored
+// by the user (hence being referred to as 'WARN' in the
+// CLI). If --ignore-warns is false (default), any errors passed
+// here will cause an exit(1).
+func handleOverridableErrs(cmd *cobra.Command, e errors) {
 	fmt.Println("\nWARN:")
 	if len(e) > 0 {
 		sort.Sort(e)

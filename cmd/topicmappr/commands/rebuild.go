@@ -157,7 +157,7 @@ func rebuild(cmd *cobra.Command, _ []string) {
 
 	// Count missing brokers as a warning.
 	if bs.Missing > 0 {
-		errs = append(errs, fmt.Errorf("%d provided brokers not found in ZooKeeper\n", bs.Missing))
+		errs = append(errs, fmt.Errorf("%d provided brokers not found in ZooKeeper", bs.Missing))
 	}
 
 	// Print map change results.
@@ -167,7 +167,7 @@ func rebuild(cmd *cobra.Command, _ []string) {
 	printBrokerAssignmentStats(cmd, originalMap, partitionMapOut, brokersOrig, brokers)
 
 	// Print error/warnings.
-	printErrs(cmd, errs)
+	handleOverridableErrs(cmd, errs)
 
 	// Skip no-ops if configured.
 	if sno, _ := cmd.Flags().GetBool("skip-no-ops"); sno {
