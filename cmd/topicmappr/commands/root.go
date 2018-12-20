@@ -25,4 +25,5 @@ func Execute() {
 func init() {
 	rootCmd.PersistentFlags().String("zk-addr", "localhost:2181", "ZooKeeper connect string")
 	rootCmd.PersistentFlags().String("zk-prefix", "", "ZooKeeper prefix (if Kafka is configured with a chroot path prefix)")
+	rootCmd.PersistentFlags().Bool("ignore-warns", false, "Produce a map even if warnings are encountered")
 }

@@ -84,9 +84,9 @@ func rebalance(cmd *cobra.Command, _ []string) {
 
 	partitionLimit, _ := cmd.Flags().GetInt("partition-limit")
 
-	otm := map[int]interface{}{}
+	otm := map[int]struct{}{}
 	for _, id := range offloadTargets {
-		otm[id] = nil
+		otm[id] = struct{}{}
 	}
 
 	// Bundle planRelocationsForBrokerParams.
@@ -133,7 +133,12 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	printMapChanges(partitionMapOrig, partitionMap)
 
 	// Print broker assignment statistics.
-	printBrokerAssignmentStats(cmd, partitionMapOrig, partitionMap, brokersOrig, brokers)
+	errs := printBrokerAssignmentStats(cmd, partitionMapOrig, partitionMap, brokersOrig, brokers)
+
+	// Handle errors that are possible
+	// to be overridden by the user (aka
+	// 'WARN' in topicmappr console output).
+	handleOverridableErrs(cmd, errs)
 
 	// Ignore no-ops; rebalances will naturally have
 	// a high percentage of these.

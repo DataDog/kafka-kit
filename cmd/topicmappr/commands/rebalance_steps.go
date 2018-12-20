@@ -51,7 +51,7 @@ type planRelocationsForBrokerParams struct {
 	plan               relocationPlan
 	pass               int
 	topPartitionsLimit int
-	offloadTargetsMap  map[int]interface{}
+	offloadTargetsMap  map[int]struct{}
 }
 
 // relocationPlan is a mapping of topic,
@@ -385,6 +385,8 @@ func applyRelocationPlan(cmd *cobra.Command, pm *kafkazk.PartitionMap, plan relo
 }
 
 func printPlannedRelocations(targets []int, relos map[int][]relocation, pmm kafkazk.PartitionMetaMap) {
+	var total float64
+
 	for _, id := range targets {
 		fmt.Printf("\nBroker %d relocations planned:\n", id)
 
@@ -395,10 +397,13 @@ func printPlannedRelocations(targets []int, relos map[int][]relocation, pmm kafk
 
 		for _, r := range relos[id] {
 			pSize, _ := pmm.Size(r.partition)
-			fmt.Printf("%s%s[%.2fGB] %s p%d -> %d\n",
-				indent, indent, pSize/div, r.partition.Topic, r.partition.Partition, r.destination)
+			total += pSize / div
+			fmt.Printf("%s[%.2fGB] %s p%d -> %d\n",
+				indent, pSize/div, r.partition.Topic, r.partition.Partition, r.destination)
 		}
 	}
+	fmt.Printf("%s-\n", indent)
+	fmt.Printf("%sTotal relocation volume: %.2fGB\n", indent, total)
 }
 
 func absDistance(x, t float64) float64 {
