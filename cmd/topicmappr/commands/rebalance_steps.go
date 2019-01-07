@@ -317,7 +317,7 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 			if verbose {
 				fmt.Printf("%sCannot move partition from target: "+
 					"expected storage free %.2fGB above tolerated threshold of %.2fGB\n",
-					indent, destFree/div, sLim/div)
+					indent, sourceFree/div, sLim/div)
 			}
 
 			continue
