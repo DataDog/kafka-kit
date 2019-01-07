@@ -10,6 +10,8 @@ import (
 
 	"github.com/DataDog/kafka-kit/kafkazk"
 	"github.com/DataDog/kafka-kit/registry/server"
+
+	"github.com/jamiealquiza/envy"
 )
 
 func main() {
@@ -22,6 +24,8 @@ func main() {
 	flag.IntVar(&serverConfig.WriteReqRate, "write-rate-limit", 1, "Write request rate limit (reqs/s)")
 	flag.StringVar(&zkConfig.Connect, "zk-addr", "localhost:2181", "ZooKeeper connect string")
 	flag.StringVar(&zkConfig.Prefix, "zk-prefix", "", "ZooKeeper prefix (if Kafka is configured with a chroot path prefix)")
+
+	envy.Parse("REGISTRY")
 	flag.Parse()
 
 	log.Println("Registry running")
