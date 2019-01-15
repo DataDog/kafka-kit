@@ -7,12 +7,17 @@ import (
 	"regexp"
 	"sort"
 
+	"github.com/DataDog/kafka-kit/kafkazk"
 	pb "github.com/DataDog/kafka-kit/registry/protos"
 )
 
 var (
 	// ErrFetchingTopics error.
-	ErrFetchingTopics = errors.New("Error fetching topics")
+	ErrFetchingTopics = errors.New("error fetching topics")
+	// ErrTopicNotExist error.
+	ErrTopicNotExist = errors.New("topic does not exist")
+	// ErrTopicNameEmpty error.
+	ErrTopicNameEmpty = errors.New("topic Name field must be specified")
 	// Misc.
 	tregex = regexp.MustCompile(".*")
 )
@@ -58,6 +63,49 @@ func (s *Server) ListTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topi
 
 	// Populate the response Names field.
 	resp := &pb.TopicResponse{Names: topics.Names()}
+
+	return resp, nil
+}
+
+// TopicMappings returns all broker IDs that hold at least one partition for
+// the requested topic. The topic is specified in the TopicRequest.Name
+// field.
+func (s *Server) TopicMappings(ctx context.Context, req *pb.TopicRequest) (*pb.BrokerResponse, error) {
+	if err := s.ValidateRequest(ctx, req, readRequest); err != nil {
+		return nil, err
+	}
+
+	if req.Name == "" {
+		return nil, ErrTopicNameEmpty
+	}
+
+	// Get a kafkazk.PartitionMap for the topic.
+	pm, err := s.ZK.GetPartitionMap(req.Name)
+	if err != nil {
+		switch err.(type) {
+		case kafkazk.ErrNoNode:
+			return nil, ErrTopicNotExist
+		default:
+			return nil, err
+		}
+	}
+
+	// Get a kafkazk.BrokerMap from the PartitionMap.
+	bm := kafkazk.BrokerMapFromPartitionMap(pm, nil, false)
+
+	// Get all brokers as a []int of IDs.
+	allf := func(*kafkazk.Broker) bool { return true }
+	bl := bm.Filter(allf).List()
+	bl.SortByID()
+
+	var ids []uint32
+
+	// Populate broker IDs.
+	for _, b := range bl {
+		ids = append(ids, uint32(b.ID))
+	}
+
+	resp := &pb.BrokerResponse{Ids: ids}
 
 	return resp, nil
 }

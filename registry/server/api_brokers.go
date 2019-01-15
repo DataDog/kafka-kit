@@ -12,7 +12,7 @@ import (
 
 var (
 	// ErrFetchingBrokers error.
-	ErrFetchingBrokers = errors.New("Error fetching brokers")
+	ErrFetchingBrokers = errors.New("error fetching brokers")
 )
 
 // BrokerSet is a mapping of broker IDs to *pb.Broker.
