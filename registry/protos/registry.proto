@@ -50,6 +50,18 @@ service Registry {
       get: "/v1/topics/list"
     };
   }
+
+  rpc TopicMappings (TopicRequest) returns (BrokerResponse) {
+    option (google.api.http) = {
+      get: "/v1/mappings/topic/{name}"
+    };
+  }
+
+  // rpc BrokerMappings (BrokerRequest) returns (TopicResponse) {
+  //   option (google.api.http) = {
+  //     get: "/v1/mappings/broker/{id}"
+  //   };
+  // }
 }
 
 /**********
