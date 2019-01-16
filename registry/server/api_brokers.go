@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"regexp"
 	"sort"
 	"strconv"
 
@@ -12,7 +13,11 @@ import (
 
 var (
 	// ErrFetchingBrokers error.
-	ErrFetchingBrokers = errors.New("Error fetching brokers")
+	ErrFetchingBrokers = errors.New("error fetching brokers")
+	// ErrBrokerNotExist error.
+	ErrBrokerNotExist = errors.New("broker does not exist")
+	// ErrBrokerIDEmpty error.
+	ErrBrokerIDEmpty = errors.New("broker Id field must be specified")
 )
 
 // BrokerSet is a mapping of broker IDs to *pb.Broker.
@@ -58,6 +63,76 @@ func (s *Server) ListBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.Br
 	resp := &pb.BrokerResponse{Ids: brokers.IDs()}
 
 	return resp, nil
+}
+
+// BrokerMappings returns all topic names that have at least one partition
+// held by the requested broker. The broker is specified in the BrokerRequest.ID
+// field.
+func (s *Server) BrokerMappings(ctx context.Context, req *pb.BrokerRequest) (*pb.TopicResponse, error) {
+	if err := s.ValidateRequest(ctx, req, readRequest); err != nil {
+		return nil, err
+	}
+
+	if req.Id == 0 {
+		return nil, ErrBrokerIDEmpty
+	}
+
+	// Get a kafkazk.BrokerMetaMap.
+	bm, err := s.ZK.GetAllBrokerMeta(false)
+	if err != nil {
+		return nil, ErrFetchingBrokers
+	}
+
+	// Check if the broker exists.
+	if _, ok := bm[int(req.Id)]; !ok {
+		return nil, ErrBrokerNotExist
+	}
+
+	// Get all topic names.
+	ts, errs := s.ZK.GetTopics([]*regexp.Regexp{regexp.MustCompile(".*")})
+	if errs != nil {
+		return nil, ErrFetchingTopics
+	}
+
+	// Get a kafkazk.PartitionMap for each topic.
+	var pms []*kafkazk.PartitionMap
+	for _, p := range ts {
+		pm, err := s.ZK.GetPartitionMap(p)
+		if err != nil {
+			return nil, err
+		}
+		pms = append(pms, pm)
+	}
+
+	// Build a mapping of brokers to topics. This is structured
+	// as a map[<broker ID>]map[<topic name>]struct{}.
+	var bmapping = make(map[int]map[string]struct{})
+
+	for _, pm := range pms {
+		// For each PartitionMap, get a kafkazk.BrokerMap.
+		bm := kafkazk.BrokerMapFromPartitionMap(pm, nil, false)
+
+		// Add the topic name to each broker's topic set.
+		name := pm.Partitions[0].Topic
+
+		for id := range bm {
+			if bmapping[id] == nil {
+				bmapping[id] = map[string]struct{}{}
+			}
+			bmapping[id][name] = struct{}{}
+		}
+	}
+
+	// Get a []string of topic names where at least one
+	// partition is held by the requested broker.
+	names := []string{}
+	for n := range bmapping[int(req.Id)] {
+		names = append(names, n)
+	}
+
+	sort.Strings(names)
+
+	return &pb.TopicResponse{Names: names}, nil
 }
 
 // fetchBrokerSet fetches metadata for all brokers.

@@ -50,6 +50,25 @@ service Registry {
       get: "/v1/topics/list"
     };
   }
+
+  // TopicMappings returns a BrokerResponse with the ids field
+  // populated with broker IDs that hold at least one partition
+  // for the requested topic. The topic is specified in the
+  // TopicRequest.name field.
+  rpc TopicMappings (TopicRequest) returns (BrokerResponse) {
+    option (google.api.http) = {
+      get: "/v1/mappings/topic/{name}"
+    };
+  }
+
+  // BrokerMappings returns a TopicResponse with the names field
+  // populated with topics that the broker holds at least one partition
+  // for. The broker is specified in the BrokerRequest.id field.
+  rpc BrokerMappings (BrokerRequest) returns (TopicResponse) {
+    option (google.api.http) = {
+      get: "/v1/mappings/broker/{id}"
+    };
+  }
 }
 
 /**********
