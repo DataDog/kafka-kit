@@ -1,10 +1,10 @@
 package server
 
-func mockServer() *Server {
+func testServer() *Server {
 	s, _ := NewServer(Config{
 		ReadReqRate:  1,
 		WriteReqRate: 1,
-		mock:         true,
+		test:         true,
 	})
 
 	s.DialZK(nil, nil, nil)

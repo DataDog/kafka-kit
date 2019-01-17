@@ -8,7 +8,7 @@ import (
 )
 
 func TestGetBrokers(t *testing.T) {
-	s := mockServer()
+	s := testServer()
 
 	tests := map[int]*pb.BrokerRequest{
 		0: &pb.BrokerRequest{},
@@ -41,7 +41,7 @@ func TestGetBrokers(t *testing.T) {
 }
 
 func TestListBrokers(t *testing.T) {
-	s := mockServer()
+	s := testServer()
 
 	tests := map[int]*pb.BrokerRequest{
 		0: &pb.BrokerRequest{},
@@ -70,5 +70,48 @@ func TestListBrokers(t *testing.T) {
 		if !intsEqual(expected[i], brokers) {
 			t.Errorf("Expected broker list %v, got %v", expected[i], brokers)
 		}
+	}
+}
+
+func TestBrokerMappings(t *testing.T) {
+	s := testServer()
+
+	tests := map[int]*pb.BrokerRequest{
+		0: &pb.BrokerRequest{Id: 1002},
+	}
+
+	expected := map[int][]string{
+		0: []string{"test_topic", "test_topic2"},
+	}
+
+	for i, req := range tests {
+		resp, err := s.BrokerMappings(context.Background(), req)
+		if err != nil {
+			t.Errorf("Unexpected error: %s", err)
+		}
+
+		if resp.Names == nil {
+			t.Errorf("Expected a non-nil TopicResponse.Topics field")
+		}
+
+		if !stringsEqual(expected[i], resp.Names) {
+			t.Errorf("Expected Topic list %s, got %s", expected[i], resp.Names)
+		}
+	}
+
+	// Test invalid ID.
+	req := &pb.BrokerRequest{Id: 1010}
+	_, err := s.BrokerMappings(context.Background(), req)
+
+	if err != ErrBrokerNotExist {
+		t.Errorf("Unexpected error: %s", err)
+	}
+
+	// Test no ID.
+	req = &pb.BrokerRequest{}
+	_, err = s.BrokerMappings(context.Background(), req)
+
+	if err != ErrBrokerIDEmpty {
+		t.Errorf("Unexpected error: %s", err)
 	}
 }

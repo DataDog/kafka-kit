@@ -8,7 +8,7 @@ import (
 )
 
 func TestGetTopics(t *testing.T) {
-	s := mockServer()
+	s := testServer()
 
 	tests := map[int]*pb.TopicRequest{
 		0: &pb.TopicRequest{},
@@ -41,7 +41,7 @@ func TestGetTopics(t *testing.T) {
 }
 
 func TestListTopics(t *testing.T) {
-	s := mockServer()
+	s := testServer()
 
 	tests := map[int]*pb.TopicRequest{
 		0: &pb.TopicRequest{},
