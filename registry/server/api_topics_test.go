@@ -95,7 +95,7 @@ func TestTopicMappings(t *testing.T) {
 		}
 
 		if !intsEqual(expected[i], resp.Ids) {
-			t.Errorf("[%d] Expected broker list %v, got %v", i, expected[i], resp.Ids)
+			t.Errorf("Expected broker list %v, got %v", expected[i], resp.Ids)
 		}
 	}
 

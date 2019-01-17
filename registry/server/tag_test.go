@@ -58,7 +58,7 @@ func TestMatchAll(t *testing.T) {
 }
 
 func TestTagSet(t *testing.T) {
-	tags := tags{"k1:v1", "k2:v2", "k3:v3"}
+	tags := Tags{"k1:v1", "k2:v2", "k3:v3"}
 
 	ts, err := tags.TagSet()
 	if err != nil {
@@ -80,6 +80,51 @@ func TestTagSet(t *testing.T) {
 			t.Errorf("Expected value %s for key %s, got %s", v, k, ts[k])
 		}
 	}
+}
+
+func TestValid(t *testing.T) {
+	tests := map[int]string{
+		0: "broker",
+		1: "topic",
+		3: "invalid",
+		4: "",
+	}
+
+	expected := map[int]bool{
+		0: true,
+		1: true,
+		3: false,
+		4: false,
+	}
+
+	for i, k := range tests {
+		o := KafkaObject{Kind: k, ID: "test"}
+		if o.Valid() != expected[i] {
+			t.Errorf("Expected Valid==%v for KafkaObject kind '%s'", expected[i], k)
+		}
+	}
+
+	// Test no ID.
+	o := KafkaObject{Kind: "broker"}
+	if o.Valid() {
+		t.Errorf("Valid should fail if the ID field is unspecified")
+	}
+}
+
+func TestSetTags(t *testing.T) {
+	th := NewTagHandler()
+
+	ts := TagSet{
+		"id": "value",
+	}
+
+	o := KafkaObject{
+		Kind: "broker",
+		ID:   "1002",
+	}
+
+	err := th.SetTags(o, ts)
+	println(err.Error())
 }
 
 func TestFilterTopics(t *testing.T) {
@@ -109,10 +154,10 @@ func TestFilterTopics(t *testing.T) {
 		2: []string{"test_topic2"},
 	}
 
-	tests := []tags{
-		tags{},
-		tags{"partitions:32"},
-		tags{"partitions:32", "replication:2"},
+	tests := []Tags{
+		Tags{},
+		Tags{"partitions:32"},
+		Tags{"partitions:32", "replication:2"},
 	}
 
 	for i, tags := range tests {
@@ -151,10 +196,10 @@ func TestFilterBrokers(t *testing.T) {
 		2: []uint32{1003},
 	}
 
-	tests := []tags{
-		tags{},
-		tags{"rack:rack1"},
-		tags{"rack:rack1", "id:1003"},
+	tests := []Tags{
+		Tags{},
+		Tags{"rack:rack1"},
+		Tags{"rack:rack1", "id:1003"},
 	}
 
 	for i, tags := range tests {

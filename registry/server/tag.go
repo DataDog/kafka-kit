@@ -37,6 +37,17 @@ func NewTagHandler() TagHandler {
 	}
 }
 
+type tagHandler struct {
+	// Mapping of type (broker, topic) to restricted fields.
+	restrictedFields map[string]map[string]struct{}
+}
+
+// Tags is a []string of "key:value" pairs.
+type Tags []string
+
+// TagSet is a map of key:values.
+type TagSet map[string]string
+
 // KafkaObject holds an object type (broker, topic) and
 // object identifier (ID, name).
 type KafkaObject struct {
@@ -49,24 +60,13 @@ type KafkaObject struct {
 func (o KafkaObject) Valid() bool {
 	switch {
 	case o.Kind == "broker", o.Kind == "topic":
-		fallthrough
-	case o.ID != "":
-		return true
-	default:
-		return false
+		if o.ID != "" {
+			return true
+		}
 	}
+
+	return false
 }
-
-type tagHandler struct {
-	// Mapping of type (broker, topic) to restricted fields.
-	restrictedFields map[string]map[string]struct{}
-}
-
-// Tags is a []string of "key:value" pairs.
-type Tags []string
-
-// TagSet is a map of key:values.
-type TagSet map[string]string
 
 // TagSetFromObject takes a protobuf type and
 // returns the default TagSet.
@@ -97,7 +97,7 @@ func TagSetFromObject(o interface{}) TagSet {
 
 // matchAll takes a TagSet and returns true
 // if all key/values are present and equal
-// to those in the calling TagSet.
+// to those in the input TagSet.
 func (t TagSet) matchAll(kv TagSet) bool {
 	for k, v := range kv {
 		if t[k] != v {
@@ -111,6 +111,7 @@ func (t TagSet) matchAll(kv TagSet) bool {
 // TagSet takes a tags and returns a TagSet and error for any
 // malformed tags. Tags are expected to be formatted as
 // "key:value" strings.
+// TODO normalize all tag usage to lower case.
 func (t Tags) TagSet() (TagSet, error) {
 	var ts = TagSet{}
 
