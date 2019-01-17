@@ -91,7 +91,7 @@ func TestBrokerMappings(t *testing.T) {
 		}
 
 		if resp.Names == nil {
-			t.Errorf("Expected a non-nil TopicResponse.Topics field")
+			t.Errorf("Expected a non-nil TopicResponse.Names field")
 		}
 
 		if !stringsEqual(expected[i], resp.Names) {

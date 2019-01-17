@@ -72,3 +72,38 @@ func TestListTopics(t *testing.T) {
 		}
 	}
 }
+
+func TestTopicMappings(t *testing.T) {
+	s := testServer()
+
+	tests := map[int]*pb.TopicRequest{
+		0: &pb.TopicRequest{Name: "test_topic"},
+	}
+
+	expected := map[int][]uint32{
+		0: []uint32{1001, 1002, 1003, 1004},
+	}
+
+	for i, req := range tests {
+		resp, err := s.TopicMappings(context.Background(), req)
+		if err != nil {
+			t.Errorf("Unexpected error: %s", err)
+		}
+
+		if resp.Ids == nil {
+			t.Errorf("Expected a non-nil BrokerResponse.Ids field")
+		}
+
+		if !intsEqual(expected[i], resp.Ids) {
+			t.Errorf("[%d] Expected broker list %v, got %v", i, expected[i], resp.Ids)
+		}
+	}
+
+	// Test no topic name.
+	req := &pb.TopicRequest{}
+	_, err := s.TopicMappings(context.Background(), req)
+
+	if err != ErrTopicNameEmpty {
+		t.Errorf("Unexpected error: %s", err)
+	}
+}
