@@ -13,9 +13,9 @@ func TestTagSetFromObject(t *testing.T) {
 		Replication: 3,
 	}
 
-	ts := tagSetFromObject(topic)
+	ts := TagSetFromObject(topic)
 	if len(ts) != 3 {
-		t.Errorf("Expected tagSet len 3, got %d", len(ts))
+		t.Errorf("Expected TagSet len 3, got %d", len(ts))
 	}
 
 	expected := map[string]string{
@@ -32,15 +32,15 @@ func TestTagSetFromObject(t *testing.T) {
 }
 
 func TestMatchAll(t *testing.T) {
-	ts := tagSet{
+	ts := TagSet{
 		"k1": "v1",
 		"k2": "v2",
 	}
 
-	tSets := map[int]tagSet{
-		1: tagSet{"k1": "v1"},
-		2: tagSet{"k1": "v1", "k2": "v2"},
-		3: tagSet{"k1": "v1", "k2": "v2", "unrelated": "v3"},
+	tSets := map[int]TagSet{
+		1: TagSet{"k1": "v1"},
+		2: TagSet{"k1": "v1", "k2": "v2"},
+		3: TagSet{"k1": "v1", "k2": "v2", "unrelated": "v3"},
 	}
 
 	tests := map[int]bool{
@@ -52,7 +52,7 @@ func TestMatchAll(t *testing.T) {
 	for i, expected := range tests {
 		ts2 := tSets[i]
 		if ok := ts2.matchAll(ts); ok != expected {
-			t.Errorf("Expected tagSet %v matchAll=%v with %v", ts2, expected, ts)
+			t.Errorf("Expected TagSet %v matchAll=%v with %v", ts2, expected, ts)
 		}
 	}
 }
@@ -60,19 +60,19 @@ func TestMatchAll(t *testing.T) {
 func TestTagSet(t *testing.T) {
 	tags := tags{"k1:v1", "k2:v2", "k3:v3"}
 
-	ts, err := tags.tagSet()
+	ts, err := tags.TagSet()
 	if err != nil {
 		t.Error("Unexpected error")
 	}
 
-	expected := tagSet{
+	expected := TagSet{
 		"k1": "v1",
 		"k2": "v2",
 		"k3": "v3",
 	}
 
 	if len(ts) != len(expected) {
-		t.Error("Unexpected tagSet size")
+		t.Error("Unexpected TagSet size")
 	}
 
 	for k, v := range expected {

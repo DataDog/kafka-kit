@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -8,10 +9,25 @@ import (
 	pb "github.com/DataDog/kafka-kit/registry/protos"
 )
 
+var (
+	// ErrInvalidKafkaObjectType error.
+	ErrInvalidKafkaObjectType = errors.New("invalid Kafka object type")
+)
+
+// ErrRestrictedTag error.
+type ErrRestrictedTag struct {
+	t string
+}
+
+func (e ErrRestrictedTag) Error() string {
+	return fmt.Sprintf("tag '%s' is a restricted tag", e.t)
+}
+
 // TagHandler provides object filtering by tags.
 type TagHandler interface {
-	FilterTopics(TopicSet, tags) (TopicSet, error)
-	FilterBrokers(BrokerSet, tags) (BrokerSet, error)
+	FilterTopics(TopicSet, Tags) (TopicSet, error)
+	FilterBrokers(BrokerSet, Tags) (BrokerSet, error)
+	SetTags(KafkaObject, TagSet) error
 }
 
 // NewTagHandler initializes a TagHandler.
@@ -21,16 +37,41 @@ func NewTagHandler() TagHandler {
 	}
 }
 
+// KafkaObject holds an object type (broker, topic) and
+// object identifier (ID, name).
+type KafkaObject struct {
+	Kind string
+	ID   string
+}
+
+// Valid checks if a KafkaObject has a valid
+// Kind field value.
+func (o KafkaObject) Valid() bool {
+	switch {
+	case o.Kind == "broker", o.Kind == "topic":
+		fallthrough
+	case o.ID != "":
+		return true
+	default:
+		return false
+	}
+}
+
 type tagHandler struct {
 	// Mapping of type (broker, topic) to restricted fields.
 	restrictedFields map[string]map[string]struct{}
 }
 
-type tags []string
-type tagSet map[string]string
+// Tags is a []string of "key:value" pairs.
+type Tags []string
 
-func tagSetFromObject(o interface{}) tagSet {
-	var ts = tagSet{}
+// TagSet is a map of key:values.
+type TagSet map[string]string
+
+// TagSetFromObject takes a protobuf type and
+// returns the default TagSet.
+func TagSetFromObject(o interface{}) TagSet {
+	var ts = TagSet{}
 
 	switch o.(type) {
 	case *pb.Topic:
@@ -54,10 +95,10 @@ func tagSetFromObject(o interface{}) tagSet {
 	return ts
 }
 
-// matchAll takes a tagSet and returns true
+// matchAll takes a TagSet and returns true
 // if all key/values are present and equal
-// to those in the calling tagSet.
-func (t tagSet) matchAll(kv tagSet) bool {
+// to those in the calling TagSet.
+func (t TagSet) matchAll(kv TagSet) bool {
 	for k, v := range kv {
 		if t[k] != v {
 			return false
@@ -67,11 +108,11 @@ func (t tagSet) matchAll(kv tagSet) bool {
 	return true
 }
 
-// tagSet takes a tags and returns a tagSet
-// and error for any malformed tags. Tags are
-// expected to be formatted as "key:value" strings.
-func (t tags) tagSet() (tagSet, error) {
-	var ts = tagSet{}
+// TagSet takes a tags and returns a TagSet and error for any
+// malformed tags. Tags are expected to be formatted as
+// "key:value" strings.
+func (t Tags) TagSet() (TagSet, error) {
+	var ts = TagSet{}
 
 	for _, tag := range t {
 		kv := strings.Split(tag, ":")
@@ -85,10 +126,35 @@ func (t tags) tagSet() (tagSet, error) {
 	return ts, nil
 }
 
+// SetTags takes a KafkaObject and TagSet and sets the
+// tag key:values.
+func (t *tagHandler) SetTags(o KafkaObject, ts TagSet) error {
+	// Check the object validity.
+	if !o.Valid() {
+		return ErrInvalidKafkaObjectType
+	}
+
+	// Check if any restricted tags are being
+	// attempted for use.
+	for k := range ts {
+		if _, r := t.restrictedFields[o.Kind][k]; r {
+			return ErrRestrictedTag{t: k}
+		}
+	}
+
+	for k, v := range ts {
+		_, _ = k, v
+		path := fmt.Sprintf("/%s/%s/%s", "prefix", o.Kind, o.ID)
+		fmt.Println(path)
+	}
+
+	return nil
+}
+
 // FilterTopics takes a map of topic names to *pb.Topic and tags KV list.
 // A filtered map is returned that includes topics where all tags
 // values match the provided input tag KVs.
-func (t *tagHandler) FilterTopics(in TopicSet, tags tags) (TopicSet, error) {
+func (t *tagHandler) FilterTopics(in TopicSet, tags Tags) (TopicSet, error) {
 	if len(tags) == 0 {
 		return in, nil
 	}
@@ -96,14 +162,14 @@ func (t *tagHandler) FilterTopics(in TopicSet, tags tags) (TopicSet, error) {
 	var out = make(TopicSet)
 
 	// Get tag key/values.
-	tagKV, err := tags.tagSet()
+	tagKV, err := tags.TagSet()
 	if err != nil {
 		return nil, err
 	}
 
 	// Filter input topics.
 	for name, topic := range in {
-		ts := tagSetFromObject(topic)
+		ts := TagSetFromObject(topic)
 		if ts.matchAll(tagKV) {
 			out[name] = topic
 		}
@@ -115,7 +181,7 @@ func (t *tagHandler) FilterTopics(in TopicSet, tags tags) (TopicSet, error) {
 // FilterBrokers takes a map of broker IDs to *pb.Broker and tags KV list.
 // A filtered map is returned that includes brokers where all tags
 // values match the provided input tag KVs.
-func (t *tagHandler) FilterBrokers(in BrokerSet, tags tags) (BrokerSet, error) {
+func (t *tagHandler) FilterBrokers(in BrokerSet, tags Tags) (BrokerSet, error) {
 	if len(tags) == 0 {
 		return in, nil
 	}
@@ -123,14 +189,14 @@ func (t *tagHandler) FilterBrokers(in BrokerSet, tags tags) (BrokerSet, error) {
 	var out = make(BrokerSet)
 
 	// Get tag key/values.
-	tagKV, err := tags.tagSet()
+	tagKV, err := tags.TagSet()
 	if err != nil {
 		return nil, err
 	}
 
 	// Filter input brokers.
 	for id, broker := range in {
-		ts := tagSetFromObject(broker)
+		ts := TagSetFromObject(broker)
 		if ts.matchAll(tagKV) {
 			out[id] = broker
 		}
