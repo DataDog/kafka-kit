@@ -6,6 +6,12 @@ import (
 	pb "github.com/DataDog/kafka-kit/registry/protos"
 )
 
+var (
+	config = ZKTagHandlerConfig{
+		Prefix: "test",
+	}
+)
+
 func TestTagSetFromObject(t *testing.T) {
 	topic := &pb.Topic{
 		Name:        "test",
@@ -112,7 +118,7 @@ func TestValid(t *testing.T) {
 }
 
 func TestSetTags(t *testing.T) {
-	th := NewTagHandler()
+	th, _ := NewZKTagHandler(config)
 
 	ts := TagSet{
 		"id": "value",
@@ -128,7 +134,7 @@ func TestSetTags(t *testing.T) {
 }
 
 func TestFilterTopics(t *testing.T) {
-	th := NewTagHandler()
+	th, _ := NewZKTagHandler(config)
 
 	topics := TopicSet{
 		"test_topic1": &pb.Topic{
@@ -173,7 +179,7 @@ func TestFilterTopics(t *testing.T) {
 }
 
 func TestFilterBrokers(t *testing.T) {
-	th := NewTagHandler()
+	th, _ := NewZKTagHandler(config)
 
 	brokers := BrokerSet{
 		1001: &pb.Broker{

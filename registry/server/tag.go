@@ -30,14 +30,26 @@ type TagHandler interface {
 	SetTags(KafkaObject, TagSet) error
 }
 
-// NewTagHandler initializes a TagHandler.
-func NewTagHandler() TagHandler {
-	return &tagHandler{
-		restrictedFields: restrictedFields(),
+// NewZKTagHandler initializes a TagHandler.
+func NewZKTagHandler(c ZKTagHandlerConfig) (TagHandler, error) {
+	if c.Prefix == "" {
+		return nil, fmt.Errorf("prefix required")
 	}
+
+	return &zkTagHandler{
+		prefix:           c.Prefix,
+		restrictedFields: restrictedFields(),
+	}, nil
 }
 
-type tagHandler struct {
+// ZKTagHandlerConfig holds zkTagHandler configuration.
+type ZKTagHandlerConfig struct {
+	Prefix string
+}
+
+type zkTagHandler struct {
+	// Metadata storage (i.e. tags) ZooKeeper prefix.
+	prefix string
 	// Mapping of type (broker, topic) to restricted fields.
 	restrictedFields map[string]map[string]struct{}
 }
@@ -129,7 +141,7 @@ func (t Tags) TagSet() (TagSet, error) {
 
 // SetTags takes a KafkaObject and TagSet and sets the
 // tag key:values.
-func (t *tagHandler) SetTags(o KafkaObject, ts TagSet) error {
+func (t *zkTagHandler) SetTags(o KafkaObject, ts TagSet) error {
 	// Check the object validity.
 	if !o.Valid() {
 		return ErrInvalidKafkaObjectType
@@ -145,7 +157,7 @@ func (t *tagHandler) SetTags(o KafkaObject, ts TagSet) error {
 
 	for k, v := range ts {
 		_, _ = k, v
-		path := fmt.Sprintf("/%s/%s/%s", "prefix", o.Kind, o.ID)
+		path := fmt.Sprintf("/%s/%s/%s", t.prefix, o.Kind, o.ID)
 		fmt.Println(path)
 	}
 
@@ -155,7 +167,7 @@ func (t *tagHandler) SetTags(o KafkaObject, ts TagSet) error {
 // FilterTopics takes a map of topic names to *pb.Topic and tags KV list.
 // A filtered map is returned that includes topics where all tags
 // values match the provided input tag KVs.
-func (t *tagHandler) FilterTopics(in TopicSet, tags Tags) (TopicSet, error) {
+func (t *zkTagHandler) FilterTopics(in TopicSet, tags Tags) (TopicSet, error) {
 	if len(tags) == 0 {
 		return in, nil
 	}
@@ -182,7 +194,7 @@ func (t *tagHandler) FilterTopics(in TopicSet, tags Tags) (TopicSet, error) {
 // FilterBrokers takes a map of broker IDs to *pb.Broker and tags KV list.
 // A filtered map is returned that includes brokers where all tags
 // values match the provided input tag KVs.
-func (t *tagHandler) FilterBrokers(in BrokerSet, tags Tags) (BrokerSet, error) {
+func (t *zkTagHandler) FilterBrokers(in BrokerSet, tags Tags) (BrokerSet, error) {
 	if len(tags) == 0 {
 		return in, nil
 	}
