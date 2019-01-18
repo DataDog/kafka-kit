@@ -30,7 +30,7 @@ type Server struct {
 	HTTPListen       string
 	GRPCListen       string
 	ZK               kafkazk.Handler
-	Tags             TagHandler
+	Tags             *TagHandler
 	readReqThrottle  RequestThrottle
 	writeReqThrottle RequestThrottle
 	reqID            uint64
@@ -70,11 +70,11 @@ func NewServer(c Config) (*Server, error) {
 		Rate:     c.WriteReqRate,
 	})
 
-	tcfg := ZKTagHandlerConfig{
+	tcfg := TagHandlerConfig{
 		Prefix: c.ZKMetaPrefix,
 	}
 
-	th, _ := NewZKTagHandler(tcfg)
+	th, _ := NewTagHandler(tcfg)
 
 	return &Server{
 		HTTPListen:       c.HTTPListen,

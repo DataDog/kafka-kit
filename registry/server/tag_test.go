@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	config = ZKTagHandlerConfig{
+	testConfig = TagHandlerConfig{
 		Prefix: "test",
 	}
 )
@@ -117,24 +117,8 @@ func TestValid(t *testing.T) {
 	}
 }
 
-func TestSetTags(t *testing.T) {
-	th, _ := NewZKTagHandler(config)
-
-	ts := TagSet{
-		"id": "value",
-	}
-
-	o := KafkaObject{
-		Kind: "broker",
-		ID:   "1002",
-	}
-
-	err := th.SetTags(o, ts)
-	println(err.Error())
-}
-
 func TestFilterTopics(t *testing.T) {
-	th, _ := NewZKTagHandler(config)
+	th, _ := NewTagHandler(testConfig)
 
 	topics := TopicSet{
 		"test_topic1": &pb.Topic{
@@ -179,7 +163,7 @@ func TestFilterTopics(t *testing.T) {
 }
 
 func TestFilterBrokers(t *testing.T) {
-	th, _ := NewZKTagHandler(config)
+	th, _ := NewTagHandler(testConfig)
 
 	brokers := BrokerSet{
 		1001: &pb.Broker{

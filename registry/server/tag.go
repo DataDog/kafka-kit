@@ -23,35 +23,34 @@ func (e ErrRestrictedTag) Error() string {
 	return fmt.Sprintf("tag '%s' is a restricted tag", e.t)
 }
 
-// TagHandler provides object filtering by tags.
-type TagHandler interface {
-	FilterTopics(TopicSet, Tags) (TopicSet, error)
-	FilterBrokers(BrokerSet, Tags) (BrokerSet, error)
+// TagHandler provides object filtering by tags
+// along with tag storage and retrieval.
+type TagHandler struct {
+	Store TagStorage
+}
+
+// TagStorage handles tag persistence to stable storage.
+type TagStorage interface {
 	SetTags(KafkaObject, TagSet) error
 }
 
-// NewZKTagHandler initializes a TagHandler.
-func NewZKTagHandler(c ZKTagHandlerConfig) (TagHandler, error) {
-	if c.Prefix == "" {
-		return nil, fmt.Errorf("prefix required")
+// NewTagHandler initializes a TagHandler.
+func NewTagHandler(c TagHandlerConfig) (*TagHandler, error) {
+	ts, err := NewZKTagStorage(ZKTagStorageConfig{Prefix: c.Prefix})
+	if err != nil {
+		return nil, err
 	}
 
-	return &zkTagHandler{
-		prefix:           c.Prefix,
-		restrictedFields: restrictedFields(),
+	return &TagHandler{
+		// More sophisticated initialization/config passing
+		// if additional TagStorage backends are written.
+		Store: ts,
 	}, nil
 }
 
-// ZKTagHandlerConfig holds zkTagHandler configuration.
-type ZKTagHandlerConfig struct {
+// TagHandlerConfig holds TagHandler configuration.
+type TagHandlerConfig struct {
 	Prefix string
-}
-
-type zkTagHandler struct {
-	// Metadata storage (i.e. tags) ZooKeeper prefix.
-	prefix string
-	// Mapping of type (broker, topic) to restricted fields.
-	restrictedFields map[string]map[string]struct{}
 }
 
 // Tags is a []string of "key:value" pairs.
@@ -139,35 +138,10 @@ func (t Tags) TagSet() (TagSet, error) {
 	return ts, nil
 }
 
-// SetTags takes a KafkaObject and TagSet and sets the
-// tag key:values.
-func (t *zkTagHandler) SetTags(o KafkaObject, ts TagSet) error {
-	// Check the object validity.
-	if !o.Valid() {
-		return ErrInvalidKafkaObjectType
-	}
-
-	// Check if any restricted tags are being
-	// attempted for use.
-	for k := range ts {
-		if _, r := t.restrictedFields[o.Kind][k]; r {
-			return ErrRestrictedTag{t: k}
-		}
-	}
-
-	for k, v := range ts {
-		_, _ = k, v
-		path := fmt.Sprintf("/%s/%s/%s", t.prefix, o.Kind, o.ID)
-		fmt.Println(path)
-	}
-
-	return nil
-}
-
 // FilterTopics takes a map of topic names to *pb.Topic and tags KV list.
 // A filtered map is returned that includes topics where all tags
 // values match the provided input tag KVs.
-func (t *zkTagHandler) FilterTopics(in TopicSet, tags Tags) (TopicSet, error) {
+func (t *TagHandler) FilterTopics(in TopicSet, tags Tags) (TopicSet, error) {
 	if len(tags) == 0 {
 		return in, nil
 	}
@@ -194,7 +168,7 @@ func (t *zkTagHandler) FilterTopics(in TopicSet, tags Tags) (TopicSet, error) {
 // FilterBrokers takes a map of broker IDs to *pb.Broker and tags KV list.
 // A filtered map is returned that includes brokers where all tags
 // values match the provided input tag KVs.
-func (t *zkTagHandler) FilterBrokers(in BrokerSet, tags Tags) (BrokerSet, error) {
+func (t *TagHandler) FilterBrokers(in BrokerSet, tags Tags) (BrokerSet, error) {
 	if len(tags) == 0 {
 		return in, nil
 	}
