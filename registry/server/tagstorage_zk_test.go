@@ -8,7 +8,8 @@ func TestSetTags(t *testing.T) {
 	store, _ := NewZKTagStorage(ZKTagStorageConfig{Prefix: testConfig.Prefix})
 
 	ts := TagSet{
-		"key": "value",
+		"key":  "value",
+		"key2": "value2",
 	}
 
 	o := KafkaObject{

@@ -4,10 +4,10 @@ import (
 	"fmt"
 )
 
+// ZKTagStorage implements tag persistence in ZooKeeper.
 type ZKTagStorage struct {
-	Prefix string
-	// Mapping of type (broker, topic) to restricted fields.
-	restrictedFields map[string]map[string]struct{}
+	Prefix         string
+	ReservedFields ReservedFields
 }
 
 // ZKTagStorageConfig holds ZKTagStorage configs.
@@ -22,8 +22,7 @@ func NewZKTagStorage(c ZKTagStorageConfig) (*ZKTagStorage, error) {
 	}
 
 	return &ZKTagStorage{
-		Prefix:           c.Prefix,
-		restrictedFields: restrictedFields(),
+		Prefix: c.Prefix,
 	}, nil
 }
 
@@ -35,19 +34,26 @@ func (t *ZKTagStorage) SetTags(o KafkaObject, ts TagSet) error {
 		return ErrInvalidKafkaObjectType
 	}
 
-	// Check if any restricted tags are being
+	// Check if any reserved tags are being
 	// attempted for use.
 	for k := range ts {
-		if _, r := t.restrictedFields[o.Kind][k]; r {
+		if _, r := t.ReservedFields[o.Kind][k]; r {
 			return ErrRestrictedTag{t: k}
 		}
 	}
 
 	for k, v := range ts {
 		_, _ = k, v
-		path := fmt.Sprintf("/%s/%s/%s", t.Prefix, o.Kind, o.ID)
+		path := fmt.Sprintf("/%s/%s/%s %s=%s",
+			t.Prefix, o.Kind, o.ID, k, v)
 		fmt.Println(path)
 	}
+
+	return nil
+}
+
+func (t *ZKTagStorage) LoadReservedFields(r ReservedFields) error {
+	t.ReservedFields = r
 
 	return nil
 }

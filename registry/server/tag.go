@@ -20,7 +20,7 @@ type ErrRestrictedTag struct {
 }
 
 func (e ErrRestrictedTag) Error() string {
-	return fmt.Sprintf("tag '%s' is a restricted tag", e.t)
+	return fmt.Sprintf("tag '%s' is a reserved tag", e.t)
 }
 
 // TagHandler provides object filtering by tags
@@ -31,12 +31,18 @@ type TagHandler struct {
 
 // TagStorage handles tag persistence to stable storage.
 type TagStorage interface {
+	LoadReservedFields(ReservedFields) error
 	SetTags(KafkaObject, TagSet) error
 }
 
 // NewTagHandler initializes a TagHandler.
 func NewTagHandler(c TagHandlerConfig) (*TagHandler, error) {
 	ts, err := NewZKTagStorage(ZKTagStorageConfig{Prefix: c.Prefix})
+	if err != nil {
+		return nil, err
+	}
+
+	err = ts.LoadReservedFields(getReservedFields())
 	if err != nil {
 		return nil, err
 	}
@@ -192,11 +198,16 @@ func (t *TagHandler) FilterBrokers(in BrokerSet, tags Tags) (BrokerSet, error) {
 	return out, nil
 }
 
-// restrictedFields returns a map proto message types to field names
+// ReservedFields is a mapping of object types (topic, broker)
+// to a set of fields reserved for internal use; these are
+// default fields that become searchable through the tags interface.
+type ReservedFields map[string]map[string]struct{}
+
+// getReservedFields returns a map proto message types to field names
 // considered reserved for internal use. All fields specified in the
-// Registry proto messages are discovered here and restricted by default.
-func restrictedFields() map[string]map[string]struct{} {
-	var fs = make(map[string]map[string]struct{})
+// Registry proto messages are discovered here and reserved by default.
+func getReservedFields() ReservedFields {
+	var fs = make(ReservedFields)
 
 	fs["topic"] = fieldsFromStruct(&pb.Topic{})
 	fs["broker"] = fieldsFromStruct(&pb.Broker{})
