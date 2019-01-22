@@ -242,22 +242,22 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 	// to be moved, it's unmapped from the broker so that it's
 	// not retried the next iteration.
 	var reloCount int
-	for _, p := range topPartn {
+	for _, partn := range topPartn {
 		// Get a storage sorted brokerList.
 		brokerList := brokers.List()
 		brokerList.SortByStorage()
 
-		pSize, _ := partitionMeta.Size(p)
+		pSize, _ := partitionMeta.Size(partn)
 
 		// Find a destination broker.
 		var dest *kafkazk.Broker
 
 		// Whether or not the destination broker should have the same
-		// rack.id as the target. If so, choose the lowest utilized broker
-		// in same locality. If not, choose the lowest utilized broker
+		// rack.id as the target. If so, choose the least utilized broker
+		// in same locality. If not, choose the least utilized broker
 		// the satisfies placement constraints considering the brokers
 		// in the replica list (excluding the sourceID broker since it
-		// would be replaced by the destination).
+		// will be replaced).
 		switch localityScoped {
 		case true:
 			for _, b := range brokerList {
@@ -266,6 +266,7 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 					if _, t := offloadTargetsMap[b.ID]; t {
 						continue
 					}
+
 					dest = b
 					break
 				}
@@ -275,9 +276,17 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 			// partition replica set, excluding the
 			// sourceID broker.
 			replicaSet := kafkazk.BrokerList{}
-			for _, id := range p.Replicas {
+			for _, id := range partn.Replicas {
 				if id != sourceID {
 					replicaSet = append(replicaSet, brokers[id])
+				}
+			}
+
+			// Include brokers already scheduled to
+			// receive this partition.
+			if pairs, planned := plan.isPlanned(partn); planned {
+				for _, p := range pairs {
+					replicaSet = append(replicaSet, brokers[p[1]])
 				}
 			}
 
@@ -300,7 +309,7 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 
 		if verbose {
 			fmt.Printf("%s-\n", indent)
-			fmt.Printf("%sAttempting migration plan for %s p%d\n", indent, p.Topic, p.Partition)
+			fmt.Printf("%sAttempting migration plan for %s p%d\n", indent, partn.Topic, partn.Partition)
 			fmt.Printf("%sCandidate destination broker %d has a storage free of %.2fGB\n",
 				indent, dest.ID, dest.StorageFree/div)
 		}
@@ -336,11 +345,11 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 
 		// Otherwise, schedule the relocation.
 
-		relos[sourceID] = append(relos[sourceID], relocation{partition: p, destination: dest.ID})
+		relos[sourceID] = append(relos[sourceID], relocation{partition: partn, destination: dest.ID})
 		reloCount++
 
 		// Add to plan.
-		plan.add(p, [2]int{sourceID, dest.ID})
+		plan.add(partn, [2]int{sourceID, dest.ID})
 
 		// Update StorageFree values.
 		brokers[sourceID].StorageFree = sourceFree
@@ -348,7 +357,7 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 
 		// Remove the partition as being mapped
 		// to the source broker.
-		mappings.Remove(sourceID, p)
+		mappings.Remove(sourceID, partn)
 
 		if verbose {
 			fmt.Printf("%sPlanning relocation to candidate\n", indent)
