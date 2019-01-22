@@ -199,6 +199,9 @@ func (s *Server) DialZK(ctx context.Context, wg *sync.WaitGroup, c *kafkazk.Conf
 
 	log.Printf("Connected to ZooKeeper: %s\n", c.Connect)
 
+	// Pass the Handler to the underlying TagHandler Store.
+	s.Tags.Store.(*ZKTagStorage).ZK = zk
+
 	// Shutdown procedure.
 	go func() {
 		<-ctx.Done()

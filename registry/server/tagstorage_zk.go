@@ -2,16 +2,20 @@ package server
 
 import (
 	"fmt"
+
+	"github.com/DataDog/kafka-kit/kafkazk"
 )
 
 // ZKTagStorage implements tag persistence in ZooKeeper.
 type ZKTagStorage struct {
-	Prefix         string
 	ReservedFields ReservedFields
+	Prefix         string
+	ZK             kafkazk.Handler
 }
 
 // ZKTagStorageConfig holds ZKTagStorage configs.
 type ZKTagStorageConfig struct {
+	ZKAddr string
 	Prefix string
 }
 
@@ -21,9 +25,16 @@ func NewZKTagStorage(c ZKTagStorageConfig) (*ZKTagStorage, error) {
 		return nil, fmt.Errorf("prefix required")
 	}
 
-	return &ZKTagStorage{
+	zks := &ZKTagStorage{
 		Prefix: c.Prefix,
-	}, nil
+	}
+
+	// Although this implementation is backed by ZooKeeper,
+	// we don't dial a connection in this instantiation func.
+	// The kafkazk Handler is shared / passed in by the parent
+	// registry Server during setup in the DialZK call.
+
+	return zks, nil
 }
 
 // SetTags takes a KafkaObject and TagSet and sets the
@@ -44,9 +55,8 @@ func (t *ZKTagStorage) SetTags(o KafkaObject, ts TagSet) error {
 
 	for k, v := range ts {
 		_, _ = k, v
-		path := fmt.Sprintf("/%s/%s/%s %s=%s",
-			t.Prefix, o.Kind, o.ID, k, v)
-		fmt.Println(path)
+		znode := fmt.Sprintf("/%s/%s/%s", t.Prefix, o.Kind, o.ID)
+		fmt.Println(znode)
 	}
 
 	return nil
