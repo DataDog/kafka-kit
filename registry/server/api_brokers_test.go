@@ -73,6 +73,52 @@ func TestListBrokers(t *testing.T) {
 	}
 }
 
+func TestCustomTagBrokerFilter(t *testing.T) {
+	s := testServer()
+
+	s.Tags.Store.SetTags(
+		KafkaObject{Type: "broker", ID: "1001"},
+		TagSet{"customtag": "customvalue"},
+	)
+
+	s.Tags.Store.SetTags(
+		KafkaObject{Type: "broker", ID: "1002"},
+		TagSet{
+			"customtag":  "customvalue",
+			"customtag2": "customvalue2",
+		},
+	)
+
+	tests := map[int]*pb.BrokerRequest{
+		0: &pb.BrokerRequest{Tag: []string{"customtag:customvalue"}},
+		1: &pb.BrokerRequest{Tag: []string{"customtag2:customvalue2"}},
+		2: &pb.BrokerRequest{Tag: []string{"nomatches:forthistag"}},
+	}
+
+	expected := map[int]idList{
+		0: idList{1001, 1002},
+		1: idList{1002},
+		2: idList{},
+	}
+
+	for i, req := range tests {
+		resp, err := s.ListBrokers(context.Background(), req)
+		if err != nil {
+			t.Errorf("Unexpected error: %s", err)
+		}
+
+		if resp.Ids == nil {
+			t.Errorf("Expected a non-nil BrokerResponse.Ids field")
+		}
+
+		brokers := resp.Ids
+
+		if !intsEqual(expected[i], brokers) {
+			t.Errorf("Expected broker list %v, got %v", expected[i], brokers)
+		}
+	}
+}
+
 func TestBrokerMappings(t *testing.T) {
 	s := testServer()
 

@@ -73,6 +73,52 @@ func TestListTopics(t *testing.T) {
 	}
 }
 
+func TestCustomTagTopicFilter(t *testing.T) {
+	s := testServer()
+
+	s.Tags.Store.SetTags(
+		KafkaObject{Type: "topic", ID: "test_topic"},
+		TagSet{"customtag": "customvalue"},
+	)
+
+	s.Tags.Store.SetTags(
+		KafkaObject{Type: "topic", ID: "test_topic2"},
+		TagSet{
+			"customtag":  "customvalue",
+			"customtag2": "customvalue2",
+		},
+	)
+
+	tests := map[int]*pb.TopicRequest{
+		0: &pb.TopicRequest{Tag: []string{"customtag:customvalue"}},
+		1: &pb.TopicRequest{Tag: []string{"customtag2:customvalue2"}},
+		2: &pb.TopicRequest{Tag: []string{"nomatches:forthistag"}},
+	}
+
+	expected := map[int][]string{
+		0: []string{"test_topic", "test_topic2"},
+		1: []string{"test_topic2"},
+		2: []string{},
+	}
+
+	for i, req := range tests {
+		resp, err := s.ListTopics(context.Background(), req)
+		if err != nil {
+			t.Errorf("Unexpected error: %s", err)
+		}
+
+		if resp.Names == nil {
+			t.Errorf("Expected a non-nil TopicResponse.Topics field")
+		}
+
+		topics := resp.Names
+
+		if !stringsEqual(expected[i], topics) {
+			t.Errorf("Expected Topic list %s, got %s", expected[i], topics)
+		}
+	}
+}
+
 func TestTopicMappings(t *testing.T) {
 	s := testServer()
 

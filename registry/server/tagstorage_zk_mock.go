@@ -9,12 +9,15 @@ type zkTagStorageMock struct {
 	ReservedFields ReservedFields
 	Prefix         string
 	ZK             kafkazk.Handler
+	// tags is a crude emulation of ZooKeeper storage.
+	tags map[string]map[string]TagSet
 }
 
 // newzkTagStorageMockMock initializes a zkTagStorageMockMock.
 func newzkTagStorageMock() *zkTagStorageMock {
 	zks := &zkTagStorageMock{
 		Prefix: "mock",
+		tags:   map[string]map[string]TagSet{},
 	}
 
 	zks.ZK = &kafkazk.Mock{}
@@ -25,12 +28,32 @@ func newzkTagStorageMock() *zkTagStorageMock {
 
 // SetTags mocks SetTags.
 func (t *zkTagStorageMock) SetTags(o KafkaObject, ts TagSet) error {
+	if _, exist := t.tags[o.Type]; !exist {
+		t.tags[o.Type] = map[string]TagSet{}
+	}
+
+	if _, exist := t.tags[o.Type][o.ID]; !exist {
+		t.tags[o.Type][o.ID] = TagSet{}
+	}
+
+	for k, v := range ts {
+		t.tags[o.Type][o.ID][k] = v
+	}
+
 	return nil
 }
 
 // GetTags mocks GetTags.
 func (t *zkTagStorageMock) GetTags(o KafkaObject) (TagSet, error) {
-	return nil, nil
+	if _, exist := t.tags[o.Type]; !exist {
+		return TagSet{}, nil
+	}
+
+	if _, exist := t.tags[o.Type][o.ID]; !exist {
+		return TagSet{}, nil
+	}
+
+	return t.tags[o.Type][o.ID], nil
 }
 
 // FieldReserved mocks FieldReserved.
