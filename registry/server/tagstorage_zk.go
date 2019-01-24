@@ -76,7 +76,6 @@ func (t *ZKTagStorage) Init() error {
 // tag key:values for the object.
 func (t *ZKTagStorage) SetTags(o KafkaObject, ts TagSet) error {
 	// Sanity checks.
-
 	if !o.Valid() {
 		return ErrInvalidKafkaObjectType
 	}
@@ -117,7 +116,7 @@ func (t *ZKTagStorage) SetTags(o KafkaObject, ts TagSet) error {
 		}
 	}
 
-	tags := map[string]string{}
+	tags := TagSet{}
 
 	if len(data) != 0 {
 		err = json.Unmarshal(data, &tags)
@@ -138,6 +137,39 @@ func (t *ZKTagStorage) SetTags(o KafkaObject, ts TagSet) error {
 	}
 
 	return t.ZK.Set(znode, string(out))
+}
+
+// GetTags returns the TagSet for the requested KafkaObject.
+func (t *ZKTagStorage) GetTags(o KafkaObject) (TagSet, error) {
+	// Sanity checks.
+	if !o.Valid() {
+		return nil, ErrInvalidKafkaObjectType
+	}
+
+	znode := fmt.Sprintf("/%s/%s/%s", t.Prefix, o.Type, o.ID)
+
+	// Fetch tags.
+	data, err := t.ZK.Get(znode)
+	if err != nil {
+		switch err.(type) {
+		// The object doesn't exist.
+		case kafkazk.ErrNoNode:
+			return nil, ErrKafkaObjectDoesNotExist
+		default:
+			return nil, err
+		}
+	}
+
+	tags := TagSet{}
+
+	if len(data) != 0 {
+		err = json.Unmarshal(data, &tags)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return tags, nil
 }
 
 // LoadReservedFields takes a ReservedFields and stores it at
