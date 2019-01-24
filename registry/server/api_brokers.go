@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"regexp"
 	"sort"
 	"strconv"
@@ -165,6 +166,45 @@ func (s *Server) fetchBrokerSet(req *pb.BrokerRequest) (BrokerSet, error) {
 	}
 
 	return filtered, nil
+}
+
+// TagBroker sets custom tags for the specified broker. Any previously existing
+// tags that were not specified in the request remain unmodified.
+func (s *Server) TagBroker(ctx context.Context, req *pb.BrokerRequest) (*pb.TagResponse, error) {
+	if err := s.ValidateRequest(ctx, req, readRequest); err != nil {
+		return nil, err
+	}
+
+	if req.Id == 0 {
+		return nil, ErrBrokerIDEmpty
+	}
+
+	// Ensure the broker exists.
+
+	// Get brokers from ZK.
+	brokers, errs := s.ZK.GetAllBrokerMeta(false)
+	if errs != nil {
+		return nil, ErrFetchingBrokers
+	}
+
+	if _, exist := brokers[int(req.Id)]; !exist {
+		return nil, ErrBrokerNotExist
+	}
+
+	// Get a TagSet from the supplied tags.
+	ts, err := Tags(req.Tag).TagSet()
+	if err != nil {
+		return nil, err
+	}
+
+	// Set the tags.
+	id := fmt.Sprintf("%d", req.Id)
+	err = s.Tags.Store.SetTags(KafkaObject{Type: "broker", ID: id}, ts)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.TagResponse{Message: "success"}, nil
 }
 
 // IDs returns a []uint32 of IDs from a BrokerSet.
