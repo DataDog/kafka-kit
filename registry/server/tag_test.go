@@ -57,6 +57,36 @@ func TestMatchAll(t *testing.T) {
 	}
 }
 
+func TestEqual(t *testing.T) {
+	tests := map[int][2]TagSet{
+		0: [2]TagSet{
+			TagSet{},
+			TagSet{},
+		},
+		1: [2]TagSet{
+			TagSet{"key": "value"},
+			TagSet{"key": "value"},
+		},
+		2: [2]TagSet{
+			TagSet{"key": "value"},
+			TagSet{"key": "value", "key2": "value2"},
+		},
+	}
+
+	expected := map[int]bool{
+		0: true,
+		1: true,
+		2: false,
+	}
+
+	for k, v := range tests {
+		if v[0].Equal(v[1]) != expected[k] {
+			t.Errorf("[test %d] expected TagSet equality '%v', got '%v'",
+				k, expected[k], v[0].Equal(v[1]))
+		}
+	}
+}
+
 func TestTagSet(t *testing.T) {
 	tags := Tags{"k1:v1", "k2:v2", "k3:v3"}
 

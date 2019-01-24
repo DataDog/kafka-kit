@@ -12,6 +12,8 @@ import (
 var (
 	// ErrInvalidKafkaObjectType error.
 	ErrInvalidKafkaObjectType = errors.New("invalid Kafka object type")
+	// ErrKafkaObjectDoesNotExist error.
+	ErrKafkaObjectDoesNotExist = errors.New("request Kafka object does not exist")
 	// ErrNilTagSet error.
 	ErrNilTagSet = errors.New("must provide a non-nil TagSet")
 )
@@ -35,6 +37,7 @@ type TagHandler struct {
 type TagStorage interface {
 	LoadReservedFields(ReservedFields) error
 	SetTags(KafkaObject, TagSet) error
+	GetTags(KafkaObject) (TagSet, error)
 }
 
 // NewTagHandler initializes a TagHandler.
@@ -120,6 +123,22 @@ func TagSetFromObject(o interface{}) TagSet {
 func (t TagSet) matchAll(kv TagSet) bool {
 	for k, v := range kv {
 		if t[k] != v {
+			return false
+		}
+	}
+
+	return true
+}
+
+// Equal checks if the input TagSet has the same
+// key:value pairs as the calling TagSet.
+func (t1 TagSet) Equal(t2 TagSet) bool {
+	if len(t1) != len(t2) {
+		return false
+	}
+
+	for k, v := range t1 {
+		if t2[k] != v {
 			return false
 		}
 	}
