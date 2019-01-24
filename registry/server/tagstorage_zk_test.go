@@ -51,30 +51,57 @@ func TestSetTags(t *testing.T) {
 		t.Skip()
 	}
 
-	ts := TagSet{
-		"key":  "value",
-		"key2": "value2",
+	testTagSets := map[int]TagSet{
+		0: TagSet{"key": "value", "key2": "value2"},
+		1: TagSet{"key": "value"},
 	}
 
-	o := KafkaObject{
-		Type: "broker",
-		ID:   "1002",
+	testObjects := map[int]KafkaObject{
+		0: KafkaObject{Type: "broker", ID: "1002"},
+		1: KafkaObject{Type: "topic", ID: "test"},
 	}
 
-	err := store.SetTags(o, ts)
-	if err != nil {
-		t.Error(err)
+	expected := map[int]string{
+		0: `{"key":"value","key2":"value2"}`,
+		1: `{"key":"value"}`,
+	}
+
+	for k := range testTagSets {
+		// Set tags.
+		err := store.SetTags(testObjects[k], testTagSets[k])
+		if err != nil {
+			t.Error(err)
+		}
+
+		// Fetch tags, compare value.
+		tpath := fmt.Sprintf("/%s/%s/%s",
+			zkprefix, testObjects[k].Type, testObjects[k].ID)
+
+		result, err := store.ZK.Get(tpath)
+		if err != nil {
+			t.Error(err)
+		}
+
+		if string(result) != expected[k] {
+			t.Errorf("[test %d] Expected tag string value '%s', got '%s'",
+				k, expected[k], result)
+		}
 	}
 
 	// Test invalid KafkaObject Type.
-	o = KafkaObject{
-		Type: "test",
-		ID:   "1002",
-	}
+	o := KafkaObject{Type: "test", ID: "1002"}
 
-	err = store.SetTags(o, ts)
+	err := store.SetTags(o, TagSet{"key": "value"})
 	if err != ErrInvalidKafkaObjectType {
 		t.Error("Expected ErrInvalidKafkaObjectType error")
+	}
+
+	// Test nil TagSet.
+	o = KafkaObject{Type: "broker", ID: "1002"}
+
+	err = store.SetTags(o, nil)
+	if err != ErrNilTagSet {
+		t.Error("Expected ErrNilTagSet error")
 	}
 }
 

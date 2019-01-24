@@ -75,9 +75,21 @@ func (t *ZKTagStorage) Init() error {
 // SetTags takes a KafkaObject and TagSet and sets the
 // tag key:values for the object.
 func (t *ZKTagStorage) SetTags(o KafkaObject, ts TagSet) error {
-	// Check the object validity.
+	// Sanity checks.
+
 	if !o.Valid() {
 		return ErrInvalidKafkaObjectType
+	}
+
+	if ts == nil {
+		return ErrNilTagSet
+	}
+
+	// Return early on empty TagSets.
+	// Otherwise, we'll read and write
+	// the current TagSet needlessly.
+	if len(ts) == 0 {
+		return nil
 	}
 
 	// Check if any reserved tags are being

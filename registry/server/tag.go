@@ -12,6 +12,8 @@ import (
 var (
 	// ErrInvalidKafkaObjectType error.
 	ErrInvalidKafkaObjectType = errors.New("invalid Kafka object type")
+	// ErrNilTagSet error.
+	ErrNilTagSet = errors.New("must provide a non-nil TagSet")
 )
 
 // ErrReservedTag error.
