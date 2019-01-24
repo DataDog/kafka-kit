@@ -34,6 +34,7 @@ func TestSetup(t *testing.T) {
 		t.Fatalf("Error initializing ZooKeeper client: %s", err)
 	}
 
+	// Init a ZKTagStorage.
 	store, err = NewZKTagStorage(ZKTagStorageConfig{Prefix: zkprefix})
 	if err != nil {
 		t.Error(err)
@@ -44,6 +45,9 @@ func TestSetup(t *testing.T) {
 	if err := store.Init(); err != nil {
 		t.Fatal(err)
 	}
+
+	// Load reserved fields.
+	store.LoadReservedFields(GetReservedFields())
 }
 
 func TestSetTags(t *testing.T) {
@@ -87,7 +91,9 @@ func TestSetTags(t *testing.T) {
 				k, expected[k], result)
 		}
 	}
+}
 
+func TestTagSetFailures(t *testing.T) {
 	// Test invalid KafkaObject Type.
 	o := KafkaObject{Type: "test", ID: "1002"}
 
@@ -102,6 +108,24 @@ func TestSetTags(t *testing.T) {
 	err = store.SetTags(o, nil)
 	if err != ErrNilTagSet {
 		t.Error("Expected ErrNilTagSet error")
+	}
+
+	// Test reserved tag.
+	if len(store.ReservedFields) == 0 {
+		t.Error("ReservedFields len should be non-zero")
+	}
+
+	for k := range store.ReservedFields {
+		o.Type = k
+		for f := range store.ReservedFields[k] {
+			err = store.SetTags(o, TagSet{f: "value"})
+			switch err.(type) {
+			case ErrReservedTag:
+				continue
+			default:
+				t.Errorf("Expected ErrReservedTag error for type %s tag %s", k, f)
+			}
+		}
 	}
 }
 
