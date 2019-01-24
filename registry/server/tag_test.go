@@ -6,12 +6,6 @@ import (
 	pb "github.com/DataDog/kafka-kit/registry/protos"
 )
 
-var (
-	testConfig = TagHandlerConfig{
-		Prefix: "test",
-	}
-)
-
 func TestTagSetFromObject(t *testing.T) {
 	topic := &pb.Topic{
 		Name:        "test",

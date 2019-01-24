@@ -14,12 +14,12 @@ var (
 	ErrInvalidKafkaObjectType = errors.New("invalid Kafka object type")
 )
 
-// ErrRestrictedTag error.
-type ErrRestrictedTag struct {
+// ErrReservedTag error.
+type ErrReservedTag struct {
 	t string
 }
 
-func (e ErrRestrictedTag) Error() string {
+func (e ErrReservedTag) Error() string {
 	return fmt.Sprintf("tag '%s' is a reserved tag", e.t)
 }
 

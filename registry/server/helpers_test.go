@@ -1,5 +1,11 @@
 package server
 
+var (
+	testConfig = TagHandlerConfig{
+		Prefix: "test",
+	}
+)
+
 func testServer() *Server {
 	s, _ := NewServer(Config{
 		ReadReqRate:  1,

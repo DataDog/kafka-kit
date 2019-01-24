@@ -1,7 +1,9 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/DataDog/kafka-kit/kafkazk"
 )
@@ -37,8 +39,41 @@ func NewZKTagStorage(c ZKTagStorageConfig) (*ZKTagStorage, error) {
 	return zks, nil
 }
 
+// Init ensures the ZooKeeper connection is ready and
+// any required znodes are created.
+func (t *ZKTagStorage) Init() error {
+	// Readiness check.
+	time.Sleep(250 * time.Millisecond)
+	if !t.ZK.Ready() {
+		return fmt.Errorf("connection to ZooKeeper not ready in 250ms")
+	}
+
+	// Child znodes to create under the
+	// parent prefix.
+	baseZnodes := []string{
+		fmt.Sprintf("/%s", t.Prefix),
+		fmt.Sprintf("/%s/broker", t.Prefix),
+		fmt.Sprintf("/%s/topic", t.Prefix),
+	}
+
+	for _, p := range baseZnodes {
+		exist, err := t.ZK.Exists(p)
+		if err != nil {
+			return fmt.Errorf("failed to create znode: %s", err)
+		}
+
+		if !exist {
+			if err := t.ZK.Create(p, ""); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 // SetTags takes a KafkaObject and TagSet and sets the
-// tag key:values.
+// tag key:values for the object.
 func (t *ZKTagStorage) SetTags(o KafkaObject, ts TagSet) error {
 	// Check the object validity.
 	if !o.Valid() {
@@ -49,19 +84,52 @@ func (t *ZKTagStorage) SetTags(o KafkaObject, ts TagSet) error {
 	// attempted for use.
 	for k := range ts {
 		if _, r := t.ReservedFields[o.Kind][k]; r {
-			return ErrRestrictedTag{t: k}
+			return ErrReservedTag{t: k}
 		}
 	}
 
-	for k, v := range ts {
-		_, _ = k, v
-		znode := fmt.Sprintf("/%s/%s/%s", t.Prefix, o.Kind, o.ID)
-		fmt.Println(znode)
+	znode := fmt.Sprintf("/%s/%s/%s", t.Prefix, o.Kind, o.ID)
+
+	// Fetch current tags.
+	data, err := t.ZK.Get(znode)
+	if err != nil {
+		switch err.(type) {
+		// The znode doesn't exist; create it.
+		case kafkazk.ErrNoNode:
+			data = []byte{}
+			if err := t.ZK.Create(znode, ""); err != nil {
+				return err
+			}
+		default:
+			return err
+		}
 	}
 
-	return nil
+	tags := map[string]string{}
+
+	if len(data) != 0 {
+		err = json.Unmarshal(data, &tags)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Update with provided tags.
+	for k, v := range ts {
+		tags[k] = v
+	}
+
+	// Persist.
+	out, err := json.Marshal(tags)
+	if err != nil {
+		return err
+	}
+
+	return t.ZK.Set(znode, string(out))
 }
 
+// LoadReservedFields takes a ReservedFields and stores it at
+// ZKTagStorage.ReservedFields and returns an error.
 func (t *ZKTagStorage) LoadReservedFields(r ReservedFields) error {
 	t.ReservedFields = r
 
