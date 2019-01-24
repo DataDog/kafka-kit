@@ -152,7 +152,8 @@ func (s *Server) fetchTopicSet(req *pb.TopicRequest) (TopicSet, error) {
 
 // Names returns a []string of topic names from a TopicSet.
 func (t TopicSet) Names() []string {
-	var names []string
+	var names = []string{}
+
 	for n := range t {
 		names = append(names, n)
 	}
