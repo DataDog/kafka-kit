@@ -173,7 +173,9 @@ func (t *ZKTagStorage) GetTags(o KafkaObject) (TagSet, error) {
 	return tags, nil
 }
 
-// FieldReserved takes a KafkaObject
+// FieldReserved takes a KafkaObject and field name. A bool
+// is returned that indicates whether the field is reserved
+// for the respective KafkaObject type.
 func (t *ZKTagStorage) FieldReserved(o KafkaObject, f string) bool {
 	if !o.Valid() {
 		return false

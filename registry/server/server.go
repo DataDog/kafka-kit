@@ -75,6 +75,9 @@ func NewServer(c Config) (*Server, error) {
 	}
 
 	th, _ := NewTagHandler(tcfg)
+	if c.test {
+		th.Store = newzkTagStorageMock()
+	}
 
 	return &Server{
 		HTTPListen:       c.HTTPListen,
@@ -176,7 +179,6 @@ func (s *Server) RunHTTP(ctx context.Context, wg *sync.WaitGroup) error {
 func (s *Server) DialZK(ctx context.Context, wg *sync.WaitGroup, c *kafkazk.Config) error {
 	if s.test {
 		s.ZK = &kafkazk.Mock{}
-		s.Tags.Store.(*ZKTagStorage).ZK = s.ZK
 		return nil
 	}
 

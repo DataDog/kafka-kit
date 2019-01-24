@@ -176,14 +176,18 @@ func (t *TagHandler) FilterTopics(in TopicSet, tags Tags) (TopicSet, error) {
 
 		if ts.matchAll(tagKV) {
 			out[name] = topic
-		}
 
-		// Ensure that custom tags fetched from storage are
-		// populated into the tags field for the object.
-		for k, v := range ts {
-			// Custom tags are any non-reserved object fields.
-			if !t.Store.FieldReserved(KafkaObject{Type: "topic"}, k) {
-				out[name].Tags[k] = v
+			// Ensure that custom tags fetched from storage are
+			// populated into the tags field for the object.
+			for k, v := range ts {
+				// Custom tags are any non-reserved object fields.
+				if !t.Store.FieldReserved(KafkaObject{Type: "topic"}, k) {
+					if out[name].Tags == nil {
+						out[name].Tags = map[string]string{}
+					}
+
+					out[name].Tags[k] = v
+				}
 			}
 		}
 	}
@@ -218,14 +222,18 @@ func (t *TagHandler) FilterBrokers(in BrokerSet, tags Tags) (BrokerSet, error) {
 
 		if ts.matchAll(tagKV) {
 			out[id] = broker
-		}
 
-		// Ensure that custom tags fetched from storage are
-		// populated into the tags field for the object.
-		for k, v := range ts {
-			// Custom tags are any non-reserved object fields.
-			if !t.Store.FieldReserved(KafkaObject{Type: "broker"}, k) {
-				out[id].Tags[k] = v
+			// Ensure that custom tags fetched from storage are
+			// populated into the tags field for the object.
+			for k, v := range ts {
+				// Custom tags are any non-reserved object fields.
+				if !t.Store.FieldReserved(KafkaObject{Type: "broker"}, k) {
+					if out[id].Tags == nil {
+						out[id].Tags = map[string]string{}
+					}
+
+					out[id].Tags[k] = v
+				}
 			}
 		}
 	}
