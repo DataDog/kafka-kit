@@ -83,12 +83,12 @@ func (t *ZKTagStorage) SetTags(o KafkaObject, ts TagSet) error {
 	// Check if any reserved tags are being
 	// attempted for use.
 	for k := range ts {
-		if _, r := t.ReservedFields[o.Kind][k]; r {
+		if _, r := t.ReservedFields[o.Type][k]; r {
 			return ErrReservedTag{t: k}
 		}
 	}
 
-	znode := fmt.Sprintf("/%s/%s/%s", t.Prefix, o.Kind, o.ID)
+	znode := fmt.Sprintf("/%s/%s/%s", t.Prefix, o.Type, o.ID)
 
 	// Fetch current tags.
 	data, err := t.ZK.Get(znode)

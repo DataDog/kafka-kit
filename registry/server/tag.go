@@ -68,15 +68,15 @@ type TagSet map[string]string
 // KafkaObject holds an object type (broker, topic) and
 // object identifier (ID, name).
 type KafkaObject struct {
-	Kind string
+	Type string
 	ID   string
 }
 
 // Valid checks if a KafkaObject has a valid
-// Kind field value.
+// Type field value.
 func (o KafkaObject) Valid() bool {
 	switch {
-	case o.Kind == "broker", o.Kind == "topic":
+	case o.Type == "broker", o.Type == "topic":
 		if o.ID != "" {
 			return true
 		}

@@ -57,13 +57,24 @@ func TestSetTags(t *testing.T) {
 	}
 
 	o := KafkaObject{
-		Kind: "broker",
+		Type: "broker",
 		ID:   "1002",
 	}
 
 	err := store.SetTags(o, ts)
 	if err != nil {
 		t.Error(err)
+	}
+
+	// Test invalid KafkaObject Type.
+	o = KafkaObject{
+		Type: "test",
+		ID:   "1002",
+	}
+
+	err = store.SetTags(o, ts)
+	if err != ErrInvalidKafkaObjectType {
+		t.Error("Expected ErrInvalidKafkaObjectType error")
 	}
 }
 

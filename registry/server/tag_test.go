@@ -98,14 +98,14 @@ func TestValid(t *testing.T) {
 	}
 
 	for i, k := range tests {
-		o := KafkaObject{Kind: k, ID: "test"}
+		o := KafkaObject{Type: k, ID: "test"}
 		if o.Valid() != expected[i] {
-			t.Errorf("Expected Valid==%v for KafkaObject kind '%s'", expected[i], k)
+			t.Errorf("Expected Valid==%v for KafkaObject Type '%s'", expected[i], k)
 		}
 	}
 
 	// Test no ID.
-	o := KafkaObject{Kind: "broker"}
+	o := KafkaObject{Type: "broker"}
 	if o.Valid() {
 		t.Errorf("Valid should fail if the ID field is unspecified")
 	}
