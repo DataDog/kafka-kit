@@ -63,12 +63,35 @@ service Registry {
 
   // BrokerMappings returns a TopicResponse with the names field
   // populated with topics that the broker holds at least one partition
-  // for. The broker is specified in the BrokerRequest.id field.
+  // for the requested broker. The broker is specified in the
+  // BrokerRequest.id field.
   rpc BrokerMappings (BrokerRequest) returns (TopicResponse) {
     option (google.api.http) = {
       get: "/v1/mappings/broker/{id}"
     };
   }
+
+  // TagTopic takes a TopicRequest and sets any specified
+  // tags for the named topic. Any existing tags that are
+  // not specified in the request are left unmodified.
+  rpc TagTopic (TopicRequest) returns (TagResponse) {
+    option (google.api.http) = {
+      put: "/v1/topics/tag/{name}"
+    };
+  }
+
+  // TagBroker takes a BrokerRequest and sets any specified
+  // tags for the named broker. Any existing tags that are
+  // not specified in the request are left unmodified.
+  rpc TagBroker (BrokerRequest) returns (TagResponse) {
+    option (google.api.http) = {
+      put: "/v1/brokers/tag/{id}"
+    };
+  }
+}
+
+message TagResponse {
+  string message = 1;
 }
 
 /**********
