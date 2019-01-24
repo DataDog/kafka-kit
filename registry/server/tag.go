@@ -44,7 +44,7 @@ func NewTagHandler(c TagHandlerConfig) (*TagHandler, error) {
 		return nil, err
 	}
 
-	err = ts.LoadReservedFields(getReservedFields())
+	err = ts.LoadReservedFields(GetReservedFields())
 	if err != nil {
 		return nil, err
 	}
@@ -205,10 +205,10 @@ func (t *TagHandler) FilterBrokers(in BrokerSet, tags Tags) (BrokerSet, error) {
 // default fields that become searchable through the tags interface.
 type ReservedFields map[string]map[string]struct{}
 
-// getReservedFields returns a map proto message types to field names
+// GetReservedFields returns a map proto message types to field names
 // considered reserved for internal use. All fields specified in the
 // Registry proto messages are discovered here and reserved by default.
-func getReservedFields() ReservedFields {
+func GetReservedFields() ReservedFields {
 	var fs = make(ReservedFields)
 
 	fs["topic"] = fieldsFromStruct(&pb.Topic{})

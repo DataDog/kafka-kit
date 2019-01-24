@@ -198,8 +198,8 @@ func TestFilterBrokers(t *testing.T) {
 	}
 }
 
-func TestRestrictedFields(t *testing.T) {
-	rs := getReservedFields()
+func TestReservedFields(t *testing.T) {
+	rs := GetReservedFields()
 
 	topicExpected := map[string]struct{}{
 		"tags":        struct{}{},
