@@ -202,8 +202,13 @@ func (s *Server) DialZK(ctx context.Context, wg *sync.WaitGroup, c *kafkazk.Conf
 
 	log.Printf("Connected to ZooKeeper: %s\n", c.Connect)
 
-	// Pass the Handler to the underlying TagHandler Store.
+	// Pass the Handler to the underlying TagHandler Store
+	// and call the Init procedure.
+	// TODO this needs to go somewhere else.
 	s.Tags.Store.(*ZKTagStorage).ZK = zk
+	if err := s.Tags.Store.(*ZKTagStorage).Init(); err != nil {
+		return fmt.Errorf("failed to initialize ZooKeeper TagStorage backend")
+	}
 
 	// Shutdown procedure.
 	go func() {

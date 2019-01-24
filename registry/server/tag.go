@@ -155,10 +155,6 @@ func (t *TagHandler) TagSetFromObject(o interface{}) (TagSet, error) {
 // tags persisted in the TagStorage backend are populated into the
 // Tags field for each matched object.
 func (t *TagHandler) FilterTopics(in TopicSet, tags Tags) (TopicSet, error) {
-	if len(tags) == 0 {
-		return in, nil
-	}
-
 	var out = make(TopicSet)
 
 	// Get tag key/values.
@@ -201,10 +197,6 @@ func (t *TagHandler) FilterTopics(in TopicSet, tags Tags) (TopicSet, error) {
 // tags persisted in the TagStorage backend are populated into the
 // Tags field for each matched object.
 func (t *TagHandler) FilterBrokers(in BrokerSet, tags Tags) (BrokerSet, error) {
-	if len(tags) == 0 {
-		return in, nil
-	}
-
 	var out = make(BrokerSet)
 
 	// Get tag key/values.
