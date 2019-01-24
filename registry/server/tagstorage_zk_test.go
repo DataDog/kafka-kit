@@ -198,6 +198,7 @@ func TestGetTagsFailures(t *testing.T) {
 		t.Error("Expected ErrKafkaObjectDoesNotExist error")
 	}
 }
+
 // Sort by string length.
 
 type byLen []string

@@ -13,7 +13,7 @@ var (
 	// ErrInvalidKafkaObjectType error.
 	ErrInvalidKafkaObjectType = errors.New("invalid Kafka object type")
 	// ErrKafkaObjectDoesNotExist error.
-	ErrKafkaObjectDoesNotExist = errors.New("request Kafka object does not exist")
+	ErrKafkaObjectDoesNotExist = errors.New("requested Kafka object does not exist")
 	// ErrNilTagSet error.
 	ErrNilTagSet = errors.New("must provide a non-nil TagSet")
 )
@@ -91,19 +91,29 @@ func (o KafkaObject) Valid() bool {
 }
 
 // TagSetFromObject takes a protobuf type and
-// returns the default TagSet.
-func TagSetFromObject(o interface{}) TagSet {
+// returns the default TagSet along with any
+// user-defined tags.
+func (t *TagHandler) TagSetFromObject(o interface{}) (TagSet, error) {
 	var ts = TagSet{}
 
+	var ko = KafkaObject{}
+
+	// Populate default tags.
 	switch o.(type) {
 	case *pb.Topic:
 		t := o.(*pb.Topic)
+		ko.Type = "topic"
+		ko.ID = t.Name
+
 		ts["name"] = t.Name
 		ts["partitions"] = fmt.Sprintf("%d", t.Partitions)
 		ts["replication"] = fmt.Sprintf("%d", t.Replication)
 	case *pb.Broker:
 		b := o.(*pb.Broker)
-		// TODO deal with map types.
+		ko.Type = "broker"
+		ko.ID = fmt.Sprintf("%s", b.Id)
+
+		// TODO implement map/nested types.
 		// ts["listenersecurityprotocolmap"] = b.ListenerSecurityProtocolMap
 		ts["id"] = fmt.Sprintf("%d", b.Id)
 		ts["rack"] = b.Rack
@@ -114,7 +124,87 @@ func TagSetFromObject(o interface{}) TagSet {
 		ts["version"] = fmt.Sprintf("%d", b.Version)
 	}
 
-	return ts
+	// Fetch and merge stored tags.
+	st, err := t.Store.GetTags(ko)
+	if err != nil {
+		switch {
+		// ErrKafkaObjectDoesNotExist from TagStorage
+		// simply means we do not have any user-defined
+		// tags stored for the requested object.
+		case err == ErrKafkaObjectDoesNotExist:
+			break
+		default:
+			return nil, err
+		}
+	}
+
+	for k, v := range st {
+		ts[k] = v
+	}
+
+	return ts, nil
+}
+
+// FilterTopics takes a map of topic names to *pb.Topic and tags KV list.
+// A filtered map is returned that includes topics where all tags
+// values match the provided input tag KVs.
+func (t *TagHandler) FilterTopics(in TopicSet, tags Tags) (TopicSet, error) {
+	if len(tags) == 0 {
+		return in, nil
+	}
+
+	var out = make(TopicSet)
+
+	// Get tag key/values.
+	tagKV, err := tags.TagSet()
+	if err != nil {
+		return nil, err
+	}
+
+	// Filter input topics.
+	for name, topic := range in {
+		ts, err := t.TagSetFromObject(topic)
+		if err != nil {
+			return nil, err
+		}
+
+		if ts.matchAll(tagKV) {
+			out[name] = topic
+		}
+	}
+
+	return out, nil
+}
+
+// FilterBrokers takes a map of broker IDs to *pb.Broker and tags KV list.
+// A filtered map is returned that includes brokers where all tags
+// values match the provided input tag KVs.
+func (t *TagHandler) FilterBrokers(in BrokerSet, tags Tags) (BrokerSet, error) {
+	if len(tags) == 0 {
+		return in, nil
+	}
+
+	var out = make(BrokerSet)
+
+	// Get tag key/values.
+	tagKV, err := tags.TagSet()
+	if err != nil {
+		return nil, err
+	}
+
+	// Filter input brokers.
+	for id, broker := range in {
+		ts, err := t.TagSetFromObject(broker)
+		if err != nil {
+			return nil, err
+		}
+
+		if ts.matchAll(tagKV) {
+			out[id] = broker
+		}
+	}
+
+	return out, nil
 }
 
 // matchAll takes a TagSet and returns true
@@ -163,60 +253,6 @@ func (t Tags) TagSet() (TagSet, error) {
 	}
 
 	return ts, nil
-}
-
-// FilterTopics takes a map of topic names to *pb.Topic and tags KV list.
-// A filtered map is returned that includes topics where all tags
-// values match the provided input tag KVs.
-func (t *TagHandler) FilterTopics(in TopicSet, tags Tags) (TopicSet, error) {
-	if len(tags) == 0 {
-		return in, nil
-	}
-
-	var out = make(TopicSet)
-
-	// Get tag key/values.
-	tagKV, err := tags.TagSet()
-	if err != nil {
-		return nil, err
-	}
-
-	// Filter input topics.
-	for name, topic := range in {
-		ts := TagSetFromObject(topic)
-		if ts.matchAll(tagKV) {
-			out[name] = topic
-		}
-	}
-
-	return out, nil
-}
-
-// FilterBrokers takes a map of broker IDs to *pb.Broker and tags KV list.
-// A filtered map is returned that includes brokers where all tags
-// values match the provided input tag KVs.
-func (t *TagHandler) FilterBrokers(in BrokerSet, tags Tags) (BrokerSet, error) {
-	if len(tags) == 0 {
-		return in, nil
-	}
-
-	var out = make(BrokerSet)
-
-	// Get tag key/values.
-	tagKV, err := tags.TagSet()
-	if err != nil {
-		return nil, err
-	}
-
-	// Filter input brokers.
-	for id, broker := range in {
-		ts := TagSetFromObject(broker)
-		if ts.matchAll(tagKV) {
-			out[id] = broker
-		}
-	}
-
-	return out, nil
 }
 
 // ReservedFields is a mapping of object types (topic, broker)
