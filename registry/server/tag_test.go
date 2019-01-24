@@ -13,7 +13,9 @@ func TestTagSetFromObject(t *testing.T) {
 		Replication: 3,
 	}
 
-	ts := TagSetFromObject(topic)
+	th := testTagHandler()
+	ts, _ := th.TagSetFromObject(topic)
+
 	if len(ts) != 3 {
 		t.Errorf("Expected TagSet len 3, got %d", len(ts))
 	}
@@ -133,16 +135,39 @@ func TestValid(t *testing.T) {
 			t.Errorf("Expected Valid==%v for KafkaObject Type '%s'", expected[i], k)
 		}
 	}
+}
+
+func TestComplete(t *testing.T) {
+	tests := map[int]string{
+		0: "broker",
+		1: "topic",
+		3: "invalid",
+		4: "",
+	}
+
+	expected := map[int]bool{
+		0: true,
+		1: true,
+		3: false,
+		4: false,
+	}
+
+	for i, k := range tests {
+		o := KafkaObject{Type: k, ID: "test"}
+		if o.Valid() != expected[i] {
+			t.Errorf("Expected Valid==%v for KafkaObject Type '%s'", expected[i], k)
+		}
+	}
 
 	// Test no ID.
 	o := KafkaObject{Type: "broker"}
-	if o.Valid() {
-		t.Errorf("Valid should fail if the ID field is unspecified")
+	if o.Complete() {
+		t.Errorf("Complete should fail if the ID field is unspecified")
 	}
 }
 
 func TestFilterTopics(t *testing.T) {
-	th, _ := NewTagHandler(testConfig)
+	th := testTagHandler()
 
 	topics := TopicSet{
 		"test_topic1": &pb.Topic{
@@ -187,7 +212,7 @@ func TestFilterTopics(t *testing.T) {
 }
 
 func TestFilterBrokers(t *testing.T) {
-	th, _ := NewTagHandler(testConfig)
+	th := testTagHandler()
 
 	brokers := BrokerSet{
 		1001: &pb.Broker{

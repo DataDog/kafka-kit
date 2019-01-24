@@ -35,6 +35,7 @@ func NewZKTagStorage(c ZKTagStorageConfig) (*ZKTagStorage, error) {
 	// we don't dial a connection in this instantiation func.
 	// The kafkazk Handler is shared / passed in by the parent
 	// registry Server during setup in the DialZK call.
+	// TODO needs a standalone dial func.
 
 	return zks, nil
 }
@@ -76,7 +77,7 @@ func (t *ZKTagStorage) Init() error {
 // tag key:values for the object.
 func (t *ZKTagStorage) SetTags(o KafkaObject, ts TagSet) error {
 	// Sanity checks.
-	if !o.Valid() {
+	if !o.Complete() {
 		return ErrInvalidKafkaObjectType
 	}
 
@@ -94,7 +95,7 @@ func (t *ZKTagStorage) SetTags(o KafkaObject, ts TagSet) error {
 	// Check if any reserved tags are being
 	// attempted for use.
 	for k := range ts {
-		if _, r := t.ReservedFields[o.Type][k]; r {
+		if t.FieldReserved(o, k) {
 			return ErrReservedTag{t: k}
 		}
 	}
@@ -130,7 +131,7 @@ func (t *ZKTagStorage) SetTags(o KafkaObject, ts TagSet) error {
 		tags[k] = v
 	}
 
-	// Persist.
+	// Serialize, persist.
 	out, err := json.Marshal(tags)
 	if err != nil {
 		return err
@@ -142,7 +143,7 @@ func (t *ZKTagStorage) SetTags(o KafkaObject, ts TagSet) error {
 // GetTags returns the TagSet for the requested KafkaObject.
 func (t *ZKTagStorage) GetTags(o KafkaObject) (TagSet, error) {
 	// Sanity checks.
-	if !o.Valid() {
+	if !o.Complete() {
 		return nil, ErrInvalidKafkaObjectType
 	}
 
@@ -170,6 +171,17 @@ func (t *ZKTagStorage) GetTags(o KafkaObject) (TagSet, error) {
 	}
 
 	return tags, nil
+}
+
+// FieldReserved takes a KafkaObject
+func (t *ZKTagStorage) FieldReserved(o KafkaObject, f string) bool {
+	if !o.Valid() {
+		return false
+	}
+
+	_, ok := t.ReservedFields[o.Type][f]
+
+	return ok
 }
 
 // LoadReservedFields takes a ReservedFields and stores it at

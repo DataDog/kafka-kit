@@ -36,6 +36,7 @@ type TagHandler struct {
 // TagStorage handles tag persistence to stable storage.
 type TagStorage interface {
 	LoadReservedFields(ReservedFields) error
+	FieldReserved(KafkaObject, string) bool
 	SetTags(KafkaObject, TagSet) error
 	GetTags(KafkaObject) (TagSet, error)
 }
@@ -82,20 +83,22 @@ type KafkaObject struct {
 func (o KafkaObject) Valid() bool {
 	switch {
 	case o.Type == "broker", o.Type == "topic":
-		if o.ID != "" {
-			return true
-		}
+		return true
 	}
 
 	return false
 }
 
-// TagSetFromObject takes a protobuf type and
-// returns the default TagSet along with any
-// user-defined tags.
+// Complete checks if a KafkaObject is valid
+// and has a non-empty ID field value.
+func (o KafkaObject) Complete() bool {
+	return o.Valid() && o.ID != ""
+}
+
+// TagSetFromObject takes a protobuf type and returns the
+// default TagSet along with any user-defined tags.
 func (t *TagHandler) TagSetFromObject(o interface{}) (TagSet, error) {
 	var ts = TagSet{}
-
 	var ko = KafkaObject{}
 
 	// Populate default tags.
@@ -111,7 +114,7 @@ func (t *TagHandler) TagSetFromObject(o interface{}) (TagSet, error) {
 	case *pb.Broker:
 		b := o.(*pb.Broker)
 		ko.Type = "broker"
-		ko.ID = fmt.Sprintf("%s", b.Id)
+		ko.ID = fmt.Sprintf("%d", b.Id)
 
 		// TODO implement map/nested types.
 		// ts["listenersecurityprotocolmap"] = b.ListenerSecurityProtocolMap
@@ -124,7 +127,7 @@ func (t *TagHandler) TagSetFromObject(o interface{}) (TagSet, error) {
 		ts["version"] = fmt.Sprintf("%d", b.Version)
 	}
 
-	// Fetch and merge stored tags.
+	// Fetch stored tags.
 	st, err := t.Store.GetTags(ko)
 	if err != nil {
 		switch {
@@ -138,6 +141,7 @@ func (t *TagHandler) TagSetFromObject(o interface{}) (TagSet, error) {
 		}
 	}
 
+	// Merge stored tags with default tags.
 	for k, v := range st {
 		ts[k] = v
 	}
@@ -147,7 +151,9 @@ func (t *TagHandler) TagSetFromObject(o interface{}) (TagSet, error) {
 
 // FilterTopics takes a map of topic names to *pb.Topic and tags KV list.
 // A filtered map is returned that includes topics where all tags
-// values match the provided input tag KVs.
+// values match the provided input tag KVs. Additionally, any custom
+// tags persisted in the TagStorage backend are populated into the
+// Tags field for each matched object.
 func (t *TagHandler) FilterTopics(in TopicSet, tags Tags) (TopicSet, error) {
 	if len(tags) == 0 {
 		return in, nil
@@ -171,6 +177,15 @@ func (t *TagHandler) FilterTopics(in TopicSet, tags Tags) (TopicSet, error) {
 		if ts.matchAll(tagKV) {
 			out[name] = topic
 		}
+
+		// Ensure that custom tags fetched from storage are
+		// populated into the tags field for the object.
+		for k, v := range ts {
+			// Custom tags are any non-reserved object fields.
+			if !t.Store.FieldReserved(KafkaObject{Type: "topic"}, k) {
+				out[name].Tags[k] = v
+			}
+		}
 	}
 
 	return out, nil
@@ -178,7 +193,9 @@ func (t *TagHandler) FilterTopics(in TopicSet, tags Tags) (TopicSet, error) {
 
 // FilterBrokers takes a map of broker IDs to *pb.Broker and tags KV list.
 // A filtered map is returned that includes brokers where all tags
-// values match the provided input tag KVs.
+// values match the provided input tag KVs. Additionally, any custom
+// tags persisted in the TagStorage backend are populated into the
+// Tags field for each matched object.
 func (t *TagHandler) FilterBrokers(in BrokerSet, tags Tags) (BrokerSet, error) {
 	if len(tags) == 0 {
 		return in, nil
@@ -201,6 +218,15 @@ func (t *TagHandler) FilterBrokers(in BrokerSet, tags Tags) (BrokerSet, error) {
 
 		if ts.matchAll(tagKV) {
 			out[id] = broker
+		}
+
+		// Ensure that custom tags fetched from storage are
+		// populated into the tags field for the object.
+		for k, v := range ts {
+			// Custom tags are any non-reserved object fields.
+			if !t.Store.FieldReserved(KafkaObject{Type: "broker"}, k) {
+				out[id].Tags[k] = v
+			}
 		}
 	}
 
