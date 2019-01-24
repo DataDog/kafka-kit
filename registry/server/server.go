@@ -44,7 +44,7 @@ type Config struct {
 	GRPCListen   string
 	ReadReqRate  int
 	WriteReqRate int
-	ZKMetaPrefix string
+	ZKTagsPrefix string
 
 	test bool
 }
@@ -52,7 +52,7 @@ type Config struct {
 // NewServer initializes a *Server.
 func NewServer(c Config) (*Server, error) {
 	switch {
-	case c.ZKMetaPrefix == "":
+	case c.ZKTagsPrefix == "":
 		fallthrough
 	case c.ReadReqRate < 1:
 		fallthrough
@@ -71,7 +71,7 @@ func NewServer(c Config) (*Server, error) {
 	})
 
 	tcfg := TagHandlerConfig{
-		Prefix: c.ZKMetaPrefix,
+		Prefix: c.ZKTagsPrefix,
 	}
 
 	th, _ := NewTagHandler(tcfg)

@@ -10,7 +10,7 @@ func testServer() *Server {
 	s, _ := NewServer(Config{
 		ReadReqRate:  1,
 		WriteReqRate: 1,
-		ZKMetaPrefix: testConfig.Prefix,
+		ZKTagsPrefix: testConfig.Prefix,
 		test:         true,
 	})
 
