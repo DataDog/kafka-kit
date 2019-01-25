@@ -133,15 +133,15 @@ func TestTagTopic(t *testing.T) {
 	expected := map[int]error{
 		0: nil,
 		1: ErrTopicNameEmpty,
-		2: ErrNilTagSet,
-		3: ErrNilTagSet,
+		2: ErrNilTags,
+		3: ErrNilTags,
 		4: ErrTopicNotExist,
 	}
 
 	for i, req := range tests {
 		_, err := s.TagTopic(context.Background(), req)
 		if err != expected[i] {
-			t.Errorf("Expected err '%v', got '%v'", expected[i], err)
+			t.Errorf("[test %d] Expected err '%v', got '%v'", i, expected[i], err)
 		}
 	}
 }

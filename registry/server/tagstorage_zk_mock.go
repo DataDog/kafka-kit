@@ -65,7 +65,7 @@ func (t *zkTagStorageMock) GetTags(o KafkaObject) (TagSet, error) {
 }
 
 // DeleteTags mocks DeleteTags.
-func (t *zkTagStorageMock) DeleteTags(o KafkaObject, tl TagList) error {
+func (t *zkTagStorageMock) DeleteTags(o KafkaObject, tl Tags) error {
 	if !o.Complete() {
 		return ErrInvalidKafkaObjectType
 	}

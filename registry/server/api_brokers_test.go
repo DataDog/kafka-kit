@@ -133,15 +133,15 @@ func TestTagBroker(t *testing.T) {
 	expected := map[int]error{
 		0: nil,
 		1: ErrBrokerIDEmpty,
-		2: ErrNilTagSet,
-		3: ErrNilTagSet,
+		2: ErrNilTags,
+		3: ErrNilTags,
 		4: ErrBrokerNotExist,
 	}
 
 	for i, req := range tests {
 		_, err := s.TagBroker(context.Background(), req)
 		if err != expected[i] {
-			t.Errorf("Expected err '%v', got '%v'", expected[i], err)
+			t.Errorf("[test %d] Expected err '%v', got '%v'", i, expected[i], err)
 		}
 	}
 }

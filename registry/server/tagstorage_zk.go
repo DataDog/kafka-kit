@@ -166,15 +166,15 @@ func (t *ZKTagStorage) GetTags(o KafkaObject) (TagSet, error) {
 	return tags, nil
 }
 
-// DeleteTags deletes all tags in the TagList for the requested KafkaObject.
-func (t *ZKTagStorage) DeleteTags(o KafkaObject, tl TagList) error {
+// DeleteTags deletes all tags in the Tags for the requested KafkaObject.
+func (t *ZKTagStorage) DeleteTags(o KafkaObject, ts Tags) error {
 	// Sanity checks.
 	if !o.Complete() {
 		return ErrInvalidKafkaObjectType
 	}
 
-	if len(tl) == 0 {
-		return ErrNilTagList
+	if len(ts) == 0 {
+		return ErrNilTags
 	}
 
 	znode := fmt.Sprintf("/%s/%s/%s", t.Prefix, o.Type, o.ID)
@@ -201,7 +201,7 @@ func (t *ZKTagStorage) DeleteTags(o KafkaObject, tl TagList) error {
 	}
 
 	// Delete listed tags.
-	for _, k := range tl {
+	for _, k := range ts {
 		delete(tags, k)
 	}
 

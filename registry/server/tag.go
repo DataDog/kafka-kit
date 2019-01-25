@@ -16,8 +16,8 @@ var (
 	ErrKafkaObjectDoesNotExist = errors.New("requested Kafka object does not exist")
 	// ErrNilTagSet error.
 	ErrNilTagSet = errors.New("must provide a non-nil or non-empty TagSet")
-	// ErrNilTagList error.
-	ErrNilTagList = errors.New("must provide a non-nil or non-empty TagList")
+	// ErrNilTags error.
+	ErrNilTags = errors.New("must provide a non-nil or non-empty tags")
 )
 
 // ErrReservedTag error.
@@ -41,7 +41,7 @@ type TagStorage interface {
 	FieldReserved(KafkaObject, string) bool
 	SetTags(KafkaObject, TagSet) error
 	GetTags(KafkaObject) (TagSet, error)
-	DeleteTags(KafkaObject, TagList) error
+	DeleteTags(KafkaObject, Tags) error
 }
 
 // NewTagHandler initializes a TagHandler.
@@ -67,9 +67,6 @@ func NewTagHandler(c TagHandlerConfig) (*TagHandler, error) {
 type TagHandlerConfig struct {
 	Prefix string
 }
-
-// TagList is a []string of "key" names.
-type TagList []string
 
 // Tags is a []string of "key:value" pairs.
 type Tags []string
@@ -269,8 +266,8 @@ func (t1 TagSet) Equal(t2 TagSet) bool {
 }
 
 // TagSet takes a tags and returns a TagSet and error for any
-// malformed tags. Tags are expected to be formatted as
-// "key:value" strings.
+// malformed tags. Tags are expected to be formatted as a
+// comma delimited "key:value,key2:value2" string.
 // TODO normalize all tag usage to lower case.
 func (t Tags) TagSet() (TagSet, error) {
 	var ts = TagSet{}
@@ -278,7 +275,7 @@ func (t Tags) TagSet() (TagSet, error) {
 	for _, tag := range t {
 		kv := strings.Split(tag, ":")
 		if len(kv) != 2 {
-			return nil, fmt.Errorf("invalid tag: %s", t)
+			return nil, fmt.Errorf("invalid tag '%s': must be formatted as key:value", t)
 		}
 
 		ts[kv[0]] = kv[1]

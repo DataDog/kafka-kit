@@ -214,9 +214,9 @@ func TestDeleteTags(t *testing.T) {
 		1: KafkaObject{Type: "topic", ID: "test"},
 	}
 
-	testTagDeletes := map[int]TagList{
-		0: TagList{"key", "key2"},
-		1: TagList{"key2"},
+	testTagDeletes := map[int]Tags{
+		0: Tags{"key", "key2"},
+		1: Tags{"key2"},
 	}
 
 	expected := map[int]TagSet{
@@ -256,26 +256,26 @@ func TestDeleteTagsFailures(t *testing.T) {
 	}
 
 	// Test invalid object.
-	err := store.DeleteTags(KafkaObject{Type: "fail"}, TagList{"k"})
+	err := store.DeleteTags(KafkaObject{Type: "fail"}, Tags{"k"})
 	if err != ErrInvalidKafkaObjectType {
 		t.Error("Expected ErrInvalidKafkaObjectType error")
 	}
 
 	// Test non-existent object.
-	err = store.DeleteTags(KafkaObject{Type: "broker", ID: "000"}, TagList{"k"})
+	err = store.DeleteTags(KafkaObject{Type: "broker", ID: "000"}, Tags{"k"})
 	if err != ErrKafkaObjectDoesNotExist {
 		t.Error("Expected ErrKafkaObjectDoesNotExist error")
 	}
 
-	// Test empty TagList.
-	err = store.DeleteTags(KafkaObject{Type: "broker", ID: "000"}, TagList{})
-	if err != ErrNilTagList {
-		t.Error("Expected ErrNilTagList error")
+	// Test empty Tags.
+	err = store.DeleteTags(KafkaObject{Type: "broker", ID: "000"}, Tags{})
+	if err != ErrNilTags {
+		t.Error("Expected ErrNilTags error")
 	}
 
 	err = store.DeleteTags(KafkaObject{Type: "broker", ID: "000"}, nil)
-	if err != ErrNilTagList {
-		t.Error("Expected ErrNilTagList error")
+	if err != ErrNilTags {
+		t.Error("Expected ErrNilTags error")
 	}
 }
 

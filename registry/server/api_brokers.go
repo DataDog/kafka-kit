@@ -179,14 +179,14 @@ func (s *Server) TagBroker(ctx context.Context, req *pb.BrokerRequest) (*pb.TagR
 		return nil, ErrBrokerIDEmpty
 	}
 
+	if len(req.Tag) == 0 {
+		return nil, ErrNilTags
+	}
+
 	// Get a TagSet from the supplied tags.
 	ts, err := Tags(req.Tag).TagSet()
 	if err != nil {
 		return nil, err
-	}
-
-	if len(ts) == 0 {
-		return nil, ErrNilTagSet
 	}
 
 	// Ensure the broker exists.
