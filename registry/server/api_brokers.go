@@ -171,7 +171,7 @@ func (s *Server) fetchBrokerSet(req *pb.BrokerRequest) (BrokerSet, error) {
 // TagBroker sets custom tags for the specified broker. Any previously existing
 // tags that were not specified in the request remain unmodified.
 func (s *Server) TagBroker(ctx context.Context, req *pb.BrokerRequest) (*pb.TagResponse, error) {
-	if err := s.ValidateRequest(ctx, req, readRequest); err != nil {
+	if err := s.ValidateRequest(ctx, req, writeRequest); err != nil {
 		return nil, err
 	}
 

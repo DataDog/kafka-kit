@@ -113,7 +113,7 @@ func (s *Server) TopicMappings(ctx context.Context, req *pb.TopicRequest) (*pb.B
 // TagTopic sets custom tags for the specified topic. Any previously existing
 // tags that were not specified in the request remain unmodified.
 func (s *Server) TagTopic(ctx context.Context, req *pb.TopicRequest) (*pb.TagResponse, error) {
-	if err := s.ValidateRequest(ctx, req, readRequest); err != nil {
+	if err := s.ValidateRequest(ctx, req, writeRequest); err != nil {
 		return nil, err
 	}
 
