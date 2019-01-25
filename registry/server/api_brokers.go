@@ -179,6 +179,16 @@ func (s *Server) TagBroker(ctx context.Context, req *pb.BrokerRequest) (*pb.TagR
 		return nil, ErrBrokerIDEmpty
 	}
 
+	// Get a TagSet from the supplied tags.
+	ts, err := Tags(req.Tag).TagSet()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(ts) == 0 {
+		return nil, ErrNilTagSet
+	}
+
 	// Ensure the broker exists.
 
 	// Get brokers from ZK.
@@ -189,12 +199,6 @@ func (s *Server) TagBroker(ctx context.Context, req *pb.BrokerRequest) (*pb.TagR
 
 	if _, exist := brokers[int(req.Id)]; !exist {
 		return nil, ErrBrokerNotExist
-	}
-
-	// Get a TagSet from the supplied tags.
-	ts, err := Tags(req.Tag).TagSet()
-	if err != nil {
-		return nil, err
 	}
 
 	// Set the tags.

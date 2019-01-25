@@ -121,6 +121,16 @@ func (s *Server) TagTopic(ctx context.Context, req *pb.TopicRequest) (*pb.TagRes
 		return nil, ErrTopicNameEmpty
 	}
 
+	// Get a TagSet from the supplied tags.
+	ts, err := Tags(req.Tag).TagSet()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(ts) == 0 {
+		return nil, ErrNilTagSet
+	}
+
 	// Ensure the topic exists.
 
 	// Get topics from ZK.
@@ -134,12 +144,6 @@ func (s *Server) TagTopic(ctx context.Context, req *pb.TopicRequest) (*pb.TagRes
 
 	if len(topics) == 0 {
 		return nil, ErrTopicNotExist
-	}
-
-	// Get a TagSet from the supplied tags.
-	ts, err := Tags(req.Tag).TagSet()
-	if err != nil {
-		return nil, err
 	}
 
 	// Set the tags.
