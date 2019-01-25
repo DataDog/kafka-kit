@@ -119,6 +119,33 @@ func TestCustomTagBrokerFilter(t *testing.T) {
 	}
 }
 
+func TestTagBroker(t *testing.T) {
+	s := testServer()
+
+	tests := map[int]*pb.BrokerRequest{
+		0: &pb.BrokerRequest{Id: 1001, Tag: []string{"k:v"}},
+		1: &pb.BrokerRequest{Tag: []string{"k:v"}},
+		2: &pb.BrokerRequest{Id: 1001, Tag: []string{}},
+		3: &pb.BrokerRequest{Id: 1001},
+		4: &pb.BrokerRequest{Id: 1020, Tag: []string{"k:v"}},
+	}
+
+	expected := map[int]error{
+		0: nil,
+		1: ErrBrokerIDEmpty,
+		2: ErrNilTagSet,
+		3: ErrNilTagSet,
+		4: ErrBrokerNotExist,
+	}
+
+	for i, req := range tests {
+		_, err := s.TagBroker(context.Background(), req)
+		if err != expected[i] {
+			t.Errorf("Expected err '%v', got '%v'", expected[i], err)
+		}
+	}
+}
+
 func TestBrokerMappings(t *testing.T) {
 	s := testServer()
 

@@ -119,6 +119,33 @@ func TestCustomTagTopicFilter(t *testing.T) {
 	}
 }
 
+func TestTagTopic(t *testing.T) {
+	s := testServer()
+
+	tests := map[int]*pb.TopicRequest{
+		0: &pb.TopicRequest{Name: "test_topic", Tag: []string{"k:v"}},
+		1: &pb.TopicRequest{Tag: []string{"k:v"}},
+		2: &pb.TopicRequest{Name: "test_topic", Tag: []string{}},
+		3: &pb.TopicRequest{Name: "test_topic"},
+		4: &pb.TopicRequest{Name: "test_topic20", Tag: []string{"k:v"}},
+	}
+
+	expected := map[int]error{
+		0: nil,
+		1: ErrTopicNameEmpty,
+		2: ErrNilTagSet,
+		3: ErrNilTagSet,
+		4: ErrTopicNotExist,
+	}
+
+	for i, req := range tests {
+		_, err := s.TagTopic(context.Background(), req)
+		if err != expected[i] {
+			t.Errorf("Expected err '%v', got '%v'", expected[i], err)
+		}
+	}
+}
+
 func TestTopicMappings(t *testing.T) {
 	s := testServer()
 
