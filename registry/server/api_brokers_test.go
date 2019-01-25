@@ -146,6 +146,70 @@ func TestTagBroker(t *testing.T) {
 	}
 }
 
+func TestDeleteBrokerTags(t *testing.T) {
+	s := testServer()
+
+	// Set tags.
+	req := &pb.BrokerRequest{
+		Id:  1001,
+		Tag: []string{"k:v", "k2:v2", "k3:v3"},
+	}
+
+	_, err := s.TagBroker(context.Background(), req)
+	if err != nil {
+		t.Errorf("Unexpected error: %s", err)
+	}
+
+	// Delete two tags.
+	req = &pb.BrokerRequest{
+		Id:  1001,
+		Tag: []string{"k", "k2"},
+	}
+
+	_, err = s.DeleteBrokerTags(context.Background(), req)
+	if err != nil {
+		t.Errorf("Unexpected error: %s", err)
+	}
+
+	// Fetch tags.
+	req = &pb.BrokerRequest{Id: 1001}
+	resp, err := s.GetBrokers(context.Background(), req)
+	if err != nil {
+		t.Errorf("Unexpected error: %s", err)
+	}
+
+	expected := TagSet{"k3": "v3"}
+	got := resp.Brokers[1001].Tags
+	if !expected.Equal(got) {
+		t.Errorf("Expected TagSet %v, got %v", expected, got)
+	}
+}
+
+func TestDeleteBrokerTagsFailures(t *testing.T) {
+	s := testServer()
+
+	testRequests := map[int]*pb.BrokerRequest{
+		0: &pb.BrokerRequest{Tag: []string{"key"}},
+		1: &pb.BrokerRequest{Id: 1001},
+		2: &pb.BrokerRequest{Id: 1001, Tag: []string{}},
+		3: &pb.BrokerRequest{Id: 1020, Tag: []string{"key"}},
+	}
+
+	expected := map[int]error{
+		0: ErrBrokerIDEmpty,
+		1: ErrNilTags,
+		2: ErrNilTags,
+		3: ErrBrokerNotExist,
+	}
+
+	for k := range testRequests {
+		_, err := s.DeleteBrokerTags(context.Background(), testRequests[k])
+		if err != expected[k] {
+			t.Errorf("[test %d] Unexpected error '%s', got '%s'", k, expected[k], err)
+		}
+	}
+}
+
 func TestBrokerMappings(t *testing.T) {
 	s := testServer()
 

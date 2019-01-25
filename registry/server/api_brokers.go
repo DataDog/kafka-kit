@@ -211,6 +211,42 @@ func (s *Server) TagBroker(ctx context.Context, req *pb.BrokerRequest) (*pb.TagR
 	return &pb.TagResponse{Message: "success"}, nil
 }
 
+//DeleteBrokerTags deletes custom tags for the specified broker.
+func (s *Server) DeleteBrokerTags(ctx context.Context, req *pb.BrokerRequest) (*pb.TagResponse, error) {
+	if err := s.ValidateRequest(ctx, req, writeRequest); err != nil {
+		return nil, err
+	}
+
+	if req.Id == 0 {
+		return nil, ErrBrokerIDEmpty
+	}
+
+	if len(req.Tag) == 0 {
+		return nil, ErrNilTags
+	}
+
+	// Ensure the broker exists.
+
+	// Get brokers from ZK.
+	brokers, errs := s.ZK.GetAllBrokerMeta(false)
+	if errs != nil {
+		return nil, ErrFetchingBrokers
+	}
+
+	if _, exist := brokers[int(req.Id)]; !exist {
+		return nil, ErrBrokerNotExist
+	}
+
+	// Delete the tags.
+	id := fmt.Sprintf("%d", req.Id)
+	err := s.Tags.Store.DeleteTags(KafkaObject{Type: "broker", ID: id}, req.Tag)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.TagResponse{Message: "success"}, nil
+}
+
 // IDs returns a []uint32 of IDs from a BrokerSet.
 func (b BrokerSet) IDs() []uint32 {
 	var ids = []uint32{}
