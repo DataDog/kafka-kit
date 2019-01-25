@@ -52,6 +52,12 @@ func (zk *Mock) Get(a string) ([]byte, error) {
 	return []byte{}, nil
 }
 
+// Delete mocks Delete.
+func (zk *Mock) Delete(a string) error {
+	_ = a
+	return nil
+}
+
 // Children mocks children.
 func (zk *Mock) Children(a string) ([]string, error) {
 	return nil, nil

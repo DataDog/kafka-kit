@@ -13,13 +13,13 @@ import (
 
 const (
 	zkaddr   = "localhost:2181"
-	zkprefix = "/kafka"
+	zkprefix = "/kafkazk_test"
 )
 
 var (
 	zkc *zkclient.Conn
 	zki Handler
-	// Create paths.
+	// To track znodes created.
 	paths = []string{
 		zkprefix,
 		zkprefix + "/brokers",
@@ -42,17 +42,9 @@ var (
 
 type byLen []string
 
-func (a byLen) Len() int {
-	return len(a)
-}
-
-func (a byLen) Less(i, j int) bool {
-	return len(a[i]) > len(a[j])
-}
-
-func (a byLen) Swap(i, j int) {
-	a[i], a[j] = a[j], a[i]
-}
+func (a byLen) Len() int           { return len(a) }
+func (a byLen) Less(i, j int) bool { return len(a[i]) > len(a[j]) }
+func (a byLen) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 // rawHandler is used for testing unexported ZKHandler
 // methods that are not part of the Handler interface.
@@ -90,12 +82,7 @@ func TestSetup(t *testing.T) {
 		var err error
 		zkc, _, err = zkclient.Connect([]string{zkaddr}, time.Second, zkclient.WithLogInfo(false))
 		if err != nil {
-			t.Errorf("Error initializing ZooKeeper client: %s", err)
-		}
-
-		_, _, _ = zkc.Get("/")
-		if s := zkc.State(); s != 100|101 {
-			t.Errorf("ZooKeeper client not in a connected state (state=%d)", s)
+			t.Fatalf("Error initializing ZooKeeper client: %s", err)
 		}
 
 		// Init a ZooKeeper based Handler.
@@ -113,6 +100,11 @@ func TestSetup(t *testing.T) {
 		})
 		if err != nil {
 			t.Errorf("Error initializing ZooKeeper client: %s", err)
+		}
+
+		time.Sleep(250 * time.Millisecond)
+		if !zki.Ready() {
+			t.Fatal("ZooKeeper client not ready in 250ms")
 		}
 
 		/*****************
@@ -237,11 +229,7 @@ func TestSetup(t *testing.T) {
 	}
 }
 
-// This is tested in TestSetup.
-// func TestNewHandler(t *testing.T) {}
-// func TestClose(t *testing.T) {}
-
-func TestCreateSetGet(t *testing.T) {
+func TestCreateSetGetDelete(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
@@ -265,6 +253,19 @@ func TestCreateSetGet(t *testing.T) {
 	if string(v) != "test data" {
 		t.Errorf("Expected string 'test data', got '%s'", v)
 	}
+
+	err = zki.Delete("/test")
+	if err != nil {
+		t.Error(err)
+	}
+
+	_, err = zki.Get("/test")
+	switch err.(type) {
+	case ErrNoNode:
+		break
+	default:
+		t.Error("Expected ErrNoNode error")
+	}
 }
 
 func TestCreateSequential(t *testing.T) {
@@ -272,7 +273,11 @@ func TestCreateSequential(t *testing.T) {
 		t.Skip()
 	}
 
-	var err error
+	err := zki.Create("/test", "")
+	if err != nil {
+		t.Error(err)
+	}
+
 	for i := 0; i < 3; i++ {
 		err = zki.CreateSequential("/test/seq", "")
 		if err != nil {
@@ -771,8 +776,6 @@ func TestTearDown(t *testing.T) {
 		t.Skip()
 	}
 
-	errors := []string{}
-
 	// We sort the paths by descending
 	// length. This ensures that we're always
 	// deleting children first.
@@ -783,21 +786,13 @@ func TestTearDown(t *testing.T) {
 	for _, p := range paths {
 		_, s, err := zkc.Get(p)
 		if err != nil {
-			errors = append(errors, fmt.Sprintf("[%s] %s", p, err))
+			t.Error(err)
 		} else {
 			err = zkc.Delete(p, s.Version)
 			if err != nil {
-				errors = append(errors, fmt.Sprintf("[%s] %s", p, err))
+				t.Error(err)
 			}
 		}
-	}
-
-	for _, err := range errors {
-		fmt.Println(err)
-	}
-
-	if len(errors) > 0 {
-		t.Fail()
 	}
 
 	zki.Close()

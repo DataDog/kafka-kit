@@ -110,6 +110,89 @@ func (s *Server) TopicMappings(ctx context.Context, req *pb.TopicRequest) (*pb.B
 	return resp, nil
 }
 
+// TagTopic sets custom tags for the specified topic. Any previously existing
+// tags that were not specified in the request remain unmodified.
+func (s *Server) TagTopic(ctx context.Context, req *pb.TopicRequest) (*pb.TagResponse, error) {
+	if err := s.ValidateRequest(ctx, req, writeRequest); err != nil {
+		return nil, err
+	}
+
+	if req.Name == "" {
+		return nil, ErrTopicNameEmpty
+	}
+
+	if len(req.Tag) == 0 {
+		return nil, ErrNilTags
+	}
+
+	// Get a TagSet from the supplied tags.
+	ts, err := Tags(req.Tag).TagSet()
+	if err != nil {
+		return nil, err
+	}
+
+	// Ensure the topic exists.
+
+	// Get topics from ZK.
+	r := regexp.MustCompile(fmt.Sprintf("^%s$", req.Name))
+	tr := []*regexp.Regexp{r}
+
+	topics, errs := s.ZK.GetTopics(tr)
+	if errs != nil {
+		return nil, ErrFetchingTopics
+	}
+
+	if len(topics) == 0 {
+		return nil, ErrTopicNotExist
+	}
+
+	// Set the tags.
+	err = s.Tags.Store.SetTags(KafkaObject{Type: "topic", ID: req.Name}, ts)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.TagResponse{Message: "success"}, nil
+}
+
+// DeleteTopicTag deletes custom tags for the specified topic.
+func (s *Server) DeleteTopicTags(ctx context.Context, req *pb.TopicRequest) (*pb.TagResponse, error) {
+	if err := s.ValidateRequest(ctx, req, writeRequest); err != nil {
+		return nil, err
+	}
+
+	if req.Name == "" {
+		return nil, ErrTopicNameEmpty
+	}
+
+	if len(req.Tag) == 0 {
+		return nil, ErrNilTags
+	}
+
+	// Ensure the topic exists.
+
+	// Get topics from ZK.
+	r := regexp.MustCompile(fmt.Sprintf("^%s$", req.Name))
+	tr := []*regexp.Regexp{r}
+
+	topics, errs := s.ZK.GetTopics(tr)
+	if errs != nil {
+		return nil, ErrFetchingTopics
+	}
+
+	if len(topics) == 0 {
+		return nil, ErrTopicNotExist
+	}
+
+	// Delete the tags.
+	err := s.Tags.Store.DeleteTags(KafkaObject{Type: "topic", ID: req.Name}, req.Tag)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.TagResponse{Message: "success"}, nil
+}
+
 // fetchBrokerSet fetches metadata for all topics.
 func (s *Server) fetchTopicSet(req *pb.TopicRequest) (TopicSet, error) {
 	topicRegex := []*regexp.Regexp{}
@@ -152,7 +235,8 @@ func (s *Server) fetchTopicSet(req *pb.TopicRequest) (TopicSet, error) {
 
 // Names returns a []string of topic names from a TopicSet.
 func (t TopicSet) Names() []string {
-	var names []string
+	var names = []string{}
+
 	for n := range t {
 		names = append(names, n)
 	}

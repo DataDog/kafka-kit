@@ -43,6 +43,7 @@ type Handler interface {
 	CreateSequential(string, string) error
 	Set(string, string) error
 	Get(string) ([]byte, error)
+	Delete(string) error
 	Children(string) ([]string, error)
 	Close()
 	Ready() bool
@@ -204,6 +205,21 @@ func (z *ZKHandler) Set(p string, d string) error {
 	}
 
 	return err
+}
+
+// Delete deletes the znode at path p.
+func (z *ZKHandler) Delete(p string) error {
+	_, s, err := z.client.Get(p)
+	if err != nil {
+		return fmt.Errorf("[%s] %s", p, err)
+	}
+
+	err = z.client.Delete(p, s.Version)
+	if err != nil {
+		return fmt.Errorf("[%s] %s", p, err)
+	}
+
+	return nil
 }
 
 // CreateSequential takes a path p and data d and creates
