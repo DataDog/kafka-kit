@@ -146,6 +146,70 @@ func TestTagTopic(t *testing.T) {
 	}
 }
 
+func TestDeleteTopicTags(t *testing.T) {
+	s := testServer()
+
+	// Set tags.
+	req := &pb.TopicRequest{
+		Name: "test_topic",
+		Tag:  []string{"k:v", "k2:v2", "k3:v3"},
+	}
+
+	_, err := s.TagTopic(context.Background(), req)
+	if err != nil {
+		t.Errorf("Unexpected error: %s", err)
+	}
+
+	// Delete two tags.
+	req = &pb.TopicRequest{
+		Name: "test_topic",
+		Tag:  []string{"k", "k2"},
+	}
+
+	_, err = s.DeleteTopicTags(context.Background(), req)
+	if err != nil {
+		t.Errorf("Unexpected error: %s", err)
+	}
+
+	// Fetch tags.
+	req = &pb.TopicRequest{Name: "test_topic"}
+	resp, err := s.GetTopics(context.Background(), req)
+	if err != nil {
+		t.Errorf("Unexpected error: %s", err)
+	}
+
+	expected := TagSet{"k3": "v3"}
+	got := resp.Topics["test_topic"].Tags
+	if !expected.Equal(got) {
+		t.Errorf("Expected TagSet %v, got %v", expected, got)
+	}
+}
+
+func TestDeleteTopicTagsFailures(t *testing.T) {
+	s := testServer()
+
+	testRequests := map[int]*pb.TopicRequest{
+		0: &pb.TopicRequest{Tag: []string{"key"}},
+		1: &pb.TopicRequest{Name: "test_topic"},
+		2: &pb.TopicRequest{Name: "test_topic", Tag: []string{}},
+		3: &pb.TopicRequest{Name: "test_topic20", Tag: []string{"key"}},
+	}
+
+	expected := map[int]error{
+		0: ErrTopicNameEmpty,
+		1: ErrNilTags,
+		2: ErrNilTags,
+		3: ErrTopicNotExist,
+	}
+
+	for k := range testRequests {
+		_, err := s.DeleteTopicTags(context.Background(), testRequests[k])
+		if err != expected[k] {
+			t.Errorf("Unexpected error '%s', got '%s'", expected[k], err)
+		}
+	}
+}
+
 func TestTopicMappings(t *testing.T) {
 	s := testServer()
 
