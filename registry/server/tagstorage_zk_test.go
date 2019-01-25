@@ -58,21 +58,16 @@ func TestSetTags(t *testing.T) {
 	testTagSets := map[int]TagSet{
 		0: TagSet{"key": "value", "key2": "value2"},
 		1: TagSet{"key": "value"},
-		// An empty TagSet should be a no-op;
-		// expected results 1 & 2 should be the same.
-		2: TagSet{},
 	}
 
 	testObjects := map[int]KafkaObject{
 		0: KafkaObject{Type: "broker", ID: "1002"},
 		1: KafkaObject{Type: "topic", ID: "test"},
-		2: KafkaObject{Type: "topic", ID: "test"},
 	}
 
 	expected := map[int]string{
 		0: `{"key":"value","key2":"value2"}`,
 		1: `{"key":"value"}`,
-		2: `{"key":"value"}`,
 	}
 
 	for k := range testTagSets {
@@ -119,6 +114,14 @@ func TestTagSetFailures(t *testing.T) {
 		t.Error("Expected ErrNilTagSet error")
 	}
 
+	// Test empty TagSet.
+	o = KafkaObject{Type: "broker", ID: "1002"}
+
+	err = store.SetTags(o, TagSet{})
+	if err != ErrNilTagSet {
+		t.Error("Expected ErrNilTagSet error")
+	}
+
 	// Test reserved tag.
 	if len(store.ReservedFields) == 0 {
 		t.Error("ReservedFields len should be non-zero")
@@ -146,19 +149,16 @@ func TestGetTags(t *testing.T) {
 	testTagSets := map[int]TagSet{
 		0: TagSet{"key": "value", "key2": "value2"},
 		1: TagSet{"key": "value"},
-		2: TagSet{},
 	}
 
 	testObjects := map[int]KafkaObject{
 		0: KafkaObject{Type: "broker", ID: "1002"},
 		1: KafkaObject{Type: "topic", ID: "test"},
-		2: KafkaObject{Type: "topic", ID: "test"},
 	}
 
 	expected := map[int]TagSet{
 		0: TagSet{"key": "value", "key2": "value2"},
 		1: TagSet{"key": "value"},
-		2: TagSet{"key": "value"},
 	}
 
 	for k := range testTagSets {
@@ -196,6 +196,86 @@ func TestGetTagsFailures(t *testing.T) {
 	_, err = store.GetTags(KafkaObject{Type: "broker", ID: "000"})
 	if err != ErrKafkaObjectDoesNotExist {
 		t.Error("Expected ErrKafkaObjectDoesNotExist error")
+	}
+}
+
+func TestDeleteTags(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	testTagSets := map[int]TagSet{
+		0: TagSet{"key": "value", "key2": "value2", "key3": "value3"},
+		1: TagSet{"key": "value"},
+	}
+
+	testObjects := map[int]KafkaObject{
+		0: KafkaObject{Type: "broker", ID: "1002"},
+		1: KafkaObject{Type: "topic", ID: "test"},
+	}
+
+	testTagDeletes := map[int]TagList{
+		0: TagList{"key", "key2"},
+		1: TagList{"key2"},
+	}
+
+	expected := map[int]TagSet{
+		0: TagSet{"key3": "value3"},
+		1: TagSet{"key": "value"},
+	}
+
+	for k := range testTagSets {
+		// Set tags.
+		err := store.SetTags(testObjects[k], testTagSets[k])
+		if err != nil {
+			t.Errorf("[test %d] %s", k, err)
+		}
+
+		// Delete tags.
+		err = store.DeleteTags(testObjects[k], testTagDeletes[k])
+		if err != nil {
+			t.Errorf("[test %d] %s", k, err)
+		}
+
+		// Fetch tags, compare value.
+		tags, err := store.GetTags(testObjects[k])
+		if err != nil {
+			t.Errorf("[test %d] %s", k, err)
+		}
+
+		if !tags.Equal(expected[k]) {
+			t.Errorf("[test %d] Expected TagSet '%v', got '%v'",
+				k, expected[k], tags)
+		}
+	}
+}
+
+func TestDeleteTagsFailures(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	// Test invalid object.
+	err := store.DeleteTags(KafkaObject{Type: "fail"}, TagList{"k"})
+	if err != ErrInvalidKafkaObjectType {
+		t.Error("Expected ErrInvalidKafkaObjectType error")
+	}
+
+	// Test non-existent object.
+	err = store.DeleteTags(KafkaObject{Type: "broker", ID: "000"}, TagList{"k"})
+	if err != ErrKafkaObjectDoesNotExist {
+		t.Error("Expected ErrKafkaObjectDoesNotExist error")
+	}
+
+	// Test empty TagList.
+	err = store.DeleteTags(KafkaObject{Type: "broker", ID: "000"}, TagList{})
+	if err != ErrNilTagList {
+		t.Error("Expected ErrNilTagList error")
+	}
+
+	err = store.DeleteTags(KafkaObject{Type: "broker", ID: "000"}, nil)
+	if err != ErrNilTagList {
+		t.Error("Expected ErrNilTagList error")
 	}
 }
 

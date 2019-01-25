@@ -81,15 +81,8 @@ func (t *ZKTagStorage) SetTags(o KafkaObject, ts TagSet) error {
 		return ErrInvalidKafkaObjectType
 	}
 
-	if ts == nil {
+	if ts == nil || len(ts) == 0 {
 		return ErrNilTagSet
-	}
-
-	// Return early on empty TagSets.
-	// Otherwise, we'll read and write
-	// the current TagSet needlessly.
-	if len(ts) == 0 {
-		return nil
 	}
 
 	// Check if any reserved tags are being
@@ -171,6 +164,54 @@ func (t *ZKTagStorage) GetTags(o KafkaObject) (TagSet, error) {
 	}
 
 	return tags, nil
+}
+
+// DeleteTags deletes all tags in the TagList for the requested KafkaObject.
+func (t *ZKTagStorage) DeleteTags(o KafkaObject, tl TagList) error {
+	// Sanity checks.
+	if !o.Complete() {
+		return ErrInvalidKafkaObjectType
+	}
+
+	if len(tl) == 0 {
+		return ErrNilTagList
+	}
+
+	znode := fmt.Sprintf("/%s/%s/%s", t.Prefix, o.Type, o.ID)
+
+	// Fetch tags.
+	data, err := t.ZK.Get(znode)
+	if err != nil {
+		switch err.(type) {
+		// The object doesn't exist.
+		case kafkazk.ErrNoNode:
+			return ErrKafkaObjectDoesNotExist
+		default:
+			return err
+		}
+	}
+
+	tags := TagSet{}
+
+	if len(data) != 0 {
+		err = json.Unmarshal(data, &tags)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Delete listed tags.
+	for _, k := range tl {
+		delete(tags, k)
+	}
+
+	// Serialize, persist.
+	out, err := json.Marshal(tags)
+	if err != nil {
+		return err
+	}
+
+	return t.ZK.Set(znode, string(out))
 }
 
 // FieldReserved takes a KafkaObject and field name. A bool

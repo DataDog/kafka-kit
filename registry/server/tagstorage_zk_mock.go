@@ -28,6 +28,10 @@ func newzkTagStorageMock() *zkTagStorageMock {
 
 // SetTags mocks SetTags.
 func (t *zkTagStorageMock) SetTags(o KafkaObject, ts TagSet) error {
+	if !o.Complete() {
+		return ErrInvalidKafkaObjectType
+	}
+
 	if _, exist := t.tags[o.Type]; !exist {
 		t.tags[o.Type] = map[string]TagSet{}
 	}
@@ -45,15 +49,40 @@ func (t *zkTagStorageMock) SetTags(o KafkaObject, ts TagSet) error {
 
 // GetTags mocks GetTags.
 func (t *zkTagStorageMock) GetTags(o KafkaObject) (TagSet, error) {
+	if !o.Complete() {
+		return nil, ErrInvalidKafkaObjectType
+	}
+
 	if _, exist := t.tags[o.Type]; !exist {
-		return TagSet{}, nil
+		return nil, ErrKafkaObjectDoesNotExist
 	}
 
 	if _, exist := t.tags[o.Type][o.ID]; !exist {
-		return TagSet{}, nil
+		return nil, ErrKafkaObjectDoesNotExist
 	}
 
 	return t.tags[o.Type][o.ID], nil
+}
+
+// DeleteTags mocks DeleteTags.
+func (t *zkTagStorageMock) DeleteTags(o KafkaObject, tl TagList) error {
+	if !o.Complete() {
+		return ErrInvalidKafkaObjectType
+	}
+
+	if _, exist := t.tags[o.Type]; !exist {
+		return ErrKafkaObjectDoesNotExist
+	}
+
+	if _, exist := t.tags[o.Type][o.ID]; !exist {
+		return ErrKafkaObjectDoesNotExist
+	}
+
+	for _, k := range tl {
+		delete(t.tags[o.Type][o.ID], k)
+	}
+
+	return nil
 }
 
 // FieldReserved mocks FieldReserved.

@@ -15,7 +15,9 @@ var (
 	// ErrKafkaObjectDoesNotExist error.
 	ErrKafkaObjectDoesNotExist = errors.New("requested Kafka object does not exist")
 	// ErrNilTagSet error.
-	ErrNilTagSet = errors.New("must provide a non-nil TagSet")
+	ErrNilTagSet = errors.New("must provide a non-nil or non-empty TagSet")
+	// ErrNilTagList error.
+	ErrNilTagList = errors.New("must provide a non-nil or non-empty TagList")
 )
 
 // ErrReservedTag error.
@@ -39,6 +41,7 @@ type TagStorage interface {
 	FieldReserved(KafkaObject, string) bool
 	SetTags(KafkaObject, TagSet) error
 	GetTags(KafkaObject) (TagSet, error)
+	DeleteTags(KafkaObject, TagList) error
 }
 
 // NewTagHandler initializes a TagHandler.
@@ -64,6 +67,9 @@ func NewTagHandler(c TagHandlerConfig) (*TagHandler, error) {
 type TagHandlerConfig struct {
 	Prefix string
 }
+
+// TagList is a []string of "key" names.
+type TagList []string
 
 // Tags is a []string of "key:value" pairs.
 type Tags []string
