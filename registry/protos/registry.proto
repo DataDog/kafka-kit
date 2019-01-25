@@ -80,12 +80,30 @@ service Registry {
     };
   }
 
+  // DeleteTopicTags takes a TopicRequest and deletes any
+  // specified tags for the named topic. Tags must be provided
+  // as key names only; "key:value" will not target the tag "key".
+  rpc DeleteTopicTags (TopicRequest) returns (TagResponse) {
+    option (google.api.http) = {
+      delete: "/v1/topics/tag/{name}"
+    };
+  }
+
   // TagBroker takes a BrokerRequest and sets any specified
   // tags for the named broker. Any existing tags that are
   // not specified in the request are left unmodified.
   rpc TagBroker (BrokerRequest) returns (TagResponse) {
     option (google.api.http) = {
       put: "/v1/brokers/tag/{id}"
+    };
+  }
+
+  // DeleteBrokerTags takes a BrokerRequest and deletes any
+  // specified tags for the named broker. Tags must be provided
+  // as key names only; "key:value" will not target the tag "key".
+  rpc DeleteBrokerTags (BrokerRequest) returns (TagResponse) {
+    option (google.api.http) = {
+      delete: "/v1/brokers/tag/{id}"
     };
   }
 }
