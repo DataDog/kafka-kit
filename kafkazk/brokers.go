@@ -187,7 +187,7 @@ func (b BrokerList) SortPseudoShuffle(seed int64) {
 // of msgs describing changes is returned.
 func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) (*BrokerStatus, <-chan string) {
 	bs := &BrokerStatus{}
-	msgs := make(chan string, len(b)+len(bl))
+	msgs := make(chan string, len(b)+(len(bl)*3))
 
 	// Build a map from the new broker list.
 	newBrokers := map[int]bool{}
