@@ -658,21 +658,24 @@ func (pm *PartitionMap) equal(pm2 *PartitionMap) (bool, error) {
 }
 
 // Strip takes a PartitionMap and returns a copy where all broker ID
-// references are replaced with the stub broker with ID 0 where the replace
-// field is set to true. This ensures that the entire map is rebuilt, even
-// if the provided broker list matches what's already in the map.
+// references are replaced with the stub broker (ID == StubBrokerID) with
+// the replace field is set to true. This ensures that the entire map is
+// rebuilt, even if the provided broker list matches what's already in the map.
 func (pm *PartitionMap) Strip() *PartitionMap {
 	Stripped := NewPartitionMap()
 
 	// Copy each partition sans the replicas list.
-	// The make([]int, ...) defaults the replica set to
-	// ID 0, which is a default stub broker with replace
-	// set to true.
+	// The new replica list is all stub brokers.
 	for _, p := range pm.Partitions {
+		var stubs = make([]int, len(p.Replicas))
+		for i := range stubs {
+			stubs[i] = StubBrokerID
+		}
+
 		part := Partition{
 			Topic:     p.Topic,
 			Partition: p.Partition,
-			Replicas:  make([]int, len(p.Replicas)),
+			Replicas:  stubs,
 		}
 
 		Stripped.Partitions = append(Stripped.Partitions, part)

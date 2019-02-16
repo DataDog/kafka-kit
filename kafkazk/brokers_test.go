@@ -150,7 +150,7 @@ func TestUpdate(t *testing.T) {
 	}
 
 	// Ensure all broker IDs are in the map.
-	for _, id := range []int{0, 1001, 1002, 1003, 1004, 1005} {
+	for _, id := range []int{StubBrokerID, 1001, 1002, 1003, 1004, 1005} {
 		if _, ok := bm[id]; !ok {
 			t.Errorf("Expected presence of ID %d", id)
 		}
@@ -363,23 +363,23 @@ func TestBrokerCopy(t *testing.T) {
 
 func newMockBrokerMap() BrokerMap {
 	return BrokerMap{
-		0:    &Broker{ID: 0, Replace: true},
-		1001: &Broker{ID: 1001, Locality: "a", Used: 3, Replace: false, StorageFree: 100.00},
-		1002: &Broker{ID: 1002, Locality: "b", Used: 3, Replace: false, StorageFree: 200.00},
-		1003: &Broker{ID: 1003, Locality: "c", Used: 2, Replace: false, StorageFree: 300.00},
-		1004: &Broker{ID: 1004, Locality: "a", Used: 2, Replace: false, StorageFree: 400.00},
+		StubBrokerID: &Broker{ID: StubBrokerID, Replace: true},
+		1001:         &Broker{ID: 1001, Locality: "a", Used: 3, Replace: false, StorageFree: 100.00},
+		1002:         &Broker{ID: 1002, Locality: "b", Used: 3, Replace: false, StorageFree: 200.00},
+		1003:         &Broker{ID: 1003, Locality: "c", Used: 2, Replace: false, StorageFree: 300.00},
+		1004:         &Broker{ID: 1004, Locality: "a", Used: 2, Replace: false, StorageFree: 400.00},
 	}
 }
 
 func newMockBrokerMap2() BrokerMap {
 	return BrokerMap{
-		0:    &Broker{ID: 0, Replace: true},
-		1001: &Broker{ID: 1001, Locality: "a", Used: 2, Replace: false, StorageFree: 100.00},
-		1002: &Broker{ID: 1002, Locality: "b", Used: 2, Replace: false, StorageFree: 200.00},
-		1003: &Broker{ID: 1003, Locality: "c", Used: 3, Replace: false, StorageFree: 300.00},
-		1004: &Broker{ID: 1004, Locality: "a", Used: 2, Replace: false, StorageFree: 400.00},
-		1005: &Broker{ID: 1005, Locality: "b", Used: 2, Replace: false, StorageFree: 400.00},
-		1006: &Broker{ID: 1006, Locality: "c", Used: 3, Replace: false, StorageFree: 400.00},
-		1007: &Broker{ID: 1007, Locality: "a", Used: 3, Replace: false, StorageFree: 400.00},
+		StubBrokerID: &Broker{ID: StubBrokerID, Replace: true},
+		1001:         &Broker{ID: 1001, Locality: "a", Used: 2, Replace: false, StorageFree: 100.00},
+		1002:         &Broker{ID: 1002, Locality: "b", Used: 2, Replace: false, StorageFree: 200.00},
+		1003:         &Broker{ID: 1003, Locality: "c", Used: 3, Replace: false, StorageFree: 300.00},
+		1004:         &Broker{ID: 1004, Locality: "a", Used: 2, Replace: false, StorageFree: 400.00},
+		1005:         &Broker{ID: 1005, Locality: "b", Used: 2, Replace: false, StorageFree: 400.00},
+		1006:         &Broker{ID: 1006, Locality: "c", Used: 3, Replace: false, StorageFree: 400.00},
+		1007:         &Broker{ID: 1007, Locality: "a", Used: 3, Replace: false, StorageFree: 400.00},
 	}
 }

@@ -264,7 +264,7 @@ func TestStrip(t *testing.T) {
 
 	for _, p := range spm.Partitions {
 		for _, b := range p.Replicas {
-			if b != 0 {
+			if b != StubBrokerID {
 				t.Errorf("Unexpected non-stub broker ID %d", b)
 			}
 		}

@@ -40,7 +40,7 @@ func (b BrokerMap) SubstitutionAffinities(pm *PartitionMap) (SubstitutionAffinit
 	// Map brokers according to their status.
 	for _, broker := range b {
 		switch {
-		case broker.ID == 0:
+		case broker.ID == StubBrokerID:
 			continue
 		case broker.Missing:
 			missing[broker] = struct{}{}

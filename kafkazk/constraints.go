@@ -49,7 +49,7 @@ func (b BrokerList) BestCandidate(c *Constraints, by string, p int64) (*Broker, 
 
 	// Iterate over candidates.
 	for _, candidate = range b {
-		if candidate.ID == 0 {
+		if candidate.ID == StubBrokerID {
 			continue
 		}
 
