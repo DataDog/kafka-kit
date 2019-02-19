@@ -52,9 +52,8 @@ func getBrokerMeta(cmd *cobra.Command, zk kafkazk.Handler, m bool) kafkazk.Broke
 // and have a non-true MetricsIncomplete value.
 func ensureBrokerMetrics(cmd *cobra.Command, bm kafkazk.BrokerMap, bmm kafkazk.BrokerMetaMap) {
 	for id, b := range bm {
-		// Missing brokers won't even
-		// be found in the brokerMeta.
-		if !b.Missing && id != 0 && bmm[id].MetricsIncomplete {
+		// Missing brokers won't be found in the brokerMeta.
+		if !b.Missing && id != kafkazk.StubBrokerID && bmm[id].MetricsIncomplete {
 			fmt.Printf("Metrics not found for broker %d\n", id)
 			os.Exit(1)
 		}
