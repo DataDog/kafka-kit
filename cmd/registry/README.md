@@ -7,7 +7,7 @@ The Registry service exposes Kafka topic and broker metadata via a gRPC & HTTP A
 # Installation
 - `go get github.com/DataDog/kafka-kit/cmd/registry`
 
-Binary will be found at `$GOPATH/bin/autothrottle`
+Binary will be found at `$GOPATH/bin/registry`
 
 # Usage
 

@@ -6,6 +6,11 @@ import (
 	"sort"
 )
 
+const (
+	// StubBrokerID is the platform int max.
+	StubBrokerID int = int(^uint(0) >> 1)
+)
+
 // BrokerMetaMap is a map of broker IDs to BrokerMeta
 // metadata fetched from ZooKeeper. Currently, just
 // the rack field is retrieved.
@@ -199,8 +204,8 @@ func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) (*BrokerStatus, <-chan str
 	// and see if any are missing in ZooKeeper.
 	if len(bm) > 0 {
 		for id := range b {
-			// Skip reserved ID 0.
-			if id == 0 {
+			// Skip the reserved ID.
+			if id == StubBrokerID {
 				continue
 			}
 
@@ -222,10 +227,7 @@ func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) (*BrokerStatus, <-chan str
 	// Set the replace flag for existing brokers
 	// not in the new broker map.
 	for _, broker := range b {
-		// Broker ID 0 is a special stub
-		// ID used for internal purposes.
-		// Skip it.
-		if broker.ID == 0 {
+		if broker.ID == StubBrokerID {
 			continue
 		}
 
@@ -317,7 +319,7 @@ func (b BrokerMap) Filter(f func(*Broker) bool) BrokerMap {
 	bmap := BrokerMap{}
 
 	for _, broker := range b {
-		if broker.ID == 0 {
+		if broker.ID == StubBrokerID {
 			continue
 		}
 
@@ -372,11 +374,8 @@ func BrokerMapFromPartitionMap(pm *PartitionMap, bm BrokerMetaMap, force bool) B
 		}
 	}
 
-	// Broker ID 0 is used for --force-rebuild.
-	// We request a Stripped map which replaces
-	// all existing brokers with the fake broker
-	// with ID set for replacement.
-	bmap[0] = &Broker{Used: 0, ID: 0, Replace: true}
+	// Include the StubBrokerID.
+	bmap[StubBrokerID] = &Broker{Used: 0, ID: StubBrokerID, Replace: true}
 
 	return bmap
 }
