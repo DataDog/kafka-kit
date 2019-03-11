@@ -28,6 +28,7 @@ func init() {
 	rebalanceCmd.Flags().Float64("storage-threshold-gb", 0.00, "Storage free in gigabytes to target for partition offload (those below the specified value); 0 [default] defers target selection to --storage-threshold")
 	rebalanceCmd.Flags().Float64("tolerance", 0.10, "Percent distance from the mean storage free to limit storage scheduling (0 targets a brokers)")
 	rebalanceCmd.Flags().Int("partition-limit", 30, "Limit the number of top partitions by size eligible for relocation per broker")
+	rebalanceCmd.Flags().Int("partition-size-threshold", 512, "Size in megabytes where partitions below this value will not be moved in a rebalance")
 	rebalanceCmd.Flags().Bool("locality-scoped", false, "Disallow a relocation to traverse rack.id values among brokers")
 	rebalanceCmd.Flags().Bool("verbose", false, "Verbose output")
 	rebalanceCmd.Flags().String("zk-metrics-prefix", "topicmappr", "ZooKeeper namespace prefix for Kafka metrics")
@@ -83,6 +84,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	brokersOrig := brokers.Copy()
 
 	partitionLimit, _ := cmd.Flags().GetInt("partition-limit")
+	partitionSizeThreshold, _ := cmd.Flags().GetInt("partition-size-threshold")
 
 	otm := map[int]struct{}{}
 	for _, id := range offloadTargets {
@@ -91,13 +93,14 @@ func rebalance(cmd *cobra.Command, _ []string) {
 
 	// Bundle planRelocationsForBrokerParams.
 	params := planRelocationsForBrokerParams{
-		relos:              map[int][]relocation{},
-		mappings:           mappings,
-		brokers:            brokers,
-		partitionMeta:      partitionMeta,
-		plan:               relocationPlan{},
-		topPartitionsLimit: partitionLimit,
-		offloadTargetsMap:  otm,
+		relos:                  map[int][]relocation{},
+		mappings:               mappings,
+		brokers:                brokers,
+		partitionMeta:          partitionMeta,
+		plan:                   relocationPlan{},
+		topPartitionsLimit:     partitionLimit,
+		partitionSizeThreshold: partitionSizeThreshold,
+		offloadTargetsMap:      otm,
 	}
 
 	// Sort offloadTargets by storage free ascending.
