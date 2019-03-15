@@ -255,6 +255,26 @@ func TestSetReplication(t *testing.T) {
 			t.Errorf("Expected 2 replicas, got %d", len(r.Replicas))
 		}
 	}
+
+	pm.SetReplication(3)
+	// Replica sets should be expanded with stub brokers
+	for _, r := range pm.Partitions {
+		if len(r.Replicas) != 3 {
+			t.Errorf("Expected 3 replicas, got %d", len(r.Replicas))
+		}
+
+		for bIndex := 0; bIndex < 3; bIndex++ {
+			if bIndex < 2 {
+				if r.Replicas[bIndex] == StubBrokerID {
+					t.Errorf("Expected existing replicas not to be stub brokers, got %d", r.Replicas[bIndex])
+				}
+			} else {
+				if r.Replicas[bIndex] != StubBrokerID {
+					t.Errorf("Expected extended replicas to be stub brokers, got %d", r.Replicas[bIndex])
+				}
+			}
+		}
+	}
 }
 
 func TestStrip(t *testing.T) {
