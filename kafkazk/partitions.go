@@ -601,6 +601,9 @@ func (pm *PartitionMap) SetReplication(r int) {
 		// Add stub brokers to meet r.
 		case l < r:
 			r := make([]int, r-l)
+			for i := 0; i < len(r); i++ {
+				r[i] = StubBrokerID
+			}
 			pm.Partitions[n].Replicas = append(p.Replicas, r...)
 		}
 	}
