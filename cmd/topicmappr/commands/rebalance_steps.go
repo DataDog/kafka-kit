@@ -43,15 +43,16 @@ type relocation struct {
 }
 
 type planRelocationsForBrokerParams struct {
-	sourceID           int
-	relos              map[int][]relocation
-	mappings           kafkazk.Mappings
-	brokers            kafkazk.BrokerMap
-	partitionMeta      kafkazk.PartitionMetaMap
-	plan               relocationPlan
-	pass               int
-	topPartitionsLimit int
-	offloadTargetsMap  map[int]struct{}
+	sourceID               int
+	relos                  map[int][]relocation
+	mappings               kafkazk.Mappings
+	brokers                kafkazk.BrokerMap
+	partitionMeta          kafkazk.PartitionMetaMap
+	plan                   relocationPlan
+	pass                   int
+	topPartitionsLimit     int
+	partitionSizeThreshold int
+	offloadTargetsMap      map[int]struct{}
 }
 
 // relocationPlan is a mapping of topic,
@@ -178,8 +179,10 @@ func validateBrokersForRebalance(cmd *cobra.Command, brokers kafkazk.BrokerMap, 
 	fmt.Println("\nRebalance parameters:")
 
 	tol, _ := cmd.Flags().GetFloat64("tolerance")
+	pst, _ := cmd.Flags().GetInt("partition-size-threshold")
 	mean, hMean := brokers.Mean(), brokers.HMean()
 
+	fmt.Printf("%sIgnoring partitions smaller than %dMB\n", indent, pst)
 	fmt.Printf("%sFree storage mean, harmonic mean: %.2fGB, %.2fGB\n",
 		indent, mean/div, hMean/div)
 
@@ -216,6 +219,7 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 	plan := params.plan
 	sourceID := params.sourceID
 	topPartitionsLimit := params.topPartitionsLimit
+	partitionSizeThreshold := float64(params.partitionSizeThreshold * 1048576)
 	offloadTargetsMap := params.offloadTargetsMap
 
 	// Use the arithmetic mean for target
@@ -224,6 +228,15 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 
 	// Get the top partitions for the target broker.
 	topPartn, _ := mappings.LargestPartitions(sourceID, topPartitionsLimit, partitionMeta)
+
+	// Filter out partitions below the targeted size threshold.
+	for i, p := range topPartn {
+		pSize, _ := partitionMeta.Size(p)
+		if pSize < partitionSizeThreshold {
+			topPartn = topPartn[:i]
+			break
+		}
+	}
 
 	if verbose {
 		fmt.Printf("\n[pass %d] Broker %d has a storage free of %.2fGB. Top partitions:\n",
