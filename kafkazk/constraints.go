@@ -86,8 +86,8 @@ func (c *Constraints) passes(b *Broker) bool {
 	// IDs already in the replica set.
 	case c.id[b.ID]:
 		return false
-		// Fail if the candidate is in any of
-		// the existing replica set localities.
+	// Fail if the candidate is in any of
+	// the existing replica set localities.
 	case c.locality[b.Locality]:
 		return false
 	// Fail if the candidate would run
