@@ -27,6 +27,48 @@ func NewConstraints() *Constraints {
 	}
 }
 
+// ConstraintsParams holds parameters for
+// the SelectBroker method.
+type ConstraintsParams struct {
+	SelectorMethod   string
+	MinUniqueRackIDs int
+	SeedVal          int64
+}
+
+// SelectBroker takes a BrokerList and a ConstraintsParams and
+// selects the most suitable broker that passes all specified
+// constraints.
+func (c *Constraints) SelectBroker(b BrokerList, p ConstraintsParams) (*Broker, error) {
+	// Sort type based on the
+	// desired placement criteria.
+	switch p.SelectorMethod {
+	case "count":
+		// XXX Should instantiate
+		// a dedicated Rand for this.
+		b.SortPseudoShuffle(p.SeedVal)
+	case "storage":
+		b.SortByStorage()
+	default:
+		return nil, ErrInvalidSelectionMethod
+	}
+
+	var candidate *Broker
+
+	// Iterate over candidates.
+	for _, candidate = range b.Filter(AllBrokersFn) {
+		// Candidate passes, return.
+		if c.passesWithParams(candidate, p) {
+			c.Add(candidate)
+			candidate.Used++
+
+			return candidate, nil
+		}
+	}
+
+	// List exhausted, no brokers passed.
+	return nil, ErrNoBrokers
+}
+
 // BestCandidate takes a *Constraints, selection method and
 // pass / iteration number (for use as a seed value for
 // pseudo-random number generation) and returns the
@@ -48,11 +90,7 @@ func (b BrokerList) BestCandidate(c *Constraints, by string, p int64) (*Broker, 
 	var candidate *Broker
 
 	// Iterate over candidates.
-	for _, candidate = range b {
-		if candidate.ID == StubBrokerID {
-			continue
-		}
-
+	for _, candidate = range b.Filter(AllBrokersFn) {
 		// Candidate passes, return.
 		if c.passes(candidate) {
 			c.Add(candidate)
@@ -78,6 +116,28 @@ func (c *Constraints) Add(b *Broker) {
 	c.id[b.ID] = true
 }
 
+// MergeConstraints takes a brokerlist and builds a
+// *Constraints by merging the attributes of all brokers
+// from the supplied list.
+func (c *Constraints) AddMulti(bl BrokerList) {
+	// Don't merge in attributes
+	// from nodes that will be removed.
+	var f BrokerFilterFn = func(b *Broker) bool {
+		if b.Replace {
+			return false
+		}
+		return true
+	}
+
+	for _, b := range bl.Filter(f) {
+		if b.Locality != "" {
+			c.locality[b.Locality] = true
+		}
+
+		c.id[b.ID] = true
+	}
+}
+
 // passes takes a *Broker and returns whether
 // or not it passes Constraints.
 func (c *Constraints) passes(b *Broker) bool {
@@ -92,6 +152,35 @@ func (c *Constraints) passes(b *Broker) bool {
 		return false
 	// Fail if the candidate would run
 	// out of storage.
+	case b.StorageFree-c.requestSize < 0:
+		return false
+	}
+
+	return true
+}
+
+func (c *Constraints) passesWithParams(b *Broker, p ConstraintsParams) bool {
+	var uniqueRackIDsSatisfied bool
+	if len(c.locality) >= p.MinUniqueRackIDs {
+		uniqueRackIDsSatisfied = true
+	}
+
+	switch {
+	// Check the candidate against already used IDs.
+	case c.id[b.ID]:
+		return false
+	// Check the candidate against rack ID constraints.
+	case c.locality[b.Locality]:
+		// 0 requires that all rack IDs are unique.
+		if p.MinUniqueRackIDs == 0 {
+			return false
+		}
+		// Otherwise, using an existing rack ID is
+		// acceptable if the MinUniqueRackIDs has been met.
+		if !uniqueRackIDsSatisfied {
+			return false
+		}
+	// Check the candidate against storage capacity.
 	case b.StorageFree-c.requestSize < 0:
 		return false
 	}
