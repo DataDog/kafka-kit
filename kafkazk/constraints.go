@@ -70,6 +70,7 @@ func (c *Constraints) SelectBroker(b BrokerList, p ConstraintsParams) (*Broker, 
 	return nil, ErrNoBrokers
 }
 
+// TODO deprecate.
 // BestCandidate takes a *Constraints, selection method and
 // pass / iteration number (for use as a seed value for
 // pseudo-random number generation) and returns the
@@ -139,6 +140,7 @@ func (c *Constraints) MergeConstraints(bl BrokerList) {
 	}
 }
 
+// TODO deprecate.
 // passes takes a *Broker and returns whether
 // or not it passes Constraints.
 func (c *Constraints) passes(b *Broker) bool {
@@ -188,6 +190,7 @@ func (c *Constraints) passesWithParams(b *Broker, p ConstraintsParams) bool {
 	return true
 }
 
+// TODO deprecate.
 // MergeConstraints takes a brokerlist and builds a
 // *Constraints by merging the attributes of all brokers
 // from the supplied list.
