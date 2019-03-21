@@ -32,6 +32,7 @@ func NewConstraints() *Constraints {
 type ConstraintsParams struct {
 	SelectorMethod   string
 	MinUniqueRackIDs int
+	RequestSize      float64
 	SeedVal          int64
 }
 
@@ -169,19 +170,18 @@ func (c *Constraints) passesWithParams(b *Broker, p ConstraintsParams) bool {
 	// Check the candidate against already used IDs.
 	case c.id[b.ID]:
 		return false
-	// Check the candidate against rack ID constraints.
-	case c.locality[b.Locality]:
-		// 0 requires that all rack IDs are unique.
-		if p.MinUniqueRackIDs == 0 {
-			return false
-		}
-		// Otherwise, using an existing rack ID is
-		// acceptable if the MinUniqueRackIDs has been met.
+	// Check the candidate against rack ID constraints
+	// where all rack IDs must be unique.
+	case c.locality[b.Locality] && p.MinUniqueRackIDs == 0:
+		return false
+	// Check the candidate against rack ID constraints
+	// where a non-zero MinUniqueRackIDs is set.
+	case c.locality[b.Locality] && p.MinUniqueRackIDs > 0:
 		if !uniqueRackIDsSatisfied {
 			return false
 		}
 	// Check the candidate against storage capacity.
-	case b.StorageFree-c.requestSize < 0:
+	case b.StorageFree-p.RequestSize < 0:
 		return false
 	}
 
