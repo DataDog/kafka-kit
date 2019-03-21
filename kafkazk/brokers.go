@@ -155,6 +155,9 @@ func (b BrokerList) SortByID() {
 // for BrokerList and BrokerMap types.
 type BrokerFilterFn func(*Broker) bool
 
+// AllBrokersFn returns all brokers.
+var AllBrokersFn BrokerFilterFn = func(b *Broker) bool { return true }
+
 // SortPseudoShuffle takes a BrokerList and performs a sort by count.
 // For each sequence of brokers with equal counts, the sub-slice is
 // pseudo random shuffled using the provided seed value s.
