@@ -295,7 +295,9 @@ func placeByPosition(params RebuildParams) (*PartitionMap, []error) {
 
 				// Populate a Constraints.
 				constraints := NewConstraints()
-				constraintsParams := ConstraintsParams{}
+				constraintsParams := ConstraintsParams{
+					SelectorMethod: params.Strategy,
+				}
 				constraints.MergeConstraints(replicaSet)
 
 				// Add any necessary meta from current partition
@@ -414,8 +416,13 @@ func placeByPartition(params RebuildParams) (*PartitionMap, []error) {
 					replicaSet = append(replicaSet, params.BM[bid])
 				}
 
-				// Populate a constraints.
-				constraints := MergeConstraints(replicaSet)
+				// Populate a Constraints.
+				constraints := NewConstraints()
+				constraintsParams := ConstraintsParams{
+					SelectorMethod: params.Strategy,
+					SeedVal:        1,
+				}
+				constraints.MergeConstraints(replicaSet)
 
 				// Add any necessary meta from current partition
 				// to the constraints.
@@ -427,11 +434,11 @@ func placeByPartition(params RebuildParams) (*PartitionMap, []error) {
 						continue
 					}
 
-					constraints.requestSize = s * params.PartnSzFactor
+					constraintsParams.RequestSize = s * params.PartnSzFactor
 				}
 
 				// Fetch the best candidate and append.
-				replacement, err := bl.BestCandidate(constraints, params.Strategy, 1)
+				replacement, err := constraints.SelectBroker(bl, constraintsParams)
 
 				if err != nil {
 					// Append any caught errors.
