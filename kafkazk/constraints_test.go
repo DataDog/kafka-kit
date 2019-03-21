@@ -236,6 +236,74 @@ func TestConstraintsPasses(t *testing.T) {
 	}
 }
 
+func TestConstraintsPassesWithParams(t *testing.T) {
+	c := NewConstraints()
+	c.locality["a"] = true
+	c.id[1000] = true
+
+	// Fail on ID and/or locality.
+	b1 := &Broker{ID: 1000, Locality: "a"}
+	// Fail on locality only.
+	b2 := &Broker{ID: 1001, Locality: "a"}
+	// Fail on ID only.
+	b3 := &Broker{ID: 1000, Locality: "b"}
+	// Pass.
+	b4 := &Broker{ID: 1001, Locality: "c"}
+
+	bl := BrokerList{b1, b2, b3, b4}
+
+	expected := []bool{false, false, false, true}
+
+	p := ConstraintsParams{
+		MinUniqueRackIDs: 0,
+	}
+
+	// Basic tests.
+
+	for i, b := range bl {
+		if r := c.passesWithParams(b, p); r != expected[i] {
+			t.Errorf("Expected broker b%d return constraint check with %v", i, expected[i])
+		}
+	}
+
+	// MinUniqueRackIDs tests.
+
+	p.MinUniqueRackIDs = 1
+
+	// b2 should now pass.
+	if b := c.passesWithParams(b2, p); b != true {
+		t.Errorf("Expected broker b2 to pass with MinUniqueRackIDs set to 1")
+	}
+
+	p.MinUniqueRackIDs = 2
+
+	// b2 should now fail again.
+	if b := c.passesWithParams(b2, p); b != false {
+		t.Errorf("Expected broker b2 to fail with MinUniqueRackIDs set to 2")
+	}
+
+	// b4 should still pass.
+	if b := c.passesWithParams(b4, p); b != true {
+		t.Errorf("Expected broker b4 to pass constraints")
+	}
+
+	// Storage tests.
+
+	p.RequestSize = 500
+	b4.StorageFree = 600
+
+	if b := c.passesWithParams(b4, p); b != true {
+		t.Errorf("Expected broker b4 to pass constraints")
+	}
+
+	p.RequestSize = 650
+
+	// b4 should now fail due to insufficient storage.
+	if b := c.passesWithParams(b4, p); b != false {
+		t.Errorf("Expected broker b4 to fail constraints")
+	}
+}
+
 func TestMergeConstraints(t *testing.T) {
 	localities := []string{"a", "b", "c"}
 	bl := BrokerList{}
