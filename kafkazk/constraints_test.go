@@ -323,6 +323,48 @@ func TestMergeConstraints(t *testing.T) {
 		bl = append(bl, b)
 	}
 
+	c := NewConstraints()
+	c.MergeConstraints(bl)
+
+	// Check expected.
+	for i := 1000; i < 1004; i++ {
+		if _, exists := c.id[i]; !exists {
+			t.Errorf("Expected ID %d to exist", i)
+		}
+	}
+
+	for _, l := range localities {
+		if _, exists := c.locality[l]; !exists {
+			t.Errorf("Expected locality %s to exist", l)
+		}
+	}
+
+	// Check excluded.
+	if _, exists := c.id[1004]; exists {
+		t.Error("ID 1004 shouldn't exist in the Constraints")
+	}
+}
+
+// TODO deprecate.
+func TestMergeConstraintsX(t *testing.T) {
+	localities := []string{"a", "b", "c"}
+	bl := BrokerList{}
+
+	for i := 0; i < 5; i++ {
+		b := &Broker{
+			ID:       1000 + i,
+			Locality: localities[i%3],
+		}
+
+		// Brokers marked for replacement
+		// don't get merged in.
+		if i == 4 {
+			b.Replace = true
+		}
+
+		bl = append(bl, b)
+	}
+
 	c := MergeConstraints(bl)
 
 	// Check expected.

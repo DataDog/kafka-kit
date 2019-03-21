@@ -117,10 +117,10 @@ func (c *Constraints) Add(b *Broker) {
 	c.id[b.ID] = true
 }
 
-// MergeConstraints takes a brokerlist and builds a
+// MergeConstraints takes a brokerlist and updates the
 // *Constraints by merging the attributes of all brokers
 // from the supplied list.
-func (c *Constraints) AddMulti(bl BrokerList) {
+func (c *Constraints) MergeConstraints(bl BrokerList) {
 	// Don't merge in attributes
 	// from nodes that will be removed.
 	var f BrokerFilterFn = func(b *Broker) bool {
