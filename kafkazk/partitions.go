@@ -109,13 +109,14 @@ func (pmm PartitionMetaMap) Size(p Partition) (float64, error) {
 // RebuildParams holds required parameters to call the Rebuild
 // method on a *PartitionMap.
 type RebuildParams struct {
-	pm            *PartitionMap
-	PMM           PartitionMetaMap
-	BM            BrokerMap
-	Strategy      string
-	Optimization  string
-	Affinities    SubstitutionAffinities
-	PartnSzFactor float64
+	pm               *PartitionMap
+	PMM              PartitionMetaMap
+	BM               BrokerMap
+	Strategy         string
+	Optimization     string
+	Affinities       SubstitutionAffinities
+	PartnSzFactor    float64
+	MinUniqueRackIDs int
 }
 
 // NewRebuildParams initializes a RebuildParams.
@@ -296,7 +297,8 @@ func placeByPosition(params RebuildParams) (*PartitionMap, []error) {
 				// Populate a Constraints.
 				constraints := NewConstraints()
 				constraintsParams := ConstraintsParams{
-					SelectorMethod: params.Strategy,
+					SelectorMethod:   params.Strategy,
+					MinUniqueRackIDs: params.MinUniqueRackIDs,
 				}
 				constraints.MergeConstraints(replicaSet)
 
@@ -419,8 +421,9 @@ func placeByPartition(params RebuildParams) (*PartitionMap, []error) {
 				// Populate a Constraints.
 				constraints := NewConstraints()
 				constraintsParams := ConstraintsParams{
-					SelectorMethod: params.Strategy,
-					SeedVal:        1,
+					SelectorMethod:   params.Strategy,
+					MinUniqueRackIDs: params.MinUniqueRackIDs,
+					SeedVal:          1,
 				}
 				constraints.MergeConstraints(replicaSet)
 
