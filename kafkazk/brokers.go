@@ -151,6 +151,13 @@ func (b BrokerList) SortByID() {
 	sort.Sort(brokersByID(b))
 }
 
+// BrokerFilterFn is a filter function
+// for BrokerList and BrokerMap types.
+type BrokerFilterFn func(*Broker) bool
+
+// AllBrokersFn returns all brokers.
+var AllBrokersFn BrokerFilterFn = func(b *Broker) bool { return true }
+
 // SortPseudoShuffle takes a BrokerList and performs a sort by count.
 // For each sequence of brokers with equal counts, the sub-slice is
 // pseudo random shuffled using the provided seed value s.
@@ -315,8 +322,8 @@ func (b BrokerMap) SubStorage(pm *PartitionMap, pmm PartitionMetaMap, f func(*Br
 
 // Filter returns a BrokerMap of brokers that return
 // true as an input to function f.
-func (b BrokerMap) Filter(f func(*Broker) bool) BrokerMap {
-	bmap := BrokerMap{}
+func (b BrokerMap) Filter(f BrokerFilterFn) BrokerMap {
+	bm := BrokerMap{}
 
 	for _, broker := range b {
 		if broker.ID == StubBrokerID {
@@ -324,11 +331,29 @@ func (b BrokerMap) Filter(f func(*Broker) bool) BrokerMap {
 		}
 
 		if f(broker) {
-			bmap[broker.ID] = broker
+			bm[broker.ID] = broker
 		}
 	}
 
-	return bmap
+	return bm
+}
+
+// Filter returns a BrokerList of brokers that return
+// true as an input to function f.
+func (b BrokerList) Filter(f BrokerFilterFn) BrokerList {
+	bl := BrokerList{}
+
+	for _, broker := range b {
+		if broker.ID == StubBrokerID {
+			continue
+		}
+
+		if f(broker) {
+			bl = append(bl, broker)
+		}
+	}
+
+	return bl
 }
 
 // List take a BrokerMap and returns a BrokerList.
