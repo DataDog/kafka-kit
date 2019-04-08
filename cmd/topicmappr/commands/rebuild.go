@@ -33,6 +33,7 @@ func init() {
 	rebuildCmd.Flags().Int("replication", 0, "Normalize the topic replication factor across all replica sets (0 results in a no-op)")
 	rebuildCmd.Flags().Bool("sub-affinity", false, "Replacement broker substitution affinity")
 	rebuildCmd.Flags().String("placement", "count", "Partition placement strategy: [count, storage]")
+	rebuildCmd.Flags().Int("min-rack-ids", 0, "Minimum number of required of unique rack IDs per replica set (0 requires that all are unique)")
 	rebuildCmd.Flags().String("optimize", "distribution", "Optimization priority for the storage placement strategy: [distribution, storage]")
 	rebuildCmd.Flags().Float64("partition-size-factor", 1.0, "Factor by which to multiply partition sizes when using storage placement")
 	rebuildCmd.Flags().String("brokers", "", "Broker list to scope all partition placements to")

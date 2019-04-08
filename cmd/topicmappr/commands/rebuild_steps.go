@@ -158,13 +158,15 @@ func updateReplicationFactor(cmd *cobra.Command, pm *kafkazk.PartitionMap) {
 func buildMap(cmd *cobra.Command, pm *kafkazk.PartitionMap, pmm kafkazk.PartitionMetaMap, bm kafkazk.BrokerMap, af kafkazk.SubstitutionAffinities) (*kafkazk.PartitionMap, errors) {
 	placement := cmd.Flag("placement").Value.String()
 	psf, _ := cmd.Flags().GetFloat64("partition-size-factor")
+	mrrid, _ := cmd.Flags().GetInt("min-rack-ids")
 
 	rebuildParams := kafkazk.RebuildParams{
-		PMM:           pmm,
-		BM:            bm,
-		Strategy:      placement,
-		Optimization:  cmd.Flag("optimize").Value.String(),
-		PartnSzFactor: psf,
+		PMM:              pmm,
+		BM:               bm,
+		Strategy:         placement,
+		Optimization:     cmd.Flag("optimize").Value.String(),
+		PartnSzFactor:    psf,
+		MinUniqueRackIDs: mrrid,
 	}
 
 	if af != nil {

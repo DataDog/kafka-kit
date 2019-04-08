@@ -109,13 +109,14 @@ func (pmm PartitionMetaMap) Size(p Partition) (float64, error) {
 // RebuildParams holds required parameters to call the Rebuild
 // method on a *PartitionMap.
 type RebuildParams struct {
-	pm            *PartitionMap
-	PMM           PartitionMetaMap
-	BM            BrokerMap
-	Strategy      string
-	Optimization  string
-	Affinities    SubstitutionAffinities
-	PartnSzFactor float64
+	pm               *PartitionMap
+	PMM              PartitionMetaMap
+	BM               BrokerMap
+	Strategy         string
+	Optimization     string
+	Affinities       SubstitutionAffinities
+	PartnSzFactor    float64
+	MinUniqueRackIDs int
 }
 
 // NewRebuildParams initializes a RebuildParams.
@@ -293,8 +294,13 @@ func placeByPosition(params RebuildParams) (*PartitionMap, []error) {
 					replicaSet = append(replicaSet, params.BM[bid])
 				}
 
-				// Populate a constraints.
-				constraints := MergeConstraints(replicaSet)
+				// Populate a Constraints.
+				constraints := NewConstraints()
+				constraintsParams := ConstraintsParams{
+					SelectorMethod:   params.Strategy,
+					MinUniqueRackIDs: params.MinUniqueRackIDs,
+				}
+				constraints.MergeConstraints(replicaSet)
 
 				// Add any necessary meta from current partition
 				// to the constraints.
@@ -306,7 +312,7 @@ func placeByPosition(params RebuildParams) (*PartitionMap, []error) {
 						continue
 					}
 
-					constraints.requestSize = s * params.PartnSzFactor
+					constraintsParams.RequestSize = s * params.PartnSzFactor
 				}
 
 				// Fetch the best candidate and append.
@@ -325,13 +331,14 @@ func placeByPosition(params RebuildParams) (*PartitionMap, []error) {
 					// from ZooKeeper, its rack ID is unknown and a suitable
 					// sub has to be inferred. We're checking that it passes
 					// here in case the inference logic is faulty.
-					if passes := constraints.passes(replacement); !passes {
+					if passes := constraints.passesWithParams(replacement, constraintsParams); !passes {
 						err = ErrNoBrokers
 					}
 				} else {
 					// Otherwise, use the standard
 					// constraints based selector.
-					replacement, err = bl.BestCandidate(constraints, params.Strategy, int64(pass*n+1))
+					constraintsParams.SeedVal = int64(pass*n + 1)
+					replacement, err = constraints.SelectBroker(bl, constraintsParams)
 				}
 
 				if err != nil {
@@ -411,8 +418,14 @@ func placeByPartition(params RebuildParams) (*PartitionMap, []error) {
 					replicaSet = append(replicaSet, params.BM[bid])
 				}
 
-				// Populate a constraints.
-				constraints := MergeConstraints(replicaSet)
+				// Populate a Constraints.
+				constraints := NewConstraints()
+				constraintsParams := ConstraintsParams{
+					SelectorMethod:   params.Strategy,
+					MinUniqueRackIDs: params.MinUniqueRackIDs,
+					SeedVal:          1,
+				}
+				constraints.MergeConstraints(replicaSet)
 
 				// Add any necessary meta from current partition
 				// to the constraints.
@@ -424,11 +437,11 @@ func placeByPartition(params RebuildParams) (*PartitionMap, []error) {
 						continue
 					}
 
-					constraints.requestSize = s * params.PartnSzFactor
+					constraintsParams.RequestSize = s * params.PartnSzFactor
 				}
 
 				// Fetch the best candidate and append.
-				replacement, err := bl.BestCandidate(constraints, params.Strategy, 1)
+				replacement, err := constraints.SelectBroker(bl, constraintsParams)
 
 				if err != nil {
 					// Append any caught errors.
