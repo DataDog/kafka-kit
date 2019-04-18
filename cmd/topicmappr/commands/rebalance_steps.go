@@ -53,6 +53,7 @@ type planRelocationsForBrokerParams struct {
 	topPartitionsLimit     int
 	partitionSizeThreshold int
 	offloadTargetsMap      map[int]struct{}
+	tolerance              float64
 }
 
 // relocationPlan is a mapping of topic,
@@ -209,7 +210,6 @@ func validateBrokersForRebalance(cmd *cobra.Command, brokers kafkazk.BrokerMap, 
 
 func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBrokerParams) int {
 	verbose, _ := cmd.Flags().GetBool("verbose")
-	tolerance, _ := cmd.Flags().GetFloat64("tolerance")
 	localityScoped, _ := cmd.Flags().GetBool("locality-scoped")
 
 	relos := params.relos
@@ -221,6 +221,7 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 	topPartitionsLimit := params.topPartitionsLimit
 	partitionSizeThreshold := float64(params.partitionSizeThreshold * 1048576)
 	offloadTargetsMap := params.offloadTargetsMap
+	tolerance := params.tolerance
 
 	// Use the arithmetic mean for target
 	// thresholds.

@@ -58,30 +58,23 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	partitionMeta := getPartitionMeta(cmd, zk)
 
 	// Get the current partition map.
-	partitionMap, err := kafkazk.PartitionMapFromZK(Config.topics, zk)
+	partitionMapOrig, err := kafkazk.PartitionMapFromZK(Config.topics, zk)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
-	partitionMapOrig := partitionMap.Copy()
-
 	// Print topics matched to input params.
-	printTopics(partitionMap)
-
-	// Get a mapping of broker IDs to topics, partitions.
-	mappings := partitionMap.Mappings()
+	printTopics(partitionMapOrig)
 
 	// Get a broker map.
-	brokers := kafkazk.BrokerMapFromPartitionMap(partitionMap, brokerMeta, false)
+	brokersOrig := kafkazk.BrokerMapFromPartitionMap(partitionMapOrig, brokerMeta, false)
 
 	// Validate all broker params, get a copy of the
 	// broker IDs targeted for partition offloading.
-	offloadTargets := validateBrokersForRebalance(cmd, brokers, brokerMeta)
+	offloadTargets := validateBrokersForRebalance(cmd, brokersOrig, brokerMeta)
 
-	// Store a copy of the original
-	// broker map, post updates.
-	brokersOrig := brokers.Copy()
+	// XXX brokersOrig, partitionMapOrig need to be consistent.
 
 	partitionLimit, _ := cmd.Flags().GetInt("partition-limit")
 	partitionSizeThreshold, _ := cmd.Flags().GetInt("partition-size-threshold")
@@ -91,46 +84,82 @@ func rebalance(cmd *cobra.Command, _ []string) {
 		otm[id] = struct{}{}
 	}
 
-	// Bundle planRelocationsForBrokerParams.
-	params := planRelocationsForBrokerParams{
-		relos:                  map[int][]relocation{},
-		mappings:               mappings,
-		brokers:                brokers,
-		partitionMeta:          partitionMeta,
-		plan:                   relocationPlan{},
-		topPartitionsLimit:     partitionLimit,
-		partitionSizeThreshold: partitionSizeThreshold,
-		offloadTargetsMap:      otm,
+	type rebalanceMap struct {
+		storageRange float64
+		tolerance    float64
+		partitionMap *kafkazk.PartitionMap
+		relocations  map[int][]relocation
+		brokers      kafkazk.BrokerMap
 	}
 
-	// Sort offloadTargets by storage free ascending.
-	sort.Sort(offloadTargetsBySize{t: offloadTargets, bm: brokers})
+	mapsByRange := []rebalanceMap{}
 
-	// Iterate over offload targets, planning
-	// at most one relocation per iteration.
-	// Continue this loop until no more relocations
-	// can be planned.
-	for exhaustedCount := 0; exhaustedCount < len(offloadTargets); {
-		params.pass++
-		for _, sourceID := range offloadTargets {
-			// Update the source broker ID
-			params.sourceID = sourceID
+	for i := 0.01; i < 0.99; i += 0.01 {
+		partitionMap := partitionMapOrig.Copy()
 
-			relos := planRelocationsForBroker(cmd, params)
+		// Bundle planRelocationsForBrokerParams.
+		params := planRelocationsForBrokerParams{
+			relos:                  map[int][]relocation{},
+			mappings:               partitionMap.Mappings(),
+			brokers:                brokersOrig.Copy(),
+			partitionMeta:          partitionMeta,
+			plan:                   relocationPlan{},
+			topPartitionsLimit:     partitionLimit,
+			partitionSizeThreshold: partitionSizeThreshold,
+			offloadTargetsMap:      otm,
+			tolerance:              i,
+		}
 
-			// If no relocations could be planned,
-			// increment the exhaustion counter.
-			if relos == 0 {
-				exhaustedCount++
+		// Sort offloadTargets by storage free ascending.
+		sort.Sort(offloadTargetsBySize{t: offloadTargets, bm: params.brokers})
+
+		// Iterate over offload targets, planning
+		// at most one relocation per iteration.
+		// Continue this loop until no more relocations
+		// can be planned.
+		for exhaustedCount := 0; exhaustedCount < len(offloadTargets); {
+			params.pass++
+			for _, sourceID := range offloadTargets {
+				// Update the source broker ID
+				params.sourceID = sourceID
+
+				relos := planRelocationsForBroker(cmd, params)
+
+				// If no relocations could be planned,
+				// increment the exhaustion counter.
+				if relos == 0 {
+					exhaustedCount++
+				}
 			}
 		}
+
+		// Update the partition map with the relocation plan.
+		applyRelocationPlan(cmd, partitionMap, params.plan)
+
+		mapsByRange = append(mapsByRange, rebalanceMap{
+			storageRange: params.brokers.StorageRange(),
+			tolerance:    i,
+			partitionMap: partitionMap,
+			relocations:  params.relos,
+			brokers:      params.brokers,
+		})
+	}
+
+	sort.Slice(mapsByRange, func(i, j int) bool {
+		return mapsByRange[i].storageRange < mapsByRange[j].storageRange
+	})
+
+	m := mapsByRange[0]
+	partitionMap, relos, brokers := m.partitionMap, m.relocations, m.brokers
+
+	fmt.Printf("xxx using a tolerance of %f\n", m.tolerance)
+
+	for i := range mapsByRange {
+		fmt.Printf("range for map %d: %f\n", i, mapsByRange[i].storageRange)
 	}
 
 	// Print planned relocations.
-	printPlannedRelocations(offloadTargets, params.relos, partitionMeta)
-
-	// Update the partition map with the relocation plan.
-	applyRelocationPlan(cmd, partitionMap, params.plan)
+	printPlannedRelocations(offloadTargets, relos, partitionMeta)
 
 	// Print map change results.
 	printMapChanges(partitionMapOrig, partitionMap)
