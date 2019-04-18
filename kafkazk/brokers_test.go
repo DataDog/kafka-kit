@@ -196,6 +196,21 @@ func TestUpdate(t *testing.T) {
 	}
 }
 
+func TestUpdateIncludeExisting(t *testing.T) {
+	zk := &Mock{}
+	bmm, _ := zk.GetAllBrokerMeta(false)
+	bm := newMockBrokerMap()
+
+	bm.Update([]int{-1}, bmm)
+
+	// Ensure all broker IDs are in the map.
+	for _, id := range []int{StubBrokerID, 1001, 1002, 1003, 1004} {
+		if _, ok := bm[id]; !ok {
+			t.Errorf("Expected presence of ID %d", id)
+		}
+	}
+}
+
 func TestSubStorageAll(t *testing.T) {
 	bm := newMockBrokerMap()
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
