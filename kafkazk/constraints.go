@@ -59,6 +59,7 @@ func (c *Constraints) SelectBroker(b BrokerList, p ConstraintsParams) (*Broker, 
 	for _, candidate = range b.Filter(AllBrokersFn) {
 		// Candidate passes, return.
 		if c.passesWithParams(candidate, p) {
+			c.requestSize = p.RequestSize
 			c.Add(candidate)
 			candidate.Used++
 

@@ -66,14 +66,14 @@ func TestSelectBrokerByStorage(t *testing.T) {
 	// Removes any brokers with locality
 	// "b" as candidates.
 	c.locality["c"] = true
-	// Sets request size.
-	c.requestSize = 1000.00
 
 	p := ConstraintsParams{
 		SelectorMethod: "storage",
+		RequestSize:    1000.00,
 	}
 
 	b, _ := c.SelectBroker(bl, p)
+
 	// 1003 should be the first available.
 	if b.ID != 1003 {
 		t.Errorf("Expected candidate with ID 1003, got %d", b.ID)
