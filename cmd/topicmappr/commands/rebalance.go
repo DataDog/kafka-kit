@@ -58,23 +58,21 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	partitionMeta := getPartitionMeta(cmd, zk)
 
 	// Get the current partition map.
-	partitionMapOrig, err := kafkazk.PartitionMapFromZK(Config.topics, zk)
+	partitionMapIn, err := kafkazk.PartitionMapFromZK(Config.topics, zk)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
 	// Print topics matched to input params.
-	printTopics(partitionMapOrig)
+	printTopics(partitionMapIn)
 
 	// Get a broker map.
-	brokersOrig := kafkazk.BrokerMapFromPartitionMap(partitionMapOrig, brokerMeta, false)
+	brokersIn := kafkazk.BrokerMapFromPartitionMap(partitionMapIn, brokerMeta, false)
 
 	// Validate all broker params, get a copy of the
 	// broker IDs targeted for partition offloading.
-	offloadTargets := validateBrokersForRebalance(cmd, brokersOrig, brokerMeta)
-
-	// XXX brokersOrig, partitionMapOrig need to be consistent.
+	offloadTargets := validateBrokersForRebalance(cmd, brokersIn, brokerMeta)
 
 	partitionLimit, _ := cmd.Flags().GetInt("partition-limit")
 	partitionSizeThreshold, _ := cmd.Flags().GetInt("partition-size-threshold")
@@ -100,7 +98,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	resultsByRange := []rebalanceResults{}
 
 	for i := 0.01; i < 0.99; i += 0.01 {
-		partitionMap := partitionMapOrig.Copy()
+		partitionMap := partitionMapIn.Copy()
 
 		// Whether we're using a fixed tolerance
 		// (non 0.00) set via flag or an iterative value.
@@ -117,7 +115,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 		params := planRelocationsForBrokerParams{
 			relos:                  map[int][]relocation{},
 			mappings:               partitionMap.Mappings(),
-			brokers:                brokersOrig.Copy(),
+			brokers:                brokersIn.Copy(),
 			partitionMeta:          partitionMeta,
 			plan:                   relocationPlan{},
 			topPartitionsLimit:     partitionLimit,
@@ -174,19 +172,19 @@ func rebalance(cmd *cobra.Command, _ []string) {
 
 	// Chose the results with the lowest range.
 	m := resultsByRange[0]
-	partitionMap, relos, brokers := m.partitionMap, m.relocations, m.brokers
+	partitionMapOut, brokersOut, relos := m.partitionMap, m.brokers, m.relocations
 
 	// Print parameters used for rebalance decisions.
-	printRebalanceParams(cmd, brokersOrig, m.tolerance)
+	printRebalanceParams(cmd, brokersIn, m.tolerance)
 
 	// Print planned relocations.
 	printPlannedRelocations(offloadTargets, relos, partitionMeta)
 
 	// Print map change results.
-	printMapChanges(partitionMapOrig, partitionMap)
+	printMapChanges(partitionMapIn, partitionMapOut)
 
 	// Print broker assignment statistics.
-	errs := printBrokerAssignmentStats(cmd, partitionMapOrig, partitionMap, brokersOrig, brokers)
+	errs := printBrokerAssignmentStats(cmd, partitionMapIn, partitionMapOut, brokersIn, brokersOut)
 
 	// Handle errors that are possible
 	// to be overridden by the user (aka
@@ -195,8 +193,8 @@ func rebalance(cmd *cobra.Command, _ []string) {
 
 	// Ignore no-ops; rebalances will naturally have
 	// a high percentage of these.
-	partitionMapOrig, partitionMap = skipReassignmentNoOps(partitionMapOrig, partitionMap)
+	partitionMapIn, partitionMapOut = skipReassignmentNoOps(partitionMapIn, partitionMapOut)
 
 	// Write maps.
-	writeMaps(cmd, partitionMap)
+	writeMaps(cmd, partitionMapOut)
 }
