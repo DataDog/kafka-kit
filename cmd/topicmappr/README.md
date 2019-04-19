@@ -117,7 +117,7 @@ Flags:
       --partition-size-threshold int   Size in megabytes where partitions below this value will not be moved in a rebalance (default 512)
       --storage-threshold float        Percent below the harmonic mean storage free to target for partition offload (0 targets a brokers) (default 0.2)
       --storage-threshold-gb float     Storage free in gigabytes to target for partition offload (those below the specified value); 0 [default] defers target selection to --storage-threshold
-      --tolerance float                Percent distance from the mean storage free to limit storage scheduling (default 0.1)
+      --tolerance float                Percent distance from the mean storage free to limit storage scheduling (0 performs automatic tolerance selection)
       --topics string                  Rebuild topics (comma delim. list) by lookup in ZooKeeper
       --verbose                        Verbose output
       --zk-metrics-prefix string       ZooKeeper namespace prefix for Kafka metrics (default "topicmappr")
