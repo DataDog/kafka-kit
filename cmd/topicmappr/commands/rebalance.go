@@ -88,7 +88,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	// of rebalance plans. A rebalanceResults holds
 	// any relevant output along with metadata that
 	// hints at the quality of the output, such as
-	// the resulting storage utlization range.
+	// the resulting storage utilization range.
 	type rebalanceResults struct {
 		storageRange float64
 		tolerance    float64
@@ -107,7 +107,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 		tolFlag, _ := cmd.Flags().GetFloat64("tolerance")
 		var tol float64
 
-		if tolFlag != 0.00 {
+		if tolFlag == 0.00 {
 			tol = i
 		} else {
 			tol = tolFlag
@@ -155,7 +155,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 		// Populate the output.
 		resultsByRange = append(resultsByRange, rebalanceResults{
 			storageRange: params.brokers.StorageRange(),
-			tolerance:    i,
+			tolerance:    tol,
 			partitionMap: partitionMap,
 			relocations:  params.relos,
 			brokers:      params.brokers,
@@ -167,18 +167,17 @@ func rebalance(cmd *cobra.Command, _ []string) {
 		}
 	}
 
+	// Sort the rebalance results by range ascending.
 	sort.Slice(resultsByRange, func(i, j int) bool {
 		return resultsByRange[i].storageRange < resultsByRange[j].storageRange
 	})
 
+	// Chose the results with the lowest range.
 	m := resultsByRange[0]
 	partitionMap, relos, brokers := m.partitionMap, m.relocations, m.brokers
 
-	fmt.Printf("xxx using a tolerance of %f\n", m.tolerance)
-
-	for i := range resultsByRange {
-		fmt.Printf("range for map %d: %f\n", i, resultsByRange[i].storageRange)
-	}
+	// Print parameters used for rebalance decisions.
+	printRebalanceParams(cmd, brokersOrig, m.tolerance)
 
 	// Print planned relocations.
 	printPlannedRelocations(offloadTargets, relos, partitionMeta)
