@@ -26,7 +26,7 @@ func init() {
 	rebalanceCmd.Flags().String("brokers", "", "Broker list to scope all partition placements to ('-1' automatically expands to all currently mapped brokers)")
 	rebalanceCmd.Flags().Float64("storage-threshold", 0.20, "Percent below the harmonic mean storage free to target for partition offload (0 targets a brokers)")
 	rebalanceCmd.Flags().Float64("storage-threshold-gb", 0.00, "Storage free in gigabytes to target for partition offload (those below the specified value); 0 [default] defers target selection to --storage-threshold")
-	rebalanceCmd.Flags().Float64("tolerance", 0.10, "Percent distance from the mean storage free to limit storage scheduling")
+	rebalanceCmd.Flags().Float64("tolerance", 0.0, "Percent distance from the mean storage free to limit storage scheduling (0 performs automatic tolerance configuration)")
 	rebalanceCmd.Flags().Int("partition-limit", 30, "Limit the number of top partitions by size eligible for relocation per broker")
 	rebalanceCmd.Flags().Int("partition-size-threshold", 512, "Size in megabytes where partitions below this value will not be moved in a rebalance")
 	rebalanceCmd.Flags().Bool("locality-scoped", false, "Disallow a relocation to traverse rack.id values among brokers")
@@ -84,7 +84,12 @@ func rebalance(cmd *cobra.Command, _ []string) {
 		otm[id] = struct{}{}
 	}
 
-	type rebalanceMap struct {
+	// Rebalance may be configured to run a series
+	// of rebalance plans. A rebalanceResults holds
+	// any relevant output along with metadata that
+	// hints at the quality of the output, such as
+	// the resulting storage utlization range.
+	type rebalanceResults struct {
 		storageRange float64
 		tolerance    float64
 		partitionMap *kafkazk.PartitionMap
@@ -92,10 +97,21 @@ func rebalance(cmd *cobra.Command, _ []string) {
 		brokers      kafkazk.BrokerMap
 	}
 
-	mapsByRange := []rebalanceMap{}
+	resultsByRange := []rebalanceResults{}
 
 	for i := 0.01; i < 0.99; i += 0.01 {
 		partitionMap := partitionMapOrig.Copy()
+
+		// Whether we're using a fixed tolerance
+		// (non 0.00) set via flag or an iterative value.
+		tolFlag, _ := cmd.Flags().GetFloat64("tolerance")
+		var tol float64
+
+		if tolFlag != 0.00 {
+			tol = i
+		} else {
+			tol = tolFlag
+		}
 
 		// Bundle planRelocationsForBrokerParams.
 		params := planRelocationsForBrokerParams{
@@ -107,7 +123,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 			topPartitionsLimit:     partitionLimit,
 			partitionSizeThreshold: partitionSizeThreshold,
 			offloadTargetsMap:      otm,
-			tolerance:              i,
+			tolerance:              tol,
 		}
 
 		// Sort offloadTargets by storage free ascending.
@@ -136,26 +152,32 @@ func rebalance(cmd *cobra.Command, _ []string) {
 		// Update the partition map with the relocation plan.
 		applyRelocationPlan(cmd, partitionMap, params.plan)
 
-		mapsByRange = append(mapsByRange, rebalanceMap{
+		// Populate the output.
+		resultsByRange = append(resultsByRange, rebalanceResults{
 			storageRange: params.brokers.StorageRange(),
 			tolerance:    i,
 			partitionMap: partitionMap,
 			relocations:  params.relos,
 			brokers:      params.brokers,
 		})
+
+		// Break early if we're using a fixed tolerance value.
+		if tolFlag != 0.00 {
+			break
+		}
 	}
 
-	sort.Slice(mapsByRange, func(i, j int) bool {
-		return mapsByRange[i].storageRange < mapsByRange[j].storageRange
+	sort.Slice(resultsByRange, func(i, j int) bool {
+		return resultsByRange[i].storageRange < resultsByRange[j].storageRange
 	})
 
-	m := mapsByRange[0]
+	m := resultsByRange[0]
 	partitionMap, relos, brokers := m.partitionMap, m.relocations, m.brokers
 
 	fmt.Printf("xxx using a tolerance of %f\n", m.tolerance)
 
-	for i := range mapsByRange {
-		fmt.Printf("range for map %d: %f\n", i, mapsByRange[i].storageRange)
+	for i := range resultsByRange {
+		fmt.Printf("range for map %d: %f\n", i, resultsByRange[i].storageRange)
 	}
 
 	// Print planned relocations.
