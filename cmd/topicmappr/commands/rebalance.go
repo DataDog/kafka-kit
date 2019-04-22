@@ -167,7 +167,14 @@ func rebalance(cmd *cobra.Command, _ []string) {
 
 	// Sort the rebalance results by range ascending.
 	sort.Slice(resultsByRange, func(i, j int) bool {
-		return resultsByRange[i].storageRange < resultsByRange[j].storageRange
+		switch{
+		case resultsByRange[i].storageRange < resultsByRange[j].storageRange:
+			return true
+		case resultsByRange[i].storageRange > resultsByRange[j].storageRange:
+			return false
+		}
+
+		return resultsByRange[i].tolerance < resultsByRange[j].tolerance
 	})
 
 	// Chose the results with the lowest range.
