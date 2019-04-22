@@ -216,7 +216,7 @@ func printRebalanceParams(cmd *cobra.Command, results []rebalanceResults, broker
 		fmt.Printf("%s-\n%sTop 10 rebalance map results\n", indent, indent)
 		for i := range results {
 			fmt.Printf("%stolerance: %.2f -> range: %.2fGB\n",
-				indent, results[i].tolerance, results[i].storageRange)
+				indent, results[i].tolerance, results[i].storageRange/div)
 			if i == 10 {
 				break
 			}
@@ -256,8 +256,8 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 	}
 
 	if verbose {
-		fmt.Printf("\n[pass %d] Broker %d has a storage free of %.2fGB. Top partitions:\n",
-			params.pass, sourceID, brokers[sourceID].StorageFree/div)
+		fmt.Printf("\n[pass %d with tolerance %.2f] Broker %d has a storage free of %.2fGB. Top partitions:\n",
+			params.pass, tolerance, sourceID, brokers[sourceID].StorageFree/div)
 
 		for _, p := range topPartn {
 			pSize, _ := partitionMeta.Size(p)
