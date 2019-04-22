@@ -189,7 +189,7 @@ func validateBrokersForRebalance(cmd *cobra.Command, brokers kafkazk.BrokerMap, 
 	return offloadTargets
 }
 
-func printRebalanceParams(cmd *cobra.Command, brokers kafkazk.BrokerMap, tol float64) {
+func printRebalanceParams(cmd *cobra.Command, results []rebalanceResults, brokers kafkazk.BrokerMap, tol float64) {
 	// Print rebalance parameters as a result of
 	// input configurations and brokers found
 	// to be beyond the storage threshold.
@@ -207,6 +207,21 @@ func printRebalanceParams(cmd *cobra.Command, brokers kafkazk.BrokerMap, tol flo
 
 	fmt.Printf("%s%sSources limited to <= %.2fGB\n", indent, indent, mean*(1+tol)/div)
 	fmt.Printf("%s%sDestinations limited to >= %.2fGB\n", indent, indent, mean*(1-tol)/div)
+
+	verbose, _ := cmd.Flags().GetBool("verbose")
+
+	// Print the top 10 rebalance results
+	// in verbose.
+	if verbose {
+		fmt.Printf("%s-\n%sTop 10 rebalance map results\n", indent, indent)
+		for i := range results {
+			fmt.Printf("%stolerance: %.2f -> range: %.2fGB\n",
+				indent, results[i].tolerance, results[i].storageRange)
+			if i == 10 {
+				break
+			}
+		}
+	}
 }
 
 func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBrokerParams) int {
@@ -220,7 +235,7 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 	plan := params.plan
 	sourceID := params.sourceID
 	topPartitionsLimit := params.topPartitionsLimit
-	partitionSizeThreshold := float64(params.partitionSizeThreshold * 1048576)
+	partitionSizeThreshold := float64(params.partitionSizeThreshold * 1 << 20)
 	offloadTargetsMap := params.offloadTargetsMap
 	tolerance := params.tolerance
 

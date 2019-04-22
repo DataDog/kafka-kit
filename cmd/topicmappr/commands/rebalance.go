@@ -17,6 +17,19 @@ var rebalanceCmd = &cobra.Command{
 	Run:   rebalance,
 }
 
+// Rebalance may be configured to run a series
+// of rebalance plans. A rebalanceResults holds
+// any relevant output along with metadata that
+// hints at the quality of the output, such as
+// the resulting storage utilization range.
+type rebalanceResults struct {
+	storageRange float64
+	tolerance    float64
+	partitionMap *kafkazk.PartitionMap
+	relocations  map[int][]relocation
+	brokers      kafkazk.BrokerMap
+}
+
 func init() {
 	rootCmd.AddCommand(rebalanceCmd)
 
@@ -80,19 +93,6 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	otm := map[int]struct{}{}
 	for _, id := range offloadTargets {
 		otm[id] = struct{}{}
-	}
-
-	// Rebalance may be configured to run a series
-	// of rebalance plans. A rebalanceResults holds
-	// any relevant output along with metadata that
-	// hints at the quality of the output, such as
-	// the resulting storage utilization range.
-	type rebalanceResults struct {
-		storageRange float64
-		tolerance    float64
-		partitionMap *kafkazk.PartitionMap
-		relocations  map[int][]relocation
-		brokers      kafkazk.BrokerMap
 	}
 
 	resultsByRange := []rebalanceResults{}
@@ -175,7 +175,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	partitionMapOut, brokersOut, relos := m.partitionMap, m.brokers, m.relocations
 
 	// Print parameters used for rebalance decisions.
-	printRebalanceParams(cmd, brokersIn, m.tolerance)
+	printRebalanceParams(cmd, resultsByRange, brokersIn, m.tolerance)
 
 	// Print planned relocations.
 	printPlannedRelocations(offloadTargets, relos, partitionMeta)
