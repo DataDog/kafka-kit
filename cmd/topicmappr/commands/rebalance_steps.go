@@ -333,8 +333,12 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 			dest, _ = brokerList.BestCandidate(c, "storage", 0)
 		}
 
+		// If dest == nil, it's likely that the only available
+		// destination brokers that don't break placement constraints
+		// are already taking a replica for the partition. Continue
+		// to the next partition.
 		if dest == nil {
-			return reloCount
+			continue
 		}
 
 		if verbose {
@@ -395,6 +399,14 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 
 		// Break at the first placement.
 		break
+	}
+
+	if verbose && reloCount == 0 {
+		fmt.Printf("%s-\n", indent)
+		fmt.Printf("%sNo suitable relocation destinations were found for any partitions "+
+			"held by this broker. This is likely due to insufficient free candidates "+
+			"in rack IDs that won't break placement constraints and/or suitable candidates "+
+			"already being scheduled to take replicas of partitions held by this broker\n", indent)
 	}
 
 	return reloCount
