@@ -25,6 +25,8 @@ type Config struct {
 	Span        int
 	ZKAddr      string
 	ZKPrefix    string
+	Verbose     bool
+	DryRun      bool
 }
 
 var config = &Config{} // :(
@@ -38,6 +40,8 @@ func init() {
 	flag.IntVar(&config.Span, "span", 3600, "Query range in seconds (now - span)")
 	flag.StringVar(&config.ZKAddr, "zk-addr", "localhost:2181", "ZooKeeper connect string")
 	flag.StringVar(&config.ZKPrefix, "zk-prefix", "topicmappr", "ZooKeeper namespace prefix")
+	flag.BoolVar(&config.Verbose, "verbose", false, "Verbose output")
+	flag.BoolVar(&config.DryRun, "dry-run", false, "Dry run mode (don't reach Zookeeper)")
 
 	envy.Parse("METRICSFETCHER")
 	flag.Parse()
@@ -58,15 +62,20 @@ func main() {
 	}
 
 	// Init ZK client.
-	zk, err := kafkazk.NewHandler(&kafkazk.Config{
-		Connect: config.ZKAddr,
-	})
-	exitOnErr(err)
+	var zk kafkazk.Handler
+	if !config.DryRun {
+		zk, err = kafkazk.NewHandler(&kafkazk.Config{
+			Connect: config.ZKAddr,
+		})
+		exitOnErr(err)
+	}
 
 	// Ensure znodes exist.
 	paths := zkPaths(config.ZKPrefix)
-	err = createZNodesIfNotExist(zk, paths)
-	exitOnErr(err)
+	if !config.DryRun {
+		err = createZNodesIfNotExist(zk, paths)
+		exitOnErr(err)
+	}
 
 	// Fetch metrics data.
 	fmt.Printf("Submitting %s\n", config.PartnQuery)
@@ -89,6 +98,17 @@ func main() {
 	// there's a prefix.
 	if len(paths) == 3 {
 		paths = paths[1:]
+	}
+
+	if config.Verbose {
+		fmt.Printf("Broker data (will store at %s, query %s):\n%s\n"+
+			"Partition data (will store at %s, query %s):\n%s\n",
+			paths[1], config.BrokerQuery, brokerData,
+			paths[0], config.PartnQuery, partnData)
+	}
+
+	if config.DryRun {
+		return
 	}
 
 	// Write to ZK.
