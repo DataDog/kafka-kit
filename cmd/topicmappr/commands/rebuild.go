@@ -29,6 +29,8 @@ func init() {
 	rebuildCmd.Flags().Bool("use-meta", true, "Use broker metadata in placement constraints")
 	rebuildCmd.Flags().String("out-path", "", "Path to write output map files to")
 	rebuildCmd.Flags().String("out-file", "", "If defined, write a combined map of all topics to a file")
+	rebuildCmd.Flags().String("partitions-size-in-file", "", "Read Topics partitions sizes from a file")
+	rebuildCmd.Flags().String("brokers-storage-in-file", "", "Read Brokers free storage from a file")
 	rebuildCmd.Flags().Bool("force-rebuild", false, "Forces a complete map rebuild")
 	rebuildCmd.Flags().Int("replication", 0, "Normalize the topic replication factor across all replica sets (0 results in a no-op)")
 	rebuildCmd.Flags().Bool("sub-affinity", false, "Replacement broker substitution affinity")
@@ -54,7 +56,8 @@ func rebuild(cmd *cobra.Command, _ []string) {
 	fr, _ := cmd.Flags().GetBool("force-rebuild")
 	sa, _ := cmd.Flags().GetBool("sub-affinity")
 	m, _ := cmd.Flags().GetBool("use-meta")
-
+	bsif, _ := cmd.Flags().GetString("brokers-storage-in-file")
+	psif, _ := cmd.Flags().GetString("partitions-size-in-file")
 	switch {
 	case ms == "" && t == "":
 		fmt.Println("\n[ERROR] must specify either --topics or --map-string")
@@ -103,7 +106,9 @@ func rebuild(cmd *cobra.Command, _ []string) {
 	// Fetch broker metadata.
 	var withMetrics bool
 	if cmd.Flag("placement").Value.String() == "storage" {
-		checkMetaAge(cmd, zk)
+		if bsif == "" || psif == "" {
+			checkMetaAge(cmd, zk)
+		}
 		withMetrics = true
 	}
 

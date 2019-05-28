@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"time"
+	"io/ioutil"
+	"encoding/json"
 
 	"github.com/DataDog/kafka-kit/kafkazk"
 
@@ -42,6 +44,35 @@ func getBrokerMeta(cmd *cobra.Command, zk kafkazk.Handler, m bool) kafkazk.Broke
 		}
 		os.Exit(1)
 	}
+	// Get a broker map of the brokers in the current partition map.
+	// If meta data isn't being looked up, brokerMeta will be empty.
+	bmif, _ := cmd.Flags().GetString("brokers-storage-in-file")
+	if bmif != ""  {
+		jsonFile, err := os.Open(bmif)
+		// if we os.Open returns an error then handle it
+		if err != nil {
+		    fmt.Printf("Error on %s",err)
+		    os.Exit(1)
+		}
+		// defer the closing of our jsonFile so that we can parse it later on
+		defer jsonFile.Close()
+		data, _ := ioutil.ReadAll(jsonFile)
+		bmm := kafkazk.BrokerMetricsMap{}
+		err = json.Unmarshal(data, &bmm)
+		if err != nil {
+			fmt.Errorf("Error unmarshalling broker metrics: %s", err.Error())
+			os.Exit(1)
+		}
+		// Populate each broker with
+		// metric data.
+		for bid := range brokerMeta {
+			m, exists := bmm[bid]
+			if exists {
+				brokerMeta[bid].StorageFree = m.StorageFree
+				brokerMeta[bid].MetricsIncomplete = false
+			}
+		}
+	}
 
 	return brokerMeta
 }
@@ -70,6 +101,24 @@ func getPartitionMeta(cmd *cobra.Command, zk kafkazk.Handler) kafkazk.PartitionM
 		fmt.Println(err)
 		os.Exit(1)
 	}
-
+	// Get a the partitionMetaMap from input file
+	psif, _ := cmd.Flags().GetString("partitions-size-in-file")
+	if psif != ""  {
+		jsonFile, err := os.Open(psif)
+		// if we os.Open returns an error then handle it
+		if err != nil {
+		    fmt.Printf("Error on %s", err)
+		    os.Exit(1)
+		}
+		// defer the closing of our jsonFile so that we can parse it later on
+		defer jsonFile.Close()
+		data, _ := ioutil.ReadAll(jsonFile)
+		err = json.Unmarshal(data, &partitionMeta)
+		if err != nil {
+			fmt.Errorf("Error unmarshalling broker metrics: %s", err.Error())
+			os.Exit(1)
+		}
+	}
+	//fmt.Println(partitionMeta)
 	return partitionMeta
 }
