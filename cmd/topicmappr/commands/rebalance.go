@@ -99,9 +99,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 		otm[id] = struct{}{}
 	}
 
-	resultsByRange := []rebalanceResults{}
 	results := make(chan rebalanceResults, 100)
-
 	wg := &sync.WaitGroup{}
 
 	// Compute a rebalanceResults output for all tolerance
@@ -182,6 +180,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	close(results)
 
 	// Merge all results into a slice.
+	resultsByRange := []rebalanceResults{}
 	for r := range results {
 		resultsByRange = append(resultsByRange, r)
 	}
