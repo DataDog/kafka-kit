@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"sync"
 
 	"github.com/DataDog/kafka-kit/kafkazk"
 
@@ -87,6 +88,9 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	// broker IDs targeted for partition offloading.
 	offloadTargets := validateBrokersForRebalance(cmd, brokersIn, brokerMeta)
 
+	// Sort offloadTargets by storage free ascending.
+	sort.Sort(offloadTargetsBySize{t: offloadTargets, bm: brokersIn})
+
 	partitionLimit, _ := cmd.Flags().GetInt("partition-limit")
 	partitionSizeThreshold, _ := cmd.Flags().GetInt("partition-size-threshold")
 
@@ -95,11 +99,12 @@ func rebalance(cmd *cobra.Command, _ []string) {
 		otm[id] = struct{}{}
 	}
 
-	resultsByRange := []rebalanceResults{}
+	results := make(chan rebalanceResults, 100)
+	wg := &sync.WaitGroup{}
 
+	// Compute a rebalanceResults output for all tolerance
+	// values 0.01..0.99 in parallel.
 	for i := 0.01; i < 0.99; i += 0.01 {
-		partitionMap := partitionMapIn.Copy()
-
 		// Whether we're using a fixed tolerance
 		// (non 0.00) set via flag or an iterative value.
 		tolFlag, _ := cmd.Flags().GetFloat64("tolerance")
@@ -111,58 +116,73 @@ func rebalance(cmd *cobra.Command, _ []string) {
 			tol = tolFlag
 		}
 
-		// Bundle planRelocationsForBrokerParams.
-		params := planRelocationsForBrokerParams{
-			relos:                  map[int][]relocation{},
-			mappings:               partitionMap.Mappings(),
-			brokers:                brokersIn.Copy(),
-			partitionMeta:          partitionMeta,
-			plan:                   relocationPlan{},
-			topPartitionsLimit:     partitionLimit,
-			partitionSizeThreshold: partitionSizeThreshold,
-			offloadTargetsMap:      otm,
-			tolerance:              tol,
-		}
+		wg.Add(1)
 
-		// Sort offloadTargets by storage free ascending.
-		sort.Sort(offloadTargetsBySize{t: offloadTargets, bm: params.brokers})
+		go func() {
+			defer wg.Done()
 
-		// Iterate over offload targets, planning
-		// at most one relocation per iteration.
-		// Continue this loop until no more relocations
-		// can be planned.
-		for exhaustedCount := 0; exhaustedCount < len(offloadTargets); {
-			params.pass++
-			for _, sourceID := range offloadTargets {
-				// Update the source broker ID
-				params.sourceID = sourceID
+			partitionMap := partitionMapIn.Copy()
 
-				relos := planRelocationsForBroker(cmd, params)
+			// Bundle planRelocationsForBrokerParams.
+			params := planRelocationsForBrokerParams{
+				relos:                  map[int][]relocation{},
+				mappings:               partitionMap.Mappings(),
+				brokers:                brokersIn.Copy(),
+				partitionMeta:          partitionMeta,
+				plan:                   relocationPlan{},
+				topPartitionsLimit:     partitionLimit,
+				partitionSizeThreshold: partitionSizeThreshold,
+				offloadTargetsMap:      otm,
+				tolerance:              tol,
+			}
 
-				// If no relocations could be planned,
-				// increment the exhaustion counter.
-				if relos == 0 {
-					exhaustedCount++
+			// Iterate over offload targets, planning
+			// at most one relocation per iteration.
+			// Continue this loop until no more relocations
+			// can be planned.
+			for exhaustedCount := 0; exhaustedCount < len(offloadTargets); {
+				params.pass++
+				for _, sourceID := range offloadTargets {
+					// Update the source broker ID
+					params.sourceID = sourceID
+
+					relos := planRelocationsForBroker(cmd, params)
+
+					// If no relocations could be planned,
+					// increment the exhaustion counter.
+					if relos == 0 {
+						exhaustedCount++
+					}
 				}
 			}
-		}
 
-		// Update the partition map with the relocation plan.
-		applyRelocationPlan(cmd, partitionMap, params.plan)
+			// Update the partition map with the relocation plan.
+			applyRelocationPlan(cmd, partitionMap, params.plan)
 
-		// Populate the output.
-		resultsByRange = append(resultsByRange, rebalanceResults{
-			storageRange: params.brokers.StorageRange(),
-			tolerance:    tol,
-			partitionMap: partitionMap,
-			relocations:  params.relos,
-			brokers:      params.brokers,
-		})
+			// Insert the rebalanceResults.
+			results <- rebalanceResults{
+				storageRange: params.brokers.StorageRange(),
+				tolerance:    tol,
+				partitionMap: partitionMap,
+				relocations:  params.relos,
+				brokers:      params.brokers,
+			}
+
+		}()
 
 		// Break early if we're using a fixed tolerance value.
 		if tolFlag != 0.00 {
 			break
 		}
+	}
+
+	wg.Wait()
+	close(results)
+
+	// Merge all results into a slice.
+	resultsByRange := []rebalanceResults{}
+	for r := range results {
+		resultsByRange = append(resultsByRange, r)
 	}
 
 	// Sort the rebalance results by range ascending.
