@@ -214,9 +214,9 @@ func printRebalanceParams(cmd *cobra.Command, results []rebalanceResults, broker
 	// in verbose.
 	if verbose {
 		fmt.Printf("%s-\n%sTop 10 rebalance map results\n", indent, indent)
-		for i := range results {
-			fmt.Printf("%stolerance: %.2f -> range: %.2fGB\n",
-				indent, results[i].tolerance, results[i].storageRange/div)
+		for i, r := range results {
+			fmt.Printf("%stolerance: %.2f -> range: %.2fGB, std. deviation: %.2fGB\n",
+				indent, r.tolerance, r.storageRange/div, r.stdDev/div)
 			if i == 10 {
 				break
 			}

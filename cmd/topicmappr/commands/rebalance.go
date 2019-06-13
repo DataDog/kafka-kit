@@ -25,6 +25,7 @@ var rebalanceCmd = &cobra.Command{
 // the resulting storage utilization range.
 type rebalanceResults struct {
 	storageRange float64
+	stdDev       float64
 	tolerance    float64
 	partitionMap *kafkazk.PartitionMap
 	relocations  map[int][]relocation
@@ -162,6 +163,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 			// Insert the rebalanceResults.
 			results <- rebalanceResults{
 				storageRange: params.brokers.StorageRange(),
+				stdDev:       params.brokers.StorageStdDev(),
 				tolerance:    tol,
 				partitionMap: partitionMap,
 				relocations:  params.relos,
@@ -194,7 +196,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 			return false
 		}
 
-		return resultsByRange[i].tolerance < resultsByRange[j].tolerance
+		return resultsByRange[i].stdDev < resultsByRange[j].stdDev
 	})
 
 	// Chose the results with the lowest range.
