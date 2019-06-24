@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/DataDog/kafka-kit/kafkazk"
+	"github.com/mrmuggymuggy/kafka-kit/kafkazk"
 )
 
 // APIConfig holds configuration

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"math"
 
-	"github.com/DataDog/kafka-kit/kafkametrics"
+	"github.com/mrmuggymuggy/kafka-kit/kafkametrics"
 )
 
 // Limits is a map of instance-type
