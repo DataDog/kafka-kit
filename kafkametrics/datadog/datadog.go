@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/mrmuggymuggy/kafka-kit/kafkametrics"
+	"github.com/DataDog/kafka-kit/kafkametrics"
 
 	dd "github.com/zorkian/go-datadog-api"
 )
@@ -40,7 +40,7 @@ type ddHandler struct {
 	c               *dd.Client
 	netTXQuery      string
 	brokerIDTag     string
-	InstanceTypeTag string
+	instanceTypeTag string
 	metricsWindow   int
 	tagCache        map[string][]string
 	keysRegex       *regexp.Regexp
@@ -64,7 +64,7 @@ func NewHandler(c *Config) (kafkametrics.Handler, error) {
 		netTXQuery:      createNetTXQuery(c),
 		metricsWindow:   c.MetricsWindow,
 		brokerIDTag:     c.BrokerIDTag,
-		InstanceTypeTag: c.InstanceTypeTag,
+		instanceTypeTag: c.InstanceTypeTag,
 		tagCache:        make(map[string][]string),
 		keysRegex:       keysRegex,
 		redactionSub:    []byte("xxx"),
@@ -137,6 +137,7 @@ func (h *ddHandler) GetMetrics() (kafkametrics.BrokerMetrics, []error) {
 	if errs != nil {
 		errors = append(errors, errs...)
 	}
+
 	// The []*kafkametrics.Broker only contains hostnames
 	// and the network tx metric. Fetch the rest
 	// of the required metadata and construct

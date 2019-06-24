@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/mrmuggymuggy/kafka-kit/kafkametrics"
-	"github.com/mrmuggymuggy/kafka-kit/kafkazk"
+	"github.com/DataDog/kafka-kit/kafkametrics"
+	"github.com/DataDog/kafka-kit/kafkazk"
 )
 
 // ReplicationThrottleMeta holds all types
@@ -127,6 +127,7 @@ func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 				inFailureMode = true
 			}
 		}
+
 		// If we cannot proceed normally due to missing/partial
 		// metrics data, check what failure iteration we're in.
 		// If we're above the threshold, revert to the minimum
@@ -289,6 +290,7 @@ func repCapacityByMetrics(rtm *ReplicationThrottleMeta, bmb bmapBundle, bm kafka
 	participatingBrokers := &ReassigningBrokers{}
 
 	var event string
+
 	// Source brokers.
 	for b := range bmb.src {
 		if broker, exists := bm[b]; exists {

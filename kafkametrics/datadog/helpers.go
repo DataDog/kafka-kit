@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mrmuggymuggy/kafka-kit/kafkametrics"
+	"github.com/DataDog/kafka-kit/kafkametrics"
 
 	dd "github.com/zorkian/go-datadog-api"
 )
@@ -65,10 +65,11 @@ func (h *ddHandler) brokerMetricsFromList(l []*kafkametrics.Broker) (kafkametric
 	}
 
 	brokers := kafkametrics.BrokerMetrics{}
-	errs = populateFromTagMap(brokers, h.tagCache, tags, h.brokerIDTag, h.InstanceTypeTag)
+	errs = populateFromTagMap(brokers, h.tagCache, tags, h.brokerIDTag, h.instanceTypeTag)
 	if errs != nil {
 		errs = append(errors, errs...)
 	}
+
 	return brokers, errors
 }
 
@@ -102,6 +103,7 @@ func (h *ddHandler) getHostTagMap(l []*kafkametrics.Broker) (map[*kafkametrics.B
 			brokers[b] = ht
 		}
 	}
+
 	return brokers, errors
 }
 

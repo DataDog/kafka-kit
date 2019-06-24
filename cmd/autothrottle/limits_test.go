@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/mrmuggymuggy/kafka-kit/kafkametrics"
+	"github.com/DataDog/kafka-kit/kafkametrics"
 )
 
 func TestNewLimits(t *testing.T) {

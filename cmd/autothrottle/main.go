@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mrmuggymuggy/kafka-kit/kafkametrics"
-	"github.com/mrmuggymuggy/kafka-kit/kafkametrics/datadog"
-	"github.com/mrmuggymuggy/kafka-kit/kafkazk"
+	"github.com/DataDog/kafka-kit/kafkametrics"
+	"github.com/DataDog/kafka-kit/kafkametrics/datadog"
+	"github.com/DataDog/kafka-kit/kafkazk"
 
 	"github.com/jamiealquiza/envy"
 )
