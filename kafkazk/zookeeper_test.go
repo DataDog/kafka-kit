@@ -1,6 +1,8 @@
 package kafkazk
 
 import (
+	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"regexp"
@@ -32,9 +34,9 @@ var (
 		zkprefix + "/config/brokers",
 		zkprefix + "/config/changes",
 		// Topicmappr specific.
-		"/topicmappr",
-		"/topicmappr/brokermetrics",
-		"/topicmappr/partitionmeta",
+		"/topicmappr_test",
+		"/topicmappr_test/brokermetrics",
+		"/topicmappr_test/partitionmeta",
 	}
 )
 
@@ -96,7 +98,7 @@ func TestSetup(t *testing.T) {
 		zki, err = NewHandler(&Config{
 			Connect:       zkaddr,
 			Prefix:        configPrefix,
-			MetricsPrefix: "topicmappr",
+			MetricsPrefix: "topicmappr_test",
 		})
 		if err != nil {
 			t.Errorf("Error initializing ZooKeeper client: %s", err)
@@ -175,7 +177,7 @@ func TestSetup(t *testing.T) {
 
 		// Store partition meta.
 		data, _ = json.Marshal(partitionMeta)
-		_, err = zkc.Set("/topicmappr/partitionmeta", data, -1)
+		_, err = zkc.Set("/topicmappr_test/partitionmeta", data, -1)
 		if err != nil {
 			t.Error(err)
 		}
@@ -219,7 +221,7 @@ func TestSetup(t *testing.T) {
 			"1003": {"StorageFree": 30000.00},
 			"1004": {"StorageFree": 40000.00},
 			"1005": {"StorageFree": 50000.00}}`)
-		_, err = zkc.Set("/topicmappr/brokermetrics", data, -1)
+		_, err = zkc.Set("/topicmappr_test/brokermetrics", data, -1)
 		if err != nil {
 			t.Error(err)
 		}
@@ -498,6 +500,74 @@ func TestGetAllPartitionMeta(t *testing.T) {
 
 }
 
+func TestGetAllPartitionMetaCompressed(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	// Fetch and hold the original partition meta.
+	pm, err := zki.GetAllPartitionMeta()
+	if err != nil {
+		t.Error(err)
+	}
+
+	pmOrig, _ := json.Marshal(pm)
+
+	// Create a compressed copy.
+	var buf bytes.Buffer
+	zw := gzip.NewWriter(&buf)
+
+	_, err = zw.Write(pmOrig)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if err := zw.Close(); err != nil {
+		t.Error(err)
+	}
+
+	// Store the compressed copy.
+	_, err = zkc.Set("/topicmappr_test/partitionmeta", buf.Bytes(), -1)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Test fetching the compressed copy.
+
+	pm, err = zki.GetAllPartitionMeta()
+	if err != nil {
+		t.Error(err)
+	}
+
+	expected := map[int]float64{
+		0: 1000.00,
+		1: 2000.00,
+		2: 3000.00,
+		3: 4000.00,
+	}
+
+	for i := 0; i < 5; i++ {
+		topic := fmt.Sprintf("topic%d", i)
+		meta, exists := pm[topic]
+		if !exists {
+			t.Errorf("Expected topic '%s' in partition meta", topic)
+		}
+
+		for partn, m := range meta {
+			if m.Size != expected[partn] {
+				t.Errorf("Expected size %f for %s %d, got %f", expected[partn], topic, partn, m.Size)
+			}
+		}
+	}
+
+	// Reset to the original partitionMeta.
+	_, err = zkc.Set("/topicmappr_test/partitionmeta", pmOrig, -1)
+	if err != nil {
+		t.Error(err)
+	}
+
+}
+
 func TestOldestMetaTs(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
@@ -514,7 +584,7 @@ func TestOldestMetaTs(t *testing.T) {
 	zkr, err := rawHandler(&Config{
 		Connect:       zkaddr,
 		Prefix:        configPrefix,
-		MetricsPrefix: "topicmappr",
+		MetricsPrefix: "topicmappr_test",
 	})
 	if err != nil {
 		t.Errorf("Error initializing ZooKeeper client: %s", err)
@@ -524,14 +594,14 @@ func TestOldestMetaTs(t *testing.T) {
 
 	// Get the lowest Mtime value.
 
-	_, m, err = zkc.Get("/topicmappr/partitionmeta")
+	_, m, err = zkc.Get("/topicmappr_test/partitionmeta")
 	if err != nil {
 		t.Error(err)
 	}
 
 	ts1 := m.Mtime
 
-	_, m, err = zkc.Get("/topicmappr/brokermetrics")
+	_, m, err = zkc.Get("/topicmappr_test/brokermetrics")
 	if err != nil {
 		t.Error(err)
 	}
