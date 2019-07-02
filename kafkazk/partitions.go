@@ -94,13 +94,13 @@ func (pmm PartitionMetaMap) Size(p Partition) (float64, error) {
 	// Check for the topic.
 	t, exists := pmm[p.Topic]
 	if !exists {
-		return 0.00, fmt.Errorf("Topic %s not found in partition metadata", p.Topic)
+		return 0.00, fmt.Errorf("topic '%s' not found in partition metadata", p.Topic)
 	}
 
 	// Check for the partition.
 	partn, exists := t[p.Partition]
 	if !exists {
-		return 0.00, fmt.Errorf("Partition %d not found in partition metadata", p.Partition)
+		return 0.00, fmt.Errorf("topic '%s' p%d not found in partition metadata", p.Topic, p.Partition)
 	}
 
 	return partn.Size, nil
