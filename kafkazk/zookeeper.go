@@ -1,9 +1,12 @@
 package kafkazk
 
 import (
+	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"regexp"
 	"sort"
@@ -487,6 +490,17 @@ func (z *ZKHandler) GetAllPartitionMeta() (PartitionMetaMap, error) {
 
 	if string(data) == "" {
 		return nil, errors.New("No partition meta")
+	}
+
+	// Check if the data is compressed. If so, uncompress it.
+	zr, err := gzip.NewReader(bytes.NewReader(data))
+	if err == nil {
+		var out bytes.Buffer
+		if _, err := io.Copy(&out, zr); err == nil {
+			data = out.Bytes()
+		}
+
+		zr.Close()
 	}
 
 	pmm := NewPartitionMetaMap()
