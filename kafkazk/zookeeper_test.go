@@ -215,20 +215,26 @@ func TestSetup(t *testing.T) {
 		}
 
 		// Create broker metrics.
-		data = []byte(`{
-			"1001": {"StorageFree": 10000.00},
-			"1002": {"StorageFree": 20000.00},
-			"1003": {"StorageFree": 30000.00},
-			"1004": {"StorageFree": 40000.00},
-			"1005": {"StorageFree": 50000.00}}`)
-		_, err = zkc.Set("/topicmappr_test/brokermetrics", data, -1)
-		if err != nil {
+		if err := setBrokerMetrics(); err != nil {
 			t.Error(err)
 		}
 
 	} else {
 		t.Skip("Skipping long test setup")
 	}
+}
+
+func setBrokerMetrics() error {
+	data := []byte(`{
+		"1001": {"StorageFree": 10000.00},
+		"1002": {"StorageFree": 20000.00},
+		"1003": {"StorageFree": 30000.00},
+		"1004": {"StorageFree": 40000.00},
+		"1005": {"StorageFree": 50000.00}}`)
+
+	_, err := zkc.Set("/topicmappr_test/brokermetrics", data, -1)
+
+	return err
 }
 
 func TestCreateSetGetDelete(t *testing.T) {
@@ -439,7 +445,6 @@ func TestGetAllBrokerMeta(t *testing.T) {
 	}
 }
 
-/* This test is useless.
 func TestGetBrokerMetrics(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
@@ -465,7 +470,63 @@ func TestGetBrokerMetrics(t *testing.T) {
 		}
 	}
 }
-*/
+
+func TestGetBrokerMetricsCompressed(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	// Create a compressed version of the metrics data.
+	data := []byte(`{
+		"1001": {"StorageFree": 10000.00},
+		"1002": {"StorageFree": 20000.00},
+		"1003": {"StorageFree": 30000.00},
+		"1004": {"StorageFree": 40000.00},
+		"1005": {"StorageFree": 50000.00}}`)
+
+	var buf bytes.Buffer
+	zw := gzip.NewWriter(&buf)
+
+	_, err := zw.Write(data)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if err = zw.Close(); err != nil {
+		t.Error(err)
+	}
+
+	// Store the compressed version.
+	_, err = zkc.Set("/topicmappr_test/brokermetrics", buf.Bytes(), -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Test fetching the compressed version.
+	bm, errs := zki.GetAllBrokerMeta(true)
+	if errs != nil {
+		t.Error(errs)
+	}
+
+	expected := map[int]float64{
+		1001: 10000.00,
+		1002: 20000.00,
+		1003: 30000.00,
+		1004: 40000.00,
+		1005: 50000.00,
+	}
+
+	for b, v := range bm {
+		if v.StorageFree != expected[b] {
+			t.Errorf("Unexpected StorageFree metric for broker %d", b)
+		}
+	}
+
+	// Rewrite the uncompressed version.
+	if err := setBrokerMetrics(); err != nil {
+		t.Error(err)
+	}
+}
 
 func TestGetAllPartitionMeta(t *testing.T) {
 	if testing.Short() {
