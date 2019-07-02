@@ -505,7 +505,7 @@ func TestGetBrokerMetricsCompressed(t *testing.T) {
 	// Test fetching the compressed version.
 	bm, errs := zki.GetAllBrokerMeta(true)
 	if errs != nil {
-		t.Error(errs)
+		t.Error(err)
 	}
 
 	expected := map[int]float64{

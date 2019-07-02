@@ -464,15 +464,9 @@ func (z *ZKHandler) getBrokerMetrics() (BrokerMetricsMap, error) {
 		return nil, fmt.Errorf("Error fetching broker metrics: %s", err.Error())
 	}
 
-	// Check if the data is compressed. If so, uncompress it.
-	zr, err := gzip.NewReader(bytes.NewReader(data))
-	if err == nil {
-		var out bytes.Buffer
-		if _, err := io.Copy(&out, zr); err == nil {
-			data = out.Bytes()
-		}
-
-		zr.Close()
+	// Check if the data is compressed.
+	if out, compressed := uncompress(data); compressed {
+		data = out
 	}
 
 	bmm := BrokerMetricsMap{}
@@ -503,15 +497,9 @@ func (z *ZKHandler) GetAllPartitionMeta() (PartitionMetaMap, error) {
 		return nil, errors.New("No partition meta")
 	}
 
-	// Check if the data is compressed. If so, uncompress it.
-	zr, err := gzip.NewReader(bytes.NewReader(data))
-	if err == nil {
-		var out bytes.Buffer
-		if _, err := io.Copy(&out, zr); err == nil {
-			data = out.Bytes()
-		}
-
-		zr.Close()
+	// Check if the data is compressed.
+	if out, compressed := uncompress(data); compressed {
+		data = out
 	}
 
 	pmm := NewPartitionMetaMap()
@@ -790,4 +778,21 @@ func (z *ZKHandler) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
 	}
 
 	return true, nil
+}
+
+// uncompress takes a []byte and attempts to uncompress it as gzip.
+// The uncompressed data and a bool that indicates whether the data
+// was compressed is returned.
+func uncompress(b []byte) ([]byte, bool) {
+	zr, err := gzip.NewReader(bytes.NewReader(b))
+	if err == nil {
+		defer zr.Close()
+		var out bytes.Buffer
+
+		if _, err := io.Copy(&out, zr); err == nil {
+			return out.Bytes(), true
+		}
+	}
+
+	return nil, false
 }
