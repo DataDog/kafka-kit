@@ -464,6 +464,17 @@ func (z *ZKHandler) getBrokerMetrics() (BrokerMetricsMap, error) {
 		return nil, fmt.Errorf("Error fetching broker metrics: %s", err.Error())
 	}
 
+	// Check if the data is compressed. If so, uncompress it.
+	zr, err := gzip.NewReader(bytes.NewReader(data))
+	if err == nil {
+		var out bytes.Buffer
+		if _, err := io.Copy(&out, zr); err == nil {
+			data = out.Bytes()
+		}
+
+		zr.Close()
+	}
+
 	bmm := BrokerMetricsMap{}
 	err = json.Unmarshal(data, &bmm)
 	if err != nil {
