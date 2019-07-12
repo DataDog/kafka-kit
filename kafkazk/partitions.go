@@ -80,6 +80,26 @@ type replicasByUsage struct {
 	stats    BrokerUseStatsMap
 }
 
+func (r replicasByUsage) Len() int { return len(r.replicas) }
+
+func (r replicasByUsage) Swap(i, j int) {
+	r.replicas[i], r.replicas[j] = r.replicas[j], r.replicas[i]
+}
+
+func (r replicasByUsage) Less(i, j int) bool {
+	id1 := r.replicas[i]
+	id2 := r.replicas[j]
+	if r.stats[id1].Leader < r.stats[id2].Leader {
+		return true
+	}
+
+	if r.stats[id1].Leader > r.stats[id2].Leader {
+		return false
+	}
+
+	return r.stats[id1].Follower < r.stats[id2].Follower
+}
+
 // PartitionMeta holds partition metadata.
 type PartitionMeta struct {
 	Size float64 // In bytes.
@@ -133,43 +153,11 @@ func NewRebuildParams() RebuildParams {
 
 // SimpleLeaderOptimization is a naive leadership optimization algorithm.
 func (pm *PartitionMap) SimpleLeaderOptimization() {
-	stats := pm.UseStats()
-
-	// Get avg.
-	var t float64
-	for _, b := range stats {
-		t += float64(b.Leader)
-	}
-
-	// Brute force with multiple iterations.
-	for i := 0; i < len(pm.Partitions); i++ {
-		avg := t / float64(len(stats))
-		belowAvg := map[int]struct{}{}
-
-		// Get IDs below avg. leadership counts.
-		for _, b := range stats {
-			if float64(b.Leader) == 0 || (avg-float64(b.Leader))/avg > 0.40 {
-				belowAvg[b.ID] = struct{}{}
-			}
-		}
-
-		if len(belowAvg) == 0 {
-			return
-		}
-
-		// Shuffle all replica sets containing
-		// below average brokers.
-		f := func(p Partition) bool {
-			for _, id := range p.Replicas {
-				if _, exists := belowAvg[id]; exists {
-					delete(belowAvg, id)
-					return true
-				}
-			}
-			return false
-		}
-
-		pm.shuffle(f)
+	for _, partn := range pm.Partitions {
+		sort.Sort(replicasByUsage{
+			replicas: partn.Replicas,
+			stats:    pm.UseStats(),
+		})
 	}
 }
 
