@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -27,6 +29,7 @@ type Config struct {
 	ZKPrefix    string
 	Verbose     bool
 	DryRun      bool
+	Compression bool
 }
 
 var config = &Config{} // :(
@@ -42,6 +45,7 @@ func init() {
 	flag.StringVar(&config.ZKPrefix, "zk-prefix", "topicmappr", "ZooKeeper namespace prefix")
 	flag.BoolVar(&config.Verbose, "verbose", false, "Verbose output")
 	flag.BoolVar(&config.DryRun, "dry-run", false, "Dry run mode (don't reach Zookeeper)")
+	flag.BoolVar(&config.Compression, "compression", true, "Whether to compress metrics data written to ZooKeeper")
 
 	envy.Parse("METRICSFETCHER")
 	flag.Parse()
@@ -112,11 +116,22 @@ func main() {
 	}
 
 	// Write to ZK.
-	err = zk.Set(paths[0], string(partnData))
-	exitOnErr(err)
+	for i, data := range [][]byte{partnData, brokerData} {
+		// Optionally compress the data.
+		if config.Compression {
+			var buf bytes.Buffer
+			zw := gzip.NewWriter(&buf)
 
-	err = zk.Set(paths[1], string(brokerData))
-	exitOnErr(err)
+			_, err := zw.Write(data)
+			exitOnErr(err)
+
+			zw.Close()
+			data = buf.Bytes()
+		}
+
+		err = zk.Set(paths[i], string(data))
+		exitOnErr(err)
+	}
 
 	fmt.Println("\nData written to ZooKeeper")
 }

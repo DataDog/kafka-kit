@@ -35,12 +35,20 @@ Usage of metricsfetcher:
     	Datadog API key [METRICSFETCHER_API_KEY]
   -app-key string
     	Datadog app key [METRICSFETCHER_APP_KEY]
+  -broker-id-tag string
+    	Datadog host tag for broker ID [METRICSFETCHER_BROKER_ID_TAG] (default "broker_id")
   -broker-storage-query string
-    	Datadog metric query to get storage free by broker_id [METRICSFETCHER_BROKER_STORAGE_QUERY] (default "avg:system.disk.free{service:kafka,device:/data} by {broker_id}")
+    	Datadog metric query to get broker storage free [METRICSFETCHER_BROKER_STORAGE_QUERY] (default "avg:system.disk.free{service:kafka,device:/data}")
+  -compression
+    	Whether to compress metrics data written to ZooKeeper [METRICSFETCHER_COMPRESSION] (default true)
+  -dry-run
+    	Dry run mode (don't reach Zookeeper) [METRICSFETCHER_DRY_RUN]
   -partition-size-query string
     	Datadog metric query to get partition size by topic, partition [METRICSFETCHER_PARTITION_SIZE_QUERY] (default "max:kafka.log.partition.size{service:kafka} by {topic,partition}")
   -span int
     	Query range in seconds (now - span) [METRICSFETCHER_SPAN] (default 3600)
+  -verbose
+    	Verbose output [METRICSFETCHER_VERBOSE]
   -zk-addr string
     	ZooKeeper connect string [METRICSFETCHER_ZK_ADDR] (default "localhost:2181")
   -zk-prefix string
@@ -59,7 +67,7 @@ Another detail to note regarding the partition size query is that `max` is being
 
 # Data Structures
 
-The topicmappr storage placement strategy expects metrics in the following znodes under the parent `-zk-prefix` path (both metricsfetcher and topicmappr default to `topicmappr`), along with the described structure:
+The topicmappr rebalance sub-command or the rebuild sub-command with the storage placement strategy expects metrics in the following znodes under the parent `-zk-prefix` path (both metricsfetcher and topicmappr default to `topicmappr`), along with the described structure:
 
 ### /topicmappr/partitionmeta
 `{"<topic name>": {"<partition number>": {"Size": <bytes>}}}`
@@ -78,3 +86,5 @@ Example:
 [zk: localhost:2181(CONNECTED) 0] get /topicmappr/brokermetrics
 {"1002":{"StorageFree":1280803388090.7295},"1003":{"StorageFree":1104897156296.092},"1004":{"StorageFree":1161254545714.023},"1005":{"StorageFree":1196051803924.5977},"1006":{"StorageFree":1103418346402.9092},"1007":{"StorageFree":1299083586345.6743}}
 ```
+
+The znode data can be optionally compressed with gzip (metricsfetcher will do this by default, configurable with the `--compression` flag) in the case of a high number of partitions where the znode data size may exceed the configured limit. Topicmappr transparently supports reading gzip compressed metrics data.
