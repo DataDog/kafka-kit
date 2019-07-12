@@ -159,7 +159,7 @@ func rebuild(cmd *cobra.Command, _ []string) {
 
 	// Optimize leaders.
 	if t, _ := cmd.Flags().GetBool("optimize-leaders"); t {
-		partitionMapOut.SimpleLeaderOptimization()
+		partitionMapOut.OptimizeLeaderFollower()
 	}
 
 	// Count missing brokers as a warning.

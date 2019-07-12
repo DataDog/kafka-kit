@@ -150,13 +150,13 @@ func NewRebuildParams() RebuildParams {
 	}
 }
 
-// SimpleLeaderOptimization is a naive leadership optimization algorithm
-// that iterates over each partition's replica list and sorts brokers
+// OptimizeLeaderFollower is a simple leadership optimization algorithm
+// that iterates over each partition's replica set and sorts brokers
 // according to their leader/follower position ratio, ascending. The idea
 // is that if a broker has a high leader/follower ratio, it should
 // go further down the replica list. This ratio is recalculated at each
 // replica set visited to avoid extreme skew.
-func (pm *PartitionMap) SimpleLeaderOptimization() {
+func (pm *PartitionMap) OptimizeLeaderFollower() {
 	for _, partn := range pm.Partitions {
 		sort.Sort(replicasByLeaderFollowerRatio{
 			replicas: partn.Replicas,
