@@ -78,7 +78,7 @@ func printBrokerAssignmentStats(cmd *cobra.Command, pm1, pm2 *kafkazk.PartitionM
 	fmt.Printf("%s-\n", indent)
 
 	// Per-broker info.
-	UseStats := pm2.UseStats()
+	UseStats := pm2.UseStats().List()
 	for _, use := range UseStats {
 		fmt.Printf("%sBroker %d - leader: %d, follower: %d, total: %d\n",
 			indent, use.ID, use.Leader, use.Follower, use.Leader+use.Follower)

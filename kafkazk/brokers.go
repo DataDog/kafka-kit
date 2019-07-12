@@ -50,6 +50,22 @@ type BrokerUseStats struct {
 	Follower int
 }
 
+// BrokerUseStatsList is a map of IDs to *BrokerUseStats.
+type BrokerUseStatsMap map[int]*BrokerUseStats
+
+// List returns a BrokerUseStatsList from a BrokerUseStatsMap.
+func (b BrokerUseStatsMap) List() BrokerUseStatsList {
+	var l BrokerUseStatsList
+
+	for _, s := range b {
+		l = append(l, s)
+	}
+
+	sort.Sort(l)
+
+	return l
+}
+
 // BrokerUseStatsList is a slice of *BrokerUseStats.
 type BrokerUseStatsList []*BrokerUseStats
 

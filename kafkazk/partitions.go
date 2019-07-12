@@ -75,6 +75,11 @@ func (p PartitionList) SortBySize(m PartitionMetaMap) {
 	sort.Sort(partitionsBySize{pl: p, pm: m})
 }
 
+type replicasByUsage struct {
+	replicas []int
+	stats    BrokerUseStatsMap
+}
+
 // PartitionMeta holds partition metadata.
 type PartitionMeta struct {
 	Size float64 // In bytes.
@@ -127,9 +132,6 @@ func NewRebuildParams() RebuildParams {
 }
 
 // SimpleLeaderOptimization is a naive leadership optimization algorithm.
-// It gets leadership counts for all brokers in the partition map and
-// shuffles partition replica sets for those holding brokers with below
-// average leadership.
 func (pm *PartitionMap) SimpleLeaderOptimization() {
 	stats := pm.UseStats()
 
@@ -722,34 +724,27 @@ func WriteMap(pm *PartitionMap, path string) error {
 
 // UseStats returns a map of broker IDs to BrokerUseStats; each
 // contains a count of leader and follower partition assignments.
-func (pm *PartitionMap) UseStats() []*BrokerUseStats {
-	smap := map[int]*BrokerUseStats{}
+func (pm *PartitionMap) UseStats() BrokerUseStatsMap {
+	var statsMap = make(BrokerUseStatsMap)
 	// Get counts.
 	for _, p := range pm.Partitions {
 		for i, b := range p.Replicas {
-			if _, exists := smap[b]; !exists {
-				smap[b] = &BrokerUseStats{
+			if _, exists := statsMap[b]; !exists {
+				statsMap[b] = &BrokerUseStats{
 					ID: b,
 				}
 			}
 			// Idx 0 for each replica set
 			// is a leader assignment.
 			if i == 0 {
-				smap[b].Leader++
+				statsMap[b].Leader++
 			} else {
-				smap[b].Follower++
+				statsMap[b].Follower++
 			}
 		}
 	}
 
-	stats := BrokerUseStatsList{}
-	for _, b := range smap {
-		stats = append(stats, b)
-	}
-
-	sort.Sort(stats)
-
-	return stats
+	return statsMap
 }
 
 // Equal defines equalty between two Partition objects
