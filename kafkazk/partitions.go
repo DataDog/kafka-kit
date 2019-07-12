@@ -75,29 +75,28 @@ func (p PartitionList) SortBySize(m PartitionMetaMap) {
 	sort.Sort(partitionsBySize{pl: p, pm: m})
 }
 
-type replicasByUsage struct {
+// replicasByLeaderFollowerRatio is used to shuffle replica
+// sets according to the broker leader to follower ratio.
+type replicasByLeaderFollowerRatio struct {
 	replicas []int
 	stats    BrokerUseStatsMap
 }
 
-func (r replicasByUsage) Len() int { return len(r.replicas) }
+func (r replicasByLeaderFollowerRatio) Len() int { return len(r.replicas) }
 
-func (r replicasByUsage) Swap(i, j int) {
+func (r replicasByLeaderFollowerRatio) Swap(i, j int) {
 	r.replicas[i], r.replicas[j] = r.replicas[j], r.replicas[i]
 }
 
-func (r replicasByUsage) Less(i, j int) bool {
+func (r replicasByLeaderFollowerRatio) Less(i, j int) bool {
 	id1 := r.replicas[i]
 	id2 := r.replicas[j]
-	if r.stats[id1].Leader < r.stats[id2].Leader {
-		return true
+
+	if r.stats[id1].Follower == 0 || r.stats[id2].Follower == 0 {
+		return r.stats[id1].Leader > r.stats[id2].Leader
 	}
 
-	if r.stats[id1].Leader > r.stats[id2].Leader {
-		return false
-	}
-
-	return r.stats[id1].Follower < r.stats[id2].Follower
+	return r.stats[id1].Leader/r.stats[id1].Follower < r.stats[id2].Leader/r.stats[id2].Follower
 }
 
 // PartitionMeta holds partition metadata.
@@ -151,10 +150,15 @@ func NewRebuildParams() RebuildParams {
 	}
 }
 
-// SimpleLeaderOptimization is a naive leadership optimization algorithm.
+// SimpleLeaderOptimization is a naive leadership optimization algorithm
+// that iterates over each partition's replica list and sorts brokers
+// according to their leader/follower position ratio, ascending. The idea
+// is that if a broker has a high leader/follower ratio, it should
+// go further down the replica list. This ratio is recalculated at each
+// replica set visited to avoid extreme skew.
 func (pm *PartitionMap) SimpleLeaderOptimization() {
 	for _, partn := range pm.Partitions {
-		sort.Sort(replicasByUsage{
+		sort.Sort(replicasByLeaderFollowerRatio{
 			replicas: partn.Replicas,
 			stats:    pm.UseStats(),
 		})
