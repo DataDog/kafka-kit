@@ -40,7 +40,7 @@ func init() {
 	rebuildCmd.Flags().String("zk-metrics-prefix", "topicmappr", "ZooKeeper namespace prefix for Kafka metrics (when using storage placement)")
 	rebuildCmd.Flags().Int("metrics-age", 60, "Kafka metrics age tolerance (in minutes) (when using storage placement)")
 	rebuildCmd.Flags().Bool("skip-no-ops", false, "Skip no-op partition assigments")
-	rebuildCmd.Flags().Bool("optimize-leaders", false, "Perform a naive leadership optimization")
+	rebuildCmd.Flags().Bool("optimize-leaders", false, "Perform a leadership optimization")
 
 	// Required.
 	rebuildCmd.MarkFlagRequired("brokers")
