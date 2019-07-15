@@ -92,11 +92,21 @@ func (r replicasByLeaderFollowerRatio) Less(i, j int) bool {
 	id1 := r.replicas[i]
 	id2 := r.replicas[j]
 
-	if r.stats[id1].Follower == 0 || r.stats[id2].Follower == 0 {
+	switch {
+	// Neither broker holds follower positions, compare
+	// leadership counts.
+	case r.stats[id1].Follower == 0 && r.stats[id2].Follower == 0:
 		return r.stats[id1].Leader < r.stats[id2].Leader
+	// i ratio == ∞
+	case r.stats[id1].Follower == 0:
+		return false
+	// j ratio == ∞
+	case r.stats[id2].Follower == 0:
+		return true
+	// We have a comparable ratio.
+	default:
+		return r.stats[id1].Leader/r.stats[id1].Follower < r.stats[id2].Leader/r.stats[id2].Follower
 	}
-
-	return r.stats[id1].Leader/r.stats[id1].Follower < r.stats[id2].Leader/r.stats[id2].Follower
 }
 
 // PartitionMeta holds partition metadata.
