@@ -93,7 +93,7 @@ func (r replicasByLeaderFollowerRatio) Less(i, j int) bool {
 	id2 := r.replicas[j]
 
 	if r.stats[id1].Follower == 0 || r.stats[id2].Follower == 0 {
-		return r.stats[id1].Leader > r.stats[id2].Leader
+		return r.stats[id1].Leader < r.stats[id2].Leader
 	}
 
 	return r.stats[id1].Leader/r.stats[id1].Follower < r.stats[id2].Leader/r.stats[id2].Follower
