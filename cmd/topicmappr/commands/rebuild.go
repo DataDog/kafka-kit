@@ -40,7 +40,7 @@ func init() {
 	rebuildCmd.Flags().String("zk-metrics-prefix", "topicmappr", "ZooKeeper namespace prefix for Kafka metrics (when using storage placement)")
 	rebuildCmd.Flags().Int("metrics-age", 60, "Kafka metrics age tolerance (in minutes) (when using storage placement)")
 	rebuildCmd.Flags().Bool("skip-no-ops", false, "Skip no-op partition assigments")
-	rebuildCmd.Flags().Bool("optimize-leaders", false, "Perform a leadership optimization")
+	rebuildCmd.Flags().Bool("optimize-leadership", false, "Rebalance all broker leader/follower ratios")
 
 	// Required.
 	rebuildCmd.MarkFlagRequired("brokers")
@@ -158,7 +158,7 @@ func rebuild(cmd *cobra.Command, _ []string) {
 	partitionMapOut, errs := buildMap(cmd, partitionMapIn, partitionMeta, brokers, affinities)
 
 	// Optimize leaders.
-	if t, _ := cmd.Flags().GetBool("optimize-leaders"); t {
+	if t, _ := cmd.Flags().GetBool("optimize-leadership"); t {
 		partitionMapOut.OptimizeLeaderFollower()
 	}
 
