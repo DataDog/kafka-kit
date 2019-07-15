@@ -157,11 +157,13 @@ func NewRebuildParams() RebuildParams {
 // go further down the replica list. This ratio is recalculated at each
 // replica set visited to avoid extreme skew.
 func (pm *PartitionMap) OptimizeLeaderFollower() {
-	for _, partn := range pm.Partitions {
-		sort.Sort(replicasByLeaderFollowerRatio{
-			replicas: partn.Replicas,
-			stats:    pm.UseStats(),
-		})
+	for i := 0; i < len(pm.Partitions[0].Replicas); i++ {
+		for _, partn := range pm.Partitions {
+			sort.Sort(replicasByLeaderFollowerRatio{
+				replicas: partn.Replicas,
+				stats:    pm.UseStats(),
+			})
+		}
 	}
 }
 
