@@ -430,8 +430,8 @@ func applyRelocationPlan(cmd *cobra.Command, pm *kafkazk.PartitionMap, plan relo
 	}
 
 	// Optimize leaders.
-	if t, _ := cmd.Flags().GetBool("optimize-leaders"); t {
-		pm.SimpleLeaderOptimization()
+	if t, _ := cmd.Flags().GetBool("optimize-leadership"); t {
+		pm.OptimizeLeaderFollower()
 	}
 }
 

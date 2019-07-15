@@ -80,6 +80,7 @@ Flags:
       --metrics-age int               Kafka metrics age tolerance (in minutes) (when using storage placement) (default 60)
       --min-rack-ids int              Minimum number of required of unique rack IDs per replica set (0 requires that all are unique)
       --optimize string               Optimization priority for the storage placement strategy: [distribution, storage] (default "distribution")
+      --optimize-leadership           Rebalance all broker leader/follower ratios
       --out-file string               If defined, write a combined map of all topics to a file
       --out-path string               Path to write output map files to
       --partition-size-factor float   Factor by which to multiply partition sizes when using storage placement (default 1)
@@ -110,7 +111,7 @@ Flags:
   -h, --help                           help for rebalance
       --locality-scoped                Disallow a relocation to traverse rack.id values among brokers
       --metrics-age int                Kafka metrics age tolerance (in minutes) (default 60)
-      --optimize-leaders               Perform a naive leadership optimization
+      --optimize-leadership            Rebalance all broker leader/follower ratios
       --out-file string                If defined, write a combined map of all topics to a file
       --out-path string                Path to write output map files to
       --partition-limit int            Limit the number of top partitions by size eligible for relocation per broker (default 30)

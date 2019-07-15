@@ -48,7 +48,7 @@ func init() {
 	rebalanceCmd.Flags().Bool("verbose", false, "Verbose output")
 	rebalanceCmd.Flags().String("zk-metrics-prefix", "topicmappr", "ZooKeeper namespace prefix for Kafka metrics")
 	rebalanceCmd.Flags().Int("metrics-age", 60, "Kafka metrics age tolerance (in minutes)")
-	rebalanceCmd.Flags().Bool("optimize-leaders", false, "Perform a naive leadership optimization")
+	rebalanceCmd.Flags().Bool("optimize-leadership", false, "Rebalance all broker leader/follower ratios")
 
 	// Required.
 	rebalanceCmd.MarkFlagRequired("brokers")

@@ -110,32 +110,51 @@ func printChangesActions(cmd *cobra.Command, bs *kafkazk.BrokerStatus) {
 	change := bs.New - bs.Replace
 	r, _ := cmd.Flags().GetInt("replication")
 	fr, _ := cmd.Flags().GetBool("force-rebuild")
+	ol, _ := cmd.Flags().GetBool("optimize-leadership")
 
-	// Print change summary.
+	// Print broker change summary.
 	fmt.Printf("%sReplacing %d, added %d, missing %d, total count changed by %d\n",
 		indent, bs.Replace, bs.New, bs.Missing+bs.OldMissing, change)
+
+	// Determine actions.
+	actions := make(chan string, 5)
+
+	if change >= 0 && bs.Replace > 0 {
+		actions <- fmt.Sprintf("Rebuild topic with %d broker(s) marked for replacement", bs.Replace)
+	}
+
+	if change > 0 && bs.Replace == 0 {
+		actions <- fmt.Sprintf("Expanding/rebalancing topic with %d additional broker(s) (this is a no-op unless --force-rebuild is specified)", bs.New)
+	}
+
+	if change < 0 {
+		actions <- fmt.Sprintf("Shrinking topic by %d broker(s)", -change)
+	}
+
+	if fr {
+		actions <- fmt.Sprintf("Force rebuilding map")
+	}
+
+	if r > 0 {
+		actions <- fmt.Sprintf("Setting replication factor to %d", r)
+	}
+
+	if ol {
+		actions <- fmt.Sprintf("Optimizing leader/follower ratios")
+	}
+
+	close(actions)
 
 	// Print action.
 	fmt.Printf("\nAction:\n")
 
-	switch {
-	case change >= 0 && bs.Replace > 0:
-		fmt.Printf("%sRebuild topic with %d broker(s) marked for replacement\n",
-			indent, bs.Replace)
-	case change > 0 && bs.Replace == 0:
-		fmt.Printf("%sExpanding/rebalancing topic with %d additional broker(s) (this is a no-op unless --force-rebuild is specified)\n",
-			indent, bs.New)
-	case change < 0:
-		fmt.Printf("%sShrinking topic by %d broker(s)\n", indent, -change)
-	case fr, r > 0:
-		if fr {
-			fmt.Printf("%sForce rebuilding map\n", indent)
-		}
-		if r > 0 {
-			fmt.Printf("%sSetting replication factor to %d\n", indent, r)
-		}
-	default:
+	if len(actions) == 0 {
 		fmt.Printf("%sno-op\n", indent)
+		return
+	}
+
+	for a := range actions {
+		fmt.Printf("%s%s\n", indent, a)
 	}
 }
 

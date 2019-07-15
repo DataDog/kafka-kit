@@ -294,7 +294,7 @@ func TestStrip(t *testing.T) {
 func TestUseStats(t *testing.T) {
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 
-	s := pm.UseStats()
+	s := pm.UseStats().List()
 
 	expected := map[int][2]int{
 		1001: [2]int{1, 2},
