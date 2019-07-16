@@ -167,12 +167,14 @@ func main() {
 		failureThreshold: Config.FailureThreshold,
 	}
 
+	overridePath := fmt.Sprintf("/%s/%s", apiConfig.ZKPrefix, apiConfig.RateSetting)
+
 	// Run.
 	var interval int64
 	for {
 		interval++
-
 		throttleMeta.topics = throttleMeta.topics[:0]
+
 		// Get topics undergoing reassignment.
 		reassignments = zk.GetReassignments() // XXX This needs to return an error.
 		replicatingNow = make(map[string]struct{})
@@ -181,9 +183,8 @@ func main() {
 			replicatingNow[t] = struct{}{}
 		}
 
-		// Check for topics that were
-		// previously seen replicating,
-		// but are no longer.
+		// Check for topics that were previously seen
+		// replicating, but are no longer in this interval.
 		done = done[:0]
 		for t := range replicatingPreviously {
 			if _, replicating := replicatingNow[t]; !replicating {
@@ -206,18 +207,16 @@ func main() {
 			replicatingPreviously[t] = struct{}{}
 		}
 
+		// Fetch any throttle override config.
+		overrideCfg, err := getThrottleOverride(zk, overridePath)
+		if err != nil {
+			log.Println(err)
+		}
+
 		// If topics are being reassigned, update
 		// the replication throttle.
 		if len(throttleMeta.topics) > 0 {
 			log.Printf("Topics with ongoing reassignments: %s\n", throttleMeta.topics)
-
-			// Check if a throttle override is set.
-			// If so, apply the static throttle.
-			p := fmt.Sprintf("/%s/%s", apiConfig.ZKPrefix, apiConfig.RateSetting)
-			overrideCfg, err := getThrottleOverride(zk, p)
-			if err != nil {
-				log.Println(err)
-			}
 
 			// Update the throttleMeta.
 			throttleMeta.overrideRate = overrideCfg.Rate
@@ -244,6 +243,17 @@ func main() {
 					// false if we've removed all
 					// without error.
 					knownThrottles = false
+				}
+
+				// Remove any configured throttle overrides
+				// if AutoRemove is true.
+				if overrideCfg.AutoRemove {
+					err := setThrottleOverride(zk, overridePath, ThrottleOverrideConfig{})
+					if err != nil {
+						log.Println(err)
+					} else {
+						log.Println("throttle override removed")
+					}
 				}
 			}
 		}
