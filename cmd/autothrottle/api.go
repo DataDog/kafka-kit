@@ -29,7 +29,7 @@ func initAPI(c *APIConfig, zk kafkazk.Handler) {
 	p := fmt.Sprintf("/%s/%s", c.ZKPrefix, c.RateSetting)
 	m := http.NewServeMux()
 
-	// Check ZK for znode.
+	// Check ZK for override rate config znode.
 	exists, err := zk.Exists(p)
 	if err != nil {
 		log.Fatal(err)
@@ -43,6 +43,21 @@ func initAPI(c *APIConfig, zk kafkazk.Handler) {
 		err = zk.Create(p, "")
 		if err != nil {
 			log.Fatal(err)
+		}
+	}
+
+	// If the znode exists, check if it's using the legacy (non-json)
+	// format. If it is, update it to the json format.
+	if exists {
+		r, _ := zk.Get(p)
+		if rate, err := strconv.Atoi(string(r)); err == nil {
+			// Populate the updated config.
+			err := setThrottleOverride(zk, p, ThrottleOverrideConfig{Rate: rate})
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			log.Println("Throttle override config format updated")
 		}
 	}
 
@@ -132,7 +147,7 @@ func setThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler, p
 
 	err = setThrottleOverride(zk, p, rateCfg)
 	if err != nil {
-		io.WriteString(w, err.Error())
+		io.WriteString(w, fmt.Sprintf("%s\n", err))
 	} else {
 		io.WriteString(w, fmt.Sprintf("throttle successfully set to %dMB/s, autoremove==%v\n",
 			rate, remove))
@@ -154,7 +169,7 @@ func removeThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler
 
 	err := setThrottleOverride(zk, p, c)
 	if err != nil {
-		io.WriteString(w, err.Error())
+		io.WriteString(w, fmt.Sprintf("%s\n", err))
 	} else {
 		io.WriteString(w, "throttle successfully removed\n")
 	}

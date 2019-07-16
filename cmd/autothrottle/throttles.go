@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -520,6 +521,39 @@ func removeAllThrottles(zk kafkazk.Handler, params *ReplicationThrottleMeta) err
 	// Unset all stored throttle rates.
 	for b := range params.throttles {
 		params.throttles[b] = 0.0
+	}
+
+	return nil
+}
+
+func getThrottleOverride(zk kafkazk.Handler, p string) (*ThrottleOverrideConfig, error) {
+	c := &ThrottleOverrideConfig{}
+
+	override, err := zk.Get(p)
+	if err != nil {
+		return c, fmt.Errorf("Error getting throttle override: %s", err)
+	}
+
+	if len(override) == 0 {
+		return c, nil
+	}
+
+	if err := json.Unmarshal(override, c); err != nil {
+		return c, fmt.Errorf("Error unmarshalling override config: %s", err)
+	}
+
+	return c, nil
+}
+
+func setThrottleOverride(zk kafkazk.Handler, p string, c ThrottleOverrideConfig) error {
+	d, err := json.Marshal(c)
+	if err != nil {
+		return fmt.Errorf("Error marshalling override config: %s", err)
+	}
+
+	err = zk.Set(p, string(d))
+	if err != nil {
+		return fmt.Errorf("Error setting throttle override: %s", err)
 	}
 
 	return nil
