@@ -36,7 +36,7 @@ type ThrottleOverrideConfig struct {
 	Rate int `json:"rate"`
 	// Whether the override rate should be
 	// removed when the current reassignments finish.
-	AutoClear bool `json:"autoclear"`
+	AutoRemove bool `json:"autoremove"`
 }
 
 // Failure increments the failures count

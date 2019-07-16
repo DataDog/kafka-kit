@@ -212,7 +212,7 @@ func main() {
 			log.Printf("Topics with ongoing reassignments: %s\n", throttleMeta.topics)
 
 			// Check if a throttle override is set.
-			// If so, apply that static throttle.
+			// If so, apply the static throttle.
 			p := fmt.Sprintf("/%s/%s", apiConfig.ZKPrefix, apiConfig.RateSetting)
 			overrideCfg, err := getThrottleOverride(zk, p)
 			if err != nil {
@@ -255,19 +255,19 @@ func main() {
 }
 
 func getThrottleOverride(zk kafkazk.Handler, p string) (*ThrottleOverrideConfig, error) {
+	c := &ThrottleOverrideConfig{}
+
 	override, err := zk.Get(p)
 	if err != nil {
-		return nil, fmt.Errorf("Error getting throttle override: %s", err)
+		return c, fmt.Errorf("Error getting throttle override: %s", err)
 	}
-
-	c := &ThrottleOverrideConfig{}
 
 	if len(override) == 0 {
 		return c, nil
 	}
 
 	if err := json.Unmarshal(override, c); err != nil {
-		return nil, fmt.Errorf("Error unmarshalling override config: %s", err)
+		return c, fmt.Errorf("Error unmarshalling override config: %s", err)
 	}
 
 	return c, nil

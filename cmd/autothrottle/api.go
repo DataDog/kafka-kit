@@ -76,8 +76,8 @@ func getThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler, p
 	case 0:
 		io.WriteString(w, "no throttle override is set\n")
 	default:
-		resp := fmt.Sprintf("a throttle override is configured at %dMB/s, auto-clear==%v\n",
-			r.Rate, r.AutoClear)
+		resp := fmt.Sprintf("a throttle override is configured at %dMB/s, autoremove==%v\n",
+			r.Rate, r.AutoRemove)
 		io.WriteString(w, resp)
 	}
 }
@@ -112,13 +112,13 @@ func setThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler, p
 
 	// Get automatic rate removal param.
 
-	c := req.URL.Query().Get("clear")
-	var clear bool
+	c := req.URL.Query().Get("autoremove")
+	var remove bool
 
 	if c != "" {
-		clear, err = strconv.ParseBool(c)
+		remove, err = strconv.ParseBool(c)
 		if err != nil {
-			io.WriteString(w, "clear param must be a bool\n")
+			io.WriteString(w, "autoremove param must be a bool\n")
 			return
 		}
 	}
@@ -126,15 +126,16 @@ func setThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler, p
 	// Populate configs.
 
 	rateCfg := ThrottleOverrideConfig{
-		Rate:      rate,
-		AutoClear: clear,
+		Rate:       rate,
+		AutoRemove: remove,
 	}
 
 	err = setThrottleOverride(zk, p, rateCfg)
 	if err != nil {
 		io.WriteString(w, err.Error())
 	} else {
-		io.WriteString(w, fmt.Sprintf("throttle successfully set to %dMB/s\n", rate))
+		io.WriteString(w, fmt.Sprintf("throttle successfully set to %dMB/s, autoremove==%v\n",
+			rate, remove))
 	}
 }
 
@@ -146,7 +147,12 @@ func removeThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler
 		return
 	}
 
-	err := setThrottleOverride(zk, p, ThrottleOverrideConfig{Rate: 0})
+	c := ThrottleOverrideConfig{
+		Rate:       0,
+		AutoRemove: false,
+	}
+
+	err := setThrottleOverride(zk, p, c)
 	if err != nil {
 		io.WriteString(w, err.Error())
 	} else {
