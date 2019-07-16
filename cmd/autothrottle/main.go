@@ -68,7 +68,7 @@ func init() {
 	envy.Parse("AUTOTHROTTLE")
 	flag.Parse()
 
-	// Decode instance-type capacity map.
+	// Deserialize instance-type capacity map.
 	Config.CapMap = map[string]float64{}
 	if len(*m) > 0 {
 		err := json.Unmarshal([]byte(*m), &Config.CapMap)
@@ -134,10 +134,9 @@ func main() {
 		tags:        tags,
 	}
 
-	// Default to true on startup.
-	// In case throttles were set in
-	// an autothrottle session other
-	// than the current one.
+	// Default to true on startup in case
+	// throttles were set in an autothrottle
+	// session other than the current one.
 	knownThrottles := true
 
 	var reassignments kafkazk.Reassignments
@@ -215,13 +214,13 @@ func main() {
 			// Check if a throttle override is set.
 			// If so, apply that static throttle.
 			p := fmt.Sprintf("/%s/%s", apiConfig.ZKPrefix, apiConfig.RateSetting)
-			override, err := zk.Get(p)
+			overrideCfg, err := getThrottleOverride(zk, p)
 			if err != nil {
-				log.Printf("Error fetching override: %s\n", err)
+				log.Println(err)
 			}
 
 			// Update the throttleMeta.
-			throttleMeta.override = string(override)
+			throttleMeta.overrideRate = overrideCfg.Rate
 			throttleMeta.reassignments = reassignments
 
 			err = updateReplicationThrottle(throttleMeta)
@@ -253,4 +252,37 @@ func main() {
 		time.Sleep(time.Second * time.Duration(Config.Interval))
 	}
 
+}
+
+func getThrottleOverride(zk kafkazk.Handler, p string) (*ThrottleOverrideConfig, error) {
+	override, err := zk.Get(p)
+	if err != nil {
+		return nil, fmt.Errorf("Error getting throttle override: %s", err)
+	}
+
+	c := &ThrottleOverrideConfig{}
+
+	if len(override) == 0 {
+		return c, nil
+	}
+
+	if err := json.Unmarshal(override, c); err != nil {
+		return nil, fmt.Errorf("Error unmarshalling override config: %s", err)
+	}
+
+	return c, nil
+}
+
+func setThrottleOverride(zk kafkazk.Handler, p string, c ThrottleOverrideConfig) error {
+	d, err := json.Marshal(c)
+	if err != nil {
+		return fmt.Errorf("Error marshalling override config: %s", err)
+	}
+
+	err = zk.Set(p, string(d))
+	if err != nil {
+		return fmt.Errorf("Error setting throttle override: %s", err)
+	}
+
+	return nil
 }
