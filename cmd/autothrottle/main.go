@@ -171,6 +171,8 @@ func main() {
 
 	// Run.
 	var interval int64
+	var ticker = time.NewTicker(time.Duration(Config.Interval) * time.Second)
+
 	for {
 		interval++
 		throttleMeta.topics = throttleMeta.topics[:0]
@@ -230,6 +232,7 @@ func main() {
 			knownThrottles = true
 		} else {
 			log.Println("No topics undergoing reassignment")
+
 			// Unset any throttles.
 			if knownThrottles || interval == Config.CleanupAfter {
 				// Reset the interval.
@@ -244,22 +247,21 @@ func main() {
 					// without error.
 					knownThrottles = false
 				}
+			}
 
-				// Remove any configured throttle overrides
-				// if AutoRemove is true.
-				if overrideCfg.AutoRemove {
-					err := setThrottleOverride(zk, overridePath, ThrottleOverrideConfig{})
-					if err != nil {
-						log.Println(err)
-					} else {
-						log.Println("throttle override removed")
-					}
+			// Remove any configured throttle overrides
+			// if AutoRemove is true.
+			if overrideCfg.AutoRemove {
+				err := setThrottleOverride(zk, overridePath, ThrottleOverrideConfig{})
+				if err != nil {
+					log.Println(err)
+				} else {
+					log.Println("Throttle override removed")
 				}
 			}
 		}
 
-		// Sleep for the next check interval.
-		time.Sleep(time.Second * time.Duration(Config.Interval))
+		<-ticker.C
 	}
 
 }
