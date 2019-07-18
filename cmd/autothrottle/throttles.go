@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -20,13 +21,23 @@ type ReplicationThrottleMeta struct {
 	reassignments kafkazk.Reassignments
 	zk            kafkazk.Handler
 	km            kafkametrics.Handler
-	override      string
+	overrideRate  int
 	events        *EventGenerator
 	// Map of broker ID to last set throttle rate.
 	throttles        map[int]float64
 	limits           Limits
 	failureThreshold int
 	failures         int
+}
+
+// ThrottleOverrideConfig holds throttle
+// override configurations.
+type ThrottleOverrideConfig struct {
+	// Rate in MB.
+	Rate int `json:"rate"`
+	// Whether the override rate should be
+	// removed when the current reassignments finish.
+	AutoRemove bool `json:"autoremove"`
 }
 
 // Failure increments the failures count
@@ -97,9 +108,8 @@ func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 	Determine throttle rates.
 	************************/
 
-	// Use the throttle override if set.
-	// Otherwise, make a calculation
-	// using broker metrics and known
+	// Use the throttle override if set. Otherwise,
+	// make a calculation using broker metrics and known
 	// capacity values.
 	var replicationCapacity float64
 	var currThrottle float64
@@ -108,10 +118,9 @@ func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 	var metricErrs []error
 	var inFailureMode bool
 
-	if params.override != "" {
-		log.Printf("A throttle override is set: %sMB/s\n", params.override)
-		o, _ := strconv.Atoi(params.override)
-		replicationCapacity = float64(o)
+	if params.overrideRate != 0 {
+		log.Printf("A throttle override is set: %dMB/s\n", params.overrideRate)
+		replicationCapacity = float64(params.overrideRate)
 	} else {
 		useMetrics = true
 
@@ -512,6 +521,39 @@ func removeAllThrottles(zk kafkazk.Handler, params *ReplicationThrottleMeta) err
 	// Unset all stored throttle rates.
 	for b := range params.throttles {
 		params.throttles[b] = 0.0
+	}
+
+	return nil
+}
+
+func getThrottleOverride(zk kafkazk.Handler, p string) (*ThrottleOverrideConfig, error) {
+	c := &ThrottleOverrideConfig{}
+
+	override, err := zk.Get(p)
+	if err != nil {
+		return c, fmt.Errorf("Error getting throttle override: %s", err)
+	}
+
+	if len(override) == 0 {
+		return c, nil
+	}
+
+	if err := json.Unmarshal(override, c); err != nil {
+		return c, fmt.Errorf("Error unmarshalling override config: %s", err)
+	}
+
+	return c, nil
+}
+
+func setThrottleOverride(zk kafkazk.Handler, p string, c ThrottleOverrideConfig) error {
+	d, err := json.Marshal(c)
+	if err != nil {
+		return fmt.Errorf("Error marshalling override config: %s", err)
+	}
+
+	err = zk.Set(p, string(d))
+	if err != nil {
+		return fmt.Errorf("Error setting throttle override: %s", err)
 	}
 
 	return nil
