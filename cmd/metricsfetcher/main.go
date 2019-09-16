@@ -32,9 +32,14 @@ type Config struct {
 	Compression bool
 }
 
-var config = &Config{} // :(
+var (
+	// This can be set with -ldflags "-X main.version=x.x.x"
+	version = "0.0.0"
+	config  = &Config{}
+)
 
 func init() {
+	v := flag.Bool("version", false, "version")
 	flag.StringVar(&config.APIKey, "api-key", "", "Datadog API key")
 	flag.StringVar(&config.AppKey, "app-key", "", "Datadog app key")
 	bq := flag.String("broker-storage-query", "avg:system.disk.free{service:kafka,device:/data}", "Datadog metric query to get broker storage free")
@@ -49,6 +54,11 @@ func init() {
 
 	envy.Parse("METRICSFETCHER")
 	flag.Parse()
+
+	if *v {
+		fmt.Println(version)
+		os.Exit(0)
+	}
 
 	// Complete query string.
 	config.BrokerQuery = fmt.Sprintf("%s by {%s}.rollup(avg, %d)", *bq, config.BrokerIDTag, config.Span)

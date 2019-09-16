@@ -49,6 +49,8 @@ Usage of metricsfetcher:
     	Query range in seconds (now - span) [METRICSFETCHER_SPAN] (default 3600)
   -verbose
     	Verbose output [METRICSFETCHER_VERBOSE]
+  -version
+    	version [METRICSFETCHER_VERSION]
   -zk-addr string
     	ZooKeeper connect string [METRICSFETCHER_ZK_ADDR] (default "localhost:2181")
   -zk-prefix string
