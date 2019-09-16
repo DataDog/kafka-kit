@@ -335,11 +335,17 @@ func TestBrokerMapFromPartitionMap(t *testing.T) {
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 	forceRebuild := false
 
+	// Include an offline broker / value -1.
+	pm.Partitions = append(pm.Partitions, Partition{Topic: "test_topic", Partition: 4, Replicas: []int{-1}})
+
 	brokers := BrokerMapFromPartitionMap(pm, bmm, forceRebuild)
 	expected := newMockBrokerMap()
 
 	for id, b := range brokers {
+		_, exist := expected[id]
 		switch {
+		case !exist:
+			t.Errorf("Unexpected id %d", id)
 		case b.ID != expected[id].ID:
 			t.Errorf("Expected id %d, got %d for broker %d",
 				expected[id].ID, b.ID, id)
