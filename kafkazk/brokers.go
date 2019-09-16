@@ -406,6 +406,12 @@ func BrokerMapFromPartitionMap(pm *PartitionMap, bm BrokerMetaMap, force bool) B
 		// For each broker in the
 		// partition replica set.
 		for _, id := range partition.Replicas {
+			// In offline partitions, the broker ID value
+			// gets set to -1. Skip these.
+			if id == -1 {
+				continue
+			}
+
 			// If the broker isn't in the
 			// broker map, add it.
 			if bmap[id] == nil {
