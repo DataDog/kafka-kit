@@ -98,6 +98,8 @@ Usage of autothrottle:
     	Minimum replication throttle rate (MB/s) [AUTOTHROTTLE_MIN_RATE] (default 10)
   -net-tx-query string
     	Datadog query for broker outbound bandwidth by host [AUTOTHROTTLE_NET_TX_QUERY] (default "avg:system.net.bytes_sent{service:kafka} by {host}")
+  -version
+    	version [AUTOTHROTTLE_VERSION]
   -zk-addr string
     	ZooKeeper connect string (for broker metadata or rebuild-topic lookups) [AUTOTHROTTLE_ZK_ADDR] (default "localhost:2181")
   -zk-config-prefix string

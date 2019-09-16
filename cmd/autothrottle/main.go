@@ -18,6 +18,9 @@ import (
 )
 
 var (
+	// This can be set with -ldflags "-X main.version=x.x.x"
+	version = "0.0.0"
+
 	// Config holds configuration
 	// parameters.
 	Config struct {
@@ -47,6 +50,7 @@ var (
 func init() {
 	// log.SetOutput(ioutil.Discard)
 
+	v := flag.Bool("version", false, "version")
 	flag.StringVar(&Config.APIKey, "api-key", "", "Datadog API key")
 	flag.StringVar(&Config.AppKey, "app-key", "", "Datadog app key")
 	flag.StringVar(&Config.NetworkTXQuery, "net-tx-query", "avg:system.net.bytes_sent{service:kafka} by {host}", "Datadog query for broker outbound bandwidth by host")
@@ -67,6 +71,11 @@ func init() {
 
 	envy.Parse("AUTOTHROTTLE")
 	flag.Parse()
+
+	if *v {
+		fmt.Println(version)
+		os.Exit(0)
+	}
 
 	// Deserialize instance-type capacity map.
 	Config.CapMap = map[string]float64{}
