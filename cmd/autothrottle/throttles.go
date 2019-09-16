@@ -83,13 +83,12 @@ func (t ReassigningBrokers) highestSrcNetTX() *kafkametrics.Broker {
 }
 
 // updateReplicationThrottle takes a ReplicationThrottleMeta
-// that holds topics being replicated, any clients, throttle override params,
-// and other required metadata.
-// Metrics for brokers participating in any ongoing replication
-// are fetched to determine replication headroom.
-// The replication throttle is then adjusted accordingly.
-// If a non-empty override is provided, that static value is used instead
-// of a dynamically determined value.
+// that holds topics being replicated, any ZooKeeper/other clients, throttle override
+// params, and other required metadata.
+// Metrics for brokers participating in any ongoing replication are fetched to
+// determine replication headroom. The replication throttle is then adjusted
+// accordingly. If a non-empty override is provided, that static value is
+// used instead of a dynamically determined value.
 func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
 	// Get the maps of brokers handling
 	// reassignments.
@@ -271,13 +270,16 @@ func mapsFromReassigments(r kafkazk.Reassignments, zk kafkazk.Handler) (bmapBund
 			if reassigning, exists := r[t][part]; exists {
 				// Source brokers.
 				leader := tstate[p].Leader
-				lb.src[leader] = struct{}{}
-				// Append to the throttle list.
-				lb.throttled[t]["leaders"] = append(lb.throttled[t]["leaders"], fmt.Sprintf("%d:%d", part, leader))
+				// In offline partitions, the leader value is set to -1. Skip.
+				if leader != -1 {
+					lb.src[leader] = struct{}{}
+					// Append to the throttle list.
+					lb.throttled[t]["leaders"] = append(lb.throttled[t]["leaders"], fmt.Sprintf("%d:%d", part, leader))
+				}
 
 				// Dest brokers.
 				for _, b := range reassigning {
-					if b != leader {
+					if b != leader && b != -1 {
 						lb.dst[b] = struct{}{}
 						lb.throttled[t]["followers"] = append(lb.throttled[t]["followers"], fmt.Sprintf("%d:%d", part, b))
 					}
