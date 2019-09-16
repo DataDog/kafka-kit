@@ -43,18 +43,19 @@ Most operations are performed through the `rebuild` command. Partial rebalances 
 Usage:
   topicmappr [command]
 
-  Available Commands:
-    help        Help about any command
-    rebalance   Rebalance partition allotments among a set of topics and brokers
-    rebuild     Rebuild a partition map for one or more topics
+Available Commands:
+  help        Help about any command
+  rebalance   Rebalance partition allotments among a set of topics and brokers
+  rebuild     Rebuild a partition map for one or more topics
+  version     Print the version
 
-  Flags:
-    -h, --help               help for topicmappr
-        --ignore-warns       Produce a map even if warnings are encountered [TOPICMAPPR_IGNORE_WARNS]
-        --zk-addr string     ZooKeeper connect string [TOPICMAPPR_ZK_ADDR] (default "localhost:2181")
-        --zk-prefix string   ZooKeeper prefix (if Kafka is configured with a chroot path prefix) [TOPICMAPPR_ZK_PREFIX]
+Flags:
+  -h, --help               help for topicmappr
+      --ignore-warns       Produce a map even if warnings are encountered [TOPICMAPPR_IGNORE_WARNS]
+      --zk-addr string     ZooKeeper connect string [TOPICMAPPR_ZK_ADDR] (default "localhost:2181")
+      --zk-prefix string   ZooKeeper prefix (if Kafka is configured with a chroot path prefix) [TOPICMAPPR_ZK_PREFIX]
 
-  Use "topicmappr [command] --help" for more information about a command.
+Use "topicmappr [command] --help" for more information about a command.
 ```
 
 

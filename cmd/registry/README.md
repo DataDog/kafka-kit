@@ -16,17 +16,21 @@ Binary will be found at `$GOPATH/bin/registry`
 ```
 Usage of registry:
   -grpc-listen string
-        Server gRPC listen address (default "localhost:8090")
+    	Server gRPC listen address [REGISTRY_GRPC_LISTEN] (default "localhost:8090")
   -http-listen string
-        Server HTTP listen address (default "localhost:8080")
+    	Server HTTP listen address [REGISTRY_HTTP_LISTEN] (default "localhost:8080")
   -read-rate-limit int
-        Read request rate limit (reqs/s) (default 5)
+    	Read request rate limit (reqs/s) [REGISTRY_READ_RATE_LIMIT] (default 5)
+  -version
+    	version [REGISTRY_VERSION]
   -write-rate-limit int
-        Write request rate limit (reqs/s) (default 1)
+    	Write request rate limit (reqs/s) [REGISTRY_WRITE_RATE_LIMIT] (default 1)
   -zk-addr string
-        ZooKeeper connect string (default "localhost:2181")
+    	ZooKeeper connect string [REGISTRY_ZK_ADDR] (default "localhost:2181")
   -zk-prefix string
-        ZooKeeper prefix (if Kafka is configured with a chroot path prefix)
+    	ZooKeeper prefix (if Kafka is configured with a chroot path prefix) [REGISTRY_ZK_PREFIX]
+  -zk-tags-prefix string
+    	Tags storage ZooKeeper prefix [REGISTRY_ZK_TAGS_PREFIX] (default "registry")
 ```
 
 ## Setup
