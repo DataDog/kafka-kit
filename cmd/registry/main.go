@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -14,10 +15,14 @@ import (
 	"github.com/jamiealquiza/envy"
 )
 
+// This can be set with -ldflags "-X main.version=x.x.x"
+var version = "0.0.0"
+
 func main() {
 	serverConfig := server.Config{}
 	zkConfig := kafkazk.Config{}
 
+	v := flag.Bool("version", false, "version")
 	flag.StringVar(&serverConfig.HTTPListen, "http-listen", "localhost:8080", "Server HTTP listen address")
 	flag.StringVar(&serverConfig.GRPCListen, "grpc-listen", "localhost:8090", "Server gRPC listen address")
 	flag.IntVar(&serverConfig.ReadReqRate, "read-rate-limit", 5, "Read request rate limit (reqs/s)")
@@ -28,6 +33,11 @@ func main() {
 
 	envy.Parse("REGISTRY")
 	flag.Parse()
+
+	if *v {
+		fmt.Println(version)
+		os.Exit(0)
+	}
 
 	log.Println("Registry running")
 
