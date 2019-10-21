@@ -236,9 +236,10 @@ func main() {
 			err = updateReplicationThrottle(throttleMeta)
 			if err != nil {
 				log.Println(err)
+			} else {
+				// Set knownThrottles.
+				knownThrottles = true
 			}
-			// Set knownThrottles.
-			knownThrottles = true
 		} else {
 			log.Println("No topics undergoing reassignment")
 

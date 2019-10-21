@@ -320,6 +320,11 @@ func repCapacityByMetrics(rtm *ReplicationThrottleMeta, bmb bmapBundle, bm kafka
 		}
 	}
 
+	// Error if either source or destination broker list is empty.
+	if len(participatingBrokers.Src) == 0 || len(participatingBrokers.Dst) == 0 {
+		return 0.00, 0.00, event, fmt.Errorf("Source and destination broker list cannot be empty")
+	}
+
 	// Get the most constrained src broker and
 	// its current throttle, if applied.
 	constrainingSrc := participatingBrokers.highestSrcNetTX()
