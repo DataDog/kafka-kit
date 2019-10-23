@@ -79,6 +79,9 @@ func rebalance(cmd *cobra.Command, _ []string) {
 		os.Exit(1)
 	}
 
+	// Exclude any topics that are pending deletion.
+	stripPendingDeletes(partitionMapIn, zk)
+
 	// Print topics matched to input params.
 	printTopics(partitionMapIn)
 
