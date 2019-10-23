@@ -39,6 +39,10 @@ func getPartitionMap(cmd *cobra.Command, zk kafkazk.Handler) *kafkazk.PartitionM
 			fmt.Println(err)
 			os.Exit(1)
 		}
+
+		// Exclude any topics that are pending deletion.
+		stripPendingDeletes(pm, zk)
+
 		return pm
 	}
 
