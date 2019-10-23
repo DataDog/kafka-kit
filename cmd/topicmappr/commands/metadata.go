@@ -73,3 +73,34 @@ func getPartitionMeta(cmd *cobra.Command, zk kafkazk.Handler) kafkazk.PartitionM
 
 	return partitionMeta
 }
+
+func stripPendingDeletes(pm *kafkazk.PartitionMap, zk kafkazk.Handler) {
+	// Get pending deletions.
+	pd, err := zk.GetPendingDeletion()
+	if err != nil {
+		fmt.Println("Error fetching topics pending deletion")
+	}
+
+	if len(pd) == 0 {
+		return
+	}
+
+	// This is used as a set of topic names
+	// pending deleting.
+	pending := map[string]struct{}{}
+
+	for _, t := range pd {
+		pending[t] = struct{}{}
+	}
+
+	// Traverse the partition map and drop
+	// any pending topics.
+	newPL := kafkazk.PartitionList{}
+	for _, p := range pm.Partitions {
+		if _, exists := pending[p.Topic]; !exists {
+			newPL = append(newPL, p)
+		}
+	}
+
+	pm.Partitions = newPL
+}
