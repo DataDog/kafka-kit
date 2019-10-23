@@ -121,11 +121,14 @@ func rebuild(cmd *cobra.Command, _ []string) {
 
 	// Build a partition map either from literal map text input or by fetching the
 	// map data from ZooKeeper. Store a copy of the original.
-	partitionMapIn := getPartitionMap(cmd, zk)
+	partitionMapIn, pending := getPartitionMap(cmd, zk)
 	originalMap := partitionMapIn.Copy()
 
 	// Get a list of affected topics.
 	printTopics(partitionMapIn)
+
+	// Print if any topics were excluded due to pending deletion.
+	printExcludedTopics(pending)
 
 	brokers, bs := getBrokers(cmd, partitionMapIn, brokerMeta)
 	brokersOrig := brokers.Copy()
