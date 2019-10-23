@@ -29,6 +29,7 @@ var (
 		zkprefix + "/brokers/topics",
 		zkprefix + "/admin",
 		zkprefix + "/admin/reassign_partitions",
+		zkprefix + "/admin/delete_topics",
 		zkprefix + "/config",
 		zkprefix + "/config/topics",
 		zkprefix + "/config/brokers",
@@ -185,6 +186,13 @@ func TestSetup(t *testing.T) {
 		// Create reassignments data.
 		data = []byte(`{"version":1,"partitions":[{"topic":"topic0","partition":0,"replicas":[1003,1004]}]}`)
 		_, err = zkc.Set(zkprefix+"/admin/reassign_partitions", data, -1)
+		if err != nil {
+			t.Error(err)
+		}
+
+		// Create delete_topics data.
+		paths = append(paths, zkprefix+"/admin/delete_topics/deleting_topic")
+		_, err = zkc.Create(zkprefix+"/admin/delete_topics/deleting_topic", []byte{}, 0, zkclient.WorldACL(31))
 		if err != nil {
 			t.Error(err)
 		}
@@ -360,6 +368,25 @@ func TestGetReassignments(t *testing.T) {
 		if r != expected[i] {
 			t.Errorf("Expected replica '%d', got '%d'", expected[i], r)
 		}
+	}
+}
+
+func TestGetPendingDeletion(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	pd, err := zki.GetPendingDeletion()
+	if err != nil {
+		t.Error(err)
+	}
+
+	if len(pd) != 1 {
+		t.Fatalf("Expected 1 pending delete topic, got %d", len(pd))
+	}
+
+	if pd[0] != "deleting_topic" {
+		t.Errorf("Unexpected deleting topic name: %s", pd[0])
 	}
 }
 
