@@ -73,3 +73,48 @@ func getPartitionMeta(cmd *cobra.Command, zk kafkazk.Handler) kafkazk.PartitionM
 
 	return partitionMeta
 }
+
+// stripPendingDeletes takes a partition map and zk handler. It looks
+// up any topics in a pending delete state and removes them from the
+// provided partition map, returning a list of topics removed.
+func stripPendingDeletes(pm *kafkazk.PartitionMap, zk kafkazk.Handler) []string {
+	// Get pending deletions.
+	pd, err := zk.GetPendingDeletion()
+	if err != nil {
+		fmt.Println("Error fetching topics pending deletion")
+	}
+
+	if len(pd) == 0 {
+		return []string{}
+	}
+
+	// This is used as a set of topic names
+	// pending deleting.
+	pending := map[string]struct{}{}
+
+	for _, t := range pd {
+		pending[t] = struct{}{}
+	}
+
+	// Traverse the partition map and drop
+	// any pending topics.
+
+	newPL := kafkazk.PartitionList{}
+	pendingExcluded := map[string]struct{}{}
+	for _, p := range pm.Partitions {
+		if _, exists := pending[p.Topic]; !exists {
+			newPL = append(newPL, p)
+		} else {
+			pendingExcluded[p.Topic] = struct{}{}
+		}
+	}
+
+	pm.Partitions = newPL
+
+	pendingExcludedNames := []string{}
+	for t := range pendingExcluded {
+		pendingExcludedNames = append(pendingExcludedNames, t)
+	}
+
+	return pendingExcludedNames
+}

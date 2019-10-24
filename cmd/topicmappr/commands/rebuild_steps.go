@@ -19,7 +19,7 @@ import (
 // via the ---map-string flag, or, by building a map based on topic
 // config found in ZooKeeper for all topics matching input provided
 // via the --topics flag.
-func getPartitionMap(cmd *cobra.Command, zk kafkazk.Handler) *kafkazk.PartitionMap {
+func getPartitionMap(cmd *cobra.Command, zk kafkazk.Handler) (*kafkazk.PartitionMap, []string) {
 	ms := cmd.Flag("map-string").Value.String()
 	switch {
 	// The map was provided as text.
@@ -30,7 +30,7 @@ func getPartitionMap(cmd *cobra.Command, zk kafkazk.Handler) *kafkazk.PartitionM
 			os.Exit(1)
 		}
 
-		return pm
+		return pm, []string{}
 	// Build a map using ZooKeeper metadata
 	// for all specified topics.
 	case len(Config.topics) > 0:
@@ -39,10 +39,14 @@ func getPartitionMap(cmd *cobra.Command, zk kafkazk.Handler) *kafkazk.PartitionM
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		return pm
+
+		// Exclude any topics that are pending deletion.
+		p := stripPendingDeletes(pm, zk)
+
+		return pm, p
 	}
 
-	return nil
+	return nil, nil
 }
 
 // getSubAffinities, if enabled via --sub-affinity, takes reference broker maps

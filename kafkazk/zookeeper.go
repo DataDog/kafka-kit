@@ -55,6 +55,7 @@ type Handler interface {
 	GetTopicStateISR(string) (TopicStateISR, error)
 	UpdateKafkaConfig(KafkaConfig) (bool, error)
 	GetReassignments() Reassignments
+	GetPendingDeletion() ([]string, error)
 	GetTopics([]*regexp.Regexp) ([]string, error)
 	GetTopicConfig(string) (*TopicConfig, error)
 	GetAllBrokerMeta(bool) (BrokerMetaMap, []error)
@@ -315,6 +316,29 @@ func (z *ZKHandler) GetReassignments() Reassignments {
 	}
 
 	return reassigns
+}
+
+// GetPendingDeletion returns any topics pending deletion.
+func (z *ZKHandler) GetPendingDeletion() ([]string, error) {
+	var path string
+	if z.Prefix != "" {
+		path = fmt.Sprintf("/%s/admin/delete_topics", z.Prefix)
+	} else {
+		path = "/admin/delete_topics"
+	}
+
+	// Get reassignment config.
+	p, err := z.Children(path)
+	if err != nil {
+		switch err.(type) {
+		case ErrNoNode:
+			return []string{}, nil
+		default:
+			return nil, err
+		}
+	}
+
+	return p, nil
 }
 
 // GetTopics takes a []*regexp.Regexp and returns a []string of all topic

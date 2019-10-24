@@ -32,6 +32,15 @@ func printTopics(pm *kafkazk.PartitionMap) {
 	}
 }
 
+func printExcludedTopics(p []string) {
+	if len(p) > 0 {
+		fmt.Printf("\nTopics excluded due to pending deletion:\n")
+		for _, t := range p {
+			fmt.Printf("%s%s\n", indent, t)
+		}
+	}
+}
+
 // printMapChanges takes the original input PartitionMap
 // and the final output PartitionMap and prints what's changed.
 func printMapChanges(pm1, pm2 *kafkazk.PartitionMap) {

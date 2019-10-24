@@ -22,6 +22,10 @@ func (zk *Mock) GetReassignments() Reassignments {
 	return r
 }
 
+func (zk *Mock) GetPendingDeletion() ([]string, error) {
+	return []string{"deleting_topic"}, nil
+}
+
 // Create mocks Create.
 func (zk *Mock) Create(a, b string) error {
 	_, _ = a, b
