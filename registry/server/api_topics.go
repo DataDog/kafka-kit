@@ -67,6 +67,11 @@ func (s *Server) ListTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topi
 	return resp, nil
 }
 
+func (s *Server) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*pb.Empty, error) {
+	fmt.Printf("%v\n", req)
+	return &pb.Empty{}, nil
+}
+
 // TopicMappings returns all broker IDs that hold at least one partition for
 // the requested topic. The topic is specified in the TopicRequest.Name
 // field.
