@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
+	github.com/confluentinc/confluent-kafka-go v1.1.0
 	github.com/golang/protobuf v1.3.2
 	github.com/grpc-ecosystem/grpc-gateway v1.12.1
 	github.com/jamiealquiza/envy v1.1.0
