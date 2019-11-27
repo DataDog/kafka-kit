@@ -1,25 +1,33 @@
+// Package kafkaadmin wraps Kafka admin API calls.
 package kafkaadmin
 
 import (
   "github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
+// Client is a kafkaadmin client.
 type Client interface {
   Close()
   CreateTopic() error
 }
 
 type client struct {
-  c *kafka.AdminClient
+  C *kafka.AdminClient
 }
 
-func NewClient() (*client, error) {
+// Config holds Client configuration parameters.
+type Config struct {
+  BootstrapServers string
+}
+
+// NewClient returns a new Client.
+func NewClient(cfg Config) (*client, error) {
   c := &client{}
   client, err := kafka.NewAdminClient(&kafka.ConfigMap{
-		"bootstrap.servers": "localhost",
+		"bootstrap.servers": cfg.BootstrapServers,
   })
 
-  c.c = client
+  c.C = client
 
   return c, err
 }

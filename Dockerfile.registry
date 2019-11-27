@@ -34,11 +34,13 @@ RUN apt-get update && apt-get install -y librdkafka1 librdkafka-dev
 # Pull Kafka-Kit, deps.
 WORKDIR /go/src/github.com/DataDog/kafka-kit
 
+COPY go.mod go.mod
+RUN go mod download
+
 COPY cmd/registry cmd/registry
 COPY kafkaadmin kafkaadmin
 COPY kafkazk kafkazk
 COPY registry registry
-COPY go.mod go.mod
 
 # Build.
 RUN protoc -I registry -I /go/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis protos/registry.proto --go_out=plugins=grpc:registry --grpc-gateway_out=logtostderr=true:registry
