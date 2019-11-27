@@ -2,6 +2,8 @@
 package kafkaadmin
 
 import (
+	"context"
+
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
@@ -47,5 +49,17 @@ type CreateTopicConfig struct {
 
 // CreateTopic creates a topic.
 func (c client) CreateTopic(cfg CreateTopicConfig) error {
-	return nil
+	spec := kafka.TopicSpecification{
+		Topic:             cfg.Name,
+		NumPartitions:     cfg.Partitions,
+		ReplicationFactor: cfg.ReplicationFactor,
+		// ReplicaAssignment [][]int32
+		Config: cfg.Config,
+	}
+
+	topic := []kafka.TopicSpecification{spec}
+
+	_, err := c.c.CreateTopics(context.Background(), topic, kafka.SetAdminOperationTimeout(0))
+
+	return err
 }

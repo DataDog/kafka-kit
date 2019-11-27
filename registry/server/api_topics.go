@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"sort"
 
+	"github.com/DataDog/kafka-kit/kafkaadmin"
 	"github.com/DataDog/kafka-kit/kafkazk"
 	pb "github.com/DataDog/kafka-kit/registry/protos"
 )
@@ -68,8 +69,20 @@ func (s *Server) ListTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topi
 }
 
 func (s *Server) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*pb.Empty, error) {
-	fmt.Printf("%v\n", req)
-	return &pb.Empty{}, nil
+	if err := s.ValidateRequest(ctx, req, writeRequest); err != nil {
+		return nil, err
+	}
+
+	cfg := kafkaadmin.CreateTopicConfig{
+		Name:              req.Topic.Name,
+		Partitions:        int(req.Topic.Partitions),
+		ReplicationFactor: int(req.Topic.Replication),
+		Config:            req.Topic.Configs,
+	}
+
+	err := s.kafkaadmin.CreateTopic(cfg)
+
+	return &pb.Empty{}, err
 }
 
 // TopicMappings returns all broker IDs that hold at least one partition for
