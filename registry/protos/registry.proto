@@ -182,7 +182,7 @@ message Topic {
   string name = 5;
   uint32 partitions = 6;
   uint32 replication = 7;
-  // TODO configs
+  map<string, string> configs = 8;
 }
 
 /*******
