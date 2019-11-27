@@ -55,7 +55,10 @@ service Registry {
   // Example:
   //   % curl -XPOST "localhost:8080/v1/topics/create" -d '{
   //     "topic": {
-  //       "name": "mytopic", "tags": {"env":"staging"}
+  //       "name": "mytopic",
+  //       "partitions": 32,
+  //       "replication", 2,
+  //       "tags": {"env":"staging"}
   //     },
   //     "target_broker_tags": ["pool:tests"]
   //   }'
