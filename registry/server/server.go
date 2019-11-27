@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/DataDog/kafka-kit/kafkaadmin"
 	"github.com/DataDog/kafka-kit/kafkazk"
 	pb "github.com/DataDog/kafka-kit/registry/protos"
 
@@ -30,6 +31,7 @@ type Server struct {
 	HTTPListen       string
 	GRPCListen       string
 	ZK               kafkazk.Handler
+	kafkaadmin       kafkaadmin.Client
 	Tags             *TagHandler
 	readReqThrottle  RequestThrottle
 	writeReqThrottle RequestThrottle
@@ -168,6 +170,35 @@ func (s *Server) RunHTTP(ctx context.Context, wg *sync.WaitGroup) error {
 		if err := srvr.ListenAndServe(); err != http.ErrServerClosed {
 			log.Println(err)
 		}
+	}()
+
+	return nil
+}
+
+// InitKafkaAdmin takes a Context, WaitGroup and kafkaadmin.Config and initializes
+// a kafkaadmin.Client. A background shutdown procedure is called when the
+// context is cancelled.
+func (s *Server) InitKafkaAdmin(ctx context.Context, wg *sync.WaitGroup, c kafkaadmin.Config) error {
+	if s.test {
+		return nil
+	}
+
+	wg.Add(1)
+
+	k, err := kafkaadmin.NewClient(c)
+	if err != nil {
+		return err
+	}
+
+	s.kafkaadmin = k
+
+	log.Printf("KafkaAdmin connected to bootstrap servers: %s\n", c.BootstrapServers)
+
+	// Shutdown procedure.
+	go func() {
+		<-ctx.Done()
+		k.Close()
+		wg.Done()
 	}()
 
 	return nil

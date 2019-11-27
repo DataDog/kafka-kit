@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"sync"
 
+	"github.com/DataDog/kafka-kit/kafkaadmin"
 	"github.com/DataDog/kafka-kit/kafkazk"
 	"github.com/DataDog/kafka-kit/registry/server"
 
@@ -21,6 +22,7 @@ var version = "0.0.0"
 func main() {
 	serverConfig := server.Config{}
 	zkConfig := kafkazk.Config{}
+	kafkaadminConfig := kafkaadmin.Config{}
 
 	v := flag.Bool("version", false, "version")
 	flag.StringVar(&serverConfig.HTTPListen, "http-listen", "localhost:8080", "Server HTTP listen address")
@@ -30,6 +32,7 @@ func main() {
 	flag.StringVar(&serverConfig.ZKTagsPrefix, "zk-tags-prefix", "registry", "Tags storage ZooKeeper prefix")
 	flag.StringVar(&zkConfig.Connect, "zk-addr", "localhost:2181", "ZooKeeper connect string")
 	flag.StringVar(&zkConfig.Prefix, "zk-prefix", "", "ZooKeeper prefix (if Kafka is configured with a chroot path prefix)")
+	flag.StringVar(&kafkaadminConfig.BootstrapServers, "bootstrap-servers", "localhost", "Kafka bootstrap servers")
 
 	envy.Parse("REGISTRY")
 	flag.Parse()
@@ -47,6 +50,11 @@ func main() {
 	// Initialize Server.
 	srvr, err := server.NewServer(serverConfig)
 	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Init a kafkaadmin Client.
+	if err := srvr.InitKafkaAdmin(ctx, wg, kafkaadminConfig); err != nil {
 		log.Fatal(err)
 	}
 

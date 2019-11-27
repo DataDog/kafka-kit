@@ -2,32 +2,50 @@
 package kafkaadmin
 
 import (
-  "github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
 // Client is a kafkaadmin client.
 type Client interface {
-  Close()
-  CreateTopic() error
+	Close()
+	CreateTopic(CreateTopicConfig) error
 }
 
 type client struct {
-  C *kafka.AdminClient
+	c *kafka.AdminClient
 }
 
 // Config holds Client configuration parameters.
 type Config struct {
-  BootstrapServers string
+	BootstrapServers string
 }
 
 // NewClient returns a new Client.
-func NewClient(cfg Config) (*client, error) {
-  c := &client{}
-  client, err := kafka.NewAdminClient(&kafka.ConfigMap{
+func NewClient(cfg Config) (Client, error) {
+	c := client{}
+	client, err := kafka.NewAdminClient(&kafka.ConfigMap{
 		"bootstrap.servers": cfg.BootstrapServers,
-  })
+	})
 
-  c.C = client
+	c.c = client
 
-  return c, err
+	return c, err
+}
+
+// Close closes the client.
+func (c client) Close() {
+	c.c.Close()
+}
+
+// CreateTopicConfig holds CreateTopic parameters.
+type CreateTopicConfig struct {
+	Name              string
+	Partitions        int
+	ReplicationFactor int
+	Config            map[string]string
+}
+
+// CreateTopic creates a topic.
+func (c client) CreateTopic(cfg CreateTopicConfig) error {
+	return nil
 }
