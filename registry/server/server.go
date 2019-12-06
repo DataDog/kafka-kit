@@ -13,6 +13,7 @@ import (
 
 	"github.com/DataDog/kafka-kit/kafkaadmin"
 	"github.com/DataDog/kafka-kit/kafkazk"
+	"github.com/DataDog/kafka-kit/registry/admin"
 	pb "github.com/DataDog/kafka-kit/registry/protos"
 
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
@@ -31,7 +32,7 @@ type Server struct {
 	HTTPListen       string
 	GRPCListen       string
 	ZK               kafkazk.Handler
-	kafkaadmin       kafkaadmin.Client
+	kafkaadmin       admin.Client
 	Tags             *TagHandler
 	readReqThrottle  RequestThrottle
 	writeReqThrottle RequestThrottle

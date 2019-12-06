@@ -4,16 +4,12 @@ package kafkaadmin
 import (
 	"context"
 
+	"github.com/DataDog/kafka-kit/registry/admin"
+
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
-// Client is a kafkaadmin client.
-type Client interface {
-	Close()
-	CreateTopic(CreateTopicConfig) error
-}
-
-type client struct {
+type Client struct {
 	c *kafka.AdminClient
 }
 
@@ -24,31 +20,23 @@ type Config struct {
 
 // NewClient returns a new Client.
 func NewClient(cfg Config) (Client, error) {
-	c := client{}
-	client, err := kafka.NewAdminClient(&kafka.ConfigMap{
+	c := Client{}
+	k, err := kafka.NewAdminClient(&kafka.ConfigMap{
 		"bootstrap.servers": cfg.BootstrapServers,
 	})
 
-	c.c = client
+	c.c = k
 
 	return c, err
 }
 
-// Close closes the client.
-func (c client) Close() {
+// Close closes the Client.
+func (c Client) Close() {
 	c.c.Close()
 }
 
-// CreateTopicConfig holds CreateTopic parameters.
-type CreateTopicConfig struct {
-	Name              string
-	Partitions        int
-	ReplicationFactor int
-	Config            map[string]string
-}
-
 // CreateTopic creates a topic.
-func (c client) CreateTopic(cfg CreateTopicConfig) error {
+func (c Client) CreateTopic(cfg admin.CreateTopicConfig) error {
 	spec := kafka.TopicSpecification{
 		Topic:             cfg.Name,
 		NumPartitions:     cfg.Partitions,

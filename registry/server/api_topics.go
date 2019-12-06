@@ -7,8 +7,8 @@ import (
 	"regexp"
 	"sort"
 
-	"github.com/DataDog/kafka-kit/kafkaadmin"
 	"github.com/DataDog/kafka-kit/kafkazk"
+	"github.com/DataDog/kafka-kit/registry/admin"
 	pb "github.com/DataDog/kafka-kit/registry/protos"
 )
 
@@ -73,7 +73,7 @@ func (s *Server) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*
 		return nil, err
 	}
 
-	cfg := kafkaadmin.CreateTopicConfig{
+	cfg := admin.CreateTopicConfig{
 		Name:              req.Topic.Name,
 		Partitions:        int(req.Topic.Partitions),
 		ReplicationFactor: int(req.Topic.Replication),
