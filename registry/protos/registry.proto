@@ -57,7 +57,7 @@ service Registry {
   //     "topic": {
   //       "name": "mytopic",
   //       "partitions": 32,
-  //       "replication", 2,
+  //       "replication": 2,
   //       "tags": {"env":"staging"}
   //     },
   //     "target_broker_tags": ["pool:tests"]

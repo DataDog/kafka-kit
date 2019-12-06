@@ -23,7 +23,7 @@ var version = "0.0.0"
 func main() {
 	serverConfig := server.Config{}
 	zkConfig := kafkazk.Config{}
-	adminConfig := admin.Config{}
+	adminConfig := admin.Config{Type: "kafka"}
 
 	v := flag.Bool("version", false, "version")
 	flag.StringVar(&serverConfig.HTTPListen, "http-listen", "localhost:8080", "Server HTTP listen address")

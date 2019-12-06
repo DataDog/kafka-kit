@@ -18,7 +18,7 @@ RUN go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
 RUN wget -qO - wget https://github.com/protocolbuffers/protobuf/releases/download/v3.6.1/protobuf-all-3.6.1.tar.gz | tar -xz
 WORKDIR /root/protobuf-3.6.1
 RUN ./configure
-RUN make
+RUN make -j4
 RUN make install
 RUN ldconfig
 
@@ -49,4 +49,4 @@ RUN go install github.com/DataDog/kafka-kit/cmd/registry
 # Runtime.
 EXPOSE 8090/tcp
 EXPOSE 8080/tcp
-ENTRYPOINT ["/go/bin/registry"]
+ENTRYPOINT ["/go/bin/registry",  "--grpc-listen=0.0.0.0:8090", "--http-listen=0.0.0.0:8080"]
