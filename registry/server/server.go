@@ -176,29 +176,35 @@ func (s *Server) RunHTTP(ctx context.Context, wg *sync.WaitGroup) error {
 	return nil
 }
 
-// InitKafkaAdmin takes a Context, WaitGroup and kafkaadmin.Config and initializes
-// a kafkaadmin.Client. A background shutdown procedure is called when the
+// InitKafkaAdmin takes a Context, WaitGroup and an admin.Config and initializes
+// an admin.Client. A background shutdown procedure is called when the
 // context is cancelled.
-func (s *Server) InitKafkaAdmin(ctx context.Context, wg *sync.WaitGroup, c kafkaadmin.Config) error {
+func (s *Server) InitKafkaAdmin(ctx context.Context, wg *sync.WaitGroup, cfg admin.Config) error {
 	if s.test {
 		return nil
 	}
 
 	wg.Add(1)
 
-	k, err := kafkaadmin.NewClient(c)
-	if err != nil {
-		return err
+	switch cfg.Type {
+	case "kafka":
+		k, err := kafkaadmin.NewClient(
+			kafkaadmin.Config{
+				BootstrapServers: cfg.BootstrapServers,
+			})
+		if err != nil {
+			return err
+		}
+
+		s.kafkaadmin = k
+		log.Printf("KafkaAdmin connected to bootstrap servers: %s\n", cfg.BootstrapServers)
+	case "zookeeper":
+
 	}
-
-	s.kafkaadmin = k
-
-	log.Printf("KafkaAdmin connected to bootstrap servers: %s\n", c.BootstrapServers)
-
 	// Shutdown procedure.
 	go func() {
 		<-ctx.Done()
-		k.Close()
+		s.kafkaadmin.Close()
 		wg.Done()
 	}()
 

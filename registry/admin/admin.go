@@ -13,3 +13,10 @@ type CreateTopicConfig struct {
 	ReplicationFactor int
 	Config            map[string]string
 }
+
+type Config struct {
+	Type string
+
+	// Kafka native admin configs.
+	BootstrapServers string
+}
