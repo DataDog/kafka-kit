@@ -19,6 +19,8 @@ var (
 	ErrTopicNotExist = errors.New("topic does not exist")
 	// ErrTopicNameEmpty error.
 	ErrTopicNameEmpty = errors.New("topic Name field must be specified")
+	// ErrTopicAlreadyExists error.
+	ErrTopicAlreadyExists = errors.New("topic already exists")
 	// Misc.
 	tregex = regexp.MustCompile(".*")
 )
@@ -72,15 +74,28 @@ func (s *Server) ListTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topi
 // be set at topic creation time. Additionally, topics can be created on
 // a target set of brokers by specifying the broker tag(s) in the request.
 func (s *Server) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*pb.Empty, error) {
+	empty := &pb.Empty{}
+
 	cCtx, err := s.ValidateRequest(ctx, req, writeRequest)
 	if err != nil {
-		return nil, err
+		return empty, err
 	}
 
 	if cCtx != nil {
 		ctx = cCtx
 	}
 
+	// Check if the topic already exists.
+	resp, err := s.ListTopics(ctx, &pb.TopicRequest{Name: req.Topic.Name})
+	if err != nil {
+		return empty, err
+	}
+
+	if len(resp.Names) > 0 {
+		return empty, ErrTopicAlreadyExists
+	}
+
+	// Init the create request.
 	cfg := admin.CreateTopicConfig{
 		Name:              req.Topic.Name,
 		Partitions:        int(req.Topic.Partitions),
@@ -90,7 +105,7 @@ func (s *Server) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*
 
 	err = s.kafkaadmin.CreateTopic(ctx, cfg)
 
-	return &pb.Empty{}, err
+	return empty, err
 }
 
 // TopicMappings returns all broker IDs that hold at least one partition for

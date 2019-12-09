@@ -14,6 +14,7 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/zorkian/go-datadog-api v2.25.0+incompatible
 	golang.org/x/net v0.0.0-20191125084936-ffdde1057850 // indirect
+	golang.org/x/tools v0.0.0-20191209205957-115af5e89bf7 // indirect
 	google.golang.org/genproto v0.0.0-20191115221424-83cc0476cb11 // indirect
 	google.golang.org/grpc v1.25.1
 )
