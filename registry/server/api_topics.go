@@ -33,7 +33,8 @@ type TopicSet map[string]*pb.Topic
 // topics found in ZooKeeper are matched. Matched topics are then filtered
 // by all tags specified, if specified, in the *pb.TopicRequest tag field.
 func (s *Server) GetTopics(ctx context.Context, req *pb.TopicRequest) (*pb.TopicResponse, error) {
-	if _, err := s.ValidateRequest(ctx, req, readRequest); err != nil {
+	ctx, err := s.ValidateRequest(ctx, req, readRequest)
+	if err != nil {
 		return nil, err
 	}
 
@@ -54,7 +55,8 @@ func (s *Server) GetTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topic
 // topics found in ZooKeeper are matched. Matched topics are then filtered
 // by all tags specified, if specified, in the *pb.TopicRequest tag field.
 func (s *Server) ListTopics(ctx context.Context, req *pb.TopicRequest) (*pb.TopicResponse, error) {
-	if _, err := s.ValidateRequest(ctx, req, readRequest); err != nil {
+	ctx, err := s.ValidateRequest(ctx, req, readRequest)
+	if err != nil {
 		return nil, err
 	}
 
@@ -76,13 +78,9 @@ func (s *Server) ListTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topi
 func (s *Server) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*pb.Empty, error) {
 	empty := &pb.Empty{}
 
-	cCtx, err := s.ValidateRequest(ctx, req, writeRequest)
+	ctx, err := s.ValidateRequest(ctx, req, writeRequest)
 	if err != nil {
 		return empty, err
-	}
-
-	if cCtx != nil {
-		ctx = cCtx
 	}
 
 	reqParams := &pb.TopicRequest{Name: req.Topic.Name}
@@ -120,7 +118,8 @@ func (s *Server) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*
 // the requested topic. The topic is specified in the TopicRequest.Name
 // field.
 func (s *Server) TopicMappings(ctx context.Context, req *pb.TopicRequest) (*pb.BrokerResponse, error) {
-	if _, err := s.ValidateRequest(ctx, req, readRequest); err != nil {
+	ctx, err := s.ValidateRequest(ctx, req, readRequest)
+	if err != nil {
 		return nil, err
 	}
 
@@ -162,7 +161,8 @@ func (s *Server) TopicMappings(ctx context.Context, req *pb.TopicRequest) (*pb.B
 // TagTopic sets custom tags for the specified topic. Any previously existing
 // tags that were not specified in the request remain unmodified.
 func (s *Server) TagTopic(ctx context.Context, req *pb.TopicRequest) (*pb.TagResponse, error) {
-	if _, err := s.ValidateRequest(ctx, req, writeRequest); err != nil {
+	ctx, err := s.ValidateRequest(ctx, req, writeRequest)
+	if err != nil {
 		return nil, err
 	}
 
@@ -206,7 +206,8 @@ func (s *Server) TagTopic(ctx context.Context, req *pb.TopicRequest) (*pb.TagRes
 
 // DeleteTopicTag deletes custom tags for the specified topic.
 func (s *Server) DeleteTopicTags(ctx context.Context, req *pb.TopicRequest) (*pb.TagResponse, error) {
-	if _, err := s.ValidateRequest(ctx, req, writeRequest); err != nil {
+	ctx, err := s.ValidateRequest(ctx, req, writeRequest)
+	if err != nil {
 		return nil, err
 	}
 
@@ -234,7 +235,7 @@ func (s *Server) DeleteTopicTags(ctx context.Context, req *pb.TopicRequest) (*pb
 	}
 
 	// Delete the tags.
-	err := s.Tags.Store.DeleteTags(KafkaObject{Type: "topic", ID: req.Name}, req.Tag)
+	err = s.Tags.Store.DeleteTags(KafkaObject{Type: "topic", ID: req.Name}, req.Tag)
 	if err != nil {
 		return nil, err
 	}

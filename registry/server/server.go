@@ -266,6 +266,14 @@ func (s *Server) DialZK(ctx context.Context, wg *sync.WaitGroup, c *kafkazk.Conf
 // a derived context is created with the server default timeout. The child
 // context and error are returned.
 func (s *Server) ValidateRequest(ctx context.Context, req interface{}, kind int) (context.Context, error) {
+	// Check if this context has already been seen. If so, it's likely that
+	// one gRPC call is interally calling another and visiting ValidateRequest
+	// multiple times. In this case, we don't need to do further rate limiting,
+	// logging, and other steps.
+	if _, seen := ctx.Value("reqID").(uint64); seen {
+		return ctx, nil
+	}
+
 	reqID := atomic.AddUint64(&s.reqID, 1)
 
 	// Log the request.
@@ -273,13 +281,14 @@ func (s *Server) ValidateRequest(ctx context.Context, req interface{}, kind int)
 
 	var cCtx context.Context
 
-	// If the request context didn't have a deadline,
-	// instantiate our own for the request throttle.
+	// Check if the incoming context has a deadline set.
 	if _, ok := ctx.Deadline(); ok {
 		cCtx = ctx
 	} else {
 		cCtx, _ = context.WithTimeout(ctx, s.reqTimeout)
 	}
+
+	cCtx = context.WithValue(cCtx, "reqID", reqID)
 
 	var err error
 	defer func() {
