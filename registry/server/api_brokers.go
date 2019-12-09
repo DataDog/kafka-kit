@@ -29,7 +29,7 @@ type BrokerSet map[uint32]*pb.Broker
 // brokers found in ZooKeeper are matched. Matched brokers are then filtered
 // by all tags specified, if specified, in the *pb.BrokerRequest tag field.
 func (s *Server) GetBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.BrokerResponse, error) {
-	if err := s.ValidateRequest(ctx, req, readRequest); err != nil {
+	if _, err := s.ValidateRequest(ctx, req, readRequest); err != nil {
 		return nil, err
 	}
 
@@ -50,7 +50,7 @@ func (s *Server) GetBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.Bro
 // brokers found in ZooKeeper are matched. Matched brokers are then filtered
 // by all tags specified, if specified, in the *pb.BrokerRequest tag field.
 func (s *Server) ListBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.BrokerResponse, error) {
-	if err := s.ValidateRequest(ctx, req, readRequest); err != nil {
+	if _, err := s.ValidateRequest(ctx, req, readRequest); err != nil {
 		return nil, err
 	}
 
@@ -70,7 +70,7 @@ func (s *Server) ListBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.Br
 // held by the requested broker. The broker is specified in the BrokerRequest.ID
 // field.
 func (s *Server) BrokerMappings(ctx context.Context, req *pb.BrokerRequest) (*pb.TopicResponse, error) {
-	if err := s.ValidateRequest(ctx, req, readRequest); err != nil {
+	if _, err := s.ValidateRequest(ctx, req, readRequest); err != nil {
 		return nil, err
 	}
 
@@ -171,7 +171,7 @@ func (s *Server) fetchBrokerSet(req *pb.BrokerRequest) (BrokerSet, error) {
 // TagBroker sets custom tags for the specified broker. Any previously existing
 // tags that were not specified in the request remain unmodified.
 func (s *Server) TagBroker(ctx context.Context, req *pb.BrokerRequest) (*pb.TagResponse, error) {
-	if err := s.ValidateRequest(ctx, req, writeRequest); err != nil {
+	if _, err := s.ValidateRequest(ctx, req, writeRequest); err != nil {
 		return nil, err
 	}
 
@@ -213,7 +213,7 @@ func (s *Server) TagBroker(ctx context.Context, req *pb.BrokerRequest) (*pb.TagR
 
 //DeleteBrokerTags deletes custom tags for the specified broker.
 func (s *Server) DeleteBrokerTags(ctx context.Context, req *pb.BrokerRequest) (*pb.TagResponse, error) {
-	if err := s.ValidateRequest(ctx, req, writeRequest); err != nil {
+	if _, err := s.ValidateRequest(ctx, req, writeRequest); err != nil {
 		return nil, err
 	}
 

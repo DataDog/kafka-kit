@@ -34,6 +34,7 @@ type Server struct {
 	ZK               kafkazk.Handler
 	kafkaadmin       admin.Client
 	Tags             *TagHandler
+	reqTimeout       time.Duration
 	readReqThrottle  RequestThrottle
 	writeReqThrottle RequestThrottle
 	reqID            uint64
@@ -86,6 +87,7 @@ func NewServer(c Config) (*Server, error) {
 		HTTPListen:       c.HTTPListen,
 		GRPCListen:       c.GRPCListen,
 		Tags:             th,
+		reqTimeout:       3000 * time.Millisecond,
 		readReqThrottle:  rrt,
 		writeReqThrottle: wrt,
 		test:             c.test,
@@ -260,21 +262,23 @@ func (s *Server) DialZK(ctx context.Context, wg *sync.WaitGroup, c *kafkazk.Conf
 
 // ValidateRequest takes an incoming request context, params, and request
 // kind. The request is logged and checked against the appropriate request
-// throttler.
-func (s *Server) ValidateRequest(ctx context.Context, req interface{}, kind int) error {
+// throttler. If the incoming context did not have a deadline set, the server
+// a derived context is created with the server default timeout. The child
+// context and error are returned.
+func (s *Server) ValidateRequest(ctx context.Context, req interface{}, kind int) (context.Context, error) {
 	reqID := atomic.AddUint64(&s.reqID, 1)
 
 	// Log the request.
 	s.LogRequest(ctx, fmt.Sprintf("%v", req), reqID)
 
-	var to context.Context
+	var cCtx context.Context
 
 	// If the request context didn't have a deadline,
 	// instantiate our own for the request throttle.
 	if _, ok := ctx.Deadline(); ok {
-		to = ctx
+		cCtx = ctx
 	} else {
-		to, _ = context.WithTimeout(ctx, 500*time.Millisecond)
+		cCtx, _ = context.WithTimeout(ctx, s.reqTimeout)
 	}
 
 	var err error
@@ -287,16 +291,16 @@ func (s *Server) ValidateRequest(ctx context.Context, req interface{}, kind int)
 	// Check the appropriate request throttle.
 	switch kind {
 	case 0:
-		if err = s.readReqThrottle.Request(to); err != nil {
-			return err
+		if err = s.readReqThrottle.Request(cCtx); err != nil {
+			return nil, err
 		}
 	case 1:
-		if err = s.writeReqThrottle.Request(to); err != nil {
-			return err
+		if err = s.writeReqThrottle.Request(cCtx); err != nil {
+			return nil, err
 		}
 	}
 
-	return nil
+	return cCtx, nil
 }
 
 // LogRequest takes a request context and input parameters as a string
