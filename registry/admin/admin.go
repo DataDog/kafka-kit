@@ -1,9 +1,13 @@
 package admin
 
+import (
+	"context"
+)
+
 // Client is an admin client.
 type Client interface {
 	Close()
-	CreateTopic(CreateTopicConfig) error
+	CreateTopic(context.Context, CreateTopicConfig) error
 }
 
 // CreateTopicConfig holds CreateTopic parameters.

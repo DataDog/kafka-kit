@@ -36,7 +36,7 @@ func (c Client) Close() {
 }
 
 // CreateTopic creates a topic.
-func (c Client) CreateTopic(cfg admin.CreateTopicConfig) error {
+func (c Client) CreateTopic(ctx context.Context, cfg admin.CreateTopicConfig) error {
 	spec := kafka.TopicSpecification{
 		Topic:             cfg.Name,
 		NumPartitions:     cfg.Partitions,
@@ -47,7 +47,7 @@ func (c Client) CreateTopic(cfg admin.CreateTopicConfig) error {
 
 	topic := []kafka.TopicSpecification{spec}
 
-	_, err := c.c.CreateTopics(context.Background(), topic, kafka.SetAdminOperationTimeout(0))
+	_, err := c.c.CreateTopics(ctx, topic)
 
 	return err
 }
