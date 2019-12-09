@@ -85,8 +85,10 @@ func (s *Server) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*
 		ctx = cCtx
 	}
 
+	reqParams := &pb.TopicRequest{Name: req.Topic.Name}
+
 	// Check if the topic already exists.
-	resp, err := s.ListTopics(ctx, &pb.TopicRequest{Name: req.Topic.Name})
+	resp, err := s.ListTopics(ctx, reqParams)
 	if err != nil {
 		return empty, err
 	}
@@ -103,7 +105,13 @@ func (s *Server) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*
 		Config:            req.Topic.Configs,
 	}
 
-	err = s.kafkaadmin.CreateTopic(ctx, cfg)
+	if err = s.kafkaadmin.CreateTopic(ctx, cfg); err != nil {
+		return empty, err
+	}
+
+	// Tag the topic.
+	reqParams.Tag = TagSet(req.Topic.Tags).Tags()
+	_, err = s.TagTopic(ctx, reqParams)
 
 	return empty, err
 }
