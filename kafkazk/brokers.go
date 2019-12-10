@@ -107,6 +107,13 @@ type Broker struct {
 // BrokerMap holds a mapping of broker IDs to *Broker.
 type BrokerMap map[int]*Broker
 
+// NewBrokerMap returns a new BrokerMap.
+func NewBrokerMap() BrokerMap {
+	return BrokerMap{
+		StubBrokerID: &Broker{Used: 0, ID: StubBrokerID, Replace: true},
+	}
+}
+
 // BrokerList is a slice of brokers for sorting by used count.
 type BrokerList []*Broker
 
