@@ -9,6 +9,11 @@ A drop-in replacement for the `kafka-reassign-partition` tool bundled with Kafka
 
 [README](cmd/topicmappr)
 
+# registry
+A gRPC+HTTP API for Kafka that allows granular resource lookup and custom user tagging.
+
+[README](cmd/registry)
+
 # autothrottle
 A service that catches Kafka replication/recovery events and dynamically applies broker replication throttles, driven by metrics via the Datadog API.
 
