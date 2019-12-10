@@ -45,6 +45,12 @@ func (c Client) CreateTopic(ctx context.Context, cfg admin.CreateTopicConfig) er
 		Config:            cfg.Config,
 	}
 
+	// ReplicaAssignment and ReplicationFactor are
+	// mutually exclusive.
+	if cfg.ReplicaAssignment != nil {
+		spec.ReplicationFactor = 0
+	}
+
 	topic := []kafka.TopicSpecification{spec}
 
 	_, err := c.c.CreateTopics(ctx, topic)

@@ -21,6 +21,8 @@ var (
 	ErrTopicNameEmpty = errors.New("topic Name field must be specified")
 	// ErrTopicAlreadyExists error.
 	ErrTopicAlreadyExists = errors.New("topic already exists")
+	// ErrInsufficientBrokers error.
+	ErrInsufficientBrokers = errors.New("insufficient number of brokers")
 	// Misc.
 	tregex = regexp.MustCompile(".*")
 )
@@ -95,12 +97,75 @@ func (s *Server) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*
 		return empty, ErrTopicAlreadyExists
 	}
 
+	// If we're targeting a specific set of brokers by tag, build
+	// a replica assignment.
+	var assignment admin.ReplicaAssignment
+	if req.TargetBrokerTags != nil {
+		// Create a stub map with the provided request dimensions.
+		opts := kafkazk.Populate(
+			req.Topic.Name,
+			int(req.Topic.Partitions),
+			int(req.Topic.Replication),
+		)
+		pMap := kafkazk.NewPartitionMap(opts)
+
+		// Fetch brokers by tag.
+		reqParams := &pb.BrokerRequest{Tag: req.TargetBrokerTags}
+		resp, err := s.ListBrokers(ctx, reqParams)
+		if err != nil {
+			return empty, err
+		}
+
+		targetBrokerIDs := make([]int, len(resp.Ids))
+		for i := range resp.Ids {
+			targetBrokerIDs[i] = int(resp.Ids[i])
+		}
+
+		if len(targetBrokerIDs) < int(req.Topic.Replication) {
+			return empty, ErrInsufficientBrokers
+		}
+
+		// Create a stub BrokerMap.
+		bMap := kafkazk.NewBrokerMap()
+
+		// Get the live broker metadata.
+		brokerState, errs := s.ZK.GetAllBrokerMeta(false)
+		if errs != nil {
+			return empty, ErrFetchingBrokers
+		}
+
+		// Update the BrokerMap with the target broker list.
+		// XXX we don't catch any errors here, such as provided
+		// brokers being marked as missing. This is because we're
+		// only ever using brokers we just fetched from the cluster
+		// state as opposed to user provided lists. Other scenarios
+		// may need to be covered, however.
+		bMap.Update(targetBrokerIDs, brokerState)
+
+		// Rebuild the stub map with the discovered target broker list.
+		rebuildParams := kafkazk.RebuildParams{
+			BM:       bMap,
+			Strategy: "count",
+		}
+
+		partitionMap, errs := pMap.Rebuild(rebuildParams)
+		if errs != nil {
+			return empty, fmt.Errorf("%s", errs)
+		}
+
+		// Convert the assignment map to a ReplicaAssignment.
+		assignment = PartitionMapToReplicaAssignment(partitionMap)
+	}
+
 	// Init the create request.
+	// XXX if a topic can't be created due to insufficient brokers,
+	// the command will fail at Kafka but not return an error here.
 	cfg := admin.CreateTopicConfig{
 		Name:              req.Topic.Name,
 		Partitions:        int(req.Topic.Partitions),
 		ReplicationFactor: int(req.Topic.Replication),
 		Config:            req.Topic.Configs,
+		ReplicaAssignment: assignment,
 	}
 
 	if err = s.kafkaadmin.CreateTopic(ctx, cfg); err != nil {
@@ -281,6 +346,26 @@ func (s *Server) fetchTopicSet(req *pb.TopicRequest) (TopicSet, error) {
 	}
 
 	return filtered, nil
+}
+
+// PartitionMapToReplicaAssignment takes a *kafkazk.PartitionMap and
+// transforms it into an admin.ReplicaAssignment.
+func PartitionMapToReplicaAssignment(pm *kafkazk.PartitionMap) admin.ReplicaAssignment {
+	ra := make(admin.ReplicaAssignment, len(pm.Partitions))
+
+	// Map partition replica sets from the PartitionMap
+	// to the ReplicaAssignment.
+	for _, p := range pm.Partitions {
+		// Type conversion; create the replicas slice.
+		ra[p.Partition] = make([]int32, len(p.Replicas))
+		// Loop the replica set, convert, and assign
+		// to the appropriate index in the ReplicaAssignment.
+		for i := range ra[p.Partition] {
+			ra[p.Partition][i] = int32(p.Replicas[i])
+		}
+	}
+
+	return ra
 }
 
 // Names returns a []string of topic names from a TopicSet.

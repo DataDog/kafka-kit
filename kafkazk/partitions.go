@@ -52,6 +52,12 @@ func Populate(s string, n, r int) PartitionMapOpt {
 				Partition: i,
 				Replicas:  make([]int, r),
 			}
+
+			// Set all replicas to the stub broker ID.
+			for j := range partn.Replicas {
+				partn.Replicas[j] = StubBrokerID
+			}
+
 			p.Partitions = append(p.Partitions, partn)
 		}
 	}
