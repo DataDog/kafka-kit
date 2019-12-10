@@ -41,8 +41,8 @@ func (c Client) CreateTopic(ctx context.Context, cfg admin.CreateTopicConfig) er
 		Topic:             cfg.Name,
 		NumPartitions:     cfg.Partitions,
 		ReplicationFactor: cfg.ReplicationFactor,
-		// ReplicaAssignment [][]int32
-		Config: cfg.Config,
+		ReplicaAssignment: cfg.ReplicaAssignment,
+		Config:            cfg.Config,
 	}
 
 	topic := []kafka.TopicSpecification{spec}

@@ -16,6 +16,7 @@ type CreateTopicConfig struct {
 	Partitions        int
 	ReplicationFactor int
 	Config            map[string]string
+	ReplicaAssignment [][]int32
 }
 
 type Config struct {
