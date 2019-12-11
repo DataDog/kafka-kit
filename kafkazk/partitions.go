@@ -26,9 +26,41 @@ type PartitionMap struct {
 	Partitions PartitionList `json:"partitions"`
 }
 
-// NewPartitionMap returns an empty *PartitionMap.
-func NewPartitionMap() *PartitionMap {
-	return &PartitionMap{Version: 1}
+// NewPartitionMap returns an empty *PartitionMap with optionally
+// provided PartitionMapOpts.
+func NewPartitionMap(opts ...PartitionMapOpt) *PartitionMap {
+	p := &PartitionMap{Version: 1}
+
+	for _, o := range opts {
+		o(p)
+	}
+
+	return p
+}
+
+// PartitionMapOpt is a function that configures a *PartitionMap
+// at instantiation time.
+type PartitionMapOpt func(*PartitionMap)
+
+// Populate takes a name, partition count and replication factor
+// and returns a PartitionMapOpt.
+func Populate(s string, n, r int) PartitionMapOpt {
+	return func(p *PartitionMap) {
+		for i := 0; i < n; i++ {
+			partn := Partition{
+				Topic:     s,
+				Partition: i,
+				Replicas:  make([]int, r),
+			}
+
+			// Set all replicas to the stub broker ID.
+			for j := range partn.Replicas {
+				partn.Replicas[j] = StubBrokerID
+			}
+
+			p.Partitions = append(p.Partitions, partn)
+		}
+	}
 }
 
 // Satisfy the sort interface for PartitionList.

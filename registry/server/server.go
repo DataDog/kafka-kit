@@ -11,7 +11,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/DataDog/kafka-kit/kafkaadmin"
 	"github.com/DataDog/kafka-kit/kafkazk"
+	"github.com/DataDog/kafka-kit/registry/admin"
 	pb "github.com/DataDog/kafka-kit/registry/protos"
 
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
@@ -30,7 +32,9 @@ type Server struct {
 	HTTPListen       string
 	GRPCListen       string
 	ZK               kafkazk.Handler
+	kafkaadmin       admin.Client
 	Tags             *TagHandler
+	reqTimeout       time.Duration
 	readReqThrottle  RequestThrottle
 	writeReqThrottle RequestThrottle
 	reqID            uint64
@@ -83,6 +87,7 @@ func NewServer(c Config) (*Server, error) {
 		HTTPListen:       c.HTTPListen,
 		GRPCListen:       c.GRPCListen,
 		Tags:             th,
+		reqTimeout:       3000 * time.Millisecond,
 		readReqThrottle:  rrt,
 		writeReqThrottle: wrt,
 		test:             c.test,
@@ -173,6 +178,41 @@ func (s *Server) RunHTTP(ctx context.Context, wg *sync.WaitGroup) error {
 	return nil
 }
 
+// InitKafkaAdmin takes a Context, WaitGroup and an admin.Config and initializes
+// an admin.Client. A background shutdown procedure is called when the
+// context is cancelled.
+func (s *Server) InitKafkaAdmin(ctx context.Context, wg *sync.WaitGroup, cfg admin.Config) error {
+	if s.test {
+		return nil
+	}
+
+	wg.Add(1)
+
+	switch cfg.Type {
+	case "kafka":
+		k, err := kafkaadmin.NewClient(
+			kafkaadmin.Config{
+				BootstrapServers: cfg.BootstrapServers,
+			})
+		if err != nil {
+			return err
+		}
+
+		s.kafkaadmin = k
+		log.Printf("KafkaAdmin connected to bootstrap servers: %s\n", cfg.BootstrapServers)
+	case "zookeeper":
+
+	}
+	// Shutdown procedure.
+	go func() {
+		<-ctx.Done()
+		s.kafkaadmin.Close()
+		wg.Done()
+	}()
+
+	return nil
+}
+
 // DialZK takes a Context, WaitGroup and *kafkazk.Config and initializes
 // a kafkazk.Handler. A background shutdown procedure is called when the
 // context is cancelled.
@@ -222,22 +262,33 @@ func (s *Server) DialZK(ctx context.Context, wg *sync.WaitGroup, c *kafkazk.Conf
 
 // ValidateRequest takes an incoming request context, params, and request
 // kind. The request is logged and checked against the appropriate request
-// throttler.
-func (s *Server) ValidateRequest(ctx context.Context, req interface{}, kind int) error {
+// throttler. If the incoming context did not have a deadline set, the server
+// a derived context is created with the server default timeout. The child
+// context and error are returned.
+func (s *Server) ValidateRequest(ctx context.Context, req interface{}, kind int) (context.Context, error) {
+	// Check if this context has already been seen. If so, it's likely that
+	// one gRPC call is interally calling another and visiting ValidateRequest
+	// multiple times. In this case, we don't need to do further rate limiting,
+	// logging, and other steps.
+	if _, seen := ctx.Value("reqID").(uint64); seen {
+		return ctx, nil
+	}
+
 	reqID := atomic.AddUint64(&s.reqID, 1)
 
 	// Log the request.
 	s.LogRequest(ctx, fmt.Sprintf("%v", req), reqID)
 
-	var to context.Context
+	var cCtx context.Context
 
-	// If the request context didn't have a deadline,
-	// instantiate our own for the request throttle.
+	// Check if the incoming context has a deadline set.
 	if _, ok := ctx.Deadline(); ok {
-		to = ctx
+		cCtx = ctx
 	} else {
-		to, _ = context.WithTimeout(ctx, 500*time.Millisecond)
+		cCtx, _ = context.WithTimeout(ctx, s.reqTimeout)
 	}
+
+	cCtx = context.WithValue(cCtx, "reqID", reqID)
 
 	var err error
 	defer func() {
@@ -249,16 +300,16 @@ func (s *Server) ValidateRequest(ctx context.Context, req interface{}, kind int)
 	// Check the appropriate request throttle.
 	switch kind {
 	case 0:
-		if err = s.readReqThrottle.Request(to); err != nil {
-			return err
+		if err = s.readReqThrottle.Request(cCtx); err != nil {
+			return nil, err
 		}
 	case 1:
-		if err = s.writeReqThrottle.Request(to); err != nil {
-			return err
+		if err = s.writeReqThrottle.Request(cCtx); err != nil {
+			return nil, err
 		}
 	}
 
-	return nil
+	return cCtx, nil
 }
 
 // LogRequest takes a request context and input parameters as a string

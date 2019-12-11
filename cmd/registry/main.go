@@ -10,9 +10,11 @@ import (
 	"sync"
 
 	"github.com/DataDog/kafka-kit/kafkazk"
+	"github.com/DataDog/kafka-kit/registry/admin"
 	"github.com/DataDog/kafka-kit/registry/server"
 
 	"github.com/jamiealquiza/envy"
+	"github.com/masterminds/semver"
 )
 
 // This can be set with -ldflags "-X main.version=x.x.x"
@@ -21,6 +23,7 @@ var version = "0.0.0"
 func main() {
 	serverConfig := server.Config{}
 	zkConfig := kafkazk.Config{}
+	adminConfig := admin.Config{Type: "kafka"}
 
 	v := flag.Bool("version", false, "version")
 	flag.StringVar(&serverConfig.HTTPListen, "http-listen", "localhost:8080", "Server HTTP listen address")
@@ -30,6 +33,8 @@ func main() {
 	flag.StringVar(&serverConfig.ZKTagsPrefix, "zk-tags-prefix", "registry", "Tags storage ZooKeeper prefix")
 	flag.StringVar(&zkConfig.Connect, "zk-addr", "localhost:2181", "ZooKeeper connect string")
 	flag.StringVar(&zkConfig.Prefix, "zk-prefix", "", "ZooKeeper prefix (if Kafka is configured with a chroot path prefix)")
+	flag.StringVar(&adminConfig.BootstrapServers, "bootstrap-servers", "localhost", "Kafka bootstrap servers")
+	kafkaVersionString := flag.String("kafka-version", "v0.10.2", "Kafka release (Semantic Versioning)")
 
 	envy.Parse("REGISTRY")
 	flag.Parse()
@@ -37,6 +42,12 @@ func main() {
 	if *v {
 		fmt.Println(version)
 		os.Exit(0)
+	}
+
+	_, err := semver.NewVersion(*kafkaVersionString)
+	if err != nil {
+		fmt.Printf("Invalid SemVer: %s\n", *kafkaVersionString)
+		os.Exit(1)
 	}
 
 	log.Println("Registry running")
@@ -52,6 +63,11 @@ func main() {
 
 	// Dial ZooKeeper.
 	if err := srvr.DialZK(ctx, wg, &zkConfig); err != nil {
+		log.Fatal(err)
+	}
+
+	// Init an admin Client.
+	if err := srvr.InitKafkaAdmin(ctx, wg, adminConfig); err != nil {
 		log.Fatal(err)
 	}
 

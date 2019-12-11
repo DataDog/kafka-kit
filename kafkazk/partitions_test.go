@@ -6,6 +6,35 @@ import (
 	"testing"
 )
 
+func TestNewPartitionMap(t *testing.T) {
+	p := NewPartitionMap()
+
+	// Provided no PartitionMapOpts, the partitions
+	// list should be empty.
+	if len(p.Partitions) != 0 {
+		t.Error("Expected empty Partitions field")
+	}
+
+	p = NewPartitionMap(Populate("test", 12, 2))
+
+	// Check the desired partitions len.
+	pLen := len(p.Partitions)
+	if pLen != 12 {
+		t.Errorf("Expected Partitions field len 12, got %d", pLen)
+	}
+
+	// Check the replicas len.
+	rLen := len(p.Partitions[0].Replicas)
+	if rLen != 2 {
+		t.Errorf("Expected replication factor 2, got %d", rLen)
+	}
+
+	// Check the name.
+	if p.Partitions[0].Topic != "test" {
+		t.Errorf("Expected topic name 'test', got '%s'", p.Partitions[0].Topic)
+	}
+}
+
 func TestPartitionEquality(t *testing.T) {
 	p1 := Partition{Topic: "test_topic", Partition: 1, Replicas: []int{1, 2, 3}}
 	p2 := Partition{Topic: "test_topic", Partition: 1, Replicas: []int{1, 2, 3}}

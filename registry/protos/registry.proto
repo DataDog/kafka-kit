@@ -51,6 +51,26 @@ service Registry {
     };
   }
 
+  /*
+  CreateTopic creates a topic.
+  Example:
+     $ curl -XPOST "localhost:8080/v1/topics/create" -d '{
+       "topic": {
+         "name": "mytopic",
+         "partitions": 32,
+         "replication": 2,
+         "tags": {"env":"staging"}
+       },
+       "target_broker_tags": ["pool:tests"]
+     }'
+  */
+  rpc CreateTopic (CreateTopicRequest) returns (Empty) {
+    option (google.api.http) = {
+      post: "/v1/topics/create"
+      body: "*"
+    };
+  }
+
   // TopicMappings returns a BrokerResponse with the ids field
   // populated with broker IDs that hold at least one partition
   // for the requested topic. The topic is specified in the
@@ -150,6 +170,11 @@ message TopicRequest {
   string name = 2;
 }
 
+message CreateTopicRequest {
+  Topic topic = 1;
+  repeated string target_broker_tags = 2;
+}
+
 message TopicResponse {
   map<string, Topic> topics = 5;
   repeated string names = 6;
@@ -162,4 +187,11 @@ message Topic {
   string name = 5;
   uint32 partitions = 6;
   uint32 replication = 7;
+  map<string, string> configs = 8;
 }
+
+/*******
+* Misc *
+*******/
+
+message Empty {}

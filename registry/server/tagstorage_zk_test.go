@@ -2,18 +2,17 @@ package server
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"testing"
 
 	"github.com/DataDog/kafka-kit/kafkazk"
 )
 
-const (
+var (
 	zkaddr   = "localhost:2181"
 	zkprefix = "registry_test"
-)
 
-var (
 	store *ZKTagStorage
 	// To track znodes created.
 	paths = []string{
@@ -26,6 +25,11 @@ var (
 func TestSetup(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
+	}
+
+	overrideZKAddr := os.Getenv("TEST_ZK_ADDR")
+	if overrideZKAddr != "" {
+		zkaddr = overrideZKAddr
 	}
 
 	// Init a kafkazk.Handler.

@@ -29,7 +29,8 @@ type BrokerSet map[uint32]*pb.Broker
 // brokers found in ZooKeeper are matched. Matched brokers are then filtered
 // by all tags specified, if specified, in the *pb.BrokerRequest tag field.
 func (s *Server) GetBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.BrokerResponse, error) {
-	if err := s.ValidateRequest(ctx, req, readRequest); err != nil {
+	ctx, err := s.ValidateRequest(ctx, req, readRequest)
+	if err != nil {
 		return nil, err
 	}
 
@@ -50,7 +51,8 @@ func (s *Server) GetBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.Bro
 // brokers found in ZooKeeper are matched. Matched brokers are then filtered
 // by all tags specified, if specified, in the *pb.BrokerRequest tag field.
 func (s *Server) ListBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.BrokerResponse, error) {
-	if err := s.ValidateRequest(ctx, req, readRequest); err != nil {
+	ctx, err := s.ValidateRequest(ctx, req, readRequest)
+	if err != nil {
 		return nil, err
 	}
 
@@ -70,7 +72,8 @@ func (s *Server) ListBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.Br
 // held by the requested broker. The broker is specified in the BrokerRequest.ID
 // field.
 func (s *Server) BrokerMappings(ctx context.Context, req *pb.BrokerRequest) (*pb.TopicResponse, error) {
-	if err := s.ValidateRequest(ctx, req, readRequest); err != nil {
+	ctx, err := s.ValidateRequest(ctx, req, readRequest)
+	if err != nil {
 		return nil, err
 	}
 
@@ -79,8 +82,8 @@ func (s *Server) BrokerMappings(ctx context.Context, req *pb.BrokerRequest) (*pb
 	}
 
 	// Get a kafkazk.BrokerMetaMap.
-	bm, err := s.ZK.GetAllBrokerMeta(false)
-	if err != nil {
+	bm, errs := s.ZK.GetAllBrokerMeta(false)
+	if errs != nil {
 		return nil, ErrFetchingBrokers
 	}
 
@@ -90,8 +93,8 @@ func (s *Server) BrokerMappings(ctx context.Context, req *pb.BrokerRequest) (*pb
 	}
 
 	// Get all topic names.
-	ts, errs := s.ZK.GetTopics([]*regexp.Regexp{regexp.MustCompile(".*")})
-	if errs != nil {
+	ts, err := s.ZK.GetTopics([]*regexp.Regexp{regexp.MustCompile(".*")})
+	if err != nil {
 		return nil, ErrFetchingTopics
 	}
 
@@ -171,7 +174,8 @@ func (s *Server) fetchBrokerSet(req *pb.BrokerRequest) (BrokerSet, error) {
 // TagBroker sets custom tags for the specified broker. Any previously existing
 // tags that were not specified in the request remain unmodified.
 func (s *Server) TagBroker(ctx context.Context, req *pb.BrokerRequest) (*pb.TagResponse, error) {
-	if err := s.ValidateRequest(ctx, req, writeRequest); err != nil {
+	ctx, err := s.ValidateRequest(ctx, req, writeRequest)
+	if err != nil {
 		return nil, err
 	}
 
@@ -213,7 +217,8 @@ func (s *Server) TagBroker(ctx context.Context, req *pb.BrokerRequest) (*pb.TagR
 
 //DeleteBrokerTags deletes custom tags for the specified broker.
 func (s *Server) DeleteBrokerTags(ctx context.Context, req *pb.BrokerRequest) (*pb.TagResponse, error) {
-	if err := s.ValidateRequest(ctx, req, writeRequest); err != nil {
+	ctx, err := s.ValidateRequest(ctx, req, writeRequest)
+	if err != nil {
 		return nil, err
 	}
 
@@ -239,7 +244,7 @@ func (s *Server) DeleteBrokerTags(ctx context.Context, req *pb.BrokerRequest) (*
 
 	// Delete the tags.
 	id := fmt.Sprintf("%d", req.Id)
-	err := s.Tags.Store.DeleteTags(KafkaObject{Type: "broker", ID: id}, req.Tag)
+	err = s.Tags.Store.DeleteTags(KafkaObject{Type: "broker", ID: id}, req.Tag)
 	if err != nil {
 		return nil, err
 	}

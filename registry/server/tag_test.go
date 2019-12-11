@@ -1,6 +1,7 @@
 package server
 
 import (
+	"sort"
 	"testing"
 
 	pb "github.com/DataDog/kafka-kit/registry/protos"
@@ -85,6 +86,29 @@ func TestEqual(t *testing.T) {
 		if v[0].Equal(v[1]) != expected[k] {
 			t.Errorf("[test %d] expected TagSet equality '%v', got '%v'",
 				k, expected[k], v[0].Equal(v[1]))
+		}
+	}
+}
+
+func TestTags(t *testing.T) {
+	tagSet := TagSet{
+		"k1": "v1",
+		"k2": "v2",
+		"k3": "v3",
+	}
+
+	tags := tagSet.Tags()
+	sort.Strings(tags)
+
+	expected := Tags{"k1:v1", "k2:v2", "k3:v3"}
+
+	if len(tags) != 3 {
+		t.Errorf("Expected Tags len 3, got %d", len(tags))
+	}
+
+	for i := range tags {
+		if tags[i] != expected[i] {
+			t.Errorf("Got Tags element %s, expected %s", tags[i], expected[i])
 		}
 	}
 }
@@ -261,6 +285,7 @@ func TestReservedFields(t *testing.T) {
 		"name":        struct{}{},
 		"partitions":  struct{}{},
 		"replication": struct{}{},
+		"configs":     struct{}{},
 	}
 
 	brokerExpected := map[string]struct{}{

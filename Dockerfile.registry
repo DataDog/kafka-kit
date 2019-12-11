@@ -1,0 +1,67 @@
+# Notes:
+#   Build:
+#     - $ docker build -t registry -f Dockerfile.registry .
+#   Run ZooKeeper, Kafka on user defined bridge:
+#     - $ docker network create net
+#     - $ docker run --rm -d --network net --name zookeeper zookeeper
+#     - $ docker run --rm -d --network net -e KAFKA_ZOOKEEPER_CONNECT=zookeeper -e KAFKA_ADVERTISED_HOST_NAME=kafka --name kafka wurstmeister/kafka:2.11-0.10.2.2
+#   Run Registry container:
+#     - Tests: $ docker run --rm --network net --name registry registry go test -v ./...
+#     - Service: $ docker run --rm -d --network net -p 8080:8080 -p 8090:8090 --name registry registry registry
+from ubuntu:16.04
+
+# Install pre-reqs.
+RUN apt-get update
+RUN apt-get install -y git wget pkg-config software-properties-common apt-transport-https ca-certificates
+
+WORKDIR /root
+
+# Install Go.
+RUN wget https://dl.google.com/go/go1.13.4.linux-amd64.tar.gz
+RUN tar -C /usr/local -xzf go1.13.4.linux-amd64.tar.gz
+ENV PATH=$PATH:/usr/local/go/bin:/go/bin
+ENV GOPATH=/go
+
+# Install protoc, grpc-gateway.
+RUN go get github.com/golang/protobuf/protoc-gen-go
+RUN go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
+RUN wget -qO - wget https://github.com/protocolbuffers/protobuf/releases/download/v3.6.1/protobuf-all-3.6.1.tar.gz | tar -xz
+WORKDIR /root/protobuf-3.6.1
+RUN ./configure
+RUN make -j4
+RUN make install
+RUN ldconfig
+
+# Cleanup.
+WORKDIR /root
+RUN rm -rf *
+
+# Install librdkafka
+RUN wget -qO - https://packages.confluent.io/deb/5.3/archive.key | apt-key add - 2>/dev/null
+RUN add-apt-repository "deb [arch=amd64] https://packages.confluent.io/deb/5.3 stable main"
+RUN apt-get update && apt-get install -y librdkafka1 librdkafka-dev
+
+# Pull Kafka-Kit, deps.
+WORKDIR /go/src/github.com/DataDog/kafka-kit
+
+COPY go.mod go.mod
+RUN go mod download
+
+COPY cmd/registry cmd/registry
+COPY kafkaadmin kafkaadmin
+COPY kafkazk kafkazk
+COPY registry registry
+
+# Build.
+RUN protoc -I registry -I /go/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis protos/registry.proto --go_out=plugins=grpc:registry --grpc-gateway_out=logtostderr=true:registry
+RUN go install github.com/DataDog/kafka-kit/cmd/registry
+
+# Runtime.
+ENV TEST_ZK_ADDR=zookeeper:2181
+ENV REGISTRY_ZK_ADDR=zookeeper:2181
+ENV REGISTRY_BOOTSTRAP_SERVERS=kafka:9092
+ENV REGISTRY_HTTP_LISTEN=0.0.0.0:8080
+ENV REGISTRY_GRPC_LISTEN=0.0.0.0:8090
+EXPOSE 8090/tcp
+EXPOSE 8080/tcp
+CMD ["/go/bin/registry"]

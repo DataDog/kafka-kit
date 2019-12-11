@@ -265,7 +265,18 @@ func (t1 TagSet) Equal(t2 TagSet) bool {
 	return true
 }
 
-// TagSet takes a tags and returns a TagSet and error for any
+// Tags takes a TagSet and returns a Tags.
+func (t TagSet) Tags() Tags {
+	var ts Tags
+
+	for k, v := range t {
+		ts = append(ts, fmt.Sprintf("%s:%s", k, v))
+	}
+
+	return ts
+}
+
+// TagSet takes a Tags and returns a TagSet and error for any
 // malformed tags. Tags are expected to be formatted as a
 // comma delimited "key:value,key2:value2" string.
 // TODO normalize all tag usage to lower case.

@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"os"
 	"regexp"
 	"sort"
 	"testing"
@@ -13,7 +14,7 @@ import (
 	zkclient "github.com/samuel/go-zookeeper/zk"
 )
 
-const (
+var (
 	zkaddr   = "localhost:2181"
 	zkprefix = "/kafkazk_test"
 )
@@ -81,6 +82,11 @@ func rawHandler(c *Config) (*ZKHandler, error) {
 // steps fail, subsequent test runs will likely produce errors.
 func TestSetup(t *testing.T) {
 	if !testing.Short() {
+		overrideZKAddr := os.Getenv("TEST_ZK_ADDR")
+		if overrideZKAddr != "" {
+			zkaddr = overrideZKAddr
+		}
+
 		// Init a direct client.
 		var err error
 		zkc, _, err = zkclient.Connect([]string{zkaddr}, time.Second, zkclient.WithLogInfo(false))
