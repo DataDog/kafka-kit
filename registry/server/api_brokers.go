@@ -83,7 +83,7 @@ func (s *Server) BrokerMappings(ctx context.Context, req *pb.BrokerRequest) (*pb
 
 	// Get a kafkazk.BrokerMetaMap.
 	bm, errs := s.ZK.GetAllBrokerMeta(false)
-	if err != nil {
+	if errs != nil {
 		return nil, ErrFetchingBrokers
 	}
 
@@ -94,7 +94,7 @@ func (s *Server) BrokerMappings(ctx context.Context, req *pb.BrokerRequest) (*pb
 
 	// Get all topic names.
 	ts, err := s.ZK.GetTopics([]*regexp.Regexp{regexp.MustCompile(".*")})
-	if errs != nil {
+	if err != nil {
 		return nil, ErrFetchingTopics
 	}
 
