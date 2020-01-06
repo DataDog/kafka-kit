@@ -119,7 +119,7 @@ func (b BrokerMap) StorageDiff(b2 BrokerMap) map[int][2]float64 {
 // StorageRangeSpread returns the range spread
 // of free storage for all brokers in the BrokerMap.
 func (b BrokerMap) StorageRangeSpread() float64 {
-	l, h := b.minMax()
+	l, h := b.MinMax()
 	// Return range spread.
 	return (h - l) / l * 100
 }
@@ -127,12 +127,12 @@ func (b BrokerMap) StorageRangeSpread() float64 {
 // StorageRange returns the range of free
 // storage for all brokers in the BrokerMap.
 func (b BrokerMap) StorageRange() float64 {
-	l, h := b.minMax()
+	l, h := b.MinMax()
 	// Return range.
 	return h - l
 }
 
-func (b BrokerMap) minMax() (float64, float64) {
+func (b BrokerMap) MinMax() (float64, float64) {
 	// Get the high/low StorageFree values.
 	h, l := 0.00, math.MaxFloat64
 
