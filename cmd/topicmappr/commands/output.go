@@ -156,6 +156,12 @@ func printBrokerAssignmentStats(cmd *cobra.Command, pm1, pm2 *kafkazk.PartitionM
 		sd1, sd2 := mb1.StorageStdDev(), mb2.StorageStdDev()
 		fmt.Printf("%sstd. deviation: %.2fGB -> %.2fGB\n", indent, sd1/div, sd2/div)
 
+		// Storage min/max before/after.
+		min1, max1 := mb1.MinMax()
+		min2, max2 := mb2.MinMax()
+		fmt.Printf("%smin-max: %.2fGB, %.2fGB -> %.2fGB, %.2fGB\n",
+			indent, min1/div, max1/div, min2/div, max2/div)
+
 		fmt.Printf("%s-\n", indent)
 
 		// Get changes in storage utilization.
