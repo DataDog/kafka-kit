@@ -222,17 +222,24 @@ func (b BrokerList) SortPseudoShuffle(seed int64) {
 // of msgs describing changes is returned.
 func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) (*BrokerStatus, <-chan string) {
 	bs := &BrokerStatus{}
-	msgs := make(chan string, len(b)+(len(bl)*3))
+	msgs := make(chan string, len(b)+(len(bl)+len(bm)*3))
 
 	var includeAllExisting = false
+	var includeAllDiscovered = false
 
 	// Build a map from the provided broker list.
 	providedBrokers := map[int]bool{}
 	for _, broker := range bl {
+		switch {
 		// -1 is a placeholder that is substituted with
 		// all brokers already found in the BrokerMap.
-		if broker == -1 {
+		case broker == -1:
 			includeAllExisting = true
+			continue
+		// -2 is a placeholder that is substituted with
+		// all brokers discovered in the cluster.
+		case broker == -2:
+			includeAllDiscovered = true
 			continue
 		}
 
@@ -241,6 +248,12 @@ func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) (*BrokerStatus, <-chan str
 
 	if includeAllExisting {
 		for id := range b {
+			providedBrokers[id] = true
+		}
+	}
+
+	if includeAllDiscovered {
+		for id := range bm {
 			providedBrokers[id] = true
 		}
 	}
