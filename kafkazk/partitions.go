@@ -665,6 +665,25 @@ func (pm *PartitionMap) SetReplication(r int) {
 	}
 }
 
+// Topics returns a []string of topic names held in the PartitionMap.
+func (pm *PartitionMap) Topics() []string {
+	// Set.
+	m := map[string]struct{}{}
+	// List.
+	ts := []string{}
+
+	for _, p := range pm.Partitions {
+		if _, seen := m[p.Topic]; !seen {
+			ts = append(ts, p.Topic)
+			m[p.Topic] = struct{}{}
+		}
+	}
+
+	sort.Strings(ts)
+
+	return ts
+}
+
 // ReplicaSets takes a topic name and returns a ReplicaSets.
 func (pm *PartitionMap) ReplicaSets(t string) ReplicaSets {
 	rs := ReplicaSets{}
