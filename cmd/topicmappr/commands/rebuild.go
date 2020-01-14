@@ -36,12 +36,12 @@ func init() {
 	rebuildCmd.Flags().Int("min-rack-ids", 0, "Minimum number of required of unique rack IDs per replica set (0 requires that all are unique)")
 	rebuildCmd.Flags().String("optimize", "distribution", "Optimization priority for the storage placement strategy: [distribution, storage]")
 	rebuildCmd.Flags().Float64("partition-size-factor", 1.0, "Factor by which to multiply partition sizes when using storage placement")
-	rebuildCmd.Flags().String("brokers", "", "Broker list to scope all partition placements to ('-1' automatically expands to all currently mapped brokers)")
+	rebuildCmd.Flags().String("brokers", "", "Broker list to scope all partition placements to ('-1' for all currently mapped brokers, '-2' for all brokers in cluster)")
 	rebuildCmd.Flags().String("zk-metrics-prefix", "topicmappr", "ZooKeeper namespace prefix for Kafka metrics (when using storage placement)")
 	rebuildCmd.Flags().Int("metrics-age", 60, "Kafka metrics age tolerance (in minutes) (when using storage placement)")
 	rebuildCmd.Flags().Bool("skip-no-ops", false, "Skip no-op partition assigments")
 	rebuildCmd.Flags().Bool("optimize-leadership", false, "Rebalance all broker leader/follower ratios")
-	rebuildCmd.Flags().Bool("phased-reassignment", false, "Created two-phase output maps")
+	rebuildCmd.Flags().Bool("phased-reassignment", false, "Create two-phase output maps")
 
 	// Required.
 	rebuildCmd.MarkFlagRequired("brokers")
