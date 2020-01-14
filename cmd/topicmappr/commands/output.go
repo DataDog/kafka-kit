@@ -217,43 +217,67 @@ func skipReassignmentNoOps(pm1, pm2 *kafkazk.PartitionMap) (*kafkazk.PartitionMa
 	return prunedInputPartitionMap, prunedOutputPartitionMap
 }
 
-// writeMaps takes a PartitionMap and writes out
-// files.
-func writeMaps(cmd *cobra.Command, pm *kafkazk.PartitionMap) {
+// writeMaps takes a PartitionMap and writes out files.
+func writeMaps(cmd *cobra.Command, pm *kafkazk.PartitionMap, phasedPM *kafkazk.PartitionMap) {
 	if len(pm.Partitions) == 0 {
 		fmt.Println("\nNo partition reassignments, skipping map generation")
 		return
 	}
 
-	op := cmd.Flag("out-path").Value.String()
-	of := cmd.Flag("out-file").Value.String()
+	// If we've been provided a phased output map.
+	var phaseSuffix [2]string
+	if phasedPM != nil {
+		phaseSuffix[0] = "-phase1"
+		phaseSuffix[1] = "-phase2"
+	}
 
-	// Map per topic.
+	outPath := cmd.Flag("out-path").Value.String()
+	outFile := cmd.Flag("out-file").Value.String()
+
+	// Break map up by topic.
 	tm := map[string]*kafkazk.PartitionMap{}
-	for _, p := range pm.Partitions {
-		if tm[p.Topic] == nil {
-			tm[p.Topic] = kafkazk.NewPartitionMap()
+
+	outputMaps := []*kafkazk.PartitionMap{phasedPM, pm}
+
+	// For
+	for i, m := range outputMaps {
+		// We may not have a phasedPM.
+		if m == nil {
+			continue
 		}
-		tm[p.Topic].Partitions = append(tm[p.Topic].Partitions, p)
+		// Populate each partition in the parent map keyed
+		// by topic name and possible phase suffix.
+		for _, p := range m.Partitions {
+			mapName := fmt.Sprintf("%s%s", p.Topic, phaseSuffix[i])
+			if tm[mapName] == nil {
+				tm[mapName] = kafkazk.NewPartitionMap()
+			}
+			tm[mapName].Partitions = append(tm[mapName].Partitions, p)
+		}
 	}
 
 	fmt.Println("\nNew partition maps:")
-	// Global map if set.
-	if of != "" {
-		err := kafkazk.WriteMap(pm, op+of)
-		if err != nil {
-			fmt.Printf("%s%s", indent, err)
-		} else {
-			fmt.Printf("%s%s%s.json [combined map]\n", indent, op, of)
+
+	// Write global map if set.
+	if outFile != "" {
+		for i, m := range outputMaps {
+			fullPath := fmt.Sprintf("%s%s%s", outPath, outFile, phaseSuffix[i])
+			err := kafkazk.WriteMap(m, fullPath)
+			if err != nil {
+				fmt.Printf("%s%s", indent, err)
+			} else {
+				fmt.Printf("%s%s.json [combined map]\n", indent, fullPath)
+			}
 		}
 	}
 
+	// Write per-topic maps.
 	for t := range tm {
-		err := kafkazk.WriteMap(tm[t], op+t)
+		err := kafkazk.WriteMap(tm[t], outPath+t)
 		if err != nil {
 			fmt.Printf("%s%s", indent, err)
 		} else {
-			fmt.Printf("%s%s%s.json\n", indent, op, t)
+			fmt.Printf("%s%s%s.json\n", indent, outPath, t)
 		}
 	}
 }
