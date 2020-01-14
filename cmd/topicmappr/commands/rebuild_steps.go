@@ -242,3 +242,29 @@ func buildMap(cmd *cobra.Command, pm *kafkazk.PartitionMap, pmm kafkazk.Partitio
 	// Rebuild directly on the input map.
 	return pm.Rebuild(rebuildParams)
 }
+
+// phasedReassignment takes the input map (the current ISR states) and the
+// output map (the results of the topicmappr input parameters / computation)
+// and prepends the current leaders as the leaders of the output map.
+func phasedReassignment(pm1, pm2 *kafkazk.PartitionMap) []*kafkazk.PartitionMap {
+	// Get topics from output partition map.
+	topics := pm2.Topics()
+
+	var phase1pm = pm2.Copy()
+
+	// Get ReplicaSets from the input map for each topic.
+	for _, topic := range topics {
+		// Get the original (current) replica sets.
+		rs := pm1.ReplicaSets(topic)
+		// For each topic in the output partition map, prepend
+		// the leader from the original replica set.
+		for i, partn := range phase1pm.Partitions {
+			if partn.Topic == topic {
+				leader := rs[partn.Partition][0]
+				phase1pm.Partitions[i].Replicas = append([]int{leader}, pm2.Partitions[i].Replicas...)
+			}
+		}
+	}
+
+	return []*kafkazk.PartitionMap{phase1pm}
+}
