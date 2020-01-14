@@ -154,6 +154,11 @@ func NewPartitionMetaMap() PartitionMetaMap {
 	return map[string]map[int]*PartitionMeta{}
 }
 
+// ReplicaSets is a mapping of partition number to Partition.Replicas.
+// Take note that there is no topic identifier and that partition
+// numbers from two different topics can overwrite one another.
+type ReplicaSets map[int][]int
+
 // Size takes a Partition and returns the size. An error is returned if
 // the partition isn't in the PartitionMetaMap.
 func (pmm PartitionMetaMap) Size(p Partition) (float64, error) {
@@ -658,6 +663,19 @@ func (pm *PartitionMap) SetReplication(r int) {
 			pm.Partitions[n].Replicas = append(p.Replicas, r...)
 		}
 	}
+}
+
+// ReplicaSets takes a topic name and returns a ReplicaSets.
+func (pm *PartitionMap) ReplicaSets(t string) ReplicaSets {
+	rs := ReplicaSets{}
+
+	for _, p := range pm.Partitions {
+		if p.Topic == t {
+			rs[p.Partition] = p.Replicas
+		}
+	}
+
+	return rs
 }
 
 // Copy returns a copy of a *PartitionMap.
