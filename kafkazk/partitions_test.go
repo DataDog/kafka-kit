@@ -194,6 +194,32 @@ func TestEqual(t *testing.T) {
 	}
 }
 
+func TestPartitionMapReplicaSets(t *testing.T) {
+	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
+
+	rs := pm.ReplicaSets("test_topic")
+
+	expected := ReplicaSets{
+		0: []int{1001, 1002},
+		1: []int{1002, 1001},
+		2: []int{1003, 1004, 1001},
+		3: []int{1004, 1003, 1002},
+	}
+
+	if len(rs) != len(expected) {
+		t.Error("Unexpected ReplicaSets len")
+	}
+
+	for i, expectedSet := range expected {
+		for j := range expectedSet {
+			if expectedSet[j] != rs[i][j] {
+				fmt.Printf("%v %v\n", expectedSet[j], rs[i][j])
+				t.Errorf("ReplicaSet mismatch")
+			}
+		}
+	}
+}
+
 func TestPartitionMapCopy(t *testing.T) {
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 	pm2 := pm.Copy()
