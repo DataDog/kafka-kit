@@ -41,6 +41,7 @@ func init() {
 	rebuildCmd.Flags().Int("metrics-age", 60, "Kafka metrics age tolerance (in minutes) (when using storage placement)")
 	rebuildCmd.Flags().Bool("skip-no-ops", false, "Skip no-op partition assigments")
 	rebuildCmd.Flags().Bool("optimize-leadership", false, "Rebalance all broker leader/follower ratios")
+	rebuildCmd.Flags().Bool("phased-reassignment", false, "Created two-phase output maps")
 
 	// Required.
 	rebuildCmd.MarkFlagRequired("brokers")
@@ -170,6 +171,12 @@ func rebuild(cmd *cobra.Command, _ []string) {
 		errs = append(errs, fmt.Errorf("%d provided brokers not found in ZooKeeper", bs.Missing))
 	}
 
+	// Generate phased map if enabled.
+	var phasedMap *kafkazk.PartitionMap
+	if phased, _ := cmd.Flags().GetBool("phased-reassignment"); phased {
+		phasedMap = phasedReassignment(originalMap, partitionMapOut)
+	}
+
 	// Print map change results.
 	printMapChanges(originalMap, partitionMapOut)
 
@@ -184,5 +191,5 @@ func rebuild(cmd *cobra.Command, _ []string) {
 		originalMap, partitionMapOut = skipReassignmentNoOps(originalMap, partitionMapOut)
 	}
 
-	writeMaps(cmd, partitionMapOut)
+	writeMaps(cmd, partitionMapOut, phasedMap)
 }

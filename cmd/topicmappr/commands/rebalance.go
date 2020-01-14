@@ -231,5 +231,5 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	partitionMapIn, partitionMapOut = skipReassignmentNoOps(partitionMapIn, partitionMapOut)
 
 	// Write maps.
-	writeMaps(cmd, partitionMapOut)
+	writeMaps(cmd, partitionMapOut, nil)
 }
