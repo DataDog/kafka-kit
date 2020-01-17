@@ -260,11 +260,29 @@ func phasedReassignment(pm1, pm2 *kafkazk.PartitionMap) *kafkazk.PartitionMap {
 		// the leader from the original replica set.
 		for i, partn := range phase1pm.Partitions {
 			if partn.Topic == topic {
+				// There's scenarios we could be prepending the existing leader; i.e.
+				// if this isn't a force-rebuild or completely new broker pool, it's
+				// possible that the current partition didn't get mapped to a new
+				// broker. If the before/after replica set is [1001] -> [1001], we'd
+				// end up with [1001,1001] here. Check if the old leader is already
+				// in the replica set.
 				leader := rs[partn.Partition][0]
-				phase1pm.Partitions[i].Replicas = append([]int{leader}, pm2.Partitions[i].Replicas...)
+				if notInReplicaSet(leader, partn.Replicas) {
+					phase1pm.Partitions[i].Replicas = append([]int{leader}, partn.Replicas...)
+				}
 			}
 		}
 	}
 
 	return phase1pm
+}
+
+func notInReplicaSet(id int, rs []int) bool {
+	for i := range rs {
+		if rs[i] == id {
+			return false
+		}
+	}
+
+	return true
 }
