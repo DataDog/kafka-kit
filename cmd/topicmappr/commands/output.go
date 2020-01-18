@@ -239,7 +239,7 @@ func writeMaps(cmd *cobra.Command, pm *kafkazk.PartitionMap, phasedPM *kafkazk.P
 
 	outputMaps := []*kafkazk.PartitionMap{phasedPM, pm}
 
-	// For
+	// For each map type, create per-topic maps.
 	for i, m := range outputMaps {
 		// We may not have a phasedPM.
 		if m == nil {
