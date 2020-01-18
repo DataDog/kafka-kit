@@ -74,7 +74,7 @@ Usage:
   topicmappr rebuild [flags]
 
 Flags:
-      --brokers string                Broker list to scope all partition placements to ('-1' automatically expands to all currently mapped brokers)
+      --brokers string                Broker list to scope all partition placements to ('-1' for all currently mapped brokers, '-2' for all brokers in cluster)
       --force-rebuild                 Forces a complete map rebuild
   -h, --help                          help for rebuild
       --map-string string             Rebuild a partition map provided as a string literal
@@ -85,6 +85,7 @@ Flags:
       --out-file string               If defined, write a combined map of all topics to a file
       --out-path string               Path to write output map files to
       --partition-size-factor float   Factor by which to multiply partition sizes when using storage placement (default 1)
+      --phased-reassignment           Create two-phase output maps
       --placement string              Partition placement strategy: [count, storage] (default "count")
       --replication int               Normalize the topic replication factor across all replica sets (0 results in a no-op)
       --skip-no-ops                   Skip no-op partition assigments
@@ -108,7 +109,7 @@ Usage:
   topicmappr rebalance [flags]
 
 Flags:
-      --brokers string                 Broker list to scope all partition placements to ('-1' automatically expands to all currently mapped brokers)
+      --brokers string                 Broker list to scope all partition placements to ('-1' for all currently mapped brokers, '-2' for all brokers in cluster)
   -h, --help                           help for rebalance
       --locality-scoped                Disallow a relocation to traverse rack.id values among brokers
       --metrics-age int                Kafka metrics age tolerance (in minutes) (default 60)

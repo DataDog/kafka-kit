@@ -819,7 +819,7 @@ func TestGetPartitionMap(t *testing.T) {
 		},
 	}
 
-	if matches, err := pm.equal(expected); !matches {
+	if matches, err := pm.Equal(expected); !matches {
 		t.Errorf("Unexpected PartitionMap inequality: %s", err)
 	}
 }

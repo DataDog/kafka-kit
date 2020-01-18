@@ -94,6 +94,16 @@ func testGetMapString4(n string) string {
     {"topic":"%s","partition":5,"replicas":[1002,1001]}]}`, n, n, n, n, n, n)
 }
 
+func testGetMapString5(n string) string {
+	return fmt.Sprintf(`{"version":1,"partitions":[
+    {"topic":"%s1","partition":0,"replicas":[1004,1003]},
+    {"topic":"%s1","partition":1,"replicas":[1003,1004]},
+    {"topic":"%s1","partition":2,"replicas":[1001,1002]},
+		{"topic":"%s2","partition":3,"replicas":[1003,1002]},
+		{"topic":"%s2","partition":4,"replicas":[1001,1003]},
+    {"topic":"%s2","partition":5,"replicas":[1002,1001]}]}`, n, n, n, n, n, n)
+}
+
 func TestSize(t *testing.T) {
 	z := &Mock{}
 
@@ -144,13 +154,13 @@ func TestEqual(t *testing.T) {
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 	pm2, _ := PartitionMapFromString(testGetMapString("test_topic"))
 
-	if same, _ := pm.equal(pm2); !same {
+	if same, _ := pm.Equal(pm2); !same {
 		t.Error("Unexpected inequality")
 	}
 
 	// Test truncated partition list.
 	pm.Partitions = pm.Partitions[:2]
-	if same, _ := pm.equal(pm2); same {
+	if same, _ := pm.Equal(pm2); same {
 		t.Error("Unexpected equality")
 	}
 
@@ -158,7 +168,7 @@ func TestEqual(t *testing.T) {
 
 	// Test version.
 	pm.Version = 2
-	if same, _ := pm.equal(pm2); same {
+	if same, _ := pm.Equal(pm2); same {
 		t.Error("Unexpected equality")
 	}
 	pm.Version = 1
@@ -167,13 +177,13 @@ func TestEqual(t *testing.T) {
 
 	// Test topic order.
 	pm.Partitions[1].Topic = "test_topic2"
-	if same, _ := pm.equal(pm2); same {
+	if same, _ := pm.Equal(pm2); same {
 		t.Error("Unexpected equality")
 	}
 
 	// Test partition order.
 	pm.Partitions[0], pm.Partitions[1] = pm.Partitions[1], pm.Partitions[0]
-	if same, _ := pm.equal(pm2); same {
+	if same, _ := pm.Equal(pm2); same {
 		t.Error("Unexpected equality")
 	}
 
@@ -181,7 +191,7 @@ func TestEqual(t *testing.T) {
 
 	// Test replica list.
 	pm.Partitions[0].Replicas = pm.Partitions[0].Replicas[:1]
-	if same, _ := pm.equal(pm2); same {
+	if same, _ := pm.Equal(pm2); same {
 		t.Error("Unexpected equality")
 	}
 
@@ -189,8 +199,46 @@ func TestEqual(t *testing.T) {
 
 	// Test replicas.
 	pm.Partitions[0].Replicas[0] = 1337
-	if same, _ := pm.equal(pm2); same {
+	if same, _ := pm.Equal(pm2); same {
 		t.Error("Unexpected equality")
+	}
+}
+
+func TestPartitionMapTopics(t *testing.T) {
+	pm, _ := PartitionMapFromString(testGetMapString5("test_topic"))
+	ts := pm.Topics()
+
+	expected := []string{"test_topic1", "test_topic2"}
+
+	for i, n := range ts {
+		if n != expected[i] {
+			t.Errorf("Expected topic '%s', got '%s'", expected[i], n)
+		}
+	}
+}
+
+func TestPartitionMapReplicaSets(t *testing.T) {
+	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
+	rs := pm.ReplicaSets("test_topic")
+
+	expected := ReplicaSets{
+		0: []int{1001, 1002},
+		1: []int{1002, 1001},
+		2: []int{1003, 1004, 1001},
+		3: []int{1004, 1003, 1002},
+	}
+
+	if len(rs) != len(expected) {
+		t.Error("Unexpected ReplicaSets len")
+	}
+
+	for i, expectedSet := range expected {
+		for j := range expectedSet {
+			if expectedSet[j] != rs[i][j] {
+				fmt.Printf("%v %v\n", expectedSet[j], rs[i][j])
+				t.Errorf("ReplicaSet mismatch")
+			}
+		}
 	}
 }
 
@@ -198,14 +246,14 @@ func TestPartitionMapCopy(t *testing.T) {
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 	pm2 := pm.Copy()
 
-	if same, _ := pm.equal(pm2); !same {
+	if same, _ := pm.Equal(pm2); !same {
 		t.Error("Unexpected inequality")
 	}
 
 	// After modifying the partitions list,
 	// we expect inequality.
 	pm.Partitions = pm.Partitions[:2]
-	if same, _ := pm.equal(pm2); same {
+	if same, _ := pm.Equal(pm2); same {
 		t.Error("Unexpected equality")
 	}
 }
@@ -216,7 +264,7 @@ func TestPartitionMapFromString(t *testing.T) {
 	pm2, _ := zk.GetPartitionMap("test_topic")
 
 	// We expect equality here.
-	if same, _ := pm.equal(pm2); !same {
+	if same, _ := pm.Equal(pm2); !same {
 		t.Error("Unexpected inequality")
 	}
 }
@@ -252,7 +300,7 @@ func TestPartitionMapFromZK(t *testing.T) {
 	}
 
 	// Compare.
-	if same, err := pm.equal(pm2); !same {
+	if same, err := pm.Equal(pm2); !same {
 		t.Errorf("Unexpected inequality: %s", err)
 	}
 
@@ -371,7 +419,7 @@ func TestRebuildByCount(t *testing.T) {
 	// This rebuild should be a no-op since
 	// all brokers already in the map were provided,
 	// none marked as replace.
-	if same, _ := pm.equal(out); !same {
+	if same, _ := pm.Equal(out); !same {
 		t.Error("Expected no-op, partition map changed")
 	}
 
@@ -389,7 +437,7 @@ func TestRebuildByCount(t *testing.T) {
 	expected.Partitions[2].Replicas = []int{1003, 1002, 1001}
 	expected.Partitions[3].Replicas = []int{1001, 1003, 1002}
 
-	if same, err := out.equal(expected); !same {
+	if same, err := out.Equal(expected); !same {
 		t.Errorf("Unexpected inequality after broker replacement: %s", err)
 	}
 
@@ -400,7 +448,7 @@ func TestRebuildByCount(t *testing.T) {
 
 	out, _ = pm.Rebuild(rebuildParams)
 
-	if same, err := out.equal(expected); !same {
+	if same, err := out.Equal(expected); !same {
 		t.Errorf("Unexpected inequality after replication factor change -> rebuild: %s", err)
 	}
 
@@ -421,7 +469,7 @@ func TestRebuildByCount(t *testing.T) {
 	expected.Partitions[5].Replicas = []int{1002, 1004}
 	expected.Partitions[6].Replicas = []int{1003, 1001}
 
-	same, err := out.equal(expected)
+	same, err := out.Equal(expected)
 	if !same {
 		t.Errorf("Unexpected inequality after force rebuild: %s", err)
 	}
@@ -477,7 +525,7 @@ func TestRebuildByCountSA(t *testing.T) {
 	expected.Partitions[4].Replicas = []int{1001, 1003}
 	expected.Partitions[5].Replicas = []int{1010, 1001}
 
-	if same, err := out.equal(expected); !same {
+	if same, err := out.Equal(expected); !same {
 		t.Errorf("Unexpected inequality after rebuild: %s", err)
 	}
 }
@@ -532,7 +580,7 @@ func TestRebuildByStorageDistribution(t *testing.T) {
 	expected.Partitions[4].Replicas = []int{1003, 1004}
 	expected.Partitions[5].Replicas = []int{1001, 1002}
 
-	same, err := out.equal(expected)
+	same, err := out.Equal(expected)
 	if !same {
 		t.Errorf("Unexpected inequality after rebuild: %s", err)
 	}
@@ -588,7 +636,7 @@ func TestRebuildByStorageStorage(t *testing.T) {
 	expected.Partitions[4].Replicas = []int{1003, 1004}
 	expected.Partitions[5].Replicas = []int{1001, 1002}
 
-	same, err := out.equal(expected)
+	same, err := out.Equal(expected)
 	if !same {
 		t.Errorf("Unexpected inequality after rebuild: %s", err)
 	}
@@ -641,7 +689,7 @@ func TestShuffle(t *testing.T) {
 
 	pm.shuffle((func(_ Partition) bool { return true }))
 
-	if same, _ := pm.equal(expected); !same {
+	if same, _ := pm.Equal(expected); !same {
 		t.Errorf("Unexpected shuffle results")
 	}
 }

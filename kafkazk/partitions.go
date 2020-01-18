@@ -154,6 +154,11 @@ func NewPartitionMetaMap() PartitionMetaMap {
 	return map[string]map[int]*PartitionMeta{}
 }
 
+// ReplicaSets is a mapping of partition number to Partition.Replicas.
+// Take note that there is no topic identifier and that partition
+// numbers from two different topics can overwrite one another.
+type ReplicaSets map[int][]int
+
 // Size takes a Partition and returns the size. An error is returned if
 // the partition isn't in the PartitionMetaMap.
 func (pmm PartitionMetaMap) Size(p Partition) (float64, error) {
@@ -660,6 +665,38 @@ func (pm *PartitionMap) SetReplication(r int) {
 	}
 }
 
+// Topics returns a []string of topic names held in the PartitionMap.
+func (pm *PartitionMap) Topics() []string {
+	// Set.
+	m := map[string]struct{}{}
+	// List.
+	ts := []string{}
+
+	for _, p := range pm.Partitions {
+		if _, seen := m[p.Topic]; !seen {
+			ts = append(ts, p.Topic)
+			m[p.Topic] = struct{}{}
+		}
+	}
+
+	sort.Strings(ts)
+
+	return ts
+}
+
+// ReplicaSets takes a topic name and returns a ReplicaSets.
+func (pm *PartitionMap) ReplicaSets(t string) ReplicaSets {
+	rs := ReplicaSets{}
+
+	for _, p := range pm.Partitions {
+		if p.Topic == t {
+			rs[p.Partition] = p.Replicas
+		}
+	}
+
+	return rs
+}
+
 // Copy returns a copy of a *PartitionMap.
 func (pm *PartitionMap) Copy() *PartitionMap {
 	cpy := NewPartitionMap()
@@ -678,9 +715,9 @@ func (pm *PartitionMap) Copy() *PartitionMap {
 	return cpy
 }
 
-// Equal checks the equality betwee two partition maps. Equality requires
+// Equal checks the ity betwee two partition maps. Equality requires
 // that the total order is exactly the same.
-func (pm *PartitionMap) equal(pm2 *PartitionMap) (bool, error) {
+func (pm *PartitionMap) Equal(pm2 *PartitionMap) (bool, error) {
 	// Crude checks.
 	switch {
 	case len(pm.Partitions) != len(pm2.Partitions):

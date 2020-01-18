@@ -242,3 +242,47 @@ func buildMap(cmd *cobra.Command, pm *kafkazk.PartitionMap, pmm kafkazk.Partitio
 	// Rebuild directly on the input map.
 	return pm.Rebuild(rebuildParams)
 }
+
+// phasedReassignment takes the input map (the current ISR states) and the
+// output map (the results of the topicmappr input parameters / computation)
+// and prepends the current leaders as the leaders of the output map.
+func phasedReassignment(pm1, pm2 *kafkazk.PartitionMap) *kafkazk.PartitionMap {
+	// Get topics from output partition map.
+	topics := pm2.Topics()
+
+	var phase1pm = pm2.Copy()
+
+	// Get ReplicaSets from the input map for each topic.
+	for _, topic := range topics {
+		// Get the original (current) replica sets.
+		rs := pm1.ReplicaSets(topic)
+		// For each topic in the output partition map, prepend
+		// the leader from the original replica set.
+		for i, partn := range phase1pm.Partitions {
+			if partn.Topic == topic {
+				// There's scenarios we could be prepending the existing leader; i.e.
+				// if this isn't a force-rebuild or completely new broker pool, it's
+				// possible that the current partition didn't get mapped to a new
+				// broker. If the before/after replica set is [1001] -> [1001], we'd
+				// end up with [1001,1001] here. Check if the old leader is already
+				// in the replica set.
+				leader := rs[partn.Partition][0]
+				if notInReplicaSet(leader, partn.Replicas) {
+					phase1pm.Partitions[i].Replicas = append([]int{leader}, partn.Replicas...)
+				}
+			}
+		}
+	}
+
+	return phase1pm
+}
+
+func notInReplicaSet(id int, rs []int) bool {
+	for i := range rs {
+		if rs[i] == id {
+			return false
+		}
+	}
+
+	return true
+}
