@@ -715,9 +715,9 @@ func (pm *PartitionMap) Copy() *PartitionMap {
 	return cpy
 }
 
-// Equal checks the equality betwee two partition maps. Equality requires
+// Equal checks the ity betwee two partition maps. Equality requires
 // that the total order is exactly the same.
-func (pm *PartitionMap) equal(pm2 *PartitionMap) (bool, error) {
+func (pm *PartitionMap) Equal(pm2 *PartitionMap) (bool, error) {
 	// Crude checks.
 	switch {
 	case len(pm.Partitions) != len(pm2.Partitions):
