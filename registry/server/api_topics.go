@@ -19,6 +19,8 @@ var (
 	ErrTopicNotExist = errors.New("topic does not exist")
 	// ErrTopicNameEmpty error.
 	ErrTopicNameEmpty = errors.New("topic Name field must be specified")
+	// ErrTopicFieldMissing error.
+	ErrTopicFieldMissing = errors.New("topic field missing in request body")
 	// ErrTopicAlreadyExists error.
 	ErrTopicAlreadyExists = errors.New("topic already exists")
 	// ErrInsufficientBrokers error.
@@ -83,6 +85,14 @@ func (s *Server) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*
 	ctx, err := s.ValidateRequest(ctx, req, writeRequest)
 	if err != nil {
 		return empty, err
+	}
+
+	if req.Topic == nil {
+		return nil, ErrTopicFieldMissing
+	}
+
+	if req.Topic.Name == "" {
+		return nil, ErrTopicNameEmpty
 	}
 
 	reqParams := &pb.TopicRequest{Name: req.Topic.Name}
@@ -308,7 +318,7 @@ func (s *Server) DeleteTopicTags(ctx context.Context, req *pb.TopicRequest) (*pb
 	return &pb.TagResponse{Message: "success"}, nil
 }
 
-// fetchBrokerSet fetches metadata for all topics.
+// fetchTopicSet fetches metadata for all topics.
 func (s *Server) fetchTopicSet(req *pb.TopicRequest) (TopicSet, error) {
 	topicRegex := []*regexp.Regexp{}
 
