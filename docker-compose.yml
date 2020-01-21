@@ -1,0 +1,51 @@
+# Notes
+# To run one instance of zk, kafka and the registry service:
+# - $ docker-compose up [-d]
+#
+# To run the tests (one-off; does not require a previous docker-compose up):
+# - $ docker-compose run --rm --name registry_test registry go test -v ./...
+#
+# To run 3 instances of kafka, and 1 instance of zk and the registry:
+# - $ KAFKA_ADVERTISED_HOSTNAME=$(docker-machine ip) docker-compose up --scale kafka=3
+# In order to run a kafka cluster (more than 1 instance) in the same docker host,
+# KAFKA_ADVERTISED_HOST_NAME must be set to the host interface. In case of running
+# docker on Mac, KAFKA_ADVERTISED_HOST_NAME must be set to the output of the
+# "docker-machine ip" command.
+# Reference: https://github.com/wurstmeister/kafka-docker/wiki/Connectivity
+#
+# To query the registry:
+#  - $ curl -s $(docker-machine ip):8080/v1/topics/list | jq
+
+version: '3'
+services:
+  zookeeper:
+    image: wurstmeister/zookeeper
+    ports:
+      - "2181:2181"
+  kafka:
+    image: wurstmeister/kafka:${KAFKA_VERSION:-2.11-0.10.2.2}
+    ports:
+      - "9092"
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_ADVERTISED_HOST_NAME: ${KAFKA_ADVERTISED_HOSTNAME:-kafka}
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+  registry:
+    build:
+      context: .
+      dockerfile: Dockerfile.registry
+    ports:
+      - "8080:8080"
+      - "8090:8090"
+    depends_on:
+      - zookeeper
+      - kafka
+    environment:
+      TEST_ZK_ADDR: zookeeper:2181
+      REGISTRY_ZK_ADDR: zookeeper:2181
+      REGISTRY_BOOTSTRAP_SERVERS: ${KAFKA_ADVERTISED_HOSTNAME:-kafka}:9092
+      REGISTRY_HTTP_LISTEN: 0.0.0.0:8080
+      REGISTRY_GRPC_LISTEN: 0.0.0.0:8090
