@@ -76,17 +76,18 @@ func (b BrokerUseStatsList) Less(i, j int) bool { return b[i].ID < b[j].ID }
 // BrokerStatus summarizes change counts
 // from an input and output broker list.
 type BrokerStatus struct {
-	New        int
-	Missing    int
-	OldMissing int
-	Replace    int
+	New         int
+	Missing     int
+	OldMissing  int
+	Replace     int
+	RackMissing int
 }
 
 // Changes returns a bool that indicates whether a
 // BrokerStatus values represent a change in brokers.
 func (bs BrokerStatus) Changes() bool {
 	switch {
-	case bs.New != 0, bs.Missing != 0, bs.OldMissing != 0, bs.Replace != 0:
+	case bs.New != 0, bs.Missing != 0, bs.OldMissing != 0, bs.Replace != 0, bs.RackMissing != 0:
 		return true
 	}
 
@@ -222,7 +223,7 @@ func (b BrokerList) SortPseudoShuffle(seed int64) {
 // of msgs describing changes is returned.
 func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) (*BrokerStatus, <-chan string) {
 	bs := &BrokerStatus{}
-	msgs := make(chan string, len(b)+(len(bl)+len(bm)*3))
+	msgs := make(chan string, (len(b)+len(bl)+len(bm))*4)
 
 	var includeAllExisting = false
 	var includeAllDiscovered = false
@@ -336,6 +337,19 @@ func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) (*BrokerStatus, <-chan str
 	for _, broker := range b {
 		if broker.New {
 			msgs <- fmt.Sprintf("New broker %d", broker.ID)
+		}
+	}
+
+	// Check if any brokers have missing rack.ids when brokermetada is available
+	if len(bm) > 0 {
+		for _, broker := range b {
+			if broker.ID == StubBrokerID {
+				continue
+			}
+			if broker.Locality == "" {
+				bs.RackMissing++
+				msgs <- fmt.Sprintf("Broker %d does not have a rack.id defined", broker.ID)
+			}
 		}
 	}
 

@@ -134,10 +134,10 @@ func TestUpdate(t *testing.T) {
 
 	// 1006 doesn't exist in the meta map.
 	// This should also add to the missing.
-	stat, _ := bm.Update([]int{1002, 1003, 1005, 1006}, bmm)
+	stat, _ := bm.Update([]int{1002, 1003, 1005, 1006, 1007}, bmm)
 
-	if stat.New != 1 {
-		t.Errorf("Expected New count of 1, got %d", stat.New)
+	if stat.New != 2 {
+		t.Errorf("Expected New count of 2, got %d", stat.New)
 	}
 	if stat.Missing != 2 {
 		t.Errorf("Expected Missing count of 2, got %d", stat.Missing)
@@ -148,9 +148,14 @@ func TestUpdate(t *testing.T) {
 	if stat.Replace != 2 {
 		t.Errorf("Expected Replace count of 2, got %d", stat.Replace)
 	}
+	// 1003 does not have rack defined
+	// 1007 (new broker) also does not have rack defined
+	if stat.RackMissing != 2 {
+		t.Errorf("Expected Rack missing count of 2, got %d", stat.RackMissing)
+	}
 
 	// Ensure all broker IDs are in the map.
-	for _, id := range []int{StubBrokerID, 1001, 1002, 1003, 1004, 1005} {
+	for _, id := range []int{StubBrokerID, 1001, 1002, 1003, 1004, 1005, 1007} {
 		if _, ok := bm[id]; !ok {
 			t.Errorf("Expected presence of ID %d", id)
 		}
@@ -193,6 +198,13 @@ func TestUpdate(t *testing.T) {
 
 	if _, exists := bm[1006]; exists {
 		t.Error("ID 1006 unexpectedly exists in BrokerMap")
+	}
+
+	if bm[1007].Missing || bm[1007].Replace {
+		t.Error("Unexpected fields set for ID 1007")
+	}
+	if !bm[1007].New {
+		t.Error("Expected ID 1007 New == true")
 	}
 }
 
@@ -414,7 +426,7 @@ func newMockBrokerMap() BrokerMap {
 		StubBrokerID: &Broker{ID: StubBrokerID, Replace: true},
 		1001:         &Broker{ID: 1001, Locality: "a", Used: 3, Replace: false, StorageFree: 100.00},
 		1002:         &Broker{ID: 1002, Locality: "b", Used: 3, Replace: false, StorageFree: 200.00},
-		1003:         &Broker{ID: 1003, Locality: "c", Used: 2, Replace: false, StorageFree: 300.00},
+		1003:         &Broker{ID: 1003, Locality: "", Used: 2, Replace: false, StorageFree: 300.00},
 		1004:         &Broker{ID: 1004, Locality: "a", Used: 2, Replace: false, StorageFree: 400.00},
 	}
 }
