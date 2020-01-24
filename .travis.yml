@@ -1,0 +1,5 @@
+services:
+  - docker
+
+script:
+  - docker-compose run --rm --name registry_test registry go test -v ./...

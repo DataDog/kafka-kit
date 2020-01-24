@@ -11,13 +11,13 @@
 from ubuntu:16.04
 
 # Install pre-reqs.
-RUN apt-get update
-RUN apt-get install -y git wget pkg-config software-properties-common apt-transport-https ca-certificates
+RUN apt-get update >/dev/null
+RUN apt-get install -y unzip curl git pkg-config software-properties-common apt-transport-https ca-certificates >/dev/null
 
 WORKDIR /root
 
 # Install Go.
-RUN wget https://dl.google.com/go/go1.13.4.linux-amd64.tar.gz
+RUN curl -sOL https://dl.google.com/go/go1.13.4.linux-amd64.tar.gz
 RUN tar -C /usr/local -xzf go1.13.4.linux-amd64.tar.gz
 ENV PATH=$PATH:/usr/local/go/bin:/go/bin
 ENV GOPATH=/go
@@ -25,21 +25,18 @@ ENV GOPATH=/go
 # Install protoc, grpc-gateway.
 RUN go get github.com/golang/protobuf/protoc-gen-go
 RUN go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
-RUN wget -qO - wget https://github.com/protocolbuffers/protobuf/releases/download/v3.6.1/protobuf-all-3.6.1.tar.gz | tar -xz
-WORKDIR /root/protobuf-3.6.1
-RUN ./configure
-RUN make -j4
-RUN make install
-RUN ldconfig
+RUN curl -sOL https://github.com/google/protobuf/releases/download/v3.6.1/protoc-3.6.1-linux-x86_64.zip
+RUN unzip protoc-3.6.1-linux-x86_64.zip -d protoc
+RUN mv protoc/bin/* /usr/local/bin/
+RUN mv protoc/include/* /usr/local/include/
 
 # Cleanup.
-WORKDIR /root
 RUN rm -rf *
 
 # Install librdkafka
-RUN wget -qO - https://packages.confluent.io/deb/5.3/archive.key | apt-key add - 2>/dev/null
+RUN curl -sL https://packages.confluent.io/deb/5.3/archive.key | apt-key add - 2>/dev/null
 RUN add-apt-repository "deb [arch=amd64] https://packages.confluent.io/deb/5.3 stable main"
-RUN apt-get update && apt-get install -y librdkafka1 librdkafka-dev
+RUN apt-get update && apt-get install -y librdkafka1 librdkafka-dev >/dev/null
 
 # Pull Kafka-Kit, deps.
 WORKDIR /go/src/github.com/DataDog/kafka-kit
