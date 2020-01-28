@@ -17,7 +17,7 @@ func TestGetBrokers(t *testing.T) {
 	}
 
 	expected := map[int]idList{
-		0: idList{1001, 1002, 1003, 1004, 1005},
+		0: idList{1001, 1002, 1003, 1004, 1005, 1007},
 		1: idList{1002},
 		2: idList{1001, 1004},
 	}
@@ -50,7 +50,7 @@ func TestListBrokers(t *testing.T) {
 	}
 
 	expected := map[int]idList{
-		0: idList{1001, 1002, 1003, 1004, 1005},
+		0: idList{1001, 1002, 1003, 1004, 1005, 1007},
 		1: idList{1002},
 		2: idList{1001, 1004},
 	}

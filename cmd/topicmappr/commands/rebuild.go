@@ -171,6 +171,13 @@ func rebuild(cmd *cobra.Command, _ []string) {
 		errs = append(errs, fmt.Errorf("%d provided brokers not found in ZooKeeper", bs.Missing))
 	}
 
+	// Count missing rack info as warning
+	if bs.RackMissing > 0 {
+		errs = append(
+			errs, fmt.Errorf("%d provided broker(s) do(es) not have a rack.id defined", bs.RackMissing),
+		)
+	}
+
 	// Generate phased map if enabled.
 	var phasedMap *kafkazk.PartitionMap
 	if phased, _ := cmd.Flags().GetBool("phased-reassignment"); phased {
