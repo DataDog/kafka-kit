@@ -52,6 +52,7 @@ type planRelocationsForBrokerParams struct {
 	pass                   int
 	topPartitionsLimit     int
 	partitionSizeThreshold int
+	partitionSizeFactor    float64
 	offloadTargetsMap      map[int]struct{}
 	tolerance              float64
 }
@@ -236,6 +237,7 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 	sourceID := params.sourceID
 	topPartitionsLimit := params.topPartitionsLimit
 	partitionSizeThreshold := float64(params.partitionSizeThreshold * 1 << 20)
+	partitionSizeFactor := params.partitionSizeFactor
 	offloadTargetsMap := params.offloadTargetsMap
 	tolerance := params.tolerance
 
@@ -249,6 +251,7 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 	// Filter out partitions below the targeted size threshold.
 	for i, p := range topPartn {
 		pSize, _ := partitionMeta.Size(p)
+		pSize = pSize * partitionSizeFactor
 		if pSize < partitionSizeThreshold {
 			topPartn = topPartn[:i]
 			break
@@ -278,6 +281,7 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 		brokerList.SortByStorage()
 
 		pSize, _ := partitionMeta.Size(partn)
+		pSize = pSize * partitionSizeFactor
 
 		// Find a destination broker.
 		var dest *kafkazk.Broker

@@ -44,6 +44,7 @@ func init() {
 	rebalanceCmd.Flags().Float64("tolerance", 0.0, "Percent distance from the mean storage free to limit storage scheduling (0 performs automatic tolerance selection)")
 	rebalanceCmd.Flags().Int("partition-limit", 30, "Limit the number of top partitions by size eligible for relocation per broker")
 	rebalanceCmd.Flags().Int("partition-size-threshold", 512, "Size in megabytes where partitions below this value will not be moved in a rebalance")
+	rebalanceCmd.Flags().Float64("partition-size-factor", 1.0, "Factor by which to multiply partition sizes")
 	rebalanceCmd.Flags().Bool("locality-scoped", false, "Disallow a relocation to traverse rack.id values among brokers")
 	rebalanceCmd.Flags().Bool("verbose", false, "Verbose output")
 	rebalanceCmd.Flags().String("zk-metrics-prefix", "topicmappr", "ZooKeeper namespace prefix for Kafka metrics")
@@ -100,6 +101,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 
 	partitionLimit, _ := cmd.Flags().GetInt("partition-limit")
 	partitionSizeThreshold, _ := cmd.Flags().GetInt("partition-size-threshold")
+	partitionSizeFactor, _ := cmd.Flags().GetFloat64("partition-size-factor")
 
 	otm := map[int]struct{}{}
 	for _, id := range offloadTargets {
@@ -139,6 +141,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 				plan:                   relocationPlan{},
 				topPartitionsLimit:     partitionLimit,
 				partitionSizeThreshold: partitionSizeThreshold,
+				partitionSizeFactor:    partitionSizeFactor,
 				offloadTargetsMap:      otm,
 				tolerance:              tol,
 			}
