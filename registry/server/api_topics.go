@@ -182,9 +182,13 @@ func (s *Server) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*
 		return empty, err
 	}
 
-	// Tag the topic.
-	reqParams.Tag = TagSet(req.Topic.Tags).Tags()
-	_, err = s.TagTopic(ctx, reqParams)
+	// Tag the topic. It's possible that we get a non-nil
+	// but empty Tags parameter. In this case, we simply return.
+	tags := TagSet(req.Topic.Tags).Tags()
+	if len(tags) > 0 {
+		reqParams.Tag = tags
+		_, err = s.TagTopic(ctx, reqParams)
+	}
 
 	return empty, err
 }
