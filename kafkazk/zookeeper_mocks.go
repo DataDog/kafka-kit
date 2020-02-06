@@ -149,6 +149,7 @@ func (zk *Mock) GetTopicConfig(t string) (*TopicConfig, error) {
 	return &TopicConfig{
 		Version: 1,
 		Config: map[string]string{
+			"retention.ms":                            "172800000",
 			"leader.replication.throttled.replicas":   "0:1001,0:1002",
 			"follower.replication.throttled.replicas": "0:1003,0:1004",
 		},
