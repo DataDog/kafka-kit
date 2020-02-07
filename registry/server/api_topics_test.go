@@ -37,6 +37,16 @@ func TestGetTopics(t *testing.T) {
 		if !stringsEqual(expected[i], topics) {
 			t.Errorf("Expected Topic list %s, got %s", expected[i], topics)
 		}
+
+		for _, topic := range resp.Topics {
+			v, exist := topic.Configs["retention.ms"]
+			if !exist {
+				t.Error("Expected 'retention.ms' config key to exist")
+			}
+			if v != "172800000" {
+				t.Errorf("Expected config value '172800000', got '%s'", v)
+			}
+		}
 	}
 }
 
