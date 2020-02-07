@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"regexp"
 	"sort"
 
@@ -348,9 +347,13 @@ func (s *Server) fetchTopicSet(req *pb.TopicRequest) (TopicSet, error) {
 		st, _ := s.ZK.GetTopicState(t)
 		c, err := s.ZK.GetTopicConfig(t)
 		if err != nil {
-			log.Printf("Error getting config for '%s' topic", t)
-			c = &kafkazk.TopicConfig{}
-			c.Config = map[string]string{}
+			switch err.(type) {
+			case kafkazk.ErrNoNode:
+				c = &kafkazk.TopicConfig{}
+				c.Config = map[string]string{}
+			default:
+				return nil, err
+			}
 		}
 		matched[t] = &pb.Topic{
 			Name:       t,
