@@ -188,7 +188,7 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 	Set topic throttle configs.
 	**************************/
 
-	errs := applyTopicThrottles(bmaps.throttled, params.zk)
+	errs := applyTopicThrottles(bmaps.throttledReplicas, params.zk)
 	for _, e := range errs {
 		log.Println(e)
 	}
@@ -232,17 +232,15 @@ func getReassigningBrokers(r kafkazk.Reassignments, zk kafkazk.Handler) (reassig
 		all: map[int]struct{}{},
 		// A map for each topic with a list throttled leaders and followers.
 		// This is used to write the topic config throttled brokers lists.
-		// E.g.:
-		// map[topic]map[leaders]["0:1001", "1:1002"]
-		// map[topic]map[followers]["2:1003", "3:1004"]
-		throttled: map[string]map[string][]string{},
+		throttledReplicas: topicThrottledReplicas{},
 	}
 
 	// Get topic data for each topic undergoing a reassignment.
 	for t := range r {
-		lb.throttled[t] = make(map[string][]string)
-		lb.throttled[t]["leaders"] = []string{}
-		lb.throttled[t]["followers"] = []string{}
+		topic := topic(t)
+		lb.throttledReplicas[topic] = make(throttled)
+		lb.throttledReplicas[topic]["leaders"] = []string{}
+		lb.throttledReplicas[topic]["followers"] = []string{}
 		tstate, err := zk.GetTopicStateISR(t)
 		if err != nil {
 			return lb, fmt.Errorf("Error fetching topic data: %s", err.Error())
@@ -252,22 +250,24 @@ func getReassigningBrokers(r kafkazk.Reassignments, zk kafkazk.Handler) (reassig
 		// assigned in the reassignments. The current leaders will be sources,
 		// new brokers in the assignment list will be destinations.
 		for p := range tstate {
-			part, _ := strconv.Atoi(p)
-			if reassigning, exists := r[t][part]; exists {
+			partn, _ := strconv.Atoi(p)
+			if reassigning, exists := r[t][partn]; exists {
 				// Source brokers.
 				leader := tstate[p].Leader
 				// In offline partitions, the leader value is set to -1. Skip.
 				if leader != -1 {
 					lb.src[leader] = struct{}{}
 					// Append to the throttle list.
-					lb.throttled[t]["leaders"] = append(lb.throttled[t]["leaders"], fmt.Sprintf("%d:%d", part, leader))
+					leaders := lb.throttledReplicas[topic]["leaders"]
+					lb.throttledReplicas[topic]["leaders"] = append(leaders, fmt.Sprintf("%d:%d", partn, leader))
 				}
 
 				// Dest brokers.
 				for _, b := range reassigning {
 					if b != leader && b != -1 {
 						lb.dst[b] = struct{}{}
-						lb.throttled[t]["followers"] = append(lb.throttled[t]["followers"], fmt.Sprintf("%d:%d", part, b))
+						followers := lb.throttledReplicas[topic]["followers"]
+						lb.throttledReplicas[topic]["followers"] = append(followers, fmt.Sprintf("%d:%d", partn, b))
 					}
 				}
 			}
@@ -287,6 +287,10 @@ func repCapacityByMetrics(rtc *ReplicationThrottleConfigs, reassigning reassigni
 	throttledBrokers := &ThrottledBrokers{}
 
 	var event string
+
+	// For each source and destination broker in reassigning, check if
+	// the broker is found in the kafkametrics.BrokerMetrics map.
+	// If so, append it to the ThrottledBrokers.
 
 	// Source brokers.
 	for b := range reassigning.src {
@@ -330,7 +334,7 @@ func repCapacityByMetrics(rtc *ReplicationThrottleConfigs, reassigning reassigni
 	return replicationCapacity, currThrottle, event, nil
 }
 
-// applyTopicThrottles updates the throttled brokers list for all topics
+// applyTopicThrottles updates a throttledReplicas for all topics
 // undergoing replication.
 // XXX we need to avoid continously resetting this to reduce writes
 // to ZK and subsequent config propagations to all brokers.
@@ -341,14 +345,14 @@ func repCapacityByMetrics(rtc *ReplicationThrottleConfigs, reassigning reassigni
 //   assume that it's not going to change (a throttle list is applied) when
 //   a topic is initially set for reassignment and cleared by autothrottle
 //   as soon as the reassignment is done).
-func applyTopicThrottles(throttled map[string]map[string][]string, zk kafkazk.Handler) []string {
+func applyTopicThrottles(throttled topicThrottledReplicas, zk kafkazk.Handler) []string {
 	var errs []string
 
 	for t := range throttled {
 		// Generate config.
 		config := kafkazk.KafkaConfig{
 			Type:    "topic",
-			Name:    t,
+			Name:    string(t),
 			Configs: []kafkazk.KafkaConfigKV{},
 		}
 
@@ -541,4 +545,34 @@ func setThrottleOverride(zk kafkazk.Handler, p string, c ThrottleOverrideConfig)
 	}
 
 	return nil
+}
+
+// mergeMaps takes two maps and merges them.
+func mergeMaps(a map[int]struct{}, b map[int]struct{}) map[int]struct{} {
+	m := map[int]struct{}{}
+
+	// Merge from each.
+	for k := range a {
+		m[k] = struct{}{}
+	}
+
+	for k := range b {
+		m[k] = struct{}{}
+	}
+
+	return m
+}
+
+// sliceToString takes []string and
+// returns a comma delimited string.
+func sliceToString(l []string) string {
+	var b bytes.Buffer
+	for n, i := range l {
+		b.WriteString(i)
+		if n < len(l)-1 {
+			b.WriteString(",")
+		}
+	}
+
+	return b.String()
 }

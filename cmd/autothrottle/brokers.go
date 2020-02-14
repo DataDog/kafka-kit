@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"sort"
 
 	"github.com/DataDog/kafka-kit/kafkametrics"
@@ -10,11 +9,29 @@ import (
 // reassigningBrokers holds several sets of brokers participating
 // in all ongoing reassignments.
 type reassigningBrokers struct {
-	src       map[int]struct{}
-	dst       map[int]struct{}
-	all       map[int]struct{}
-	throttled map[string]map[string][]string
+	src               map[int]struct{}
+	dst               map[int]struct{}
+	all               map[int]struct{}
+	throttledReplicas topicThrottledReplicas
 }
+
+// topicThrottledReplicas is a map of topic names to throttled types.
+// This is ultimately populated as follows:
+//   map[topic]map[leaders]["0:1001", "1:1002"]
+//   map[topic]map[followers]["2:1003", "3:1004"]
+type topicThrottledReplicas map[topic]throttled
+
+// throttled is a replica type (leader, follower) to replica list.
+type throttled map[replicaType]brokerIDs
+
+// topic name.
+type topic string
+
+// leader, follower.
+type replicaType string
+
+// Replica broker IDs as a []string.
+type brokerIDs []string
 
 // lists returns a sorted []int of broker IDs for the src, dst
 // and all brokers from a reassigningBrokers.
@@ -56,34 +73,4 @@ func incompleteBrokerMetrics(ids []int, metrics kafkametrics.BrokerMetrics) bool
 	}
 
 	return false
-}
-
-// mergeMaps takes two maps and merges them.
-func mergeMaps(a map[int]struct{}, b map[int]struct{}) map[int]struct{} {
-	m := map[int]struct{}{}
-
-	// Merge from each.
-	for k := range a {
-		m[k] = struct{}{}
-	}
-
-	for k := range b {
-		m[k] = struct{}{}
-	}
-
-	return m
-}
-
-// sliceToString takes []string and
-// returns a comma delimited string.
-func sliceToString(l []string) string {
-	var b bytes.Buffer
-	for n, i := range l {
-		b.WriteString(i)
-		if n < len(l)-1 {
-			b.WriteString(",")
-		}
-	}
-
-	return b.String()
 }
