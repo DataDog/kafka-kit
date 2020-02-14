@@ -202,7 +202,7 @@ func TestRepCapacityByMetrics(t *testing.T) {
 
 	l, _ := NewLimits(c)
 
-	rtm := &ReplicationThrottleMeta{
+	rtm := &ReplicationThrottleConfigs{
 		limits: l,
 		throttles: map[int]float64{
 			1004: 80.00,

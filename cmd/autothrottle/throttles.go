@@ -14,9 +14,9 @@ import (
 	"github.com/DataDog/kafka-kit/kafkazk"
 )
 
-// ReplicationThrottleMeta holds all types
+// ReplicationThrottleConfigs holds all the data/types
 // needed to call the updateReplicationThrottle func.
-type ReplicationThrottleMeta struct {
+type ReplicationThrottleConfigs struct {
 	topics        []string
 	reassignments kafkazk.Reassignments
 	zk            kafkazk.Handler
@@ -43,7 +43,7 @@ type ThrottleOverrideConfig struct {
 // Failure increments the failures count
 // and returns true if the count exceeds
 // the failures threshold.
-func (r *ReplicationThrottleMeta) Failure() bool {
+func (r *ReplicationThrottleConfigs) Failure() bool {
 	r.failures++
 
 	if r.failures > r.failureThreshold {
@@ -54,7 +54,7 @@ func (r *ReplicationThrottleMeta) Failure() bool {
 }
 
 // ResetFailures resets the failures count.
-func (r *ReplicationThrottleMeta) ResetFailures() {
+func (r *ReplicationThrottleConfigs) ResetFailures() {
 	r.failures = 0
 }
 
@@ -82,14 +82,14 @@ func (t ReassigningBrokers) highestSrcNetTX() *kafkametrics.Broker {
 	return broker
 }
 
-// updateReplicationThrottle takes a ReplicationThrottleMeta
+// updateReplicationThrottle takes a ReplicationThrottleConfigs
 // that holds topics being replicated, any ZooKeeper/other clients, throttle override
 // params, and other required metadata.
 // Metrics for brokers participating in any ongoing replication are fetched to
 // determine replication headroom. The replication throttle is then adjusted
 // accordingly. If a non-empty override is provided, that static value is
 // used instead of a dynamically determined value.
-func updateReplicationThrottle(params *ReplicationThrottleMeta) error {
+func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 	// Get the maps of brokers handling
 	// reassignments.
 	bmaps, err := mapsFromReassigments(params.reassignments, params.zk)
@@ -296,7 +296,7 @@ func mapsFromReassigments(r kafkazk.Reassignments, zk kafkazk.Handler) (bmapBund
 // repCapacityByMetrics finds the most constrained src broker and returns
 // a calculated replication capacity, the currently applied throttle, a slice
 // of event strings and any errors if encountered.
-func repCapacityByMetrics(rtm *ReplicationThrottleMeta, bmb bmapBundle, bm kafkametrics.BrokerMetrics) (float64, float64, string, error) {
+func repCapacityByMetrics(rtm *ReplicationThrottleConfigs, bmb bmapBundle, bm kafkametrics.BrokerMetrics) (float64, float64, string, error) {
 	// Map src/dst broker IDs to a *ReassigningBrokers.
 	participatingBrokers := &ReassigningBrokers{}
 
@@ -430,7 +430,7 @@ func applyBrokerThrottles(bs map[int]struct{}, ratestr string, r float64, ts map
 
 // removeAllThrottles removes all topic and
 // broker throttle configs.
-func removeAllThrottles(zk kafkazk.Handler, params *ReplicationThrottleMeta) error {
+func removeAllThrottles(zk kafkazk.Handler, params *ReplicationThrottleConfigs) error {
 	/****************************
 	Clear topic throttle configs.
 	****************************/
