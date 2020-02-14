@@ -7,8 +7,7 @@ import (
 	"github.com/DataDog/kafka-kit/kafkametrics"
 )
 
-// Limits is a map of instance-type
-// to network bandwidth limits.
+// Limits is a map of instance-type to network bandwidth limits.
 type Limits map[string]float64
 
 // NewLimitsConfig is used to initialize
@@ -22,8 +21,8 @@ type NewLimitsConfig struct {
 	CapacityMap map[string]float64
 }
 
-// NewLimits takes a minimum float64 and a map
-// of instance-type to float64 network capacity values (in MB/s).
+// NewLimits takes a minimum float64 and a map of instance-type to
+// float64 network capacity values (in MB/s).
 func NewLimits(c NewLimitsConfig) (Limits, error) {
 	switch {
 	case c.Minimum <= 0:
@@ -47,15 +46,14 @@ func NewLimits(c NewLimitsConfig) (Limits, error) {
 	return lim, nil
 }
 
-// headroom takes a *kafkametrics.Broker and last set
-// throttle rate and returns the headroom based on utilization
-// vs capacity. Headroom is determined by subtracting the current
-// throttle rate from the current outbound network utilization.
-// This yields a crude approximation of how much non-replication
-// throughput is currently being demanded. The non-replication
-// throughput is then subtracted from the total network capacity available.
-// This value suggests what headroom is available for replication.
-// We then use the greater of:
+// headroom takes a *kafkametrics.Broker and last set throttle rate and
+// returns the headroom based on utilization vs capacity. Headroom is
+// determined by subtracting the current throttle rate from the current
+// outbound network utilization. This yields a crude approximation of
+// how much non-replication throughput is currently being demanded.
+// The non-replication throughput is then subtracted from the total
+// network capacity available. This value suggests what headroom is
+// available for replication. We then use the greater of:
 // - this value * the configured portion of free bandwidth eligible for replication
 // - the configured minimum replication rate in MB/s
 func (l Limits) headroom(b *kafkametrics.Broker, t float64) (float64, error) {

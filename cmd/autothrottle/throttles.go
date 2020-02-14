@@ -14,8 +14,8 @@ import (
 	"github.com/DataDog/kafka-kit/kafkazk"
 )
 
-// ReplicationThrottleConfigs holds all the data/types
-// needed to call the updateReplicationThrottle func.
+// ReplicationThrottleConfigs holds all the data/types needed to
+// call updateReplicationThrottle.
 type ReplicationThrottleConfigs struct {
 	topics        []string
 	reassignments kafkazk.Reassignments
@@ -40,9 +40,8 @@ type ThrottleOverrideConfig struct {
 	AutoRemove bool `json:"autoremove"`
 }
 
-// Failure increments the failures count
-// and returns true if the count exceeds
-// the failures threshold.
+// Failure increments the failures count and returns true if the
+// count exceeds the failures threshold.
 func (r *ReplicationThrottleConfigs) Failure() bool {
 	r.failures++
 
@@ -58,16 +57,15 @@ func (r *ReplicationThrottleConfigs) ResetFailures() {
 	r.failures = 0
 }
 
-// ReassigningBrokers is a list of brokers
-// with a throttle applied for an ongoing
-// reassignment.
+// ReassigningBrokers is a list of brokers with a throttle applied
+// for an ongoing reassignment.
 type ReassigningBrokers struct {
 	Src []*kafkametrics.Broker
 	Dst []*kafkametrics.Broker
 }
 
-// maxSrcNetTX takes a ReassigningBrokers and returns
-// the leader with the highest outbound network throughput.
+// maxSrcNetTX takes a ReassigningBrokers and returns the leader with
+// the highest outbound network throughput.
 func (t ReassigningBrokers) maxSrcNetTX() *kafkametrics.Broker {
 	hwm := 0.00
 	var broker *kafkametrics.Broker
@@ -82,13 +80,13 @@ func (t ReassigningBrokers) maxSrcNetTX() *kafkametrics.Broker {
 	return broker
 }
 
-// updateReplicationThrottle takes a ReplicationThrottleConfigs
-// that holds topics being replicated, any ZooKeeper/other clients, throttle override
-// params, and other required metadata.
-// Metrics for brokers participating in any ongoing replication are fetched to
-// determine replication headroom. The replication throttle is then adjusted
-// accordingly. If a non-empty override is provided, that static value is
-// used instead of a dynamically determined value.
+// updateReplicationThrottle takes a ReplicationThrottleConfigs that holds
+// topics being replicated, any ZooKeeper/other clients, throttle override
+// params, and other required metadata. Metrics for brokers participating in
+// any ongoing replication are fetched to determine replication headroom.
+// The replication throttle is then adjusted accordingly. If a non-empty
+// override is provided, that static value is used instead of a dynamically
+// determined value.
 func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 	// Get the maps of brokers handling
 	// reassignments.
@@ -107,9 +105,8 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 	Determine throttle rates.
 	************************/
 
-	// Use the throttle override if set. Otherwise,
-	// make a calculation using broker metrics and known
-	// capacity values.
+	// Use the throttle override if set. Otherwise, make a calculation
+	// using broker metrics and configured capacity values.
 	var replicationCapacity float64
 	var currThrottle float64
 	var useMetrics bool
@@ -125,25 +122,21 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 
 		// Get broker metrics.
 		brokerMetrics, metricErrs = params.km.GetMetrics()
-		// Even if errors are returned, we can still
-		// proceed as long as we have complete metrics
-		// data for all target brokers. If we have broker
-		// metrics for all target brokers, we can ignore
-		// any errors.
+		// Even if errors are returned, we can still proceed as long as we have
+		// complete metrics data for all target brokers. If we have broker
+		// metrics for all target brokers, we can ignore any errors.
 		if metricErrs != nil {
 			if brokerMetrics == nil || incompleteBrokerMetrics(allBrokers, brokerMetrics) {
 				inFailureMode = true
 			}
 		}
 
-		// If we cannot proceed normally due to missing/partial
-		// metrics data, check what failure iteration we're in.
-		// If we're above the threshold, revert to the minimum
-		// rate, otherwise retain the previous rate.
+		// If we cannot proceed normally due to missing/partial metrics data,
+		// check what failure iteration we're in. If we're above the threshold,
+		// revert to the minimum rate, otherwise retain the previous rate.
 		if inFailureMode {
 			log.Printf("Errors fetching metrics: %s\n", metricErrs)
-			// Check our failures against the
-			// configured threshold.
+			// Check our failures against the configured threshold.
 			over := params.Failure()
 			// Over threshold. Set replicationCapacity which will be
 			// applied in the apply throttles stage.
@@ -158,16 +151,14 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 				return nil
 			}
 		} else {
-			// Reset the failure counter
-			// in case it was incremented
+			// Reset the failure counter in case it was incremented
 			// in previous iterations.
 			params.ResetFailures()
 		}
 	}
 
-	// If we're using metrics and successfully
-	// fetched them, determine a tvalue based on
-	// the most-utilized path.
+	// If we're using metrics and successfully fetched them, determine a
+	// tvalue based on the most-utilized path.
 	if useMetrics && !inFailureMode {
 		var e string
 		replicationCapacity, currThrottle, e, err = repCapacityByMetrics(params, bmaps, brokerMetrics)
@@ -179,9 +170,8 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 		log.Printf("Replication capacity (based on a %.0f%% max free capacity utilization): %0.2fMB/s\n",
 			params.limits["maximum"], replicationCapacity)
 
-		// Check if the delta between the newly calculated
-		// throttle and the previous throttle exceeds the
-		// ChangeThreshold param.
+		// Check if the delta between the newly calculated throttle and the
+		// previous throttle exceeds the ChangeThreshold param.
 		d := math.Abs((currThrottle - replicationCapacity) / currThrottle * 100)
 		if d < Config.ChangeThreshold {
 			log.Printf("Proposed throttle is within %.2f%% of the previous throttle "+
@@ -230,27 +220,25 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 	return nil
 }
 
-// mapsFromReassigments takes a kafakzk.Reassignments and returns
-// a bmapBundle, which includes a broker list for source, destination,
-// and all brokers handling any ongoing reassignments. Additionally, a map
-// of throttled replicas by topic is included.
+// mapsFromReassigments takes a kafakzk.Reassignments and returns a bmapBundle,
+// which includes a broker list for source, destination, and all brokers
+// handling any ongoing reassignments. Additionally, a map of throttled
+// replicas by topic is included.
 func mapsFromReassigments(r kafkazk.Reassignments, zk kafkazk.Handler) (bmapBundle, error) {
 	lb := bmapBundle{
-		// Maps of src and dst brokers
-		// used as sets.
+		// Maps of src and dst brokers used as sets.
 		src: map[int]struct{}{},
 		dst: map[int]struct{}{},
 		all: map[int]struct{}{},
-		// A map for each topic with a list throttled
-		// leaders and followers. This is used to write
-		// the topic config throttled brokers lists. E.g.:
+		// A map for each topic with a list throttled leaders and followers.
+		// This is used to write the topic config throttled brokers lists.
+		// E.g.:
 		// map[topic]map[leaders]["0:1001", "1:1002"]
 		// map[topic]map[followers]["2:1003", "3:1004"]
 		throttled: map[string]map[string][]string{},
 	}
 
-	// Get topic data for each topic
-	// undergoing a reassignment.
+	// Get topic data for each topic undergoing a reassignment.
 	for t := range r {
 		lb.throttled[t] = make(map[string][]string)
 		lb.throttled[t]["leaders"] = []string{}
@@ -260,11 +248,9 @@ func mapsFromReassigments(r kafkazk.Reassignments, zk kafkazk.Handler) (bmapBund
 			return lb, fmt.Errorf("Error fetching topic data: %s", err.Error())
 		}
 
-		// For each partition, compare the current
-		// ISR leader to the brokers being assigned
-		// in the reassignments. The current leaders
-		// will be sources, new brokers in the assignment
-		// list will be destinations.
+		// For each partition, compare the current ISR leader to the brokers being
+		// assigned in the reassignments. The current leaders will be sources,
+		// new brokers in the assignment list will be destinations.
 		for p := range tstate {
 			part, _ := strconv.Atoi(p)
 			if reassigning, exists := r[t][part]; exists {
@@ -325,8 +311,7 @@ func repCapacityByMetrics(rtm *ReplicationThrottleConfigs, bmb bmapBundle, bm ka
 		return 0.00, 0.00, event, fmt.Errorf("Source and destination broker list cannot be empty")
 	}
 
-	// Get the most constrained src broker and
-	// its current throttle, if applied.
+	// Get the most constrained src broker and its current throttle, if applied.
 	constrainingSrc := participatingBrokers.maxSrcNetTX()
 	currThrottle, exists := rtm.throttles[constrainingSrc.ID]
 	if !exists {
@@ -345,18 +330,17 @@ func repCapacityByMetrics(rtm *ReplicationThrottleConfigs, bmb bmapBundle, bm ka
 	return replicationCapacity, currThrottle, event, nil
 }
 
-// applyTopicThrottles updates the throttled brokers list for
-// all topics undergoing replication.
+// applyTopicThrottles updates the throttled brokers list for all topics
+// undergoing replication.
 // XXX we need to avoid continously resetting this to reduce writes
 // to ZK and subsequent config propagations to all brokers.
 // We can either:
 // - Ensure throttle lists are sorted so that if we provide the
-// same list each iteration that it results in a no-op in the backend.
-// - Keep track of topics that have already had a throttle list
-// written and assume that it's not going to change
-// (a throttle list is applied) when a topic is initially set
-// for reassignment and cleared by autothrottle as soon as
-// the reassignment is done).
+//   same list each iteration that it results in a no-op in the backend.
+// - Keep track of topics that have already had a throttle list written and
+//   assume that it's not going to change (a throttle list is applied) when
+//   a topic is initially set for reassignment and cleared by autothrottle
+//   as soon as the reassignment is done).
 func applyTopicThrottles(throttled map[string]map[string][]string, zk kafkazk.Handler) []string {
 	var errs []string
 
@@ -390,10 +374,10 @@ func applyTopicThrottles(throttled map[string]map[string][]string, zk kafkazk.Ha
 	return errs
 }
 
-// applyBrokerThrottles take a list of brokers, a replication throttle rate string,
-// rate, map of applied throttles, and zk kafkazk.Handler zookeeper client.
-// For each broker, the throttle rate is applied and if successful, the rate
-// is stored in the throttles map for future reference.
+// applyBrokerThrottles take a list of brokers, a replication throttle rate
+// string, rate, map of applied throttles, and zk kafkazk.Handler zookeeper
+// client. For each broker, the throttle rate is applied and if successful,
+// the rate is stored in the throttles map for future reference.
 func applyBrokerThrottles(bs map[int]struct{}, ratestr string, r float64, ts map[int]float64, zk kafkazk.Handler) []string {
 	var errs []string
 
@@ -428,8 +412,7 @@ func applyBrokerThrottles(bs map[int]struct{}, ratestr string, r float64, ts map
 	return errs
 }
 
-// removeAllThrottles removes all topic and
-// broker throttle configs.
+// removeAllThrottles removes all topic and broker throttle configs.
 func removeAllThrottles(zk kafkazk.Handler, params *ReplicationThrottleConfigs) error {
 	/****************************
 	Clear topic throttle configs.
@@ -489,14 +472,11 @@ func removeAllThrottles(zk kafkazk.Handler, params *ReplicationThrottleConfigs) 
 		switch err.(type) {
 		case nil:
 		case kafkazk.ErrNoNode:
-			// We'd get an ErrNoNode here only if
-			// the parent path for dynamic broker
-			// configs (/config/brokers) if it doesn't
-			// exist, which can happen in new clusters
-			// that have never had dynamic configs applied.
-			// Rather than creating that znode, we'll just
-			// ignore errors here; if the znodes don't exist,
-			// there's not even config to remove.
+			// We'd get an ErrNoNode here only if the parent path for dynamic broker
+			// configs (/config/brokers) if it doesn't exist, which can happen in
+			// new clusters that have never had dynamic configs applied. Rather than
+			// creating that znode, we'll just ignore errors here; if the znodes
+			// don't exist, there's not even config to remove.
 		default:
 			log.Printf("Error removing throttle on broker %d: %s\n", b, err)
 		}
@@ -506,8 +486,7 @@ func removeAllThrottles(zk kafkazk.Handler, params *ReplicationThrottleConfigs) 
 			log.Printf("Throttle removed on broker %d\n", b)
 		}
 
-		// Hardcoded sleep to reduce
-		// ZK load.
+		// Hardcoded sleep to reduce ZK load.
 		time.Sleep(250 * time.Millisecond)
 	}
 
@@ -518,8 +497,7 @@ func removeAllThrottles(zk kafkazk.Handler, params *ReplicationThrottleConfigs) 
 		params.events.Write("Broker replication throttle removed", m)
 	}
 
-	// Lazily check if any errors were encountered,
-	// return a generic error.
+	// Lazily check if any errors were encountered, return a generic error.
 	if err != nil {
 		return errors.New("one or more throttles were not cleared")
 	}

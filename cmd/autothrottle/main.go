@@ -143,9 +143,8 @@ func main() {
 		tags:        tags,
 	}
 
-	// Default to true on startup in case
-	// throttles were set in an autothrottle
-	// session other than the current one.
+	// Default to true on startup in case throttles were set in
+	// an autothrottle session other than the current one.
 	knownThrottles := true
 
 	var reassignments kafkazk.Reassignments
@@ -210,9 +209,8 @@ func main() {
 			events.Write("Topics done reassigning", m)
 		}
 
-		// Rebuild replicatingPreviously with
-		// the current replications for the next
-		// check iteration.
+		// Rebuild replicatingPreviously with the current replications
+		// for the next check iteration.
 		replicatingPreviously = make(map[string]struct{})
 		for t := range replicatingNow {
 			replicatingPreviously[t] = struct{}{}
@@ -252,8 +250,7 @@ func main() {
 				if err != nil {
 					log.Printf("Error removing throttles: %s\n", err.Error())
 				} else {
-					// Only set knownThrottles to
-					// false if we've removed all
+					// Only set knownThrottles to false if we've removed all
 					// without error.
 					knownThrottles = false
 				}

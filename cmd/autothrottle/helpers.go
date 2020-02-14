@@ -7,8 +7,7 @@ import (
 	"github.com/DataDog/kafka-kit/kafkametrics"
 )
 
-// bmapBundle holds several maps
-// used as sets. Reduces return params
+// bmapBundle holds several maps used as sets. Reduces return params
 // for mapsFromReassigments.
 type bmapBundle struct {
 	src       map[int]struct{}
@@ -17,8 +16,8 @@ type bmapBundle struct {
 	throttled map[string]map[string][]string
 }
 
-// lists returns a []int of broker IDs for the
-// src, dst and all bmapBundle maps.
+// lists returns a []int of broker IDs for the src, dst
+// and all bmapBundle maps.
 func (bm bmapBundle) lists() ([]int, []int, []int) {
 	srcBrokers := []int{}
 	dstBrokers := []int{}

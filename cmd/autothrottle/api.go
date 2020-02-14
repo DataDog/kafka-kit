@@ -10,8 +10,7 @@ import (
 	"github.com/DataDog/kafka-kit/kafkazk"
 )
 
-// APIConfig holds configuration
-// params for the admin API.
+// APIConfig holds configuration params for the admin API.
 type APIConfig struct {
 	Listen      string
 	ZKPrefix    string
