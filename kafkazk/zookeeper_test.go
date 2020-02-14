@@ -832,9 +832,9 @@ func TestUpdateKafkaConfigBroker(t *testing.T) {
 	c := KafkaConfig{
 		Type: "broker",
 		Name: "1001",
-		Configs: [][2]string{
-			[2]string{"leader.replication.throttled.rate", "100000"},
-			[2]string{"follower.replication.throttled.rate", "100000"},
+		Configs: []KafkaConfigKV{
+			KafkaConfigKV{"leader.replication.throttled.rate", "100000"},
+			KafkaConfigKV{"follower.replication.throttled.rate", "100000"},
 		},
 	}
 
@@ -888,9 +888,9 @@ func TestUpdateKafkaConfigTopic(t *testing.T) {
 	c := KafkaConfig{
 		Type: "topic",
 		Name: "topic0",
-		Configs: [][2]string{
-			[2]string{"leader.replication.throttled.replicas", "1003,1004"},
-			[2]string{"follower.replication.throttled.replicas", "1003,1004"},
+		Configs: []KafkaConfigKV{
+			KafkaConfigKV{"leader.replication.throttled.replicas", "1003,1004"},
+			KafkaConfigKV{"follower.replication.throttled.replicas", "1003,1004"},
 		},
 	}
 

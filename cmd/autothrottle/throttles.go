@@ -365,18 +365,18 @@ func applyTopicThrottles(throttled map[string]map[string][]string, zk kafkazk.Ha
 		config := kafkazk.KafkaConfig{
 			Type:    "topic",
 			Name:    t,
-			Configs: [][2]string{},
+			Configs: []kafkazk.KafkaConfigKV{},
 		}
 
 		leaderList := sliceToString(throttled[t]["leaders"])
 		if leaderList != "" {
-			c := [2]string{"leader.replication.throttled.replicas", leaderList}
+			c := kafkazk.KafkaConfigKV{"leader.replication.throttled.replicas", leaderList}
 			config.Configs = append(config.Configs, c)
 		}
 
 		followerList := sliceToString(throttled[t]["followers"])
 		if followerList != "" {
-			c := [2]string{"follower.replication.throttled.replicas", followerList}
+			c := kafkazk.KafkaConfigKV{"follower.replication.throttled.replicas", followerList}
 			config.Configs = append(config.Configs, c)
 		}
 
@@ -402,9 +402,9 @@ func applyBrokerThrottles(bs map[int]struct{}, ratestr string, r float64, ts map
 		config := kafkazk.KafkaConfig{
 			Type: "broker",
 			Name: strconv.Itoa(b),
-			Configs: [][2]string{
-				[2]string{"leader.replication.throttled.rate", ratestr},
-				[2]string{"follower.replication.throttled.rate", ratestr},
+			Configs: []kafkazk.KafkaConfigKV{
+				kafkazk.KafkaConfigKV{"leader.replication.throttled.rate", ratestr},
+				kafkazk.KafkaConfigKV{"follower.replication.throttled.rate", ratestr},
 			},
 		}
 
@@ -445,9 +445,9 @@ func removeAllThrottles(zk kafkazk.Handler, params *ReplicationThrottleMeta) err
 		config := kafkazk.KafkaConfig{
 			Type: "topic",
 			Name: topic,
-			Configs: [][2]string{
-				[2]string{"leader.replication.throttled.replicas", ""},
-				[2]string{"follower.replication.throttled.replicas", ""},
+			Configs: []kafkazk.KafkaConfigKV{
+				kafkazk.KafkaConfigKV{"leader.replication.throttled.replicas", ""},
+				kafkazk.KafkaConfigKV{"follower.replication.throttled.replicas", ""},
 			},
 		}
 
@@ -479,9 +479,9 @@ func removeAllThrottles(zk kafkazk.Handler, params *ReplicationThrottleMeta) err
 		config := kafkazk.KafkaConfig{
 			Type: "broker",
 			Name: strconv.Itoa(b),
-			Configs: [][2]string{
-				[2]string{"leader.replication.throttled.rate", ""},
-				[2]string{"follower.replication.throttled.rate", ""},
+			Configs: []kafkazk.KafkaConfigKV{
+				kafkazk.KafkaConfigKV{"leader.replication.throttled.rate", ""},
+				kafkazk.KafkaConfigKV{"follower.replication.throttled.rate", ""},
 			},
 		}
 
@@ -518,8 +518,7 @@ func removeAllThrottles(zk kafkazk.Handler, params *ReplicationThrottleMeta) err
 		params.events.Write("Broker replication throttle removed", m)
 	}
 
-	// Lazily check if any
-	// errors were encountered,
+	// Lazily check if any errors were encountered,
 	// return a generic error.
 	if err != nil {
 		return errors.New("one or more throttles were not cleared")
