@@ -24,7 +24,7 @@ type ReplicationThrottleConfigs struct {
 	overrideRate  int
 	events        *DDEventWriter
 	// Map of broker ID to last set throttle rate.
-	throttles        map[int]float64
+	appliedThrottles map[int]float64
 	limits           Limits
 	failureThreshold int
 	failures         int
@@ -57,16 +57,16 @@ func (r *ReplicationThrottleConfigs) ResetFailures() {
 	r.failures = 0
 }
 
-// ReassigningBrokers is a list of brokers with a throttle applied
+// ThrottledBrokers is a list of brokers with a throttle applied
 // for an ongoing reassignment.
-type ReassigningBrokers struct {
+type ThrottledBrokers struct {
 	Src []*kafkametrics.Broker
 	Dst []*kafkametrics.Broker
 }
 
-// maxSrcNetTX takes a ReassigningBrokers and returns the leader with
+// maxSrcNetTX takes a ThrottledBrokers and returns the leader with
 // the highest outbound network throughput.
-func (t ReassigningBrokers) maxSrcNetTX() *kafkametrics.Broker {
+func (t ThrottledBrokers) maxSrcNetTX() *kafkametrics.Broker {
 	hwm := 0.00
 	var broker *kafkametrics.Broker
 
@@ -90,7 +90,7 @@ func (t ReassigningBrokers) maxSrcNetTX() *kafkametrics.Broker {
 func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 	// Get the maps of brokers handling
 	// reassignments.
-	bmaps, err := mapsFromReassigments(params.reassignments, params.zk)
+	bmaps, err := getReassigningBrokers(params.reassignments, params.zk)
 	if err != nil {
 		return err
 	}
@@ -200,7 +200,7 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 	errs = applyBrokerThrottles(bmaps.all,
 		rateString,
 		replicationCapacity,
-		params.throttles,
+		params.appliedThrottles,
 		params.zk)
 	for _, e := range errs {
 		log.Println(e)
@@ -220,12 +220,12 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 	return nil
 }
 
-// mapsFromReassigments takes a kafakzk.Reassignments and returns a bmapBundle,
+// getReassigningBrokers takes a kafakzk.Reassignments and returns a reassigningBrokers,
 // which includes a broker list for source, destination, and all brokers
 // handling any ongoing reassignments. Additionally, a map of throttled
 // replicas by topic is included.
-func mapsFromReassigments(r kafkazk.Reassignments, zk kafkazk.Handler) (bmapBundle, error) {
-	lb := bmapBundle{
+func getReassigningBrokers(r kafkazk.Reassignments, zk kafkazk.Handler) (reassigningBrokers, error) {
+	lb := reassigningBrokers{
 		// Maps of src and dst brokers used as sets.
 		src: map[int]struct{}{},
 		dst: map[int]struct{}{},
@@ -280,45 +280,45 @@ func mapsFromReassigments(r kafkazk.Reassignments, zk kafkazk.Handler) (bmapBund
 }
 
 // repCapacityByMetrics finds the most constrained src broker and returns
-// a calculated replication capacity, the currently applied throttle, a slice
-// of event strings and any errors if encountered.
-func repCapacityByMetrics(rtm *ReplicationThrottleConfigs, bmb bmapBundle, bm kafkametrics.BrokerMetrics) (float64, float64, string, error) {
-	// Map src/dst broker IDs to a *ReassigningBrokers.
-	participatingBrokers := &ReassigningBrokers{}
+// a calculated replication capacity, the currently applied throttle, an event
+// string, and error.
+func repCapacityByMetrics(rtc *ReplicationThrottleConfigs, reassigning reassigningBrokers, bm kafkametrics.BrokerMetrics) (float64, float64, string, error) {
+	// Map src/dst broker IDs to a *ThrottledBrokers.
+	throttledBrokers := &ThrottledBrokers{}
 
 	var event string
 
 	// Source brokers.
-	for b := range bmb.src {
+	for b := range reassigning.src {
 		if broker, exists := bm[b]; exists {
-			participatingBrokers.Src = append(participatingBrokers.Src, broker)
+			throttledBrokers.Src = append(throttledBrokers.Src, broker)
 		} else {
 			return 0.00, 0.00, event, fmt.Errorf("Broker %d not found in broker metrics", b)
 		}
 	}
 
 	// Destination brokers.
-	for b := range bmb.dst {
+	for b := range reassigning.dst {
 		if broker, exists := bm[b]; exists {
-			participatingBrokers.Dst = append(participatingBrokers.Dst, broker)
+			throttledBrokers.Dst = append(throttledBrokers.Dst, broker)
 		} else {
 			return 0.00, 0.00, event, fmt.Errorf("Broker %d not found in broker metrics", b)
 		}
 	}
 
 	// Error if either source or destination broker list is empty.
-	if len(participatingBrokers.Src) == 0 || len(participatingBrokers.Dst) == 0 {
-		return 0.00, 0.00, event, fmt.Errorf("Source and destination broker list cannot be empty")
+	if len(throttledBrokers.Src) == 0 || len(throttledBrokers.Dst) == 0 {
+		return 0.00, 0.00, event, fmt.Errorf("Source or destination broker list cannot be empty")
 	}
 
 	// Get the most constrained src broker and its current throttle, if applied.
-	constrainingSrc := participatingBrokers.maxSrcNetTX()
-	currThrottle, exists := rtm.throttles[constrainingSrc.ID]
+	constrainingSrc := throttledBrokers.maxSrcNetTX()
+	currThrottle, exists := rtc.appliedThrottles[constrainingSrc.ID]
 	if !exists {
 		currThrottle = 0.00
 	}
 
-	replicationCapacity, err := rtm.limits.headroom(constrainingSrc, currThrottle)
+	replicationCapacity, err := rtc.limits.headroom(constrainingSrc, currThrottle)
 	if err != nil {
 		return 0.00, 0.00, event, err
 	}
@@ -503,8 +503,8 @@ func removeAllThrottles(zk kafkazk.Handler, params *ReplicationThrottleConfigs) 
 	}
 
 	// Unset all stored throttle rates.
-	for b := range params.throttles {
-		params.throttles[b] = 0.0
+	for b := range params.appliedThrottles {
+		params.appliedThrottles[b] = 0.0
 	}
 
 	return nil

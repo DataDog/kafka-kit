@@ -7,18 +7,18 @@ import (
 	"github.com/DataDog/kafka-kit/kafkametrics"
 )
 
-// bmapBundle holds several maps used as sets. Reduces return params
-// for mapsFromReassigments.
-type bmapBundle struct {
+// reassigningBrokers holds several sets of brokers participating
+// in all ongoing reassignments.
+type reassigningBrokers struct {
 	src       map[int]struct{}
 	dst       map[int]struct{}
 	all       map[int]struct{}
 	throttled map[string]map[string][]string
 }
 
-// lists returns a []int of broker IDs for the src, dst
-// and all bmapBundle maps.
-func (bm bmapBundle) lists() ([]int, []int, []int) {
+// lists returns a sorted []int of broker IDs for the src, dst
+// and all brokers from a reassigningBrokers.
+func (bm reassigningBrokers) lists() ([]int, []int, []int) {
 	srcBrokers := []int{}
 	dstBrokers := []int{}
 	for n, m := range []map[int]struct{}{bm.src, bm.dst} {

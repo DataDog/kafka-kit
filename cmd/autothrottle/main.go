@@ -170,7 +170,7 @@ func main() {
 		zk:               zk,
 		km:               km,
 		events:           events,
-		throttles:        make(map[int]float64),
+		appliedThrottles: make(map[int]float64),
 		limits:           lim,
 		failureThreshold: Config.FailureThreshold,
 	}
