@@ -108,11 +108,14 @@ type TopicConfig struct {
 // KafkaConfig is used to issue configuration updates to either
 // topics or brokers in ZooKeeper.
 type KafkaConfig struct {
-	Type    string      // Topic or broker.
-	Name    string      // Entity name.
-	Configs [][2]string // Slice of [2]string{key,value} configs.
-
+	Type    string          // Topic or broker.
+	Name    string          // Entity name.
+	Configs []KafkaConfigKV // Config KVs.
 }
+
+// KafkaConfigKV is a [2]string{key, value} representing
+// a Kafka configuration.
+type KafkaConfigKV [2]string
 
 // KafkaConfigData is used for unmarshalling
 // /config/<type>/<name> data from ZooKeeper.

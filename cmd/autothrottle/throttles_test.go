@@ -9,17 +9,17 @@ import (
 	"github.com/DataDog/kafka-kit/kafkazk"
 )
 
-func TestHighestSrcNetTX(t *testing.T) {
-	reassigning := mockReassigningBrokers()
+func TestmaxSrcNetTX(t *testing.T) {
+	reassigning := mockgetReassigningBrokers()
 
-	b := reassigning.highestSrcNetTX()
+	b := reassigning.maxSrcNetTX()
 	if b.ID != 1004 {
 		t.Errorf("Expected broker ID 1004, got %d", b.ID)
 	}
 }
 
-func mockReassigningBrokers() ReassigningBrokers {
-	r := ReassigningBrokers{
+func mockgetReassigningBrokers() getReassigningBrokers {
+	r := getReassigningBrokers{
 		Src: []*kafkametrics.Broker{},
 		Dst: []*kafkametrics.Broker{},
 	}
@@ -40,7 +40,7 @@ func mockReassigningBrokers() ReassigningBrokers {
 }
 
 func TestLists(t *testing.T) {
-	b := mockBmapBundle()
+	b := mockreassigningBrokers()
 
 	src, dst, all := b.lists()
 
@@ -67,8 +67,8 @@ func TestLists(t *testing.T) {
 	}
 }
 
-func mockBmapBundle() bmapBundle {
-	b := bmapBundle{
+func mockreassigningBrokers() reassigningBrokers {
+	b := reassigningBrokers{
 		src:       map[int]struct{}{},
 		dst:       map[int]struct{}{},
 		all:       map[int]struct{}{},
@@ -107,11 +107,11 @@ func mockBmapBundle() bmapBundle {
 
 // func TestUpdateReplicationThrottle(t *testing.T) {}
 
-func TestMapsFromReassigments(t *testing.T) {
+func TestgetReassigningBrokers(t *testing.T) {
 	zk := &kafkazk.Mock{}
 
 	re := zk.GetReassignments()
-	bmaps, _ := mapsFromReassigments(re, zk)
+	bmaps, _ := getReassigningBrokers(re, zk)
 
 	srcExpected := []int{1000, 1002}
 	dstExpected := []int{1003, 1004, 1005, 1010}
@@ -202,20 +202,20 @@ func TestRepCapacityByMetrics(t *testing.T) {
 
 	l, _ := NewLimits(c)
 
-	rtm := &ReplicationThrottleMeta{
+	rtc := &ReplicationThrottleConfigs{
 		limits: l,
 		throttles: map[int]float64{
 			1004: 80.00,
 		},
 	}
 
-	bmb := mockBmapBundle()
+	reassigning := mockreassigningBrokers()
 
 	km := &kafkametrics.Mock{}
 	bm, _ := km.GetMetrics()
 
 	// Test normal scenario.
-	cap, curr, _, _ := repCapacityByMetrics(rtm, bmb, bm)
+	cap, curr, _, _ := repCapacityByMetrics(rtc, reassigning, bm)
 	if cap != 86.40 {
 		t.Errorf("Expected capacity of 86.40, got %.2f", cap)
 	}
@@ -225,15 +225,15 @@ func TestRepCapacityByMetrics(t *testing.T) {
 	}
 
 	// Test with missing instance type.
-	delete(rtm.limits, "mock")
-	_, _, _, err := repCapacityByMetrics(rtm, bmb, bm)
+	delete(rtc.limits, "mock")
+	_, _, _, err := repCapacityByMetrics(rtc, reassigning, bm)
 	if err.Error() != "Unknown instance type" {
 		t.Errorf("Expected error 'Unknown instance type', got '%s'", err.Error())
 	}
 
 	// Test with a missing broker in the broker metrics.
 	delete(bm, 1004)
-	_, _, _, err = repCapacityByMetrics(rtm, bmb, bm)
+	_, _, _, err = repCapacityByMetrics(rtc, reassigning, bm)
 	if err.Error() != "Broker 1004 not found in broker metrics" {
 		t.Errorf("Expected error 'Broker 1004 not found in broker metrics', got '%s'", err.Error())
 	}
@@ -243,7 +243,7 @@ func TestRepCapacityByMetrics(t *testing.T) {
 // func TestApplyBrokerThrottles(t *testing.T) {}
 // func TestRemoveAllThrottles(t *testing.T) {}
 
-// Covered in TestMapsFromReassigments
+// Covered in TestgetReassigningBrokers
 // func TestMergeMaps(t *testing.T) {}
 
 func TestSliceToString(t *testing.T) {
