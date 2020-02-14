@@ -22,7 +22,7 @@ type ReplicationThrottleConfigs struct {
 	zk            kafkazk.Handler
 	km            kafkametrics.Handler
 	overrideRate  int
-	events        *EventGenerator
+	events        *DDEventWriter
 	// Map of broker ID to last set throttle rate.
 	throttles        map[int]float64
 	limits           Limits

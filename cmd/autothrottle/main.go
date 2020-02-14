@@ -136,8 +136,8 @@ func main() {
 	echan := make(chan *kafkametrics.Event, 100)
 	go eventWriter(km, echan)
 
-	// Init an EventGenerator.
-	events := &EventGenerator{
+	// Init an DDEventWriter.
+	events := &DDEventWriter{
 		c:           echan,
 		titlePrefix: eventTitlePrefix,
 		tags:        tags,
