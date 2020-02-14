@@ -66,9 +66,9 @@ type ReassigningBrokers struct {
 	Dst []*kafkametrics.Broker
 }
 
-// highestSrcNetTX takes a ReassigningBrokers and returns
+// maxSrcNetTX takes a ReassigningBrokers and returns
 // the leader with the highest outbound network throughput.
-func (t ReassigningBrokers) highestSrcNetTX() *kafkametrics.Broker {
+func (t ReassigningBrokers) maxSrcNetTX() *kafkametrics.Broker {
 	hwm := 0.00
 	var broker *kafkametrics.Broker
 
@@ -327,7 +327,7 @@ func repCapacityByMetrics(rtm *ReplicationThrottleConfigs, bmb bmapBundle, bm ka
 
 	// Get the most constrained src broker and
 	// its current throttle, if applied.
-	constrainingSrc := participatingBrokers.highestSrcNetTX()
+	constrainingSrc := participatingBrokers.maxSrcNetTX()
 	currThrottle, exists := rtm.throttles[constrainingSrc.ID]
 	if !exists {
 		currThrottle = 0.00

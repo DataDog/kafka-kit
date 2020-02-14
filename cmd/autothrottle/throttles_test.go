@@ -9,10 +9,10 @@ import (
 	"github.com/DataDog/kafka-kit/kafkazk"
 )
 
-func TestHighestSrcNetTX(t *testing.T) {
+func TestmaxSrcNetTX(t *testing.T) {
 	reassigning := mockReassigningBrokers()
 
-	b := reassigning.highestSrcNetTX()
+	b := reassigning.maxSrcNetTX()
 	if b.ID != 1004 {
 		t.Errorf("Expected broker ID 1004, got %d", b.ID)
 	}
