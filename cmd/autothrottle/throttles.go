@@ -181,27 +181,23 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 		}
 	}
 
-	// Get a rate string based on the final tvalue.
-	rateString := fmt.Sprintf("%.0f", replicationCapacity*1000000.00)
+	/***************************
+	Set broker throttle configs.
+	***************************/
+
+	errs := applyBrokerThrottles(bmaps.all,
+		replicationCapacity,
+		params.appliedThrottles,
+		params.zk)
+	for _, e := range errs {
+		log.Println(e)
+	}
 
 	/**************************
 	Set topic throttle configs.
 	**************************/
 
-	errs := applyTopicThrottles(bmaps.throttledReplicas, params.zk)
-	for _, e := range errs {
-		log.Println(e)
-	}
-
-	/***************************
-	Set broker throttle configs.
-	***************************/
-
-	errs = applyBrokerThrottles(bmaps.all,
-		rateString,
-		replicationCapacity,
-		params.appliedThrottles,
-		params.zk)
+	errs = applyTopicThrottles(bmaps.throttledReplicas, params.zk)
 	for _, e := range errs {
 		log.Println(e)
 	}
@@ -378,12 +374,14 @@ func applyTopicThrottles(throttled topicThrottledReplicas, zk kafkazk.Handler) [
 	return errs
 }
 
-// applyBrokerThrottles take a list of brokers, a replication throttle rate
-// string, rate, map of applied throttles, and zk kafkazk.Handler zookeeper
-// client. For each broker, the throttle rate is applied and if successful,
-// the rate is stored in the throttles map for future reference.
-func applyBrokerThrottles(bs map[int]struct{}, ratestr string, r float64, ts map[int]float64, zk kafkazk.Handler) []string {
+// applyBrokerThrottles take a set of brokers, a replication throttle rate
+// string, rate, map for tracking applied throttles, and zk kafkazk.Handler
+// zookeeper client. For each broker, the throttle rate is applied and if
+// successful, the rate is stored in the throttles map for future reference.
+func applyBrokerThrottles(bs map[int]struct{}, throttleRate float64, ts map[int]float64, zk kafkazk.Handler) []string {
 	var errs []string
+
+	rateBytesString := fmt.Sprintf("%.0f", throttleRate*1000000.00)
 
 	// Generate a broker throttle config.
 	for b := range bs {
@@ -391,8 +389,8 @@ func applyBrokerThrottles(bs map[int]struct{}, ratestr string, r float64, ts map
 			Type: "broker",
 			Name: strconv.Itoa(b),
 			Configs: []kafkazk.KafkaConfigKV{
-				kafkazk.KafkaConfigKV{"leader.replication.throttled.rate", ratestr},
-				kafkazk.KafkaConfigKV{"follower.replication.throttled.rate", ratestr},
+				kafkazk.KafkaConfigKV{"leader.replication.throttled.rate", rateBytesString},
+				kafkazk.KafkaConfigKV{"follower.replication.throttled.rate", rateBytesString},
 			},
 		}
 
@@ -404,8 +402,8 @@ func applyBrokerThrottles(bs map[int]struct{}, ratestr string, r float64, ts map
 
 		if changed {
 			// Store the configured rate.
-			ts[b] = r
-			log.Printf("Updated throttle to %0.2fMB/s on broker %d\n", r, b)
+			ts[b] = throttleRate
+			log.Printf("Updated throttle to %0.2fMB/s on broker %d\n", throttleRate, b)
 		}
 
 		// Hard coded sleep to reduce
