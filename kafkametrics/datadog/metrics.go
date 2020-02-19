@@ -11,17 +11,6 @@ import (
 	dd "github.com/zorkian/go-datadog-api"
 )
 
-// createNetTXQuery takes a metric query
-// with no aggs plus a window in seconds. A full
-// metric query is returned with an avg rollup
-// for the provided window.
-func createNetTXQuery(c *Config) string {
-	var b bytes.Buffer
-	b.WriteString(c.NetworkTXQuery)
-	b.WriteString(fmt.Sprintf(".rollup(avg, %d)", c.MetricsWindow))
-	return b.String()
-}
-
 // brokersFromSeries takes metrics series as a
 // []dd.Series and returns a []*kafkametrics.Broker.
 // If for some reason points were not returned for a

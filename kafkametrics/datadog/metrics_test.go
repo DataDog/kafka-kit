@@ -4,7 +4,6 @@ import (
 	"testing"
 )
 
-// func TestCreateNetTXQuery
 // func TestBrokersFromSeries
 // func TestMergeBrokerLists
 // func TestUpdateBroker

@@ -55,7 +55,8 @@ func NewHandler(c *Config) (kafkametrics.Handler, error) {
 	keysRegex := regexp.MustCompile(fmt.Sprintf("%s|%s", c.APIKey, c.AppKey))
 
 	h := &ddHandler{
-		netTXQuery:    createNetTXQuery(c),
+		netTXQuery:    fmt.Sprintf("%s.rollup(avg, %d)", c.NetworkTXQuery, c.MetricsWindow),
+		netRXQuery:    fmt.Sprintf("%s.rollup(avg, %d)", c.NetworkRXQuery, c.MetricsWindow),
 		metricsWindow: c.MetricsWindow,
 		brokerIDTag:   c.BrokerIDTag,
 		tagCache:      make(map[string][]string),
