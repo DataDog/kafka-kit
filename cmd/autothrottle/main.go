@@ -27,6 +27,7 @@ var (
 		APIKey           string
 		AppKey           string
 		NetworkTXQuery   string
+		NetworkRXQuery   string
 		BrokerIDTag      string
 		MetricsWindow    int
 		ZKAddr           string
@@ -54,6 +55,7 @@ func init() {
 	flag.StringVar(&Config.APIKey, "api-key", "", "Datadog API key")
 	flag.StringVar(&Config.AppKey, "app-key", "", "Datadog app key")
 	flag.StringVar(&Config.NetworkTXQuery, "net-tx-query", "avg:system.net.bytes_sent{service:kafka} by {host}", "Datadog query for broker outbound bandwidth by host")
+	flag.StringVar(&Config.NetworkRXQuery, "net-rx-query", "avg:system.net.bytes_rcvd{service:kafka} by {host}", "Datadog query for broker outbound bandwidth by host")
 	flag.StringVar(&Config.BrokerIDTag, "broker-id-tag", "broker_id", "Datadog host tag for broker ID")
 	flag.IntVar(&Config.MetricsWindow, "metrics-window", 120, "Time span of metrics required (seconds)")
 	flag.StringVar(&Config.ZKAddr, "zk-addr", "localhost:2181", "ZooKeeper connect string (for broker metadata or rebuild-topic lookups)")
@@ -118,6 +120,7 @@ func main() {
 		APIKey:         Config.APIKey,
 		AppKey:         Config.AppKey,
 		NetworkTXQuery: Config.NetworkTXQuery,
+		NetworkRXQuery: Config.NetworkRXQuery,
 		BrokerIDTag:    Config.BrokerIDTag,
 		MetricsWindow:  Config.MetricsWindow,
 	})
