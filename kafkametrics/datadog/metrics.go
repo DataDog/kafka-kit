@@ -11,12 +11,11 @@ import (
 	dd "github.com/zorkian/go-datadog-api"
 )
 
-// brokersFromSeries takes metrics series as a
-// []dd.Series and returns a []*kafkametrics.Broker.
-// If for some reason points were not returned for a
-// broker, it's excluded from the []*kafkametrics.Broker
+// brokersFromSeries takes a []dd.Series an int desciptor for the metric
+// type and returns a []*kafkametrics.Broker. If for some reason points were
+// not returned for a broker, it's excluded from the []*kafkametrics.Broker
 // and an error is populated in the return []error.
-func brokersFromSeries(s []dd.Series) ([]*kafkametrics.Broker, []error) {
+func brokersFromSeries(s []dd.Series, metric int) ([]*kafkametrics.Broker, []error) {
 	bs := []*kafkametrics.Broker{}
 	var errors []error
 
@@ -31,8 +30,14 @@ func brokersFromSeries(s []dd.Series) ([]*kafkametrics.Broker, []error) {
 		}
 
 		b := &kafkametrics.Broker{
-			Host:  host,
-			NetTX: *ts.Points[0][1] / 1024 / 1024,
+			Host: host,
+		}
+
+		switch metric {
+		case 0:
+			b.NetTX = *ts.Points[0][1] / 1024 / 1024
+		case 1:
+			b.NetRX = *ts.Points[0][1] / 1024 / 1024
 		}
 
 		bs = append(bs, b)
@@ -80,9 +85,8 @@ func updateBroker(dst, src *kafkametrics.Broker) {
 	}
 }
 
-// brokerMetricsFromList takes a *[]kafkametrics.Broker and fetches
-// relevant host tags for all brokers in the list, returning
-// a BrokerMetrics.
+// brokerMetricsFromList takes a *[]kafkametrics.Broker and fetches relevant
+// host tags for all brokers in the list, returning a BrokerMetrics.
 func (h *ddHandler) brokerMetricsFromList(l []*kafkametrics.Broker) (kafkametrics.BrokerMetrics, []error) {
 	var errors []error
 	// Get host tags for brokers
@@ -101,16 +105,14 @@ func (h *ddHandler) brokerMetricsFromList(l []*kafkametrics.Broker) (kafkametric
 	return brokers, errors
 }
 
-// getHostTagMap takes a []*kafkametrics.Broker and fetches
-// host tags for each. If no errors are encountered,
-// a map[*kafkametrics.Broker][]string holding the received tags
-// is returned.
+// getHostTagMap takes a []*kafkametrics.Broker and fetches  host tags for
+// each. If no errors are encountered, a map[*kafkametrics.Broker][]string
+// holding the received tags is returned.
 func (h *ddHandler) getHostTagMap(l []*kafkametrics.Broker) (map[*kafkametrics.Broker][]string, []error) {
 	var errors []error
 
 	brokers := map[*kafkametrics.Broker][]string{}
-	// Get broker IDs for each host,
-	// populate into a BrokerMetrics.
+	// Get broker IDs for each host, populate into a BrokerMetrics.
 	for _, b := range l {
 		// Check if we already have this broker's metadata.
 		ht, cached := h.tagCache[b.Host]
@@ -144,9 +146,8 @@ func populateFromTagMap(bm kafkametrics.BrokerMetrics, c map[string][]string, t 
 	var missingTags bytes.Buffer
 
 	for b, ht := range t {
-		// We need to get both the ID and instance type
-		// tag values. Both must exist for the broker to be
-		// populated in the BrokerMetrics.
+		// We need to get both the ID and instance type tag values. Both must
+		// exist for the broker to be populated in the BrokerMetrics.
 		var id int
 		var it string
 
@@ -164,10 +165,9 @@ func populateFromTagMap(bm kafkametrics.BrokerMetrics, c map[string][]string, t 
 		it = valFromTags(ht, "instance-type")
 		if it != "" {
 			// Cache this broker's tags. In case additional tags are populated
-			// in the future, we should only cache brokers that have
-			// successfully had all of their tags populated. Leaving it
-			// uncached gives it another chance for complete metadata in the
-			// preceding API lookups.
+			// in the future, we should only cache brokers that have successfully
+			// had all of their tags populated. Leaving it uncached gives it another
+			// chance for complete metadata in the preceding API lookups.
 			c[b.Host] = t[b]
 		} else {
 			s := fmt.Sprintf(" instance_type:%s", b.Host)
@@ -175,8 +175,7 @@ func populateFromTagMap(bm kafkametrics.BrokerMetrics, c map[string][]string, t 
 			continue
 		}
 
-		// If we are here, we have
-		// both the ID and Instance
+		// If we are here, we have both the ID and Instance
 		// type tag values. Populate.
 		b.ID = id
 		b.InstanceType = it
@@ -192,16 +191,16 @@ func populateFromTagMap(bm kafkametrics.BrokerMetrics, c map[string][]string, t 
 	return nil
 }
 
-// tagValFromScope takes a metric scope string
-// and a tag and returns that tag's value.
+// tagValFromScope takes a metric scope string and a tag and returns
+// that tag's value.
 func tagValFromScope(scope, tag string) string {
 	ts := strings.Split(scope, ",")
 
 	return valFromTags(ts, tag)
 }
 
-// valFromTags takes a []string of tags and
-// a key, returning the value for the key.
+// valFromTags takes a []string of tags and a key, returning the
+// value for the key.
 func valFromTags(tags []string, key string) string {
 	var v []string
 

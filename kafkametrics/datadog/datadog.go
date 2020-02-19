@@ -110,7 +110,7 @@ func (h *ddHandler) GetMetrics() (kafkametrics.BrokerMetrics, []error) {
 	start := time.Now().Add(-time.Duration(h.metricsWindow) * time.Second).Unix()
 
 	// Get network metrics for tx and rx.
-	for _, query := range []string{h.netTXQuery, h.netRXQuery} {
+	for i, query := range []string{h.netTXQuery, h.netRXQuery} {
 		series, err := h.c.QueryMetrics(start, time.Now().Unix(), query)
 		if err != nil {
 			return nil, []error{&kafkametrics.APIError{
@@ -127,7 +127,7 @@ func (h *ddHandler) GetMetrics() (kafkametrics.BrokerMetrics, []error) {
 
 		// Get a []*kafkametrics.Broker from the series. Brokers with missing
 		// points are excluded from blist.
-		blist, errs := brokersFromSeries(series)
+		blist, errs := brokersFromSeries(series, i)
 		if errs != nil {
 			errors = append(errors, errs...)
 		}

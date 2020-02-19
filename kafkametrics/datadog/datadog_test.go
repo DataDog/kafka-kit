@@ -16,7 +16,7 @@ import (
 func TestBrokersFromSeries(t *testing.T) {
 	// Test with expected input.
 	series := mockSeries()
-	bs, err := brokersFromSeries(series)
+	bs, err := brokersFromSeries(series, 0)
 
 	if err != nil {
 		t.Errorf("Unexpected error: %s", err)
@@ -28,7 +28,7 @@ func TestBrokersFromSeries(t *testing.T) {
 
 	// Test with unexpected input.
 	series = mockSeriesWithoutPoints()
-	bs, err = brokersFromSeries(series)
+	bs, err = brokersFromSeries(series, 0)
 	if err == nil {
 		t.Error("Expected error")
 	}
