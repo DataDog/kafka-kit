@@ -13,21 +13,6 @@ import (
 
 // func TestPostEvent(t *testing.T)  {}
 // func TestNewHandler(t *testing.T) {}
-
-func TestCreateNetTXQuery(t *testing.T) {
-	c := &Config{
-		NetworkTXQuery: "avg:system.net.bytes_sent{service:kafka} by {host}",
-		BrokerIDTag:    "host",
-		MetricsWindow:  300,
-	}
-
-	s := createNetTXQuery(c)
-
-	if s != "avg:system.net.bytes_sent{service:kafka} by {host}.rollup(avg, 300)" {
-		t.Errorf("Expected avg:system.net.bytes_sent{service:kafka} by {host}.rollup(avg, 300), got %s\n", s)
-	}
-}
-
 // func TestGetMetrics(t *testing.T) {}
 
 func TestBrokersFromSeries(t *testing.T) {

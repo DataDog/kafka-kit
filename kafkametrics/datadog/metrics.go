@@ -42,8 +42,9 @@ func brokersFromSeries(s []dd.Series) ([]*kafkametrics.Broker, []error) {
 }
 
 // mergeBrokerLists takes a destination and source []*kafkametrics.Broker
-// and adds/updates source brokers into the destination list.
-func mergeBrokerLists(dst, src []*kafkametrics.Broker) {
+// and adds/updates source brokers into the destination list, returning
+// a merged copy.
+func mergeBrokerLists(dst, src []*kafkametrics.Broker) []*kafkametrics.Broker {
 	// Build a map of Broker.ID to []*kafkametrics.Broker index for the
 	// dst list.
 	m := map[int]int{}
@@ -62,6 +63,8 @@ func mergeBrokerLists(dst, src []*kafkametrics.Broker) {
 			m[b.ID] = len(dst) - 1
 		}
 	}
+
+	return dst
 }
 
 // updateBroker takes a destination and source broker and merges the
