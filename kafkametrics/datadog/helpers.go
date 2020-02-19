@@ -52,6 +52,42 @@ func brokersFromSeries(s []dd.Series) ([]*kafkametrics.Broker, []error) {
 	return bs, errors
 }
 
+// mergeBrokerList takes a destination and source []*kafkametrics.Broker
+// and adds/updates source brokers into the destination list.
+func mergeBrokerList(dst, src []*kafkametrics.Broker) {
+	// Build a map of Broker.ID to []*kafkametrics.Broker index for the
+	// dst list.
+	m := map[int]int{}
+	for i, b := range dst {
+		m[b.ID] = i
+	}
+
+	// For each broker in the src list, add/update in the dst list.
+	for _, b := range src {
+		if i, exists := m[b.ID]; exists {
+			// Update.
+			updateBroker(dst[i], b)
+		} else {
+			// Add.
+			dst = append(dst, b)
+			m[b.ID] = len(dst) - 1
+		}
+	}
+}
+
+// updateBroker takes a destination and source broker and merges the
+// source broker metrics values to the destination if the destiation
+// are default values.
+func updateBroker(dst, src *kafkametrics.Broker) {
+	if dst.NetTX == 0.00 {
+		dst.NetTX = src.NetTX
+	}
+
+	if dst.NetRX == 0.00 {
+		dst.NetRX = src.NetRX
+	}
+}
+
 // brokerMetricsFromList takes a *[]kafkametrics.Broker and fetches
 // relevant host tags for all brokers in the list, returning
 // a BrokerMetrics.
