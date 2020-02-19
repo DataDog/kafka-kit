@@ -103,6 +103,7 @@ func (h *ddHandler) PostEvent(e *kafkametrics.Event) error {
 // returns a BrokerMetrics. If any errors are encountered (i.e. complete
 // metadata for a given broker can't be retrieved), the broker will not
 // be included in the BrokerMetrics.
+// TODO(jamie): retries.
 func (h *ddHandler) GetMetrics() (kafkametrics.BrokerMetrics, []error) {
 	var errors []error
 	var mergedBrokerList []*kafkametrics.Broker
@@ -110,6 +111,7 @@ func (h *ddHandler) GetMetrics() (kafkametrics.BrokerMetrics, []error) {
 	start := time.Now().Add(-time.Duration(h.metricsWindow) * time.Second).Unix()
 
 	// Get network metrics for tx and rx.
+	var lastLen int
 	for i, query := range []string{h.netTXQuery, h.netRXQuery} {
 		series, err := h.c.QueryMetrics(start, time.Now().Unix(), query)
 		if err != nil {
@@ -132,10 +134,16 @@ func (h *ddHandler) GetMetrics() (kafkametrics.BrokerMetrics, []error) {
 			errors = append(errors, errs...)
 		}
 
-		// XXX(jamie): should error if the lists have diff len.
+		if i > 0 && len(blist) != lastLen {
+			return nil, []error{&kafkametrics.NoResults{
+				Message: "Failed to fetch complete metrics for brokers",
+			}}
+		}
+
+		lastLen = len(blist)
 
 		// Merge the results into the mergedBrokerList.
-		mergeBrokerLists(mergedBrokerList, blist)
+		mergedBrokerList = mergeBrokerLists(mergedBrokerList, blist)
 	}
 
 	// The []*kafkametrics.Broker only contains hostnames and the network tx
