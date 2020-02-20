@@ -24,24 +24,26 @@ var (
 	// Config holds configuration
 	// parameters.
 	Config struct {
-		APIKey           string
-		AppKey           string
-		NetworkTXQuery   string
-		NetworkRXQuery   string
-		BrokerIDTag      string
-		MetricsWindow    int
-		ZKAddr           string
-		ZKPrefix         string
-		Interval         int
-		APIListen        string
-		ConfigZKPrefix   string
-		DDEventTags      string
-		MinRate          float64
-		MaxRate          float64
-		ChangeThreshold  float64
-		FailureThreshold int
-		CapMap           map[string]float64
-		CleanupAfter     int64
+		APIKey             string
+		AppKey             string
+		NetworkTXQuery     string
+		NetworkRXQuery     string
+		BrokerIDTag        string
+		MetricsWindow      int
+		ZKAddr             string
+		ZKPrefix           string
+		Interval           int
+		APIListen          string
+		ConfigZKPrefix     string
+		DDEventTags        string
+		MinRate            float64
+		MaxRate            float64
+		SourceMaxRate      float64
+		DestinationMaxRate float64
+		ChangeThreshold    float64
+		FailureThreshold   int
+		CapMap             map[string]float64
+		CleanupAfter       int64
 	}
 
 	// Misc.
@@ -65,7 +67,10 @@ func init() {
 	flag.StringVar(&Config.ConfigZKPrefix, "zk-config-prefix", "autothrottle", "ZooKeeper prefix to store autothrottle configuration")
 	flag.StringVar(&Config.DDEventTags, "dd-event-tags", "", "Comma-delimited list of Datadog event tags")
 	flag.Float64Var(&Config.MinRate, "min-rate", 10, "Minimum replication throttle rate (MB/s)")
+	// TODO deprecate.
 	flag.Float64Var(&Config.MaxRate, "max-rate", 90, "Maximum replication throttle rate (as a percentage of available capacity)")
+	flag.Float64Var(&Config.SourceMaxRate, "max-tx-rate", 90, "Maximum outbound replication throttle rate (as a percentage of available capacity)")
+	flag.Float64Var(&Config.DestinationMaxRate, "max-rx-rate", 90, "Maximum inbound replication throttle rate (as a percentage of available capacity)")
 	flag.Float64Var(&Config.ChangeThreshold, "change-threshold", 10, "Required change in replication throttle to trigger an update (percent)")
 	flag.IntVar(&Config.FailureThreshold, "failure-threshold", 1, "Number of iterations that throttle determinations can fail before reverting to the min-rate")
 	m := flag.String("cap-map", "", "JSON map of instance types to network capacity in MB/s")

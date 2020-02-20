@@ -15,8 +15,12 @@ type Limits map[string]float64
 type NewLimitsConfig struct {
 	// Min throttle rate in MB/s.
 	Minimum float64
-	// Max throttle rate as a portion of capacity.
+	// Max throttle rate as a portion of capacity. // TODO deprecate.
 	Maximum float64
+	// Max source broker throttle rate as a portion of capacity.
+	SourceMaximum float64
+	// Max destination broker throttle rate as a portion of capacity.
+	DestinationMaximum float64
 	// Map of instance-type to total network capacity in MB/s.
 	CapacityMap map[string]float64
 }
@@ -29,12 +33,18 @@ func NewLimits(c NewLimitsConfig) (Limits, error) {
 		return nil, errors.New("minimum must be > 0")
 	case c.Maximum <= 0 || c.Maximum > 100:
 		return nil, errors.New("maximum must be > 0 and < 100")
+	case c.SourceMaximum <= 0 || c.SourceMaximum > 100:
+		return nil, errors.New("source maximum must be > 0 and < 100")
+	case c.DestinationMaximum <= 0 || c.DestinationMaximum > 100:
+		return nil, errors.New("destination maximum must be > 0 and < 100")
 	}
 
+	// Populate the min/max vals into the Limits map.
 	lim := Limits{
-		// Min. config.
 		"minimum": c.Minimum,
 		"maximum": c.Maximum,
+		"srcMax":  c.SourceMaximum,
+		"dstMax":  c.DestinationMaximum,
 	}
 
 	// Update with provided
