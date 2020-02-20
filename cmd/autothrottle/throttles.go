@@ -25,9 +25,11 @@ type ReplicationThrottleConfigs struct {
 	events        *DDEventWriter
 	// Map of broker ID to last set throttle rate.
 	appliedThrottles map[int]float64
-	limits           Limits
-	failureThreshold int
-	failures         int
+	// ""
+	previouslySetThrottles throttleByRole
+	limits                 Limits
+	failureThreshold       int
+	failures               int
 }
 
 // ThrottleOverrideConfig holds throttle
@@ -63,6 +65,16 @@ type ThrottledBrokers struct {
 	Src []*kafkametrics.Broker
 	Dst []*kafkametrics.Broker
 }
+
+// replicationCapacityForBroker is a mapping of broker ID to capacity.
+type replicationCapacityForBroker map[int]throttleByRole
+
+// throttleByRole represents a source and destination throttle rate in respective
+// order to index; position 0 is a source rate, position 1 is a dest. rate.
+// A nil value means that no throttle was needed according to the broker's role
+// in the replication, as opposed to 0.00 which explicitly describes the
+// broker as having no spare capacity available for replication.
+type throttleByRole [2]*float64
 
 // maxSrcNetTX takes a ThrottledBrokers and returns the leader with
 // the highest outbound network throughput.
@@ -146,7 +158,7 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 				replicationCapacity = params.limits["minimum"]
 				// Not over threshold. Return and retain previous throttle.
 			} else {
-				log.Printf("Metrics fetch failure count %d doesn't exceed threshold %d, retaining previous throttle\n",
+				log.Printf("Metrics fetch failure count %d doesn't exeed threshold %d, retaining previous throttle\n",
 					params.failures, params.failureThreshold)
 				return nil
 			}
@@ -275,6 +287,25 @@ func getReassigningBrokers(r kafkazk.Reassignments, zk kafkazk.Handler) (reassig
 	return lb, nil
 }
 
+// brokerReplicationCapacities
+// func brokerReplicationCapacities(rtc *ReplicationThrottleConfigs, reassigning reassigningBrokers, bm kafkametrics.BrokerMetrics) (replicationCapacityForBrokers, error) {
+// 		capacities := replicationCapacityForBrokers{}
+// 		// For each broker
+// 		// check if in src/dst
+// 		// calculate throttle
+// 		// Set in replicationCapacityForBrokers
+// 		for ID := range reassigning.all {
+// 			capacities[ID] = throttleByRole{}
+// 			if _, exists := reassigning.src[ID]; exists {
+// 				currThrottle, exists := rtc.appliedThrottles[ID]
+// 				if !exists {
+// 					currThrottle = 0.00
+// 				}
+// 				capacities[ID][0] = rtc.limits.Leader(b, currThrottle)
+// 			}
+// 		}
+// }
+
 // repCapacityByMetrics finds the most constrained src broker and returns
 // a calculated replication capacity, the currently applied throttle, an event
 // string, and error.
@@ -378,10 +409,10 @@ func applyTopicThrottles(throttled topicThrottledReplicas, zk kafkazk.Handler) [
 // string, rate, map for tracking applied throttles, and zk kafkazk.Handler
 // zookeeper client. For each broker, the throttle rate is applied and if
 // successful, the rate is stored in the throttles map for future reference.
-func applyBrokerThrottles(bs map[int]struct{}, throttleRate float64, ts map[int]float64, zk kafkazk.Handler) []string {
+func applyBrokerThrottles(bs map[int]struct{}, capacity float64, ts map[int]float64, zk kafkazk.Handler) []string {
 	var errs []string
 
-	rateBytesString := fmt.Sprintf("%.0f", throttleRate*1000000.00)
+	rateBytesString := fmt.Sprintf("%.0f", capacity*1000000.00)
 
 	// Generate a broker throttle config.
 	for b := range bs {
@@ -402,8 +433,8 @@ func applyBrokerThrottles(bs map[int]struct{}, throttleRate float64, ts map[int]
 
 		if changed {
 			// Store the configured rate.
-			ts[b] = throttleRate
-			log.Printf("Updated throttle to %0.2fMB/s on broker %d\n", throttleRate, b)
+			ts[b] = capacity
+			log.Printf("Updated throttle to %0.2fMB/s on broker %d\n", capacity, b)
 		}
 
 		// Hard coded sleep to reduce

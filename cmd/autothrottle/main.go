@@ -170,12 +170,13 @@ func main() {
 	}
 
 	throttleMeta := &ReplicationThrottleConfigs{
-		zk:               zk,
-		km:               km,
-		events:           events,
-		appliedThrottles: make(map[int]float64),
-		limits:           lim,
-		failureThreshold: Config.FailureThreshold,
+		zk:                     zk,
+		km:                     km,
+		events:                 events,
+		appliedThrottles:       make(map[int]float64),
+		previouslySetThrottles: throttleByRole{},
+		limits:                 lim,
+		failureThreshold:       Config.FailureThreshold,
 	}
 
 	overridePath := fmt.Sprintf("/%s/%s", apiConfig.ZKPrefix, apiConfig.RateSetting)
