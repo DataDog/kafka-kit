@@ -26,7 +26,7 @@ type ReplicationThrottleConfigs struct {
 	// Map of broker ID to last set throttle rate.
 	appliedThrottles map[int]float64
 	// ""
-	previouslySetThrottles throttleByRole
+	previouslySetThrottles replicationCapacityByBroker
 	limits                 Limits
 	failureThreshold       int
 	failures               int
@@ -66,8 +66,8 @@ type ThrottledBrokers struct {
 	Dst []*kafkametrics.Broker
 }
 
-// replicationCapacityForBroker is a mapping of broker ID to capacity.
-type replicationCapacityForBroker map[int]throttleByRole
+// replicationCapacityByBroker is a mapping of broker ID to capacity.
+type replicationCapacityByBroker map[int]throttleByRole
 
 // throttleByRole represents a source and destination throttle rate in respective
 // order to index; position 0 is a source rate, position 1 is a dest. rate.
@@ -75,6 +75,22 @@ type replicationCapacityForBroker map[int]throttleByRole
 // in the replication, as opposed to 0.00 which explicitly describes the
 // broker as having no spare capacity available for replication.
 type throttleByRole [2]*float64
+
+func (r replicationCapacityByBroker) storeLeaderCapacity(id int, c float64) {
+	if _, exist := r[id]; !exist {
+		r[id] = [2]*float64{}
+	}
+
+	*r[id][0] = c
+}
+
+func (r replicationCapacityByBroker) storeFollowerCapacity(id int, c float64) {
+	if _, exist := r[id]; !exist {
+		r[id] = [2]*float64{}
+	}
+
+	*r[id][1] = c
+}
 
 // maxSrcNetTX takes a ThrottledBrokers and returns the leader with
 // the highest outbound network throughput.
@@ -287,24 +303,55 @@ func getReassigningBrokers(r kafkazk.Reassignments, zk kafkazk.Handler) (reassig
 	return lb, nil
 }
 
-// brokerReplicationCapacities
-// func brokerReplicationCapacities(rtc *ReplicationThrottleConfigs, reassigning reassigningBrokers, bm kafkametrics.BrokerMetrics) (replicationCapacityForBrokers, error) {
-// 		capacities := replicationCapacityForBrokers{}
-// 		// For each broker
-// 		// check if in src/dst
-// 		// calculate throttle
-// 		// Set in replicationCapacityForBrokers
-// 		for ID := range reassigning.all {
-// 			capacities[ID] = throttleByRole{}
-// 			if _, exists := reassigning.src[ID]; exists {
-// 				currThrottle, exists := rtc.appliedThrottles[ID]
-// 				if !exists {
-// 					currThrottle = 0.00
-// 				}
-// 				capacities[ID][0] = rtc.limits.Leader(b, currThrottle)
-// 			}
-// 		}
-// }
+// brokerReplicationCapacities traverses the list of all brokers participating
+// in the reassignment. For each broker, it determines whether the broker is
+// a leader (source) or a follower (destination), and calculates an throttle
+// accordingly. Each throttle is stored in the replicationCapacityByBroker
+func brokerReplicationCapacities(rtc *ReplicationThrottleConfigs, reassigning reassigningBrokers, bm kafkametrics.BrokerMetrics) (replicationCapacityByBroker, error) {
+	capacities := replicationCapacityByBroker{}
+
+	// For each broker, check whether the it's a source and/or destination,
+	// calculating and storing the throttle for each.
+	for ID := range reassigning.all {
+		capacities[ID] = throttleByRole{}
+		// Get the kafkametrics.Broker from the ID, check that
+		// it exists in the kafkametrics.BrokerMetrics.
+		broker, exists := bm[ID]
+		if !exists {
+			return capacities, fmt.Errorf("Broker %d not found in broker metrics", ID)
+		}
+
+		// Source (outbound) throttle.
+		for i, role := range []replicaType{"leader", "follower"} {
+			if _, exists := reassigning.src[ID]; exists {
+				var currThrottle float64
+				// Check if a throttle rate was previously set.
+				throttles, exists := rtc.previouslySetThrottles[ID]
+				if exists && throttles[i] != nil {
+					currThrottle = *throttles[i]
+				} else {
+					// If not, we assume that none of the current bandwidth is being
+					// consumed from reassignment bandwidth.
+					currThrottle = 0.00
+				}
+
+				// Calc. and store the rate.
+				rate, err := rtc.limits.replicationHeadroom(broker, role, currThrottle)
+				if err != nil {
+					return capacities, err
+				}
+
+				if i == 0 {
+					capacities.storeLeaderCapacity(ID, rate)
+				} else {
+					capacities.storeFollowerCapacity(ID, rate)
+				}
+			}
+		}
+	}
+
+	return capacities, nil
+}
 
 // repCapacityByMetrics finds the most constrained src broker and returns
 // a calculated replication capacity, the currently applied throttle, an event
@@ -537,6 +584,7 @@ func removeAllThrottles(zk kafkazk.Handler, params *ReplicationThrottleConfigs) 
 
 	// Unset all stored throttle rates.
 	for b := range params.appliedThrottles {
+		params.previouslySetThrottles[b] = [2]*float64{}
 		params.appliedThrottles[b] = 0.0
 	}
 

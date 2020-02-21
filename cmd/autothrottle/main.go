@@ -179,7 +179,7 @@ func main() {
 		km:                     km,
 		events:                 events,
 		appliedThrottles:       make(map[int]float64),
-		previouslySetThrottles: throttleByRole{},
+		previouslySetThrottles: make(replicationCapacityByBroker),
 		limits:                 lim,
 		failureThreshold:       Config.FailureThreshold,
 	}

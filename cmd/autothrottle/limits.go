@@ -83,3 +83,41 @@ func (l Limits) headroom(b *kafkametrics.Broker, t float64) (float64, error) {
 
 	return l["minimum"], errors.New("Unknown instance type")
 }
+
+// replicationHeadroom takes a *kafkametrics.Broker, what type of replica role
+// it's fulfilling, and the last set throttle rate. A replication headroom value
+// is returned based on utilization vs capacity. Headroom is determined by
+// subtracting the current throttle rate from the current network utilization.
+// This yields a crude approximation of how much non-replication throughput is
+// currently being demanded. The non-replication throughput is then subtracted
+// from the total network capacity available. This value suggests what headroom
+// is available for replication. We then use the greater of:
+// - this value * the configured portion of free bandwidth eligible for replication
+// - the configured minimum replication rate in MB/s
+func (l Limits) replicationHeadroom(b *kafkametrics.Broker, rt replicaType, prevThrottle float64) (float64, error) {
+	var currNetUtilization float64
+	var maxRatio float64
+
+	switch rt {
+	case "leader":
+		currNetUtilization = b.NetTX
+		maxRatio = l["srcMax"]
+	case "follower":
+		currNetUtilization = b.NetRX
+		maxRatio = l["dstMax"]
+	default:
+		return 0.00, errors.New("invalid replica type")
+	}
+
+	if capacity, exists := l[b.InstanceType]; exists {
+		nonThrottleUtil := math.Max(b.NetTX-prevThrottle, 0.00)
+		// Determine if/how far over the target capacity
+		// we are. This is also subtracted from the available
+		// headroom.
+		overCap := math.Max(currNetUtilization-capacity, 0.00)
+
+		return math.Max((capacity-nonThrottleUtil-overCap)*(maxRatio/100), l["minimum"]), nil
+	}
+
+	return l["minimum"], errors.New("Unknown instance type")
+}
