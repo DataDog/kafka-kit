@@ -178,7 +178,6 @@ func main() {
 		zk:                     zk,
 		km:                     km,
 		events:                 events,
-		appliedThrottles:       make(map[int]float64),
 		previouslySetThrottles: make(replicationCapacityByBroker),
 		limits:                 lim,
 		failureThreshold:       Config.FailureThreshold,
