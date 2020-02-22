@@ -115,9 +115,9 @@ func (zk *Mock) InitRawClient() error {
 }
 
 // UpdateKafkaConfig mocks UpdateKafkaConfig.
-func (zk *Mock) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
+func (zk *Mock) UpdateKafkaConfig(c KafkaConfig) ([]bool, error) {
 	_ = c
-	return true, nil
+	return []bool{}, nil
 }
 
 // GetTopics mocks GetTopics.

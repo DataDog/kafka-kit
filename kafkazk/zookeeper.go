@@ -53,7 +53,7 @@ type Handler interface {
 	// Kafka specific.
 	GetTopicState(string) (*TopicState, error)
 	GetTopicStateISR(string) (TopicStateISR, error)
-	UpdateKafkaConfig(KafkaConfig) (bool, error)
+	UpdateKafkaConfig(KafkaConfig) ([]bool, error)
 	GetReassignments() Reassignments
 	GetPendingDeletion() ([]string, error)
 	GetTopics([]*regexp.Regexp) ([]string, error)
@@ -706,15 +706,17 @@ func (z *ZKHandler) GetPartitionMap(t string) (*PartitionMap, error) {
 // entity config. If the config is changed, a persistent sequential
 // znode is also written to propagate changes (via watches) to all
 // Kafka brokers. This is a Kafka specific behavior; further references
-// are available from the Kafka codebase. A bool is returned indicating
-// whether the config was changed (if a config is updated to the existing
-// value, 'false' is returned) along with any errors encountered. If a
-// config value is set to an empty string (""), the entire config key
-// itself is deleted. This was a convenient way to combine update/delete
-// into a single func.
-func (z *ZKHandler) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
+// are available from the Kafka codebase. A []bool is returned indicating
+// whether the config of the respective index was changed (if a config is
+// updated to the existing value, 'false' is returned) along with any errors
+// encountered. If a config value is set to an empty string (""), the entire
+// config key itself is deleted. This was a convenient method to combine
+// update/delete into a single func.
+func (z *ZKHandler) UpdateKafkaConfig(c KafkaConfig) ([]bool, error) {
+	var changed = make([]bool, len(c.Configs))
+
 	if _, valid := validKafkaConfigTypes[c.Type]; !valid {
-		return false, ErrInvalidKafkaConfigType
+		return changed, ErrInvalidKafkaConfigType
 	}
 
 	// Get current config from the
@@ -730,11 +732,10 @@ func (z *ZKHandler) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
 
 	data, err := z.Get(path)
 	if err != nil {
-		// The path may be missing if the broker/topic
-		// has never had a configuration applied.
-		// This has only been observed for newly added
-		// brokers. Uncertain under what circumstance
-		// a topic config path wouldn't exist.
+		// The path may be missing if the broker/topic has never had a
+		// configuration applied. This has only been observed for newly added
+		// brokers. Uncertain under what circumstance a topic config path
+		// wouldn't exist.
 		switch err.(type) {
 		case ErrNoNode:
 			config = NewKafkaConfigData()
@@ -742,12 +743,12 @@ func (z *ZKHandler) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
 			config.Version = 1
 			d, _ := json.Marshal(config)
 			if err := z.Create(path, string(d)); err != nil {
-				return false, err
+				return changed, err
 			}
 			// Unset this error.
 			err = nil
 		default:
-			return false, err
+			return changed, err
 		}
 	} else {
 		config = NewKafkaConfigData()
@@ -755,14 +756,13 @@ func (z *ZKHandler) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
 	}
 
 	// Populate configs.
-	var changed bool
-	for _, kv := range c.Configs {
-		// If the config is value is diff,
-		// set and flip the changed var.
+	var anyChanges bool
+	for i, kv := range c.Configs {
+		// If the config is value is diff, set and flip the changed index.
 		if config.Config[kv[0]] != kv[1] {
-			changed = true
-			// If the string is empty, we
-			// delete the config.
+			changed[i] = true
+			anyChanges = true
+			// If the string is empty, we delete the config.
 			if kv[1] == "" {
 				delete(config.Config, kv[0])
 			} else {
@@ -771,25 +771,23 @@ func (z *ZKHandler) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
 		}
 	}
 
-	// Write the config back if it's different from
-	// what was already set.
-	if changed {
+	// Write the config back if it's different from what was already set.
+	if anyChanges {
 		newConfig, err := json.Marshal(config)
 		if err != nil {
-			return false, fmt.Errorf("Error marshalling config: %s", err)
+			return changed, fmt.Errorf("Error marshalling config: %s", err)
 		}
 		_, err = z.client.Set(path, newConfig, -1)
 		if err != nil {
-			return false, err
+			return changed, err
 		}
 	} else {
-		// Return if there's no change.
-		// No need to write back the config.
-		return false, err
+		// Return early if there's no change.
+		return changed, err
 	}
 
-	// If there were any config changes, write a change
-	// notification at /config/changes/config_change_<seq>.
+	// If there were any config changes, write a change notification
+	// at /config/changes/config_change_<seq>.
 	cpath := "/config/changes/config_change_"
 	if z.Prefix != "" {
 		cpath = "/" + z.Prefix + cpath
@@ -798,13 +796,12 @@ func (z *ZKHandler) UpdateKafkaConfig(c KafkaConfig) (bool, error) {
 	cdata := fmt.Sprintf(`{"version":2,"entity_path":"%ss/%s"}`, c.Type, c.Name)
 	err = z.CreateSequential(cpath, cdata)
 	if err != nil {
-		// If we're here, this would actually be a partial
-		// write since the config was updated but we're
-		// failing at the watch entry.
-		return false, err
+		// If we're here, this would actually be a partial write since the
+		// config was updated but we're failing at the watch entry.
+		return changed, err
 	}
 
-	return true, nil
+	return changed, nil
 }
 
 // uncompress takes a []byte and attempts to uncompress it as gzip.
