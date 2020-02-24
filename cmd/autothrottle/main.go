@@ -50,9 +50,7 @@ var (
 	topicsRegex = []*regexp.Regexp{regexp.MustCompile(".*")}
 )
 
-func init() {
-	// log.SetOutput(ioutil.Discard)
-
+func main() {
 	v := flag.Bool("version", false, "version")
 	flag.StringVar(&Config.APIKey, "api-key", "", "Datadog API key")
 	flag.StringVar(&Config.AppKey, "app-key", "", "Datadog app key")
@@ -93,9 +91,7 @@ func init() {
 			os.Exit(1)
 		}
 	}
-}
 
-func main() {
 	log.Println("Autothrottle Running")
 	// Lazily prevent a tight restart
 	// loop from thrashing ZK.
