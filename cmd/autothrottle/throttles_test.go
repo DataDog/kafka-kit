@@ -1,46 +1,14 @@
 package main
 
 import (
-	"fmt"
 	"sort"
 	"testing"
 
-	"github.com/DataDog/kafka-kit/kafkametrics"
 	"github.com/DataDog/kafka-kit/kafkazk"
 )
 
-func TestmaxSrcNetTX(t *testing.T) {
-	reassigning := mockgetReassigningBrokers()
-
-	b := reassigning.maxSrcNetTX()
-	if b.ID != 1004 {
-		t.Errorf("Expected broker ID 1004, got %d", b.ID)
-	}
-}
-
-func mockgetReassigningBrokers() getReassigningBrokers {
-	r := getReassigningBrokers{
-		Src: []*kafkametrics.Broker{},
-		Dst: []*kafkametrics.Broker{},
-	}
-
-	for i := 0; i < 5; i++ {
-		b := &kafkametrics.Broker{
-			ID:           1000 + i,
-			Host:         fmt.Sprintf("host%d", i),
-			InstanceType: "mock",
-			NetTX:        float64(80 + i),
-		}
-
-		r.Src = append(r.Src, b)
-		r.Dst = append(r.Dst, b)
-	}
-
-	return r
-}
-
 func TestLists(t *testing.T) {
-	b := mockreassigningBrokers()
+	b := mockReassigningBrokers()
 
 	src, dst, all := b.lists()
 
@@ -67,12 +35,12 @@ func TestLists(t *testing.T) {
 	}
 }
 
-func mockreassigningBrokers() reassigningBrokers {
+func mockReassigningBrokers() reassigningBrokers {
 	b := reassigningBrokers{
-		src:       map[int]struct{}{},
-		dst:       map[int]struct{}{},
-		all:       map[int]struct{}{},
-		throttled: map[string]map[string][]string{},
+		src:               map[int]struct{}{},
+		dst:               map[int]struct{}{},
+		all:               map[int]struct{}{},
+		throttledReplicas: topicThrottledReplicas{},
 	}
 
 	for i := 1000; i < 1010; i++ {
@@ -84,9 +52,9 @@ func mockreassigningBrokers() reassigningBrokers {
 		b.all[i] = struct{}{}
 	}
 
-	b.throttled["mock"] = map[string][]string{}
+	b.throttledReplicas["mock"] = throttled{}
 
-	b.throttled["mock"]["leaders"] = []string{
+	b.throttledReplicas["mock"]["leaders"] = brokerIDs{
 		"0:1000",
 		"1:1001",
 		"2:1002",
@@ -94,7 +62,7 @@ func mockreassigningBrokers() reassigningBrokers {
 		"4:1004",
 	}
 
-	b.throttled["mock"]["followers"] = []string{
+	b.throttledReplicas["mock"]["followers"] = brokerIDs{
 		"0:1005",
 		"1:1006",
 		"2:1007",
@@ -162,7 +130,7 @@ func TestgetReassigningBrokers(t *testing.T) {
 	expectedThrottledLeaders := []string{"0:1000", "1:1002"}
 	expectedThrottledFollowers := []string{"0:1003", "0:1004", "1:1005", "1:1010"}
 
-	throttledList := bmaps.throttled["mock"]["leaders"]
+	throttledList := bmaps.throttledReplicas["mock"]["leaders"]
 	sort.Strings(throttledList)
 	for n, s := range throttledList {
 		if s != expectedThrottledLeaders[n] {
@@ -170,7 +138,7 @@ func TestgetReassigningBrokers(t *testing.T) {
 		}
 	}
 
-	throttledList = bmaps.throttled["mock"]["followers"]
+	throttledList = bmaps.throttledReplicas["mock"]["followers"]
 	sort.Strings(throttledList)
 	for n, s := range throttledList {
 		if s != expectedThrottledFollowers[n] {
@@ -188,55 +156,6 @@ func inSlice(id int, s []int) bool {
 	}
 
 	return found
-}
-
-func TestRepCapacityByMetrics(t *testing.T) {
-	// Setup.
-	c := NewLimitsConfig{
-		Minimum: 20,
-		Maximum: 90,
-		CapacityMap: map[string]float64{
-			"mock": 120.00,
-		},
-	}
-
-	l, _ := NewLimits(c)
-
-	rtc := &ReplicationThrottleConfigs{
-		limits: l,
-		throttles: map[int]float64{
-			1004: 80.00,
-		},
-	}
-
-	reassigning := mockreassigningBrokers()
-
-	km := &kafkametrics.Mock{}
-	bm, _ := km.GetMetrics()
-
-	// Test normal scenario.
-	cap, curr, _, _ := repCapacityByMetrics(rtc, reassigning, bm)
-	if cap != 86.40 {
-		t.Errorf("Expected capacity of 86.40, got %.2f", cap)
-	}
-
-	if curr != 80.00 {
-		t.Errorf("Expected current capacity of 80.00, got %.2f", curr)
-	}
-
-	// Test with missing instance type.
-	delete(rtc.limits, "mock")
-	_, _, _, err := repCapacityByMetrics(rtc, reassigning, bm)
-	if err.Error() != "Unknown instance type" {
-		t.Errorf("Expected error 'Unknown instance type', got '%s'", err.Error())
-	}
-
-	// Test with a missing broker in the broker metrics.
-	delete(bm, 1004)
-	_, _, _, err = repCapacityByMetrics(rtc, reassigning, bm)
-	if err.Error() != "Broker 1004 not found in broker metrics" {
-		t.Errorf("Expected error 'Broker 1004 not found in broker metrics', got '%s'", err.Error())
-	}
 }
 
 // func TestApplyTopicThrottles(t *testing.T) {}

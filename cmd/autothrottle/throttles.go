@@ -363,7 +363,7 @@ func applyBrokerThrottles(bs map[int]struct{}, capacities, prevThrottles replica
 			}
 
 			log.Printf("Replication throttle rate for broker %d [%s] (based on a %.0f%% max free capacity utilization): %0.2fMB/s\n",
-				ID, role, l["maximum"], rate)
+				ID, role, l["maximum"], *rate)
 
 			// Check if the delta between the newly calculated throttle and the
 			// previous throttle exceeds the ChangeThreshold param.
