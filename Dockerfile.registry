@@ -17,8 +17,8 @@ RUN apt-get install -y unzip curl git pkg-config software-properties-common apt-
 WORKDIR /root
 
 # Install Go.
-RUN curl -sOL https://dl.google.com/go/go1.13.4.linux-amd64.tar.gz
-RUN tar -C /usr/local -xzf go1.13.4.linux-amd64.tar.gz
+RUN curl -sOL https://dl.google.com/go/go1.13.8.linux-amd64.tar.gz
+RUN tar -C /usr/local -xzf go1.13.8.linux-amd64.tar.gz
 ENV PATH=$PATH:/usr/local/go/bin:/go/bin
 ENV GOPATH=/go
 
