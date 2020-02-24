@@ -65,8 +65,6 @@ func main() {
 	flag.StringVar(&Config.ConfigZKPrefix, "zk-config-prefix", "autothrottle", "ZooKeeper prefix to store autothrottle configuration")
 	flag.StringVar(&Config.DDEventTags, "dd-event-tags", "", "Comma-delimited list of Datadog event tags")
 	flag.Float64Var(&Config.MinRate, "min-rate", 10, "Minimum replication throttle rate (MB/s)")
-	// TODO deprecate.
-	flag.Float64Var(&Config.MaxRate, "max-rate", 90, "Maximum replication throttle rate (as a percentage of available capacity)")
 	flag.Float64Var(&Config.SourceMaxRate, "max-tx-rate", 90, "Maximum outbound replication throttle rate (as a percentage of available capacity)")
 	flag.Float64Var(&Config.DestinationMaxRate, "max-rx-rate", 90, "Maximum inbound replication throttle rate (as a percentage of available capacity)")
 	flag.Float64Var(&Config.ChangeThreshold, "change-threshold", 10, "Required change in replication throttle to trigger an update (percent)")
@@ -161,7 +159,6 @@ func main() {
 
 	newLimitsConfig := NewLimitsConfig{
 		Minimum:     Config.MinRate,
-		Maximum:     Config.MaxRate,
 		CapacityMap: Config.CapMap,
 	}
 

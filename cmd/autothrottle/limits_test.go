@@ -16,14 +16,15 @@ func TestNewLimits(t *testing.T) {
 	}
 
 	c.Minimum = 10
-	c.Maximum = 120
+	c.SourceMaximum = 120
 
 	_, err = NewLimits(c)
 	if err == nil {
 		t.Error("Expected non-nil error")
 	}
 
-	c.Maximum = 80
+	c.SourceMaximum = 80
+	c.DestinationMaximum = 80
 
 	_, err = NewLimits(c)
 	if err != nil {
@@ -31,10 +32,11 @@ func TestNewLimits(t *testing.T) {
 	}
 }
 
-func TestHeadroom(t *testing.T) {
+func TestReplicationHeadroom(t *testing.T) {
 	c := NewLimitsConfig{
-		Minimum: 10,
-		Maximum: 80,
+		Minimum:            10,
+		SourceMaximum:      80,
+		DestinationMaximum: 80,
 		CapacityMap: map[string]float64{
 			"mock": 100,
 		},
@@ -55,7 +57,7 @@ func TestHeadroom(t *testing.T) {
 
 	for n, params := range expected {
 		b.NetTX = params[0]
-		h, _ := l.headroom(b, params[1])
+		h, _ := l.replicationHeadroom(b, "leader", params[1])
 		if h != params[2] {
 			t.Errorf("[test index %d] Expected headroom value of %f, got %f\n", n, params[2], h)
 		}
