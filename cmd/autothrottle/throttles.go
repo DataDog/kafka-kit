@@ -97,22 +97,6 @@ func (r replicationCapacityByBroker) setAllRatesWithDefault(ids []int, rate floa
 	}
 }
 
-// maxSrcNetTX takes a ThrottledBrokers and returns the leader with
-// the highest outbound network throughput.
-func (t ThrottledBrokers) maxSrcNetTX() *kafkametrics.Broker {
-	hwm := 0.00
-	var broker *kafkametrics.Broker
-
-	for _, b := range t.Src {
-		if b.NetTX > hwm {
-			hwm = b.NetTX
-			broker = b
-		}
-	}
-
-	return broker
-}
-
 // updateReplicationThrottle takes a ReplicationThrottleConfigs that holds
 // topics being replicated, any ZooKeeper/other clients, throttle override
 // params, and other required metadata. Metrics for brokers participating in
@@ -214,7 +198,7 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 		log.Println(e)
 	}
 
-	// Write event.
+	// Write event. TODO update for per-broker rates.
 	// var b bytes.Buffer
 	// b.WriteString(fmt.Sprintf("Replication throttle of %0.2fMB/s set on the following brokers: %v\n",
 	// 	replicationCapacity, allBrokers))
