@@ -77,7 +77,7 @@ func (l Limits) replicationHeadroom(b *kafkametrics.Broker, rt replicaType, prev
 	}
 
 	if capacity, exists := l[b.InstanceType]; exists {
-		nonThrottleUtil := math.Max(b.NetTX-prevThrottle, 0.00)
+		nonThrottleUtil := math.Max(currNetUtilization-prevThrottle, 0.00)
 		// Determine if/how far over the target capacity
 		// we are. This is also subtracted from the available
 		// headroom.
