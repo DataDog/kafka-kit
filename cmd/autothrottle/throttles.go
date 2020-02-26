@@ -17,7 +17,7 @@ import (
 // ReplicationThrottleConfigs holds all the data/types needed to
 // call updateReplicationThrottle.
 type ReplicationThrottleConfigs struct {
-	topics        []string
+	topics        []string // TODO(jamie): probably don't even need this anymore.
 	reassignments kafkazk.Reassignments
 	zk            kafkazk.Handler
 	km            kafkametrics.Handler
@@ -79,7 +79,9 @@ func (r replicationCapacityByBroker) storeLeaderCapacity(id int, c float64) {
 		r[id] = [2]*float64{}
 	}
 
-	*r[id][0] = c
+	a := r[id]
+	a[0] = &c
+	r[id] = a
 }
 
 func (r replicationCapacityByBroker) storeFollowerCapacity(id int, c float64) {
@@ -87,7 +89,9 @@ func (r replicationCapacityByBroker) storeFollowerCapacity(id int, c float64) {
 		r[id] = [2]*float64{}
 	}
 
-	*r[id][1] = c
+	a := r[id]
+	a[1] = &c
+	r[id] = a
 }
 
 func (r replicationCapacityByBroker) setAllRatesWithDefault(ids []int, rate float64) {
@@ -198,10 +202,12 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 		log.Println(e)
 	}
 
-	// Write event. TODO update for per-broker rates.
+	// Write event. TODO(jamie): update for per-broker rates.
 	// var b bytes.Buffer
 	// b.WriteString(fmt.Sprintf("Replication throttle of %0.2fMB/s set on the following brokers: %v\n",
 	// 	replicationCapacity, allBrokers))
+	// NOTE: drop the .topics use here. See TODO on the ReplicationThrottleConfigs
+	// definition.
 	// b.WriteString(fmt.Sprintf("Topics currently undergoing replication: %v", params.topics))
 	// params.events.Write("Broker replication throttle set", b.String())
 
@@ -270,7 +276,7 @@ func getReassigningBrokers(r kafkazk.Reassignments, zk kafkazk.Handler) (reassig
 // brokerReplicationCapacities traverses the list of all brokers participating
 // in the reassignment. For each broker, it determines whether the broker is
 // a leader (source) or a follower (destination), and calculates an throttle
-// accordingly. Each throttle is stored in the replicationCapacityByBroker
+// accordingly, returning a replicationCapacityByBroker and error.
 func brokerReplicationCapacities(rtc *ReplicationThrottleConfigs, reassigning reassigningBrokers, bm kafkametrics.BrokerMetrics) (replicationCapacityByBroker, error) {
 	capacities := replicationCapacityByBroker{}
 
@@ -287,7 +293,15 @@ func brokerReplicationCapacities(rtc *ReplicationThrottleConfigs, reassigning re
 
 		// Source (outbound) throttle.
 		for i, role := range []replicaType{"leader", "follower"} {
-			if _, exists := reassigning.src[ID]; exists {
+			var exists bool
+			switch role {
+			case "leader":
+				_, exists = reassigning.src[ID]
+			case "follower":
+				_, exists = reassigning.dst[ID]
+			}
+
+			if exists {
 				var currThrottle float64
 				// Check if a throttle rate was previously set.
 				throttles, exists := rtc.previouslySetThrottles[ID]
@@ -305,9 +319,10 @@ func brokerReplicationCapacities(rtc *ReplicationThrottleConfigs, reassigning re
 					return capacities, err
 				}
 
-				if i == 0 {
+				switch role {
+				case "leader":
 					capacities.storeLeaderCapacity(ID, rate)
-				} else {
+				case "follower":
 					capacities.storeFollowerCapacity(ID, rate)
 				}
 			}
@@ -400,15 +415,9 @@ func applyBrokerThrottles(bs map[int]struct{}, capacities, prevThrottles replica
 
 // applyTopicThrottles updates a throttledReplicas for all topics
 // undergoing replication.
-// XXX(jamie) we need to avoid continously resetting this to reduce writes
-// to ZK and subsequent config propagations to all brokers.
-// We can either:
-// - Ensure throttle lists are sorted so that if we provide the
-//   same list each iteration that it results in a no-op in the backend.
-// - Keep track of topics that have already had a throttle list written and
-//   assume that it's not going to change (a throttle list is applied) when
-//   a topic is initially set for reassignment and cleared by autothrottle
-//   as soon as the reassignment is done.
+// TODO(jamie) review whether the throttled replicas list changes as
+// replication finishes; each time the list changes here, we probably
+//  update the config then propagate a watch to all the brokers in the cluster.
 func applyTopicThrottles(throttled topicThrottledReplicas, zk kafkazk.Handler) []string {
 	var errs []string
 
