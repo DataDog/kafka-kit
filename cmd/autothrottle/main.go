@@ -145,8 +145,8 @@ func main() {
 		tags:        tags,
 	}
 
-	// Default to true on startup in case throttles were set in
-	// an autothrottle session other than the current one.
+	// Default to true on startup in case throttles were set in  an autothrottle
+	// process other than the current one.
 	knownThrottles := true
 
 	var reassignments kafkazk.Reassignments
@@ -154,8 +154,7 @@ func main() {
 	var replicatingNow map[string]struct{}
 	var done []string
 
-	// Params for the updateReplicationThrottle
-	// request.
+	// Params for the updateReplicationThrottle request.
 
 	newLimitsConfig := NewLimitsConfig{
 		Minimum:     Config.MinRate,
@@ -194,8 +193,8 @@ func main() {
 			replicatingNow[t] = struct{}{}
 		}
 
-		// Check for topics that were previously seen
-		// replicating, but are no longer in this interval.
+		// Check for topics that were previously seen replicating, but are no
+		// longer in this interval.
 		done = done[:0]
 		for t := range replicatingPreviously {
 			if _, replicating := replicatingNow[t]; !replicating {
@@ -223,8 +222,7 @@ func main() {
 			log.Println(err)
 		}
 
-		// If topics are being reassigned, update
-		// the replication throttle.
+		// If topics are being reassigned, update the replication throttle.
 		if len(throttleMeta.topics) > 0 {
 			log.Printf("Topics with ongoing reassignments: %s\n", throttleMeta.topics)
 
@@ -257,8 +255,7 @@ func main() {
 				}
 			}
 
-			// Remove any configured throttle overrides
-			// if AutoRemove is true.
+			// Remove any configured throttle overrides if AutoRemove is true.
 			if overrideCfg.AutoRemove {
 				err := setThrottleOverride(zk, overridePath, ThrottleOverrideConfig{})
 				if err != nil {
