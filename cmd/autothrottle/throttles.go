@@ -8,6 +8,7 @@ import (
 	"log"
 	"math"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/DataDog/kafka-kit/kafkametrics"
@@ -334,7 +335,7 @@ func brokerReplicationCapacities(rtc *ReplicationThrottleConfigs, reassigning re
 	return capacities, nil
 }
 
-// applyBrokerThrottles take a set of brokers, a replication throttle rate
+// applyBrokerThrottles takes a set of brokers, a replication throttle rate
 // string, rate, map for tracking applied throttles, and zk kafkazk.Handler
 // zookeeper client. For each broker, the throttle rate is applied and if
 // successful, the rate is stored in the throttles map for future reference.
@@ -363,8 +364,16 @@ func applyBrokerThrottles(bs map[int]struct{}, capacities, prevThrottles replica
 				prevRate = &v
 			}
 
+			var max float64
+			switch role {
+			case "leader":
+				max = l["srcMax"]
+			case "follower":
+				max = l["dstMax"]
+			}
+
 			log.Printf("Replication throttle rate for broker %d [%s] (based on a %.0f%% max free capacity utilization): %0.2fMB/s\n",
-				ID, role, l["maximum"], *rate)
+				ID, role, max, *rate)
 
 			// Check if the delta between the newly calculated throttle and the
 			// previous throttle exceeds the ChangeThreshold param.
@@ -390,19 +399,23 @@ func applyBrokerThrottles(bs map[int]struct{}, capacities, prevThrottles replica
 		}
 
 		for i, changed := range changes {
-			role := roleFromIndex(i)
-
 			if changed {
-				log.Printf("Updated throttle on broker %d [%s]\n", ID, role)
+				// This will be either "leader.replication.throttled.rate" or
+				// "follower.replication.throttled.rate".
+				throttleConfigString := brokerConfig.Configs[i][0]
+				// Split on ".", get "leader" or "follower" string.
+				role := strings.Split(throttleConfigString, ".")[0]
 
-				rate := *capacities[ID][i]
+				log.Printf("Updated throttle on broker %d [%s]\n", ID, role)
 
 				// Store the configured rate.
 				switch role {
 				case "leader":
-					prevThrottles.storeLeaderCapacity(ID, rate)
+					rate := capacities[ID][0]
+					prevThrottles.storeLeaderCapacity(ID, *rate)
 				case "follower":
-					prevThrottles.storeFollowerCapacity(ID, rate)
+					rate := capacities[ID][1]
+					prevThrottles.storeFollowerCapacity(ID, *rate)
 				}
 			}
 		}

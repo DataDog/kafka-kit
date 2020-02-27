@@ -54,7 +54,6 @@ func mergeBrokerLists(dst, src []*kafkametrics.Broker) []*kafkametrics.Broker {
 	// dst list.
 	m := map[string]int{}
 	for i, b := range dst {
-		fmt.Println(b.Host)
 		m[b.Host] = i
 	}
 
