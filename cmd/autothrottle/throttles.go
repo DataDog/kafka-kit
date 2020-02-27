@@ -301,30 +301,32 @@ func brokerReplicationCapacities(rtc *ReplicationThrottleConfigs, reassigning re
 				_, exists = reassigning.dst[ID]
 			}
 
-			if exists {
-				var currThrottle float64
-				// Check if a throttle rate was previously set.
-				throttles, exists := rtc.previouslySetThrottles[ID]
-				if exists && throttles[i] != nil {
-					currThrottle = *throttles[i]
-				} else {
-					// If not, we assume that none of the current bandwidth is being
-					// consumed from reassignment bandwidth.
-					currThrottle = 0.00
-				}
+			if !exists {
+				continue
+			}
 
-				// Calc. and store the rate.
-				rate, err := rtc.limits.replicationHeadroom(broker, role, currThrottle)
-				if err != nil {
-					return capacities, err
-				}
+			var currThrottle float64
+			// Check if a throttle rate was previously set.
+			throttles, exists := rtc.previouslySetThrottles[ID]
+			if exists && throttles[i] != nil {
+				currThrottle = *throttles[i]
+			} else {
+				// If not, we assume that none of the current bandwidth is being
+				// consumed from reassignment bandwidth.
+				currThrottle = 0.00
+			}
 
-				switch role {
-				case "leader":
-					capacities.storeLeaderCapacity(ID, rate)
-				case "follower":
-					capacities.storeFollowerCapacity(ID, rate)
-				}
+			// Calc. and store the rate.
+			rate, err := rtc.limits.replicationHeadroom(broker, role, currThrottle)
+			if err != nil {
+				return capacities, err
+			}
+
+			switch role {
+			case "leader":
+				capacities.storeLeaderCapacity(ID, rate)
+			case "follower":
+				capacities.storeFollowerCapacity(ID, rate)
 			}
 		}
 	}
