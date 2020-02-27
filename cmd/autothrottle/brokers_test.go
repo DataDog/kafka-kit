@@ -64,7 +64,7 @@ func mockBrokerMetrics() kafkametrics.BrokerMetrics {
 			Host:         "host5",
 			InstanceType: "mock",
 			NetTX:        80.00,
-			NetRX:        80.00,
+			NetRX:        180.00,
 		},
 		1006: &kafkametrics.Broker{
 			ID:           1006,
@@ -99,7 +99,7 @@ func mockBrokerMetrics() kafkametrics.BrokerMetrics {
 			Host:         "host10",
 			InstanceType: "mock",
 			NetTX:        80.00,
-			NetRX:        80.00,
+			NetRX:        120.00,
 		},
 	}
 }
