@@ -346,9 +346,12 @@ func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) (*BrokerStatus, <-chan str
 			if broker.ID == StubBrokerID {
 				continue
 			}
-			if broker.Locality == "" {
-				bs.RackMissing++
-				msgs <- fmt.Sprintf("Broker %d does not have a rack.id defined", broker.ID)
+			// ignore missing brokers not found in zk
+			if !b[broker.ID].Missing {
+				if broker.Locality == "" {
+					bs.RackMissing++
+					msgs <- fmt.Sprintf("Broker %d does not have a rack.id defined", broker.ID)
+				}
 			}
 		}
 	}
