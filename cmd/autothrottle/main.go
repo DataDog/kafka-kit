@@ -37,7 +37,6 @@ var (
 		ConfigZKPrefix     string
 		DDEventTags        string
 		MinRate            float64
-		MaxRate            float64
 		SourceMaxRate      float64
 		DestinationMaxRate float64
 		ChangeThreshold    float64
@@ -157,8 +156,10 @@ func main() {
 	// Params for the updateReplicationThrottle request.
 
 	newLimitsConfig := NewLimitsConfig{
-		Minimum:     Config.MinRate,
-		CapacityMap: Config.CapMap,
+		Minimum:            Config.MinRate,
+		SourceMaximum:      Config.SourceMaxRate,
+		DestinationMaximum: Config.DestinationMaxRate,
+		CapacityMap:        Config.CapMap,
 	}
 
 	lim, err := NewLimits(newLimitsConfig)
