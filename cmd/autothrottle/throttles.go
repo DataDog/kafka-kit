@@ -18,13 +18,12 @@ import (
 // ReplicationThrottleConfigs holds all the data/types needed to
 // call updateReplicationThrottle.
 type ReplicationThrottleConfigs struct {
-	topics        []string // TODO(jamie): probably don't even need this anymore.
-	reassignments kafkazk.Reassignments
-	zk            kafkazk.Handler
-	km            kafkametrics.Handler
-	overrideRate  int
-	events        *DDEventWriter
-	// Map of broker ID to last set throttle rate.
+	topics                 []string // TODO(jamie): probably don't even need this anymore.
+	reassignments          kafkazk.Reassignments
+	zk                     kafkazk.Handler
+	km                     kafkametrics.Handler
+	overrideRate           int
+	events                 *DDEventWriter
 	previouslySetThrottles replicationCapacityByBroker
 	limits                 Limits
 	failureThreshold       int
@@ -198,7 +197,7 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 	}
 
 	//Set topic throttle configs.
-	errs = applyTopicThrottles(reassigning.throttledReplicas, params.zk)
+	_, errs = applyTopicThrottles(reassigning.throttledReplicas, params.zk)
 	for _, e := range errs {
 		log.Println(e)
 	}
@@ -292,17 +291,19 @@ func brokerReplicationCapacities(rtc *ReplicationThrottleConfigs, reassigning re
 			return capacities, fmt.Errorf("Broker %d not found in broker metrics", ID)
 		}
 
-		// Source (outbound) throttle.
+		// We're traversing brokers from 'all', but a broker's role is either
+		// a leader, a follower, or both. If it's exclusively one, we can
+		// skip throttle computation for that role type for the broker.
 		for i, role := range []replicaType{"leader", "follower"} {
-			var exists bool
+			var isInRole bool
 			switch role {
 			case "leader":
-				_, exists = reassigning.src[ID]
+				_, isInRole = reassigning.src[ID]
 			case "follower":
-				_, exists = reassigning.dst[ID]
+				_, isInRole = reassigning.dst[ID]
 			}
 
-			if !exists {
+			if !isInRole {
 				continue
 			}
 
@@ -429,11 +430,13 @@ func applyBrokerThrottles(bs map[int]struct{}, capacities, prevThrottles replica
 }
 
 // applyTopicThrottles updates a throttledReplicas for all topics
-// undergoing replication.
+// undergoing replication, returning a channel of events and []string
+// of errors.
 // TODO(jamie) review whether the throttled replicas list changes as
 // replication finishes; each time the list changes here, we probably
-//  update the config then propagate a watch to all the brokers in the cluster.
-func applyTopicThrottles(throttled topicThrottledReplicas, zk kafkazk.Handler) []string {
+// update the config then propagate a watch to all the brokers in the cluster.
+func applyTopicThrottles(throttled topicThrottledReplicas, zk kafkazk.Handler) (chan string, []string) {
+	events := make(chan string, len(throttled))
 	var errs []string
 
 	for t := range throttled {
@@ -457,13 +460,26 @@ func applyTopicThrottles(throttled topicThrottledReplicas, zk kafkazk.Handler) [
 		}
 
 		// Write the config.
-		_, err := zk.UpdateKafkaConfig(config)
+		changes, err := zk.UpdateKafkaConfig(config)
 		if err != nil {
 			errs = append(errs, fmt.Sprintf("Error setting throttle list on topic %s: %s\n", t, err))
 		}
+
+		var anyChanges bool
+		for _, changed := range changes {
+			if changed {
+				anyChanges = true
+			}
+		}
+
+		if anyChanges {
+			events <- fmt.Sprintf("updated throttled brokers list for %s", string(t))
+		}
 	}
 
-	return errs
+	close(events)
+
+	return events, errs
 }
 
 // removeAllThrottles removes all topic and broker throttle configs.
