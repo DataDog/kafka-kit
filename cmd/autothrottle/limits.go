@@ -42,8 +42,7 @@ func NewLimits(c NewLimitsConfig) (Limits, error) {
 		"dstMax":  c.DestinationMaximum,
 	}
 
-	// Update with provided
-	// capacity map.
+	// Update with provided capacity map.
 	for k, v := range c.CapacityMap {
 		lim[k] = v
 	}
@@ -86,5 +85,5 @@ func (l Limits) replicationHeadroom(b *kafkametrics.Broker, rt replicaType, prev
 		return math.Max((capacity-nonThrottleUtil-overCap)*(maxRatio/100), l["minimum"]), nil
 	}
 
-	return l["minimum"], errors.New("Unknown instance type")
+	return l["minimum"], errors.New("unknown instance type")
 }
