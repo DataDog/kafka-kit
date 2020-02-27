@@ -134,6 +134,7 @@ func (h *ddHandler) GetMetrics() (kafkametrics.BrokerMetrics, []error) {
 			errors = append(errors, errs...)
 		}
 
+		// We received a different number of series.
 		if i > 0 && len(blist) != lastLen {
 			return nil, []error{&kafkametrics.NoResults{
 				Message: "Failed to fetch complete metrics for brokers",

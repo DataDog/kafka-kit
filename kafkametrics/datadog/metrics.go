@@ -52,20 +52,21 @@ func brokersFromSeries(s []dd.Series, metric int) ([]*kafkametrics.Broker, []err
 func mergeBrokerLists(dst, src []*kafkametrics.Broker) []*kafkametrics.Broker {
 	// Build a map of Broker.ID to []*kafkametrics.Broker index for the
 	// dst list.
-	m := map[int]int{}
+	m := map[string]int{}
 	for i, b := range dst {
-		m[b.ID] = i
+		fmt.Println(b.Host)
+		m[b.Host] = i
 	}
 
 	// For each broker in the src list, add/update in the dst list.
 	for _, b := range src {
-		if i, exists := m[b.ID]; exists {
+		if i, exists := m[b.Host]; exists {
 			// Update.
 			updateBroker(dst[i], b)
 		} else {
 			// Add.
 			dst = append(dst, b)
-			m[b.ID] = len(dst) - 1
+			m[b.Host] = len(dst) - 1
 		}
 	}
 
