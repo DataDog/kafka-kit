@@ -101,6 +101,14 @@ func (r replicationCapacityByBroker) setAllRatesWithDefault(ids []int, rate floa
 	}
 }
 
+// brokerChangeEvent is the message type returned in the events channel
+// from the applyBrokerThrottles func.
+type brokerChangeEvent struct {
+	id   int
+	role string
+	rate float64
+}
+
 // updateReplicationThrottle takes a ReplicationThrottleConfigs that holds
 // topics being replicated, any ZooKeeper/other clients, throttle override
 // params, and other required metadata. Metrics for brokers participating in
@@ -191,7 +199,7 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 	}
 
 	//Set broker throttle configs.
-	errs := applyBrokerThrottles(reassigning.all, capacities, params.previouslySetThrottles, params.limits, params.zk)
+	events, errs := applyBrokerThrottles(reassigning.all, capacities, params.previouslySetThrottles, params.limits, params.zk)
 	for _, e := range errs {
 		log.Println(e)
 	}
@@ -202,7 +210,7 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 		log.Println(e)
 	}
 
-	// Write event. TODO(jamie): update for per-broker rates.
+	// Write event.
 	// var b bytes.Buffer
 	// b.WriteString(fmt.Sprintf("Replication throttle of %0.2fMB/s set on the following brokers: %v\n",
 	// 	replicationCapacity, allBrokers))
@@ -340,7 +348,9 @@ func brokerReplicationCapacities(rtc *ReplicationThrottleConfigs, reassigning re
 // string, rate, map for tracking applied throttles, and zk kafkazk.Handler
 // zookeeper client. For each broker, the throttle rate is applied and if
 // successful, the rate is stored in the throttles map for future reference.
-func applyBrokerThrottles(bs map[int]struct{}, capacities, prevThrottles replicationCapacityByBroker, l Limits, zk kafkazk.Handler) []string {
+// A channel of events and []string of errors is returned.
+func applyBrokerThrottles(bs map[int]struct{}, capacities, prevThrottles replicationCapacityByBroker, l Limits, zk kafkazk.Handler) (chan brokerChangeEvent, []string) {
+	events := make(chan brokerChangeEvent, len(bs)*2)
 	var errs []string
 
 	// Set the throttle config for all reassigning brokers.
@@ -409,14 +419,22 @@ func applyBrokerThrottles(bs map[int]struct{}, capacities, prevThrottles replica
 
 				log.Printf("Updated throttle on broker %d [%s]\n", ID, role)
 
+				var rate *float64
+
 				// Store the configured rate.
 				switch role {
 				case "leader":
-					rate := capacities[ID][0]
+					rate = capacities[ID][0]
 					prevThrottles.storeLeaderCapacity(ID, *rate)
 				case "follower":
-					rate := capacities[ID][1]
+					rate = capacities[ID][1]
 					prevThrottles.storeFollowerCapacity(ID, *rate)
+				}
+
+				events <- brokerChangeEvent{
+					id:   ID,
+					role: role,
+					rate: *rate,
 				}
 			}
 		}
@@ -426,7 +444,9 @@ func applyBrokerThrottles(bs map[int]struct{}, capacities, prevThrottles replica
 		time.Sleep(250 * time.Millisecond)
 	}
 
-	return errs
+	close(events)
+
+	return events, errs
 }
 
 // applyTopicThrottles updates a throttledReplicas for all topics
@@ -473,6 +493,8 @@ func applyTopicThrottles(throttled topicThrottledReplicas, zk kafkazk.Handler) (
 		}
 
 		if anyChanges {
+			// TODO(jamie): we don't use these events yet, but this probably isn't
+			// actually the format we want anyway.
 			events <- fmt.Sprintf("updated throttled brokers list for %s", string(t))
 		}
 	}
