@@ -210,14 +210,23 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 		log.Println(e)
 	}
 
-	// Write event.
-	// var b bytes.Buffer
-	// b.WriteString(fmt.Sprintf("Replication throttle of %0.2fMB/s set on the following brokers: %v\n",
-	// 	replicationCapacity, allBrokers))
-	// NOTE: drop the .topics use here. See TODO on the ReplicationThrottleConfigs
-	// definition.
-	// b.WriteString(fmt.Sprintf("Topics currently undergoing replication: %v", params.topics))
-	// params.events.Write("Broker replication throttle set", b.String())
+	// Append broker throttle info to event.
+	var b bytes.Buffer
+	if len(events) > 0 {
+		b.WriteString("Replication throttles changes for brokers [ID, role, rate]: ")
+
+		for e := range events {
+			b.WriteString(fmt.Sprintf("[%d, %s, %.2f], ", e.id, e.role, e.rate))
+		}
+
+		b.WriteString("\n")
+	}
+
+	// Append topic stats to event.
+	b.WriteString(fmt.Sprintf("Topics currently undergoing replication: %v", params.topics))
+
+	// Ship it.
+	params.events.Write("Broker replication throttle set", b.String())
 
 	return nil
 }
