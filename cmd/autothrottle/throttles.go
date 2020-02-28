@@ -15,8 +15,8 @@ import (
 	"github.com/DataDog/kafka-kit/kafkazk"
 )
 
-// ReplicationThrottleConfigs holds all the data/types needed to
-// call updateReplicationThrottle.
+// ReplicationThrottleConfigs holds all the data needed to call
+// updateReplicationThrottle.
 type ReplicationThrottleConfigs struct {
 	topics                 []string // TODO(jamie): probably don't even need this anymore.
 	reassignments          kafkazk.Reassignments
@@ -28,6 +28,7 @@ type ReplicationThrottleConfigs struct {
 	limits                 Limits
 	failureThreshold       int
 	failures               int
+	skipTopicUpdates       bool
 }
 
 // ThrottleOverrideConfig holds throttle
@@ -55,6 +56,18 @@ func (r *ReplicationThrottleConfigs) Failure() bool {
 // ResetFailures resets the failures count.
 func (r *ReplicationThrottleConfigs) ResetFailures() {
 	r.failures = 0
+}
+
+// DisableTopicUpdates prevents topic throttled replica lists from being
+// updated in ZooKeeper.
+func (r *ReplicationThrottleConfigs) DisableTopicUpdates() {
+	r.skipTopicUpdates = true
+}
+
+// DisableTopicUpdates allow topic throttled replica lists from being
+// updated in ZooKeeper.
+func (r *ReplicationThrottleConfigs) EnableTopicUpdates() {
+	r.skipTopicUpdates = false
 }
 
 // ThrottledBrokers is a list of brokers with a throttle applied
@@ -205,9 +218,11 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 	}
 
 	//Set topic throttle configs.
-	_, errs = applyTopicThrottles(reassigning.throttledReplicas, params.zk)
-	for _, e := range errs {
-		log.Println(e)
+	if !params.skipTopicUpdates {
+		_, errs = applyTopicThrottles(reassigning.throttledReplicas, params.zk)
+		for _, e := range errs {
+			log.Println(e)
+		}
 	}
 
 	// Append broker throttle info to event.
