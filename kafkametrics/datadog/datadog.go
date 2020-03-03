@@ -27,6 +27,9 @@ type Config struct {
 	// BrokerIDTag is the host tag name
 	// for Kafka broker IDs.
 	BrokerIDTag string
+	// InstanceTypeTag is the instance type tag name
+	// for Kafka broker Instance.
+	InstanceTypeTag string
 	// MetricsWindow specifies the window size of
 	// timeseries data to evaluate in seconds.
 	// All values for the window are averaged.
@@ -34,13 +37,14 @@ type Config struct {
 }
 
 type ddHandler struct {
-	c             *dd.Client
-	netTXQuery    string
-	brokerIDTag   string
-	metricsWindow int
-	tagCache      map[string][]string
-	keysRegex     *regexp.Regexp
-	redactionSub  []byte
+	c               *dd.Client
+	netTXQuery      string
+	brokerIDTag     string
+	instanceTypeTag string
+	metricsWindow   int
+	tagCache        map[string][]string
+	keysRegex       *regexp.Regexp
+	redactionSub    []byte
 }
 
 // NewHandler takes a *Config and
@@ -57,12 +61,13 @@ func NewHandler(c *Config) (kafkametrics.Handler, error) {
 	keysRegex := regexp.MustCompile(fmt.Sprintf("%s|%s", c.APIKey, c.AppKey))
 
 	h := &ddHandler{
-		netTXQuery:    createNetTXQuery(c),
-		metricsWindow: c.MetricsWindow,
-		brokerIDTag:   c.BrokerIDTag,
-		tagCache:      make(map[string][]string),
-		keysRegex:     keysRegex,
-		redactionSub:  []byte("xxx"),
+		netTXQuery:      createNetTXQuery(c),
+		metricsWindow:   c.MetricsWindow,
+		brokerIDTag:     c.BrokerIDTag,
+		instanceTypeTag: c.InstanceTypeTag,
+		tagCache:        make(map[string][]string),
+		keysRegex:       keysRegex,
+		redactionSub:    []byte("xxx"),
 	}
 
 	client := dd.NewClient(c.APIKey, c.AppKey)

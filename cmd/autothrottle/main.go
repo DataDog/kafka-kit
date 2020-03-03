@@ -28,6 +28,7 @@ var (
 		AppKey           string
 		NetworkTXQuery   string
 		BrokerIDTag      string
+		InstanceTypeTag  string
 		MetricsWindow    int
 		ZKAddr           string
 		ZKPrefix         string
@@ -55,6 +56,7 @@ func init() {
 	flag.StringVar(&Config.AppKey, "app-key", "", "Datadog app key")
 	flag.StringVar(&Config.NetworkTXQuery, "net-tx-query", "avg:system.net.bytes_sent{service:kafka} by {host}", "Datadog query for broker outbound bandwidth by host")
 	flag.StringVar(&Config.BrokerIDTag, "broker-id-tag", "broker_id", "Datadog host tag for broker ID")
+	flag.StringVar(&Config.InstanceTypeTag, "instance-type-tag", "instance-type", "Datadog instance-type tag for broker")
 	flag.IntVar(&Config.MetricsWindow, "metrics-window", 120, "Time span of metrics required (seconds)")
 	flag.StringVar(&Config.ZKAddr, "zk-addr", "localhost:2181", "ZooKeeper connect string (for broker metadata or rebuild-topic lookups)")
 	flag.StringVar(&Config.ZKPrefix, "zk-prefix", "", "ZooKeeper namespace prefix")
@@ -115,11 +117,12 @@ func main() {
 
 	// Init a Kafka metrics fetcher.
 	km, err := datadog.NewHandler(&datadog.Config{
-		APIKey:         Config.APIKey,
-		AppKey:         Config.AppKey,
-		NetworkTXQuery: Config.NetworkTXQuery,
-		BrokerIDTag:    Config.BrokerIDTag,
-		MetricsWindow:  Config.MetricsWindow,
+		APIKey:          Config.APIKey,
+		AppKey:          Config.AppKey,
+		NetworkTXQuery:  Config.NetworkTXQuery,
+		BrokerIDTag:     Config.BrokerIDTag,
+		InstanceTypeTag: Config.InstanceTypeTag,
+		MetricsWindow:   Config.MetricsWindow,
 	})
 	if err != nil {
 		log.Fatal(err)
