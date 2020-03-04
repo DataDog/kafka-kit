@@ -1,46 +1,14 @@
 package main
 
 import (
-	"fmt"
 	"sort"
 	"testing"
 
-	"github.com/DataDog/kafka-kit/kafkametrics"
 	"github.com/DataDog/kafka-kit/kafkazk"
 )
 
-func TestmaxSrcNetTX(t *testing.T) {
-	reassigning := mockgetReassigningBrokers()
-
-	b := reassigning.maxSrcNetTX()
-	if b.ID != 1004 {
-		t.Errorf("Expected broker ID 1004, got %d", b.ID)
-	}
-}
-
-func mockgetReassigningBrokers() getReassigningBrokers {
-	r := getReassigningBrokers{
-		Src: []*kafkametrics.Broker{},
-		Dst: []*kafkametrics.Broker{},
-	}
-
-	for i := 0; i < 5; i++ {
-		b := &kafkametrics.Broker{
-			ID:           1000 + i,
-			Host:         fmt.Sprintf("host%d", i),
-			InstanceType: "mock",
-			NetTX:        float64(80 + i),
-		}
-
-		r.Src = append(r.Src, b)
-		r.Dst = append(r.Dst, b)
-	}
-
-	return r
-}
-
 func TestLists(t *testing.T) {
-	b := mockreassigningBrokers()
+	b := mockReassigningBrokers()
 
 	src, dst, all := b.lists()
 
@@ -67,12 +35,12 @@ func TestLists(t *testing.T) {
 	}
 }
 
-func mockreassigningBrokers() reassigningBrokers {
+func mockReassigningBrokers() reassigningBrokers {
 	b := reassigningBrokers{
-		src:       map[int]struct{}{},
-		dst:       map[int]struct{}{},
-		all:       map[int]struct{}{},
-		throttled: map[string]map[string][]string{},
+		src:               map[int]struct{}{},
+		dst:               map[int]struct{}{},
+		all:               map[int]struct{}{},
+		throttledReplicas: topicThrottledReplicas{},
 	}
 
 	for i := 1000; i < 1010; i++ {
@@ -84,9 +52,9 @@ func mockreassigningBrokers() reassigningBrokers {
 		b.all[i] = struct{}{}
 	}
 
-	b.throttled["mock"] = map[string][]string{}
+	b.throttledReplicas["mock"] = throttled{}
 
-	b.throttled["mock"]["leaders"] = []string{
+	b.throttledReplicas["mock"]["leaders"] = brokerIDs{
 		"0:1000",
 		"1:1001",
 		"2:1002",
@@ -94,7 +62,7 @@ func mockreassigningBrokers() reassigningBrokers {
 		"4:1004",
 	}
 
-	b.throttled["mock"]["followers"] = []string{
+	b.throttledReplicas["mock"]["followers"] = brokerIDs{
 		"0:1005",
 		"1:1006",
 		"2:1007",
@@ -107,7 +75,7 @@ func mockreassigningBrokers() reassigningBrokers {
 
 // func TestUpdateReplicationThrottle(t *testing.T) {}
 
-func TestgetReassigningBrokers(t *testing.T) {
+func TestGetReassigningBrokers(t *testing.T) {
 	zk := &kafkazk.Mock{}
 
 	re := zk.GetReassignments()
@@ -162,7 +130,7 @@ func TestgetReassigningBrokers(t *testing.T) {
 	expectedThrottledLeaders := []string{"0:1000", "1:1002"}
 	expectedThrottledFollowers := []string{"0:1003", "0:1004", "1:1005", "1:1010"}
 
-	throttledList := bmaps.throttled["mock"]["leaders"]
+	throttledList := bmaps.throttledReplicas["mock"]["leaders"]
 	sort.Strings(throttledList)
 	for n, s := range throttledList {
 		if s != expectedThrottledLeaders[n] {
@@ -170,7 +138,7 @@ func TestgetReassigningBrokers(t *testing.T) {
 		}
 	}
 
-	throttledList = bmaps.throttled["mock"]["followers"]
+	throttledList = bmaps.throttledReplicas["mock"]["followers"]
 	sort.Strings(throttledList)
 	for n, s := range throttledList {
 		if s != expectedThrottledFollowers[n] {
@@ -190,53 +158,57 @@ func inSlice(id int, s []int) bool {
 	return found
 }
 
-func TestRepCapacityByMetrics(t *testing.T) {
-	// Setup.
-	c := NewLimitsConfig{
-		Minimum: 20,
-		Maximum: 90,
-		CapacityMap: map[string]float64{
-			"mock": 120.00,
-		},
-	}
+func TestBrokerReplicationCapacities(t *testing.T) {
+	zk := &kafkazk.Mock{}
+	reassignments := zk.GetReassignments()
+	reassigningBrokers, _ := getReassigningBrokers(reassignments, zk)
 
-	l, _ := NewLimits(c)
+	lim, _ := NewLimits(NewLimitsConfig{
+		Minimum:            20,
+		SourceMaximum:      90,
+		DestinationMaximum: 80,
+		CapacityMap:        map[string]float64{"mock": 200.00},
+	})
 
 	rtc := &ReplicationThrottleConfigs{
-		limits: l,
-		throttles: map[int]float64{
-			1004: 80.00,
-		},
+		reassignments:          reassignments,
+		previouslySetThrottles: replicationCapacityByBroker{1000: throttleByRole{float64ptr(20)}},
+		limits:                 lim,
 	}
 
-	reassigning := mockreassigningBrokers()
+	bm := mockBrokerMetrics()
+	brc, _ := brokerReplicationCapacities(rtc, reassigningBrokers, bm)
 
-	km := &kafkametrics.Mock{}
-	bm, _ := km.GetMetrics()
-
-	// Test normal scenario.
-	cap, curr, _, _ := repCapacityByMetrics(rtc, reassigning, bm)
-	if cap != 86.40 {
-		t.Errorf("Expected capacity of 86.40, got %.2f", cap)
+	expected := map[int][2]*float64{
+		1000: [2]*float64{float64ptr(126.00), nil},
+		1002: [2]*float64{float64ptr(108.00), nil},
+		1003: [2]*float64{nil, float64ptr(96.00)},
+		1004: [2]*float64{nil, float64ptr(96.00)},
+		1005: [2]*float64{nil, float64ptr(20.00)},
+		1010: [2]*float64{nil, float64ptr(64.00)},
 	}
 
-	if curr != 80.00 {
-		t.Errorf("Expected current capacity of 80.00, got %.2f", curr)
-	}
+	for id, got := range brc {
+		for i := range got {
+			role := roleFromIndex(i)
 
-	// Test with missing instance type.
-	delete(rtc.limits, "mock")
-	_, _, _, err := repCapacityByMetrics(rtc, reassigning, bm)
-	if err.Error() != "Unknown instance type" {
-		t.Errorf("Expected error 'Unknown instance type', got '%s'", err.Error())
-	}
+			if got[i] == nil {
+				if expected[id][i] != nil {
+					t.Errorf("Expected rate %.2f, got nil for ID %d role %s", *expected[id][i], id, role)
+				}
+				continue
+			}
 
-	// Test with a missing broker in the broker metrics.
-	delete(bm, 1004)
-	_, _, _, err = repCapacityByMetrics(rtc, reassigning, bm)
-	if err.Error() != "Broker 1004 not found in broker metrics" {
-		t.Errorf("Expected error 'Broker 1004 not found in broker metrics', got '%s'", err.Error())
+			if *got[i] != *expected[id][i] {
+				t.Errorf("Expected rate %.2f, got %.2f for ID %d role %s",
+					*expected[id][i], *got[i], id, role)
+			}
+		}
 	}
+}
+
+func float64ptr(f float64) *float64 {
+	return &f
 }
 
 // func TestApplyTopicThrottles(t *testing.T) {}

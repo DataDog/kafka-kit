@@ -849,13 +849,15 @@ func TestUpdateKafkaConfigBroker(t *testing.T) {
 
 	// Re-running the same config should
 	// be a no-op.
-	changed, err := zki.UpdateKafkaConfig(c)
+	changes, err := zki.UpdateKafkaConfig(c)
 	if err != nil {
 		t.Error(err)
 	}
 
-	if changed {
-		t.Error("Unexpected config update change status")
+	for _, change := range changes {
+		if change {
+			t.Error("Unexpected config update change status")
+		}
 	}
 
 	// Validate the config.
@@ -903,13 +905,15 @@ func TestUpdateKafkaConfigTopic(t *testing.T) {
 
 	// Re-running the same config should
 	// be a no-op.
-	changed, err := zki.UpdateKafkaConfig(c)
+	changes, err := zki.UpdateKafkaConfig(c)
 	if err != nil {
 		t.Error(err)
 	}
 
-	if changed {
-		t.Error("Unexpected config update change status")
+	for _, change := range changes {
+		if change {
+			t.Error("Unexpected config update change status")
+		}
 	}
 
 	// Validate the config.
