@@ -66,7 +66,7 @@ func main() {
 	flag.StringVar(&Config.APIKey, "api-key", "", "Datadog API key")
 	flag.StringVar(&Config.AppKey, "app-key", "", "Datadog app key")
 	flag.StringVar(&Config.NetworkTXQuery, "net-tx-query", "avg:system.net.bytes_sent{service:kafka} by {host}", "Datadog query for broker outbound bandwidth by host")
-	flag.StringVar(&Config.NetworkRXQuery, "net-rx-query", "avg:system.net.bytes_rcvd{service:kafka} by {host}", "Datadog query for broker outbound bandwidth by host")
+	flag.StringVar(&Config.NetworkRXQuery, "net-rx-query", "avg:system.net.bytes_rcvd{service:kafka} by {host}", "Datadog query for broker inbound bandwidth by host")
 	flag.StringVar(&Config.BrokerIDTag, "broker-id-tag", "broker_id", "Datadog host tag for broker ID")
 	flag.IntVar(&Config.MetricsWindow, "metrics-window", 120, "Time span of metrics required (seconds)")
 	flag.StringVar(&Config.ZKAddr, "zk-addr", "localhost:2181", "ZooKeeper connect string (for broker metadata or rebuild-topic lookups)")
@@ -236,7 +236,7 @@ func main() {
 		if replicatingNow.isSubSetOf(replicatingPreviously) {
 			throttleMeta.DisableTopicUpdates()
 		} else {
-			throttleMeta.DisableTopicUpdates()
+			throttleMeta.EnableTopicUpdates()
 		}
 
 		// Fetch any throttle override config.
@@ -276,6 +276,9 @@ func main() {
 					// without error.
 					knownThrottles = false
 				}
+
+				// Ensure topic updates are re-enabled.
+				throttleMeta.EnableTopicUpdates()
 			}
 
 			// Remove any configured throttle overrides if AutoRemove is true.

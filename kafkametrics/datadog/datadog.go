@@ -23,7 +23,7 @@ type Config struct {
 	// Example (Datadog): "avg:system.net.bytes_sent{service:kafka} by {host}"
 	NetworkTXQuery string
 	// NetworkRXQuery is a query string that should return the inbound
-	// network metrics by house for the reference Kafka brokers.
+	// network metrics by host for the reference Kafka brokers.
 	// Example (Datadog): "avg:system.net.bytes_rcvd{service:kafka} by {host}"
 	NetworkRXQuery string
 	// BrokerIDTag is the host tag name for Kafka broker IDs.

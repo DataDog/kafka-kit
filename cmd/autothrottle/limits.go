@@ -29,9 +29,9 @@ func NewLimits(c NewLimitsConfig) (Limits, error) {
 	switch {
 	case c.Minimum <= 0:
 		return nil, errors.New("minimum must be > 0")
-	case c.SourceMaximum <= 0 || c.SourceMaximum > 100:
+	case c.SourceMaximum <= 0 || c.SourceMaximum >= 100:
 		return nil, errors.New("source maximum must be > 0 and < 100")
-	case c.DestinationMaximum <= 0 || c.DestinationMaximum > 100:
+	case c.DestinationMaximum <= 0 || c.DestinationMaximum >= 100:
 		return nil, errors.New("destination maximum must be > 0 and < 100")
 	}
 
