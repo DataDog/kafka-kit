@@ -261,6 +261,10 @@ func writeMaps(cmd *cobra.Command, pm *kafkazk.PartitionMap, phasedPM *kafkazk.P
 	// Write global map if set.
 	if outFile != "" {
 		for i, m := range outputMaps {
+			if m == nil {
+				continue
+			}
+
 			fullPath := fmt.Sprintf("%s%s%s", outPath, outFile, phaseSuffix[i])
 			err := kafkazk.WriteMap(m, fullPath)
 			if err != nil {
