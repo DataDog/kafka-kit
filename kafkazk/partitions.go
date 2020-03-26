@@ -137,7 +137,9 @@ func (r replicasByLeaderFollowerRatio) Less(i, j int) bool {
 		return true
 	// We have a comparable ratio.
 	default:
-		return r.stats[id1].Leader/r.stats[id1].Follower < r.stats[id2].Leader/r.stats[id2].Follower
+		a := float64(r.stats[id1].Leader) / float64(r.stats[id1].Follower)
+		b := float64(r.stats[id2].Leader) / float64(r.stats[id2].Follower)
+		return a < b
 	}
 }
 

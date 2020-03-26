@@ -2,6 +2,7 @@ package kafkazk
 
 import (
 	"fmt"
+	"io/ioutil"
 	"regexp"
 	"testing"
 )
@@ -655,6 +656,26 @@ func TestLocalitiesAvailable(t *testing.T) {
 		if expected[i] != l {
 			t.Error("Unexpected localities available")
 		}
+	}
+}
+
+func TestOptimizeLeaderFollower(t *testing.T) {
+	f, _ := ioutil.ReadFile("testdata/optimize_input.json")
+	optimized, err := PartitionMapFromString(string(f))
+	if err != nil {
+		t.Error(err)
+	}
+
+	f, _ = ioutil.ReadFile("testdata/optimize_output.json")
+	expected, err := PartitionMapFromString(string(f))
+	if err != nil {
+		t.Error(err)
+	}
+
+	optimized.OptimizeLeaderFollower()
+
+	if equal, _ := optimized.Equal(expected); !equal {
+		t.Errorf("Unexpected OptimizeLeaderFollower results")
 	}
 }
 
