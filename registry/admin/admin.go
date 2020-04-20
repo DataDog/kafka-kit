@@ -11,9 +11,10 @@ type Client interface {
 }
 
 type Config struct {
-	Type string
-	// Kafka native admin configs.
+	Type             string
 	BootstrapServers string
+	SSLEnabled       bool
+	SSLCACertPath    string
 }
 
 // CreateTopicConfig holds CreateTopic parameters.
