@@ -1,0 +1,27 @@
+from ubuntu:18.04
+
+RUN apt-get update >/dev/null
+RUN apt-get install -y openjdk-8-jdk openssl >/dev/null
+
+WORKDIR /etc/kafka/config
+ENV CA_ROOT_KEY=kafka-ca-key.pem
+ENV CA_ROOT_CERT=kafka-ca-crt.pem
+ENV BROKER_CSR=kafka-broker-csr.pem
+ENV BROKER_CERT=kafka-broker-cert.pem
+ENV KEYSTORE=keystore.jks
+ENV TRUSTSTORE=truststore.jks
+ENV VALIDITY=365
+ENV STOREPASS="password"
+
+# Generate the key pairs for the brokers
+RUN keytool -keystore $KEYSTORE -alias localhost -keyalg RSA -validity $VALIDITY -genkey -storepass $STOREPASS -keypass $STOREPASS -dname "CN=localhost" -ext "SAN=DNS:kafka"
+
+# Generate the key pairs for the CA
+RUN openssl req -new -x509 -keyout $CA_ROOT_KEY -out $CA_ROOT_CERT -days $VALIDITY -nodes -subj "/CN=kafka-ca"
+RUN keytool -keystore $TRUSTSTORE -alias CARoot -import -file $CA_ROOT_CERT -storepass $STOREPASS -noprompt -trustcacerts
+
+# Sign all certificates in the keystore with the CA privatekey
+RUN keytool -keystore $KEYSTORE -alias localhost -certreq -file $BROKER_CSR -storepass $STOREPASS
+RUN openssl x509 -req -CA $CA_ROOT_CERT -CAkey $CA_ROOT_KEY -in $BROKER_CSR -out $BROKER_CERT -days $VALIDITY -CAcreateserial -passin pass:{password}
+RUN keytool -keystore $KEYSTORE -alias CARoot -import -file $CA_ROOT_CERT -storepass $STOREPASS -noprompt -trustcacerts
+RUN keytool -keystore $KEYSTORE -alias localhost -import -file $BROKER_CERT -storepass $STOREPASS -noprompt -trustcacerts

@@ -193,12 +193,14 @@ func (s *Server) InitKafkaAdmin(ctx context.Context, wg *sync.WaitGroup, cfg adm
 		k, err := kafkaadmin.NewClient(
 			kafkaadmin.Config{
 				BootstrapServers: cfg.BootstrapServers,
+				SSLEnabled:       cfg.SSLEnabled,
+				SSLCACertPath:    cfg.SSLCACertPath,
 			})
 		if err != nil {
 			return err
 		}
 
-		s.kafkaadmin = k
+		s.kafkaadmin = *k
 		log.Printf("KafkaAdmin connected to bootstrap servers: %s\n", cfg.BootstrapServers)
 	case "zookeeper":
 

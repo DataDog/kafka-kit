@@ -3,11 +3,14 @@ package kafkaadmin
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/DataDog/kafka-kit/registry/admin"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
+
+type FactoryFunc func(conf *kafka.ConfigMap) (*kafka.AdminClient, error)
 
 type Client struct {
 	c *kafka.AdminClient
@@ -16,17 +19,41 @@ type Client struct {
 // Config holds Client configuration parameters.
 type Config struct {
 	BootstrapServers string
+	SSLEnabled       bool
+	SSLCACertPath    string
 }
 
 // NewClient returns a new Client.
-func NewClient(cfg Config) (Client, error) {
-	c := Client{}
-	k, err := kafka.NewAdminClient(&kafka.ConfigMap{
-		"bootstrap.servers": cfg.BootstrapServers,
-	})
+func NewClient(cfg Config) (*Client, error) {
+	return newClient(cfg, kafka.NewAdminClient)
+}
 
+// NewClientWithFactory returns a new Client using a factory func for the kafkaAdminClient
+func NewClientWithFactory(cfg Config, factory FactoryFunc) (*Client, error) {
+	return newClient(cfg, factory)
+}
+
+func newClient(cfg Config, factory FactoryFunc) (*Client, error) {
+	c := &Client{}
+
+	kafkaCfg := &kafka.ConfigMap{
+		"bootstrap.servers": cfg.BootstrapServers,
+	}
+
+	if cfg.SSLEnabled {
+		kafkaCfg.SetKey("security.protocol", "SSL")
+		if cfg.SSLCACertPath == "" {
+			return nil, fmt.Errorf("kafka SSL is enabled but SSLCACertPath was not provided")
+		}
+		kafkaCfg.SetKey("ssl.ca.location", cfg.SSLCACertPath)
+	}
+
+	k, err := factory(kafkaCfg)
 	c.c = k
 
+	if err != nil {
+		err = fmt.Errorf("[librdkafka] %s", err)
+	}
 	return c, err
 }
 
