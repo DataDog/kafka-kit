@@ -312,6 +312,7 @@ func TestReservedFields(t *testing.T) {
 		}
 
 		have := rs[typeTest]
+		t.Log(have)
 
 		// Compare expected lengths.
 		if len(expected) != len(have) {
