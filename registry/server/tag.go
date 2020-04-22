@@ -323,6 +323,7 @@ func fieldsFromStruct(s interface{}) map[string]struct{} {
 		// Exclude proto generated fields.
 		if !strings.HasPrefix(v.Type().Field(i).Name, "XXX") {
 			f := strings.ToLower(v.Type().Field(i).Name)
+			fmt.Println(f)
 			fs[f] = struct{}{}
 		}
 	}
