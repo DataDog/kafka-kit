@@ -1,13 +1,3 @@
-# Notes:
-#   Build:
-#     - $ docker build -t registry -f Dockerfile.registry .
-#   Run ZooKeeper, Kafka on user defined bridge:
-#     - $ docker network create net
-#     - $ docker run --rm -d --network net --name zookeeper zookeeper
-#     - $ docker run --rm -d --network net -e KAFKA_ZOOKEEPER_CONNECT=zookeeper -e KAFKA_ADVERTISED_HOST_NAME=kafka --name kafka wurstmeister/kafka:2.11-0.10.2.2
-#   Run Registry container:
-#     - Tests: $ docker run --rm --network net --name registry registry go test -v ./...
-#     - Service: $ docker run --rm -d --network net -p 8080:8080 -p 8090:8090 --name registry registry registry
 from ubuntu:16.04
 
 # Install pre-reqs.
@@ -54,11 +44,6 @@ RUN protoc -I registry -I /go/src/github.com/grpc-ecosystem/grpc-gateway/third_p
 RUN go install github.com/DataDog/kafka-kit/cmd/registry
 
 # Runtime.
-ENV TEST_ZK_ADDR=zookeeper:2181
-ENV REGISTRY_ZK_ADDR=zookeeper:2181
-ENV REGISTRY_BOOTSTRAP_SERVERS=kafka:9092
-ENV REGISTRY_HTTP_LISTEN=0.0.0.0:8080
-ENV REGISTRY_GRPC_LISTEN=0.0.0.0:8090
 EXPOSE 8090/tcp
 EXPOSE 8080/tcp
 CMD ["/go/bin/registry"]
