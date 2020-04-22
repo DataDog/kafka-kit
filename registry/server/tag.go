@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 
 	pb "github.com/DataDog/kafka-kit/registry/protos"
@@ -18,6 +19,8 @@ var (
 	ErrNilTagSet = errors.New("must provide a non-nil or non-empty TagSet")
 	// ErrNilTags error.
 	ErrNilTags = errors.New("must provide a non-nil or non-empty tags")
+	// Regex for proto fields to ignore.
+	defaultProtoFieldRegex = regexp.MustCompile("^XXX|^unknownFields$|^state$|^sizeCache$")
 )
 
 // ErrReservedTag error.
@@ -321,7 +324,7 @@ func fieldsFromStruct(s interface{}) map[string]struct{} {
 	v := reflect.ValueOf(s).Elem()
 	for i := 0; i < v.NumField(); i++ {
 		// Exclude proto generated fields.
-		if !strings.HasPrefix(v.Type().Field(i).Name, "XXX") {
+		if !defaultProtoFieldRegex.MatchString(v.Type().Field(i).Name) {
 			f := strings.ToLower(v.Type().Field(i).Name)
 			fs[f] = struct{}{}
 		}
