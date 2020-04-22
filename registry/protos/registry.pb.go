@@ -9,8 +9,6 @@ import (
 	proto "github.com/golang/protobuf/proto"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
-	codes "google.golang.org/grpc/codes"
-	status "google.golang.org/grpc/status"
 	math "math"
 )
 
@@ -847,44 +845,6 @@ type RegistryServer interface {
 	// specified tags for the named broker. Tags must be provided
 	// as key names only; "key:value" will not target the tag "key".
 	DeleteBrokerTags(context.Context, *BrokerRequest) (*TagResponse, error)
-}
-
-// UnimplementedRegistryServer can be embedded to have forward compatible implementations.
-type UnimplementedRegistryServer struct {
-}
-
-func (*UnimplementedRegistryServer) GetBrokers(ctx context.Context, req *BrokerRequest) (*BrokerResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetBrokers not implemented")
-}
-func (*UnimplementedRegistryServer) ListBrokers(ctx context.Context, req *BrokerRequest) (*BrokerResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListBrokers not implemented")
-}
-func (*UnimplementedRegistryServer) GetTopics(ctx context.Context, req *TopicRequest) (*TopicResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetTopics not implemented")
-}
-func (*UnimplementedRegistryServer) ListTopics(ctx context.Context, req *TopicRequest) (*TopicResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListTopics not implemented")
-}
-func (*UnimplementedRegistryServer) CreateTopic(ctx context.Context, req *CreateTopicRequest) (*Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateTopic not implemented")
-}
-func (*UnimplementedRegistryServer) TopicMappings(ctx context.Context, req *TopicRequest) (*BrokerResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method TopicMappings not implemented")
-}
-func (*UnimplementedRegistryServer) BrokerMappings(ctx context.Context, req *BrokerRequest) (*TopicResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method BrokerMappings not implemented")
-}
-func (*UnimplementedRegistryServer) TagTopic(ctx context.Context, req *TopicRequest) (*TagResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method TagTopic not implemented")
-}
-func (*UnimplementedRegistryServer) DeleteTopicTags(ctx context.Context, req *TopicRequest) (*TagResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DeleteTopicTags not implemented")
-}
-func (*UnimplementedRegistryServer) TagBroker(ctx context.Context, req *BrokerRequest) (*TagResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method TagBroker not implemented")
-}
-func (*UnimplementedRegistryServer) DeleteBrokerTags(ctx context.Context, req *BrokerRequest) (*TagResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DeleteBrokerTags not implemented")
 }
 
 func RegisterRegistryServer(s *grpc.Server, srv RegistryServer) {
