@@ -73,7 +73,7 @@ services:
       REGISTRY_HTTP_LISTEN: 0.0.0.0:8080
       REGISTRY_GRPC_LISTEN: 0.0.0.0:8090
       REGISTRY_KAFKA_SSL_ENABLED: "true"
-      REGISTRY_KAFKA_CA_CERT_PATH: "/etc/kafka/config/kafka-ca-crt.pem"
+      REGISTRY_KAFKA_CA_LOCATION: "/etc/kafka/config/kafka-ca-crt.pem"
     volumes:
       - "ssl-store:/etc/kafka/config"
 

@@ -20,7 +20,7 @@ type Client struct {
 type Config struct {
 	BootstrapServers string
 	SSLEnabled       bool
-	SSLCACertPath    string
+	SSLCALocation    string
 }
 
 // NewClient returns a new Client.
@@ -42,10 +42,10 @@ func newClient(cfg Config, factory FactoryFunc) (*Client, error) {
 
 	if cfg.SSLEnabled {
 		kafkaCfg.SetKey("security.protocol", "SSL")
-		if cfg.SSLCACertPath == "" {
-			return nil, fmt.Errorf("kafka SSL is enabled but SSLCACertPath was not provided")
+		if cfg.SSLCALocation == "" {
+			return nil, fmt.Errorf("kafka SSL is enabled but SSLCALocation was not provided")
 		}
-		kafkaCfg.SetKey("ssl.ca.location", cfg.SSLCACertPath)
+		kafkaCfg.SetKey("ssl.ca.location", cfg.SSLCALocation)
 	}
 
 	k, err := factory(kafkaCfg)

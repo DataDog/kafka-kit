@@ -194,7 +194,7 @@ func (s *Server) InitKafkaAdmin(ctx context.Context, wg *sync.WaitGroup, cfg adm
 			kafkaadmin.Config{
 				BootstrapServers: cfg.BootstrapServers,
 				SSLEnabled:       cfg.SSLEnabled,
-				SSLCACertPath:    cfg.SSLCACertPath,
+				SSLCALocation:    cfg.SSLCALocation,
 			})
 		if err != nil {
 			return err

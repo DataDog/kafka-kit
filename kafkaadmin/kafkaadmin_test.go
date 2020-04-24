@@ -25,7 +25,7 @@ func TestNewClientWithSSLEnabled(t *testing.T) {
 		},
 	).Return(&kafka.AdminClient{}, nil)
 	_, err := NewClientWithFactory(
-		Config{BootstrapServers: "kafka:9092", SSLEnabled: true, SSLCACertPath: "/etc/kafka/config/ca.crt"},
+		Config{BootstrapServers: "kafka:9092", SSLEnabled: true, SSLCALocation: "/etc/kafka/config/ca.crt"},
 		mkac.NewAdminClient,
 	)
 	assert.Nil(t, err)
