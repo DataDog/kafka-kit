@@ -14,7 +14,7 @@ type Config struct {
 	Type             string
 	BootstrapServers string
 	SSLEnabled       bool
-	SSLCACertPath    string
+	SSLCALocation    string
 }
 
 // CreateTopicConfig holds CreateTopic parameters.

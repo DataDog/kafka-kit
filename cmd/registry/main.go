@@ -35,7 +35,7 @@ func main() {
 	flag.StringVar(&zkConfig.Prefix, "zk-prefix", "", "ZooKeeper prefix (if Kafka is configured with a chroot path prefix)")
 	flag.StringVar(&adminConfig.BootstrapServers, "bootstrap-servers", "localhost", "Kafka bootstrap servers")
 	flag.BoolVar(&adminConfig.SSLEnabled, "kafka-ssl-enabled", false, "Enable SSL encryption for kafka")
-	flag.StringVar(&adminConfig.SSLCACertPath, "kafka-ca-cert-path", "", "CA certificate path (.pem/.crt) for verifying broker's identity")
+	flag.StringVar(&adminConfig.SSLCALocation, "kafka-ca-location", "", "CA certificate path (.pem/.crt) for verifying broker's identity")
 	kafkaVersionString := flag.String("kafka-version", "v0.10.2", "Kafka release (Semantic Versioning)")
 
 	envy.Parse("REGISTRY")
