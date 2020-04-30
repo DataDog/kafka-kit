@@ -291,9 +291,11 @@ func getReassigningBrokers(r kafkazk.Reassignments, zk kafkazk.Handler) (reassig
 
 				// Dest brokers.
 				for _, b := range reassigning {
-					// Checks: not the leader, not -1 (offline/missing), not in the
-					// curent ISR state.
-					if b != leader && b != -1 && !inSlice(b, tstate[p].ISR) {
+					// Checks:  not -1 (offline/missing), not in the curent ISR state.
+					// XXX(jamie): out of sync but previously existing brokers would
+					// show here as well. May want to consider whether those should
+					// be dynamically throttled as if they're part of a reassignemnt.
+					if b != -1 && !inSlice(b, tstate[p].ISR) {
 						lb.dst[b] = struct{}{}
 						followers := lb.throttledReplicas[topic]["followers"]
 						lb.throttledReplicas[topic]["followers"] = append(followers, fmt.Sprintf("%d:%d", partn, b))
