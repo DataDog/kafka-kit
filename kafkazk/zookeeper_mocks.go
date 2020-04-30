@@ -8,14 +8,13 @@ import (
 // Mock mocks the Handler interface.
 type Mock struct{}
 
-// Many of these methods aren't complete
-// mocks as they haven't been needed.
+// Many of these methods aren't complete mocks as they haven't been needed.
 
 // GetReassignments mocks GetReassignments.
 func (zk *Mock) GetReassignments() Reassignments {
 	r := Reassignments{
 		"mock": map[int][]int{
-			0: []int{1003, 1004},
+			0: []int{1003, 1000, 1002},
 			1: []int{1005, 1010},
 		},
 	}
