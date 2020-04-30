@@ -82,8 +82,8 @@ func TestGetReassigningBrokers(t *testing.T) {
 	bmaps, _ := getReassigningBrokers(re, zk)
 
 	srcExpected := []int{1000, 1002}
-	dstExpected := []int{1003, 1004, 1005, 1010}
-	allExpected := []int{1000, 1002, 1003, 1004, 1005, 1010}
+	dstExpected := []int{1003, 1005, 1010}
+	allExpected := []int{1000, 1002, 1003, 1005, 1010}
 
 	// Inclusion checks.
 
@@ -128,7 +128,7 @@ func TestGetReassigningBrokers(t *testing.T) {
 	// Check throttled strings.
 
 	expectedThrottledLeaders := []string{"0:1000", "1:1002"}
-	expectedThrottledFollowers := []string{"0:1003", "0:1004", "1:1005", "1:1010"}
+	expectedThrottledFollowers := []string{"0:1003", "1:1005", "1:1010"}
 
 	throttledList := bmaps.throttledReplicas["mock"]["leaders"]
 	sort.Strings(throttledList)
@@ -145,17 +145,6 @@ func TestGetReassigningBrokers(t *testing.T) {
 			t.Errorf("Expected follower string '%s', got '%s'", expectedThrottledFollowers[n], s)
 		}
 	}
-}
-
-func inSlice(id int, s []int) bool {
-	found := false
-	for _, i := range s {
-		if id == i {
-			found = true
-		}
-	}
-
-	return found
 }
 
 func TestBrokerReplicationCapacities(t *testing.T) {
