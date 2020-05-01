@@ -172,7 +172,6 @@ func TestBrokerReplicationCapacities(t *testing.T) {
 		1000: [2]*float64{float64ptr(126.00), nil},
 		1002: [2]*float64{float64ptr(108.00), nil},
 		1003: [2]*float64{nil, float64ptr(96.00)},
-		1004: [2]*float64{nil, float64ptr(96.00)},
 		1005: [2]*float64{nil, float64ptr(20.00)},
 		1010: [2]*float64{nil, float64ptr(64.00)},
 	}
