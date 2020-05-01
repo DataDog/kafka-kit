@@ -274,7 +274,8 @@ func getReassigningBrokers(r kafkazk.Reassignments, zk kafkazk.Handler) (reassig
 
 		// For each partition, compare the current ISR leader to the brokers being
 		// assigned in the reassignments. The current leaders will be sources,
-		// new brokers in the assignment list will be destinations.
+		// new brokers in the assignment list (but not in the current ISR state)
+		// will be destinations.
 		for p := range tstate {
 			partn, _ := strconv.Atoi(p)
 			if reassigning, exists := r[t][partn]; exists {
@@ -290,7 +291,11 @@ func getReassigningBrokers(r kafkazk.Reassignments, zk kafkazk.Handler) (reassig
 
 				// Dest brokers.
 				for _, b := range reassigning {
-					if b != leader && b != -1 {
+					// Checks:  not -1 (offline/missing), not in the curent ISR state.
+					// XXX(jamie): out of sync but previously existing brokers would
+					// show here as well. May want to consider whether those should
+					// be dynamically throttled as if they're part of a reassignemnt.
+					if b != -1 && !inSlice(b, tstate[p].ISR) {
 						lb.dst[b] = struct{}{}
 						followers := lb.throttledReplicas[topic]["followers"]
 						lb.throttledReplicas[topic]["followers"] = append(followers, fmt.Sprintf("%d:%d", partn, b))
@@ -694,4 +699,15 @@ func roleFromIndex(i int) string {
 	}
 
 	return "follower"
+}
+
+func inSlice(id int, s []int) bool {
+	found := false
+	for _, i := range s {
+		if id == i {
+			found = true
+		}
+	}
+
+	return found
 }
