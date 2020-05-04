@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -14,11 +15,11 @@ func parseRateParam(req *http.Request) (int, error) {
 
 	switch {
 	case r == "":
-		return 0, errors.New("rate param must be supplied\n")
+		return 0, errors.New("rate param must be specified")
 	case r == "0":
-		return 0, errors.New("rate param must be >0\n")
+		return 0, errors.New("rate param must be >0")
 	case err != nil:
-		return 0, errors.New("rate param must be supplied as an integer\n")
+		return 0, errors.New("rate param must be supplied as an integer")
 	}
 
 	return rate, nil
@@ -32,7 +33,7 @@ func parseAutoRemoveParam(req *http.Request) (bool, error) {
 	if c != "" {
 		autoRemove, err = strconv.ParseBool(c)
 		if err != nil {
-			return autoRemove, errors.New("autoremove param must be a bool\n")
+			return autoRemove, errors.New("autoremove param must be a bool")
 		}
 	}
 
@@ -44,10 +45,10 @@ func parsePaths(req *http.Request) []string {
 	return strings.Split(urlPathTrimmed, "/")
 }
 
-func brokerIDFromPath(req *httpRequest) (int, error) {
+func brokerIDFromPath(req *http.Request) (int, error) {
 	paths := parsePaths(req)
 	if len(paths) < 2 {
-		return 0, errors.New("broker ID not provided\n")
+		return 0, errors.New("broker ID not provided")
 	}
 
 	id, err := strconv.Atoi(paths[1])
@@ -56,6 +57,10 @@ func brokerIDFromPath(req *httpRequest) (int, error) {
 	}
 
 	return id, nil
+}
+
+func writeNLError(w http.ResponseWriter, err error) {
+	fmt.Fprintf(w, "%s\n", err)
 }
 
 func logReq(req *http.Request) {

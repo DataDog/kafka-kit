@@ -15,7 +15,7 @@ func getThrottleDeprecated(w http.ResponseWriter, req *http.Request, zk kafkazk.
 	logReq(req)
 	if req.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		io.WriteString(w, incorrectMethod)
+		writeNLError(w, incorrectMethodError)
 		return
 	}
 
@@ -41,7 +41,7 @@ func setThrottleDeprecated(w http.ResponseWriter, req *http.Request, zk kafkazk.
 	logReq(req)
 	if req.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		io.WriteString(w, incorrectMethod)
+		writeNLError(w, incorrectMethodError)
 		return
 	}
 
@@ -100,7 +100,7 @@ func removeThrottleDeprecated(w http.ResponseWriter, req *http.Request, zk kafka
 	logReq(req)
 	if req.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		io.WriteString(w, incorrectMethod)
+		writeNLError(w, incorrectMethodError)
 		return
 	}
 

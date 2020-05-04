@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -20,7 +21,7 @@ type APIConfig struct {
 var (
 	overrideRateZnode     = "override_rate"
 	overrideRateZnodePath string
-	incorrectMethod       = "disallowed method\n"
+	incorrectMethodError  = errors.New("disallowed method")
 )
 
 func initAPI(c *APIConfig, zk kafkazk.Handler) {
@@ -100,7 +101,7 @@ func throttleGetSet(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler
 	default:
 		// Invalid method.
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		io.WriteString(w, incorrectMethod)
+		writeNLError(w, incorrectMethodError)
 		return
 	}
 }
@@ -116,7 +117,7 @@ func throttleRemove(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler
 	default:
 		// Invalid method.
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		io.WriteString(w, incorrectMethod)
+		writeNLError(w, incorrectMethodError)
 		return
 	}
 }
@@ -125,7 +126,7 @@ func throttleRemove(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler
 func getThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler) {
 	r, err := getThrottleOverride(zk, overrideRateZnodePath)
 	if err != nil {
-		io.WriteString(w, err.Error())
+		writeNLError(w, err)
 		return
 	}
 
@@ -144,14 +145,14 @@ func setThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler) {
 	// Check rate param.
 	rate, err := parseRateParam(req)
 	if err != nil {
-		io.WriteString(w, err.Error())
+		writeNLError(w, err)
 		return
 	}
 
 	// Check autoremove param.
 	autoRemove, err := parseAutoRemoveParam(req)
 	if err != nil {
-		io.WriteString(w, err.Error())
+		writeNLError(w, err)
 		return
 	}
 
@@ -163,11 +164,19 @@ func setThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler) {
 
 	// Determine whether this is a global or broker-specific override.
 	paths := parsePaths(req)
+	if len(paths) > 1 {
+		id, err := brokerIDFromPath(req)
+		if err != nil {
+			writeNLError(w, err)
+		}
+		fmt.Println(id)
+	}
 
 	// Set the config.
 	err = setThrottleOverride(zk, overrideRateZnodePath, rateCfg)
 	if err != nil {
-		io.WriteString(w, fmt.Sprintf("%s\n", err))
+		writeNLError(w, err)
+		return
 	} else {
 		io.WriteString(w, fmt.Sprintf("throttle successfully set to %dMB/s, autoremove==%v\n",
 			rate, autoRemove))
@@ -183,7 +192,7 @@ func removeThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler
 
 	err := setThrottleOverride(zk, overrideRateZnodePath, c)
 	if err != nil {
-		io.WriteString(w, fmt.Sprintf("%s\n", err))
+		writeNLError(w, err)
 	} else {
 		io.WriteString(w, "throttle successfully removed\n")
 	}
