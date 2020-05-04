@@ -2,9 +2,10 @@ package main
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
-  "log"
+	"strings"
 )
 
 func parseRateParam(req *http.Request) (int, error) {
@@ -36,6 +37,11 @@ func parseAutoRemoveParam(req *http.Request) (bool, error) {
 	}
 
 	return autoRemove, nil
+}
+
+func paths(req *http.Request) []string {
+	urlPathTrimmed := strings.Trim(req.URL.Path, "/")
+	return strings.Split(urlPathTrimmed, "/")
 }
 
 func logReq(req *http.Request) {

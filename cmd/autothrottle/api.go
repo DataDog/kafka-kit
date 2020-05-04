@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/DataDog/kafka-kit/kafkazk"
 )
@@ -91,26 +90,15 @@ func initAPI(c *APIConfig, zk kafkazk.Handler) {
 func throttleGetSet(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler) {
 	logReq(req)
 
-	urlPathTrimmed := strings.Trim(req.URL.Path, "/")
-	urlPaths := strings.Split(urlPathTrimmed, "/")
-
 	switch req.Method {
-	// Get a throttle rate.
 	case http.MethodGet:
-		if len(urlPaths) < 2 {
-			getGlobalThrottle(w, req, zk)
-		} else {
-			// getBrokerThrottle(w, req, zk)
-		}
-	// Set a throttle rate.
+		// Get a throttle rate.
+		getGlobalThrottle(w, req, zk)
 	case http.MethodPost:
-		if len(urlPaths) < 2 {
-			setGlobalThrottle(w, req, zk)
-		} else {
-			setBrokerThrottle(w, req, zk)
-		}
-	// Invalid method.
+		// Set a throttle rate.
+		setGlobalThrottle(w, req, zk)
 	default:
+		// Invalid method.
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		io.WriteString(w, incorrectMethod)
 		return
@@ -121,17 +109,12 @@ func throttleGetSet(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler
 func throttleRemove(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler) {
 	logReq(req)
 
-	urlPathTrimmed := strings.Trim(req.URL.Path, "/")
-	urlPaths := strings.Split(urlPathTrimmed, "/")
-
 	switch req.Method {
-	// Remove the throttle.
 	case http.MethodPost:
-		if len(urlPaths) < 3 {
-			removeGlobalThrottle(w, req, zk)
-		}
-	// Invalid method.
+		// Remove the throttle.
+		removeGlobalThrottle(w, req, zk)
 	default:
+		// Invalid method.
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		io.WriteString(w, incorrectMethod)
 		return
