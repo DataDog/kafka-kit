@@ -163,23 +163,35 @@ func setThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler) {
 	}
 
 	// Determine whether this is a global or broker-specific override.
+	var id int
 	paths := parsePaths(req)
 	if len(paths) > 1 {
-		id, err := brokerIDFromPath(req)
+		id, err = brokerIDFromPath(req)
 		if err != nil {
 			writeNLError(w, err)
+			return
 		}
-		fmt.Println(id)
+	}
+
+	updateMessage := fmt.Sprintf("throttle successfully set to %dMB/s, autoremove==%v\n", rate, autoRemove)
+	configPath := overrideRateZnodePath
+
+	// A non-0 ID means that this is broker specific.
+	if id != 0 {
+		// Update the message.
+		updateMessage = fmt.Sprintf("throttle successfully set to %dMB/s for broker %d, autoremove==%v\n",
+			rate, id, autoRemove)
+		// Update the config path.
+		configPath = fmt.Sprintf("%s/%d", overrideRateZnodePath, id)
 	}
 
 	// Set the config.
-	err = setThrottleOverride(zk, overrideRateZnodePath, rateCfg)
+	err = setThrottleOverride(zk, configPath, rateCfg)
 	if err != nil {
 		writeNLError(w, err)
 		return
 	} else {
-		io.WriteString(w, fmt.Sprintf("throttle successfully set to %dMB/s, autoremove==%v\n",
-			rate, autoRemove))
+		io.WriteString(w, updateMessage)
 	}
 }
 
