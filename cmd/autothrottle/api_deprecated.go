@@ -11,7 +11,7 @@ import (
 
 var errDeprecated = "WARN: this route is deprecated - refer to documentation\n"
 
-func getThrottleDeprecated(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler, p string) {
+func getThrottleDeprecated(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler) {
 	logReq(req)
 	if req.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -19,13 +19,13 @@ func getThrottleDeprecated(w http.ResponseWriter, req *http.Request, zk kafkazk.
 		return
 	}
 
-	r, err := getThrottleOverride(zk, p)
+	r, err := getThrottleOverride(zk, overrideRateZnodePath)
 	if err != nil {
 		io.WriteString(w, err.Error())
 		return
 	}
 
-  io.WriteString(w, errDeprecated)
+	io.WriteString(w, errDeprecated)
 
 	switch r.Rate {
 	case 0:
@@ -37,7 +37,7 @@ func getThrottleDeprecated(w http.ResponseWriter, req *http.Request, zk kafkazk.
 	}
 }
 
-func setThrottleDeprecated(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler, p string) {
+func setThrottleDeprecated(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler) {
 	logReq(req)
 	if req.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -53,7 +53,7 @@ func setThrottleDeprecated(w http.ResponseWriter, req *http.Request, zk kafkazk.
 
 	rate, err = strconv.Atoi(r)
 
-  io.WriteString(w, errDeprecated)
+	io.WriteString(w, errDeprecated)
 
 	switch {
 	case r == "":
@@ -87,7 +87,7 @@ func setThrottleDeprecated(w http.ResponseWriter, req *http.Request, zk kafkazk.
 		AutoRemove: remove,
 	}
 
-	err = setThrottleOverride(zk, p, rateCfg)
+	err = setThrottleOverride(zk, overrideRateZnodePath, rateCfg)
 	if err != nil {
 		io.WriteString(w, fmt.Sprintf("%s\n", err))
 	} else {
@@ -96,7 +96,7 @@ func setThrottleDeprecated(w http.ResponseWriter, req *http.Request, zk kafkazk.
 	}
 }
 
-func removeThrottleDeprecated(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler, p string) {
+func removeThrottleDeprecated(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler) {
 	logReq(req)
 	if req.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -109,9 +109,9 @@ func removeThrottleDeprecated(w http.ResponseWriter, req *http.Request, zk kafka
 		AutoRemove: false,
 	}
 
-  io.WriteString(w, errDeprecated)
+	io.WriteString(w, errDeprecated)
 
-	err := setThrottleOverride(zk, p, c)
+	err := setThrottleOverride(zk, overrideRateZnodePath, c)
 	if err != nil {
 		io.WriteString(w, fmt.Sprintf("%s\n", err))
 	} else {
