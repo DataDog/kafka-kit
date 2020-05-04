@@ -150,7 +150,3 @@ a throttle override is configured at 200MB/s, autoremove==true
 $ curl -XPOST localhost:8080/throttle/remove
 throttle successfully removed
 ```
-
-# Diagrams
-
-![img_1623](https://user-images.githubusercontent.com/4108044/35110764-d2dd19b0-fc36-11e7-8086-9038a194a3ac.JPG)
