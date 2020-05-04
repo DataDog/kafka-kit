@@ -9,6 +9,8 @@ import (
 	"strings"
 )
 
+// parseRateParam takes a *http.Request and returns the specified
+// 'rate' request parameter formatted as a int.
 func parseRateParam(req *http.Request) (int, error) {
 	r := req.URL.Query().Get("rate")
 	rate, err := strconv.Atoi(r)
@@ -25,6 +27,8 @@ func parseRateParam(req *http.Request) (int, error) {
 	return rate, nil
 }
 
+// parseAutoRemoveParam takes a *http.Request and returns the specified
+// autoremove parameter as a bool.
 func parseAutoRemoveParam(req *http.Request) (bool, error) {
 	c := req.URL.Query().Get("autoremove")
 	var autoRemove bool
@@ -40,11 +44,15 @@ func parseAutoRemoveParam(req *http.Request) (bool, error) {
 	return autoRemove, nil
 }
 
+// parsePaths takes a *http.Request and returns a []string elements of the full
+// request path, stripped of all '/' chars.
 func parsePaths(req *http.Request) []string {
 	urlPathTrimmed := strings.Trim(req.URL.Path, "/")
 	return strings.Split(urlPathTrimmed, "/")
 }
 
+// brokerIDFromPath takes a *http.Request and returns a broker ID from the
+// path elements.
 func brokerIDFromPath(req *http.Request) (int, error) {
 	paths := parsePaths(req)
 	if len(paths) < 2 {
@@ -59,10 +67,13 @@ func brokerIDFromPath(req *http.Request) (int, error) {
 	return id, nil
 }
 
+// writeNLError writes the provided error with an appended newline to the
+// provided http.ResponseWriter.
 func writeNLError(w http.ResponseWriter, err error) {
 	fmt.Fprintf(w, "%s\n", err)
 }
 
+// logReq logs *http.Request parameters.
 func logReq(req *http.Request) {
 	log.Printf("[API] %s %s %s\n", req.Method, req.RequestURI, req.RemoteAddr)
 }
