@@ -166,19 +166,19 @@ func setGlobalThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Hand
 	}
 
 	// Check autoremove param.
-	autoRemove, err := parseAutoremoveParam(req)
+	autoRemove, err := parseAutoRemoveParam(req)
 	if err != nil {
 		io.WriteString(w, err.Error())
 		return
 	}
 
 	// Populate configs.
-
 	rateCfg := ThrottleOverrideConfig{
 		Rate:       rate,
 		AutoRemove: autoRemove,
 	}
 
+	// Set the config.
 	err = setThrottleOverride(zk, overrideRateZnodePath, rateCfg)
 	if err != nil {
 		io.WriteString(w, fmt.Sprintf("%s\n", err))
@@ -205,8 +205,4 @@ func removeGlobalThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.H
 	} else {
 		io.WriteString(w, "throttle successfully removed\n")
 	}
-}
-
-func logReq(req *http.Request) {
-	log.Printf("[API] %s %s %s\n", req.Method, req.RequestURI, req.RemoteAddr)
 }

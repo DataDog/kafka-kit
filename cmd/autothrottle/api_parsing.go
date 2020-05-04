@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+  "log"
 )
 
 func parseRateParam(req *http.Request) (int, error) {
@@ -22,7 +23,7 @@ func parseRateParam(req *http.Request) (int, error) {
 	return rate, nil
 }
 
-func parseAutoremoveParam(req *http.Request) (bool, error) {
+func parseAutoRemoveParam(req *http.Request) (bool, error) {
 	c := req.URL.Query().Get("autoremove")
 	var autoRemove bool
 	var err error
@@ -35,4 +36,8 @@ func parseAutoremoveParam(req *http.Request) (bool, error) {
 	}
 
 	return autoRemove, nil
+}
+
+func logReq(req *http.Request) {
+	log.Printf("[API] %s %s %s\n", req.Method, req.RequestURI, req.RemoteAddr)
 }
