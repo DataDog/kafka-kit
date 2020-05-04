@@ -106,6 +106,8 @@ func throttleGetSet(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler
 	case http.MethodPost:
 		if len(urlPaths) < 2 {
 			setGlobalThrottle(w, req, zk)
+		} else {
+			setBrokerThrottle(w, req, zk)
 		}
 	// Invalid method.
 	default:
@@ -156,27 +158,14 @@ func getGlobalThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Hand
 
 // setGlobalThrottle returns the throttle rate applied to all brokers.
 func setGlobalThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler) {
-	// Get rate param.
-	r := req.URL.Query().Get("rate")
-	var rate int
-	var err error
-
-	rate, err = strconv.Atoi(r)
-
-	switch {
-	case r == "":
-		io.WriteString(w, "rate param must be supplied\n")
-		return
-	case r == "0":
-		io.WriteString(w, "rate param must be >0\n")
-		return
-	case err != nil:
-		io.WriteString(w, "rate param must be supplied as an integer\n")
+	// Check rate param.
+	rate, err := parseRateString(req)
+	if err != nil {
+		io.WriteString(w, err.Error())
 		return
 	}
 
-	// Get automatic rate removal param.
-
+	// Check autoremove param.
 	c := req.URL.Query().Get("autoremove")
 	var remove bool
 
@@ -202,6 +191,10 @@ func setGlobalThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Hand
 		io.WriteString(w, fmt.Sprintf("throttle successfully set to %dMB/s, autoremove==%v\n",
 			rate, remove))
 	}
+}
+
+func setBrokerThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler) {
+	return
 }
 
 // removeGlobalThrottle removes the throttle rate applied to all brokers.

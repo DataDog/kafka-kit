@@ -31,8 +31,7 @@ type ReplicationThrottleConfigs struct {
 	skipTopicUpdates       bool
 }
 
-// ThrottleOverrideConfig holds throttle
-// override configurations.
+// ThrottleOverrideConfig holds throttle override configurations.
 type ThrottleOverrideConfig struct {
 	// Rate in MB.
 	Rate int `json:"rate"`
