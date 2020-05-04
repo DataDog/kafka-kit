@@ -19,9 +19,9 @@ type APIConfig struct {
 }
 
 var (
-	overrideRateZnode = "override_rate"
+	overrideRateZnode     = "override_rate"
 	overrideRateZnodePath string
-	incorrectMethod   = "disallowed method\n"
+	incorrectMethod       = "disallowed method\n"
 )
 
 func initAPI(c *APIConfig, zk kafkazk.Handler) {
@@ -65,12 +65,14 @@ func initAPI(c *APIConfig, zk kafkazk.Handler) {
 		}
 	}
 
-	// Routes.
+	// Routes. A global rate vs broker-specific rate is distinguished in whether
+	// or not there's a trailing slash (and in a properly formed request, the
+	// addition of a broker ID in the request path).
 
-	// No trailing slash references the global throttle.
 	m.HandleFunc("/throttle", func(w http.ResponseWriter, req *http.Request) { throttleGetSet(w, req, zk, overrideZKPath) })
-	// A trailing slash references a broker-specific throttle.
 	m.HandleFunc("/throttle/", func(w http.ResponseWriter, req *http.Request) { throttleGetSet(w, req, zk, overrideZKPath) })
+	m.HandleFunc("/throttle/remove", func(w http.ResponseWriter, req *http.Request) { throttleRemove(w, req, zk, overrideZKPath) })
+	m.HandleFunc("/throttle/remove/", func(w http.ResponseWriter, req *http.Request) { throttleRemove(w, req, zk, overrideZKPath) })
 
 	// m.Handlefunc("/throttle/remove", func(w http.ResponseWriter, req *http.Request) { throttleRemove(w, req, zk, overrideZKPath) }))
 
@@ -98,13 +100,34 @@ func throttleGetSet(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler
 	switch req.Method {
 	// Return the throttle.
 	case http.MethodGet:
-			if len(urlPaths) < 2 {
-				getGlobalThrottle(w, req, zk, p)
-			}
+		if len(urlPaths) < 2 {
+			getGlobalThrottle(w, req, zk, p)
+		}
 	// Set the throttle.
 	case http.MethodPost:
 		if len(urlPaths) < 2 {
 			setGlobalThrottle(w, req, zk, p)
+		}
+	// Invalid method.
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		io.WriteString(w, incorrectMethod)
+		return
+	}
+}
+
+// throttleRemove removes either the global or broker-specific throttle.
+func throttleRemove(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler, p string) {
+	logReq(req)
+
+	urlPathTrimmed := strings.Trim(req.URL.Path, "/")
+	urlPaths := strings.Split(urlPathTrimmed, "/")
+
+	switch req.Method {
+	// Remove the throttle.
+	case http.MethodPost:
+		if len(urlPaths) < 3 {
+			removeGlobalThrottle(w, req, zk, p)
 		}
 	// Invalid method.
 	default:
@@ -179,6 +202,21 @@ func setGlobalThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Hand
 	} else {
 		io.WriteString(w, fmt.Sprintf("throttle successfully set to %dMB/s, autoremove==%v\n",
 			rate, remove))
+	}
+}
+
+// removeGlobalThrottle removes the throttle rate applied to all brokers.
+func removeGlobalThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler, p string) {
+	c := ThrottleOverrideConfig{
+		Rate:       0,
+		AutoRemove: false,
+	}
+
+	err := setThrottleOverride(zk, p, c)
+	if err != nil {
+		io.WriteString(w, fmt.Sprintf("%s\n", err))
+	} else {
+		io.WriteString(w, "throttle successfully removed\n")
 	}
 }
 

@@ -141,13 +141,13 @@ The administrative API allows overrides to be set. If an override is set, Datado
 When setting a throttle, an optional `autoremove` bool parameter can be specified. If set, the throttle override will be removed
 
 ```
-$ curl -XPOST "localhost:8080/set_throttle?rate=200&autoremove=true"
+$ curl -XPOST "localhost:8080/throttle?rate=200&autoremove=true"
 throttle successfully set to 200MB/s, autoremove==true
 
-$ curl -XPOST "localhost:8080/get_throttle"
+$ curl "localhost:8080/throttle"
 a throttle override is configured at 200MB/s, autoremove==true
 
-$ curl -XPOST localhost:8080/remove_throttle
+$ curl -XPOST localhost:8080/throttle/remove
 throttle successfully removed
 ```
 
