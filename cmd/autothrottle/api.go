@@ -68,15 +68,12 @@ func initAPI(c *APIConfig, zk kafkazk.Handler) {
 	// Routes. A global rate vs broker-specific rate is distinguished in whether
 	// or not there's a trailing slash (and in a properly formed request, the
 	// addition of a broker ID in the request path).
-
 	m.HandleFunc("/throttle", func(w http.ResponseWriter, req *http.Request) { throttleGetSet(w, req, zk, overrideZKPath) })
 	m.HandleFunc("/throttle/", func(w http.ResponseWriter, req *http.Request) { throttleGetSet(w, req, zk, overrideZKPath) })
 	m.HandleFunc("/throttle/remove", func(w http.ResponseWriter, req *http.Request) { throttleRemove(w, req, zk, overrideZKPath) })
 	m.HandleFunc("/throttle/remove/", func(w http.ResponseWriter, req *http.Request) { throttleRemove(w, req, zk, overrideZKPath) })
 
-	// m.Handlefunc("/throttle/remove", func(w http.ResponseWriter, req *http.Request) { throttleRemove(w, req, zk, overrideZKPath) }))
-
-	// // Deprecated routes.
+	// Deprecated routes.
 	m.HandleFunc("/get_throttle", func(w http.ResponseWriter, req *http.Request) { getThrottleDeprecated(w, req, zk, overrideZKPath) })
 	m.HandleFunc("/set_throttle", func(w http.ResponseWriter, req *http.Request) { setThrottleDeprecated(w, req, zk, overrideZKPath) })
 	m.HandleFunc("/remove_throttle", func(w http.ResponseWriter, req *http.Request) { removeThrottleDeprecated(w, req, zk, overrideZKPath) })

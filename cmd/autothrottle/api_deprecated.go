@@ -9,6 +9,8 @@ import (
 	"github.com/DataDog/kafka-kit/kafkazk"
 )
 
+var errDeprecated = "WARN: this route is deprecated - refer to documentation\n"
+
 func getThrottleDeprecated(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler, p string) {
 	logReq(req)
 	if req.Method != http.MethodGet {
@@ -22,6 +24,8 @@ func getThrottleDeprecated(w http.ResponseWriter, req *http.Request, zk kafkazk.
 		io.WriteString(w, err.Error())
 		return
 	}
+
+  io.WriteString(w, errDeprecated)
 
 	switch r.Rate {
 	case 0:
@@ -48,6 +52,8 @@ func setThrottleDeprecated(w http.ResponseWriter, req *http.Request, zk kafkazk.
 	var err error
 
 	rate, err = strconv.Atoi(r)
+
+  io.WriteString(w, errDeprecated)
 
 	switch {
 	case r == "":
@@ -102,6 +108,8 @@ func removeThrottleDeprecated(w http.ResponseWriter, req *http.Request, zk kafka
 		Rate:       0,
 		AutoRemove: false,
 	}
+
+  io.WriteString(w, errDeprecated)
 
 	err := setThrottleOverride(zk, p, c)
 	if err != nil {
