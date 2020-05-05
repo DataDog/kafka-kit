@@ -334,7 +334,6 @@ func setThrottleOverride(zk kafkazk.Handler, p string, c ThrottleOverrideConfig)
 	return nil
 }
 
-
 // removeThrottleOverride deletes an override at path p.
 func removeThrottleOverride(zk kafkazk.Handler, p string) error {
 	exists, err := zk.Exists(p)

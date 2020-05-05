@@ -141,7 +141,7 @@ func getThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler) {
 	// A non-0 ID means that this is broker specific.
 	if id != 0 {
 		// Update the config path.
-		configPath = fmt.Sprintf("%s/%d", overrideRateZnodePath, id)
+		configPath = fmt.Sprintf("%s/%d", configPath, id)
 	}
 
 	r, err := getThrottleOverride(zk, configPath)
@@ -213,10 +213,9 @@ func setThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler) {
 
 	// A non-0 ID means that this is broker specific.
 	if id != 0 {
-		// Update the message.
+		// Update the message, config path.
 		updateMessage = fmt.Sprintf("broker %d: %s", id, updateMessage)
-		// Update the config path.
-		configPath = fmt.Sprintf("%s/%d", overrideRateZnodePath, id)
+		configPath = fmt.Sprintf("%s/%d", configPath, id)
 	}
 
 	// Set the config.
@@ -236,10 +235,43 @@ func removeThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler
 		AutoRemove: false,
 	}
 
-	err := setThrottleOverride(zk, overrideRateZnodePath, c)
-	if err != nil {
-		writeNLError(w, err)
-	} else {
-		io.WriteString(w, "throttle successfully removed\n")
+	// Determine whether this is a global or broker-specific throttle lookup.
+	var id int
+	paths := parsePaths(req)
+	if len(paths) > 2 {
+		var err error
+		id, err = brokerIDFromPath(req)
+		if err != nil {
+			writeNLError(w, err)
+			return
+		}
 	}
+
+	configPath := overrideRateZnodePath
+	updateMessage := "throttle removed\n"
+	var err error
+
+	// A non-0 ID means that this is broker specific.
+	if id != 0 {
+		configPath = fmt.Sprintf("%s/%d", configPath, id)
+		updateMessage = fmt.Sprintf("broker %d: %s", id, updateMessage)
+		// When removing a broker-specific rate, we have to delete the entry.
+		err = removeThrottleOverride(zk, configPath)
+	} else {
+		// When removing the global rate, we simply set it to 0.
+		err = setThrottleOverride(zk, configPath, c)
+	}
+
+	// Handle errors.
+	if err != nil {
+		switch err {
+		case errNoOverideSet:
+			// Do nothing.
+		default:
+			writeNLError(w, err)
+			return
+		}
+	}
+
+	io.WriteString(w, updateMessage)
 }
