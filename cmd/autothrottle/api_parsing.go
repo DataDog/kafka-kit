@@ -9,6 +9,8 @@ import (
 	"strings"
 )
 
+var errBrokerIDNotProvided = errors.New("broker ID not provided")
+
 // parseRateParam takes a *http.Request and returns the specified
 // 'rate' request parameter formatted as a int.
 func parseRateParam(req *http.Request) (int, error) {
@@ -56,10 +58,25 @@ func parsePaths(req *http.Request) []string {
 func brokerIDFromPath(req *http.Request) (int, error) {
 	paths := parsePaths(req)
 	if len(paths) < 2 {
-		return 0, errors.New("broker ID not provided")
+		return 0, errBrokerIDNotProvided
 	}
 
-	id, err := strconv.Atoi(paths[1])
+	var idStr string
+
+	// If we're calling remove vs get/set, i.e. /throttle/remove/123
+	// vs /throttle/123.
+	if paths[1] == "remove" {
+		if len(paths) < 3 {
+			return 0, errBrokerIDNotProvided
+		}
+		// Path elements = [throttle, remove, 1230].
+		idStr = paths[2]
+	} else {
+		// Path elements = [throttle, 1230].
+		idStr = paths[1]
+	}
+
+	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		return 0, errors.New("broker param must be provided as integer")
 	}
