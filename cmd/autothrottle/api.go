@@ -13,9 +13,8 @@ import (
 
 // APIConfig holds configuration params for the admin API.
 type APIConfig struct {
-	Listen      string
-	ZKPrefix    string
-	RateSetting string
+	Listen   string
+	ZKPrefix string
 }
 
 var (
@@ -25,7 +24,6 @@ var (
 )
 
 func initAPI(c *APIConfig, zk kafkazk.Handler) {
-	c.RateSetting = overrideRateZnode
 	chroot := fmt.Sprintf("/%s", c.ZKPrefix)
 	overrideRateZnodePath = fmt.Sprintf("%s/%s", chroot, overrideRateZnode)
 

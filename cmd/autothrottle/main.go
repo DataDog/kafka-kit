@@ -188,8 +188,6 @@ func main() {
 		failureThreshold:       Config.FailureThreshold,
 	}
 
-	overridePath := fmt.Sprintf("/%s/%s", apiConfig.ZKPrefix, apiConfig.RateSetting)
-
 	// Run.
 	var interval int64
 	var ticker = time.NewTicker(time.Duration(Config.Interval) * time.Second)
@@ -239,8 +237,8 @@ func main() {
 			throttleMeta.EnableTopicUpdates()
 		}
 
-		// Fetch any throttle override config.
-		overrideCfg, err := getThrottleOverride(zk, overridePath)
+		// Check if a global throttle override was configured.
+		overrideCfg, err := getThrottleOverride(zk, overrideRateZnodePath)
 		if err != nil {
 			log.Println(err)
 		}
@@ -283,7 +281,7 @@ func main() {
 
 			// Remove any configured throttle overrides if AutoRemove is true.
 			if overrideCfg.AutoRemove {
-				err := setThrottleOverride(zk, overridePath, ThrottleOverrideConfig{})
+				err := setThrottleOverride(zk, overrideRateZnodePath, ThrottleOverrideConfig{})
 				if err != nil {
 					log.Println(err)
 				} else {
