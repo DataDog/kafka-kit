@@ -124,19 +124,46 @@ func throttleRemove(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler
 
 // getThrottle sets a throtle rate that applies to all brokers.
 func getThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler) {
-	r, err := getThrottleOverride(zk, overrideRateZnodePath)
+	// Determine whether this is a global or broker-specific throttle lookup.
+	var id int
+	paths := parsePaths(req)
+	if len(paths) > 1 {
+		var err error
+		id, err = brokerIDFromPath(req)
+		if err != nil {
+			writeNLError(w, err)
+			return
+		}
+	}
+
+	configPath := overrideRateZnodePath
+
+	// A non-0 ID means that this is broker specific.
+	if id != 0 {
+		// Update the config path.
+		configPath = fmt.Sprintf("%s/%d", overrideRateZnodePath, id)
+	}
+
+	r, err := getThrottleOverride(zk, configPath)
 	if err != nil {
 		writeNLError(w, err)
 		return
 	}
 
+	respMessage := fmt.Sprintf("a throttle override is configured at %dMB/s, autoremove==%v\n", r.Rate, r.AutoRemove)
+	noOverrideMessage := "no throttle override is set\n"
+
+	// Update the response message.
+	if id != 0 {
+		respMessage = fmt.Sprintf("broker %d: %s", id, respMessage)
+		noOverrideMessage = fmt.Sprintf("broker %d: %s", id, noOverrideMessage)
+	}
+
 	switch r.Rate {
 	case 0:
-		io.WriteString(w, "no throttle override is set\n")
+		io.WriteString(w, noOverrideMessage)
 	default:
-		resp := fmt.Sprintf("a throttle override is configured at %dMB/s, autoremove==%v\n",
-			r.Rate, r.AutoRemove)
-		io.WriteString(w, resp)
+		io.WriteString(w, respMessage)
 	}
 }
 
@@ -179,8 +206,7 @@ func setThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler) {
 	// A non-0 ID means that this is broker specific.
 	if id != 0 {
 		// Update the message.
-		updateMessage = fmt.Sprintf("throttle successfully set to %dMB/s for broker %d, autoremove==%v\n",
-			rate, id, autoRemove)
+		updateMessage = fmt.Sprintf("broker %d: %s", id, updateMessage)
 		// Update the config path.
 		configPath = fmt.Sprintf("%s/%d", overrideRateZnodePath, id)
 	}
