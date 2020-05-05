@@ -368,7 +368,7 @@ func getBrokerOverrides(zk kafkazk.Handler, p string) (BrokerOverrides, error) {
 
 		override, err := zk.Get(brokerZnode)
 		if err != nil {
-				return overrides, fmt.Errorf("error getting throttle override: %s", err)
+			return overrides, fmt.Errorf("error getting throttle override: %s", err)
 		}
 
 		err = json.Unmarshal(override, c)
@@ -377,9 +377,9 @@ func getBrokerOverrides(zk kafkazk.Handler, p string) (BrokerOverrides, error) {
 		}
 
 		overrides[id] = BrokerThrottleOverride{
-			ID: id,
+			ID:      id,
 			Applied: false,
-			Config: *c,
+			Config:  *c,
 		}
 	}
 

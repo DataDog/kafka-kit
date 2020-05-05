@@ -17,7 +17,7 @@ type ReplicationThrottleConfigs struct {
 	zk                     kafkazk.Handler
 	km                     kafkametrics.Handler
 	overrideRate           int
-	brokerOverrides BrokerOverrides
+	brokerOverrides        BrokerOverrides
 	events                 *DDEventWriter
 	previouslySetThrottles replicationCapacityByBroker
 	limits                 Limits
@@ -44,9 +44,6 @@ type BrokerThrottleOverride struct {
 	ID int
 	// Whether this override has been applied.
 	Applied bool
-	// Whether this BrokerThrottleOverride should be removed after
-	// a related reassignment event.
-	AutoRemove bool
 	// The ThrottleOverrideConfig.
 	Config ThrottleOverrideConfig
 }

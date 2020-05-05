@@ -243,6 +243,12 @@ func main() {
 			log.Println(err)
 		}
 
+		// Fetch all broker-specific overrides.
+		throttleMeta.brokerOverrides, err = getBrokerOverrides(zk, overrideRateZnodePath)
+		if err != nil {
+			log.Println(err)
+		}
+
 		// If topics are being reassigned, update the replication throttle.
 		if len(throttleMeta.topics) > 0 {
 			log.Printf("Topics with ongoing reassignments: %s\n", throttleMeta.topics)
