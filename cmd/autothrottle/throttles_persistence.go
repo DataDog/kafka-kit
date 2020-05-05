@@ -283,6 +283,7 @@ func removeAllThrottles(zk kafkazk.Handler, params *ReplicationThrottleConfigs) 
 	return nil
 }
 
+// getThrottleOverride gets a throttle override from path p.
 func getThrottleOverride(zk kafkazk.Handler, p string) (*ThrottleOverrideConfig, error) {
 	c := &ThrottleOverrideConfig{}
 
@@ -307,6 +308,7 @@ func getThrottleOverride(zk kafkazk.Handler, p string) (*ThrottleOverrideConfig,
 	return c, nil
 }
 
+// setThrottleOverride sets a throttle override to path p.
 func setThrottleOverride(zk kafkazk.Handler, p string, c ThrottleOverrideConfig) error {
 	d, err := json.Marshal(c)
 	if err != nil {
@@ -327,6 +329,22 @@ func setThrottleOverride(zk kafkazk.Handler, p string, c ThrottleOverrideConfig)
 
 	if err != nil {
 		return fmt.Errorf("error setting throttle override: %s", err)
+	}
+
+	return nil
+}
+
+
+// removeThrottleOverride deletes an override at path p.
+func removeThrottleOverride(zk kafkazk.Handler, p string) error {
+	exists, err := zk.Exists(p)
+	if !exists && err == nil {
+		return nil
+	}
+
+	err = zk.Delete(p)
+	if err != nil {
+		return fmt.Errorf("error removing throttle override: %s", err)
 	}
 
 	return nil
