@@ -26,26 +26,26 @@ var (
 
 func initAPI(c *APIConfig, zk kafkazk.Handler) {
 	c.RateSetting = overrideRateZnode
-	overrideRateZnodePath = fmt.Sprintf("/%s/%s", c.ZKPrefix, overrideRateZnode)
+	chroot := fmt.Sprintf("/%s", c.ZKPrefix)
+	overrideRateZnodePath = fmt.Sprintf("%s/%s", chroot, overrideRateZnode)
 
 	m := http.NewServeMux()
 
 	// Check ZK for override rate config znode.
-	exists, err := zk.Exists(overrideRateZnodePath)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if !exists {
-		// Create chroot.
-		err = zk.Create("/"+c.ZKPrefix, "")
+	var exists bool
+	for _, path := range []string{chroot, overrideRateZnodePath} {
+		var err error
+		exists, err = zk.Exists(path)
 		if err != nil {
 			log.Fatal(err)
 		}
-		// Create overrideZKPath.
-		err = zk.Create(overrideRateZnodePath, "")
-		if err != nil {
-			log.Fatal(err)
+
+		if !exists {
+			// Create chroot.
+			err = zk.Create(path, "")
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
 	}
 
