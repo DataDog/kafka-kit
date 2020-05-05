@@ -17,6 +17,7 @@ type ReplicationThrottleConfigs struct {
 	zk                     kafkazk.Handler
 	km                     kafkametrics.Handler
 	overrideRate           int
+	brokerOverrides BrokerOverrides
 	events                 *DDEventWriter
 	previouslySetThrottles replicationCapacityByBroker
 	limits                 Limits
@@ -32,6 +33,22 @@ type ThrottleOverrideConfig struct {
 	// Whether the override rate should be
 	// removed when the current reassignments finish.
 	AutoRemove bool `json:"autoremove"`
+}
+
+// BrokerOverrides is a map of broker ID to BrokerThrottleOverride.
+type BrokerOverrides map[int]BrokerThrottleOverride
+
+// BrokerThrottleOverride holds broker-specific overrides.
+type BrokerThrottleOverride struct {
+	// Broker ID.
+	ID int
+	// Whether this override has been applied.
+	Applied bool
+	// Whether this BrokerThrottleOverride should be removed after
+	// a related reassignment event.
+	AutoRemove bool
+	// The ThrottleOverrideConfig.
+	Config ThrottleOverrideConfig
 }
 
 // Failure increments the failures count and returns true if the
@@ -138,7 +155,7 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 	var metricErrs []error
 
 	if params.overrideRate != 0 {
-		log.Printf("A throttle override is set: %dMB/s\n", params.overrideRate)
+		log.Printf("A global throttle override is set: %dMB/s\n", params.overrideRate)
 		rateOverride = true
 
 		capacities.setAllRatesWithDefault(allBrokers, float64(params.overrideRate))

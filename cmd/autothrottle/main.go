@@ -285,7 +285,7 @@ func main() {
 				if err != nil {
 					log.Println(err)
 				} else {
-					log.Println("Throttle override removed")
+					log.Println("Global throttle override removed")
 				}
 			}
 		}
