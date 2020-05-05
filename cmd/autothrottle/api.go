@@ -145,10 +145,6 @@ func getThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler) {
 	}
 
 	r, err := getThrottleOverride(zk, configPath)
-	if err != nil {
-		writeNLError(w, err)
-		return
-	}
 
 	respMessage := fmt.Sprintf("a throttle override is configured at %dMB/s, autoremove==%v\n", r.Rate, r.AutoRemove)
 	noOverrideMessage := "no throttle override is set\n"
@@ -157,6 +153,18 @@ func getThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler) {
 	if id != 0 {
 		respMessage = fmt.Sprintf("broker %d: %s", id, respMessage)
 		noOverrideMessage = fmt.Sprintf("broker %d: %s", id, noOverrideMessage)
+	}
+
+	// Handle errors.
+	if err != nil {
+		switch err {
+		case errNoOverideSet:
+			// Do nothing, let the rate condition handle
+			// no override set messages.
+		default:
+			writeNLError(w, err)
+			return
+		}
 	}
 
 	switch r.Rate {

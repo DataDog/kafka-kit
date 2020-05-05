@@ -13,6 +13,10 @@ import (
 	"github.com/DataDog/kafka-kit/kafkazk"
 )
 
+var (
+	errNoOverideSet = errors.New("no override set at path")
+)
+
 // brokerChangeEvent is the message type returned in the events channel
 // from the applyBrokerThrottles func.
 type brokerChangeEvent struct {
@@ -284,7 +288,12 @@ func getThrottleOverride(zk kafkazk.Handler, p string) (*ThrottleOverrideConfig,
 
 	override, err := zk.Get(p)
 	if err != nil {
-		return c, fmt.Errorf("Error getting throttle override: %s", err)
+		switch err.(type) {
+		case kafkazk.ErrNoNode:
+			return c, errNoOverideSet
+		default:
+			return c, fmt.Errorf("error getting throttle override: %s", err)
+		}
 	}
 
 	if len(override) == 0 {
@@ -292,7 +301,7 @@ func getThrottleOverride(zk kafkazk.Handler, p string) (*ThrottleOverrideConfig,
 	}
 
 	if err := json.Unmarshal(override, c); err != nil {
-		return c, fmt.Errorf("Error unmarshalling override config: %s", err)
+		return c, fmt.Errorf("error unmarshalling override config: %s", err)
 	}
 
 	return c, nil
@@ -301,7 +310,7 @@ func getThrottleOverride(zk kafkazk.Handler, p string) (*ThrottleOverrideConfig,
 func setThrottleOverride(zk kafkazk.Handler, p string, c ThrottleOverrideConfig) error {
 	d, err := json.Marshal(c)
 	if err != nil {
-		return fmt.Errorf("Error marshalling override config: %s", err)
+		return fmt.Errorf("error marshalling override config: %s", err)
 	}
 
 	// Check if the path exists.
@@ -317,7 +326,7 @@ func setThrottleOverride(zk kafkazk.Handler, p string, c ThrottleOverrideConfig)
 	}
 
 	if err != nil {
-		return fmt.Errorf("Error setting throttle override: %s", err)
+		return fmt.Errorf("error setting throttle override: %s", err)
 	}
 
 	return nil
