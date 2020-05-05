@@ -348,3 +348,40 @@ func removeThrottleOverride(zk kafkazk.Handler, p string) error {
 
 	return nil
 }
+
+// getBrokerOverrides returns a BrokerOverrides populated with all brokers
+// with overrides set.
+func getBrokerOverrides(zk kafkazk.Handler, p string) (BrokerOverrides, error) {
+	overrides := BrokerOverrides{}
+
+	// Get brokers with overrides configured.
+	brokers, err := zk.Children(p)
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch override config for each.
+	for _, b := range brokers {
+		id, _ := strconv.Atoi(b)
+		c := &ThrottleOverrideConfig{}
+		brokerZnode := fmt.Sprintf("%s/%d", p, id)
+
+		override, err := zk.Get(brokerZnode)
+		if err != nil {
+				return overrides, fmt.Errorf("error getting throttle override: %s", err)
+		}
+
+		err = json.Unmarshal(override, c)
+		if err != nil {
+			return overrides, fmt.Errorf("error unmarshalling override config: %s", err)
+		}
+
+		overrides[id] = BrokerThrottleOverride{
+			ID: id,
+			Applied: false,
+			Config: *c,
+		}
+	}
+
+	return overrides, nil
+}
