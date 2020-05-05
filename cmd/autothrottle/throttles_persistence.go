@@ -304,7 +304,18 @@ func setThrottleOverride(zk kafkazk.Handler, p string, c ThrottleOverrideConfig)
 		return fmt.Errorf("Error marshalling override config: %s", err)
 	}
 
-	err = zk.Set(p, string(d))
+	// Check if the path exists.
+	exists, _ := zk.Exists(p)
+	err = nil
+
+	if exists {
+		// Update.
+		err = zk.Set(p, string(d))
+	} else {
+		// Create.
+		err = zk.Create(p, string(d))
+	}
+
 	if err != nil {
 		return fmt.Errorf("Error setting throttle override: %s", err)
 	}
