@@ -377,9 +377,9 @@ func getBrokerOverrides(zk kafkazk.Handler, p string) (BrokerOverrides, error) {
 		}
 
 		overrides[id] = BrokerThrottleOverride{
-			ID:      id,
-			Applied: false,
-			Config:  *c,
+			ID:                      id,
+			ReassignmentParticipant: false,
+			Config:                  *c,
 		}
 	}
 

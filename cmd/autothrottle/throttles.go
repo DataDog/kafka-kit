@@ -17,7 +17,8 @@ type ReplicationThrottleConfigs struct {
 	zk                     kafkazk.Handler
 	km                     kafkametrics.Handler
 	overrideRate           int
-	brokerOverrides BrokerOverrides
+	brokerOverrides        BrokerOverrides
+	reassigningBrokers     reassigningBrokers
 	events                 *DDEventWriter
 	previouslySetThrottles replicationCapacityByBroker
 	limits                 Limits
@@ -42,8 +43,8 @@ type BrokerOverrides map[int]BrokerThrottleOverride
 type BrokerThrottleOverride struct {
 	// Broker ID.
 	ID int
-	// Whether this override has been applied.
-	Applied bool
+	// Whether this override is for a broker that's part of a reassignment.
+	ReassignmentParticipant bool
 	// The ThrottleOverrideConfig.
 	Config ThrottleOverrideConfig
 }
@@ -142,16 +143,11 @@ func (r replicationCapacityByBroker) setAllRatesWithDefault(ids []int, rate floa
 // any ongoing replication are fetched to determine replication headroom.
 // The replication throttle is then adjusted accordingly. If a non-empty
 // override is provided, that static value is used instead of a dynamically
-// determined value.
+// determined value. Additionally, broker-specific overrides may be specified,
+// which take precedence over the global override.
 func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
-	// Get the maps of brokers handling reassignments.
-	reassigning, err := getReassigningBrokers(params.reassignments, params.zk)
-	if err != nil {
-		return err
-	}
-
 	// Creates lists from maps.
-	srcBrokers, dstBrokers, allBrokers := reassigning.lists()
+	srcBrokers, dstBrokers, allBrokers := params.reassigningBrokers.lists()
 
 	log.Printf("Source brokers participating in replication: %v\n", srcBrokers)
 	log.Printf("Destination brokers participating in replication: %v\n", dstBrokers)
@@ -219,34 +215,36 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 	// If there's no override set and we're not in a failure mode, apply
 	// the calculated throttles.
 	if !rateOverride && !inFailureMode {
-		capacities, err = brokerReplicationCapacities(params, reassigning, brokerMetrics)
+		var err error
+		capacities, err = brokerReplicationCapacities(params, params.reassigningBrokers, brokerMetrics)
 		if err != nil {
 			return err
 		}
 	}
 
 	// Merge in broker-specific overrides if they're part of the reassignment.
-	for id := range reassigning.all {
+	for id := range params.reassigningBrokers.all {
 		if override, exists := params.brokerOverrides[id]; exists {
 			rate := override.Config.Rate
 			log.Printf("A broker throttle override is set for %d: %dMB/s\n", id, rate)
 			// Any brokers with throttle overrides that are being issued as part
 			// of a reassignemnt should be marked as such.
-			params.brokerOverrides[id].Applied = true
+			override.ReassignmentParticipant = true
+			params.brokerOverrides[id] = override
 			// Store the rate for both inbound and outbound traffic.
 			capacities.storeLeaderAndFollerCapacity(id, float64(rate))
 		}
 	}
 
 	//Set broker throttle configs.
-	events, errs := applyBrokerThrottles(reassigning.all, capacities, params.previouslySetThrottles, params.limits, params.zk)
+	events, errs := applyBrokerThrottles(params.reassigningBrokers.all, capacities, params.previouslySetThrottles, params.limits, params.zk)
 	for _, e := range errs {
 		log.Println(e)
 	}
 
 	//Set topic throttle configs.
 	if !params.skipTopicUpdates {
-		_, errs = applyTopicThrottles(reassigning.throttledReplicas, params.zk)
+		_, errs = applyTopicThrottles(params.reassigningBrokers.throttledReplicas, params.zk)
 		for _, e := range errs {
 			log.Println(e)
 		}

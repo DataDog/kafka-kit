@@ -249,6 +249,12 @@ func main() {
 			log.Println(err)
 		}
 
+		// Get the maps of brokers handling reassignments.
+		throttleMeta.reassigningBrokers, err = getReassigningBrokers(reassignments, zk)
+		if err != nil {
+			log.Println(err)
+		}
+
 		// If topics are being reassigned, update the replication throttle.
 		if len(throttleMeta.topics) > 0 {
 			log.Printf("Topics with ongoing reassignments: %s\n", throttleMeta.topics)
@@ -264,7 +270,17 @@ func main() {
 				// Set knownThrottles.
 				knownThrottles = true
 			}
-		} else {
+		}
+
+		// Apply any additional broker-specific throttles that were not applied as
+		// part of a reassignment.
+		// if len(throttleMeta.brokerOverrides) > 0 {
+		// 	updateOverrideThrottles(throttleMeta)
+		// }
+
+		// If there's no tpics being reassigned, clear any throttles marked
+		// for automatic removal.
+		if len(throttleMeta.topics) == 0 {
 			log.Println("No topics undergoing reassignment")
 
 			// Unset any throttles.
