@@ -50,6 +50,7 @@ var (
 )
 
 type topicSet map[string]struct{}
+type brokerSet map[int]struct{}
 
 func (t1 topicSet) isSubSetOf(t2 topicSet) bool {
 	for k := range t1 {
@@ -161,9 +162,17 @@ func main() {
 	knownThrottles := true
 
 	var reassignments kafkazk.Reassignments
-	var replicatingPreviously = topicSet{}
-	var replicatingNow = topicSet{}
-	var done []string
+
+	// Replication state tracking across intervals:
+
+	// Topics.
+	var topicsReplicatingPreviously = topicSet{}
+	var topicsReplicatingNow = topicSet{}
+	var topicsDoneReplicating []string
+	// Brokers.
+	var brokersReplicatingPreviously = brokerSet{}
+	var brokersReplicatingNow = brokerSet{}
+	var brokersDoneReplicating = []int{}
 
 	// Params for the updateReplicationThrottle request.
 
@@ -192,46 +201,47 @@ func main() {
 	var interval int64
 	var ticker = time.NewTicker(time.Duration(Config.Interval) * time.Second)
 
+	// TODO(jamie): refactor this loop.
 	for {
 		interval++
 		throttleMeta.topics = throttleMeta.topics[:0]
 
 		// Get topics undergoing reassignment.
 		reassignments = zk.GetReassignments() // XXX This needs to return an error.
-		replicatingNow = make(map[string]struct{})
+		topicsReplicatingNow = make(topicSet)
 		for t := range reassignments {
 			throttleMeta.topics = append(throttleMeta.topics, t)
-			replicatingNow[t] = struct{}{}
+			topicsReplicatingNow[t] = struct{}{}
 		}
 
 		// Check for topics that were previously seen replicating, but are no
 		// longer in this interval.
-		done = done[:0]
-		for t := range replicatingPreviously {
-			if _, replicating := replicatingNow[t]; !replicating {
-				done = append(done, t)
+		topicsDoneReplicating = topicsDoneReplicating[:0]
+		for t := range topicsReplicatingPreviously {
+			if _, replicating := topicsReplicatingNow[t]; !replicating {
+				topicsDoneReplicating = append(topicsDoneReplicating, t)
 			}
 		}
 
 		// Log and write event.
-		if len(done) > 0 {
-			m := fmt.Sprintf("Topics done reassigning: %s", done)
+		if len(topicsDoneReplicating) > 0 {
+			m := fmt.Sprintf("Topics done reassigning: %s", topicsDoneReplicating)
 			log.Println(m)
 			events.Write("Topics done reassigning", m)
 		}
 
-		// Rebuild replicatingPreviously with the current replications
+		// Rebuild topicsReplicatingPreviously with the current replications
 		// for the next check iteration.
-		replicatingPreviously = make(map[string]struct{})
-		for t := range replicatingNow {
-			replicatingPreviously[t] = struct{}{}
+		topicsReplicatingPreviously = make(map[string]struct{})
+		for t := range topicsReplicatingNow {
+			topicsReplicatingPreviously[t] = struct{}{}
 		}
 
 		// If all of the currently replicating topics are a subset
 		// of the previously replicating topics, we can stop updating
 		// the Kafka topic throttled replicas list. This minimizes
 		// state that must be propagated through the cluster.
-		if replicatingNow.isSubSetOf(replicatingPreviously) {
+		if topicsReplicatingNow.isSubSetOf(topicsReplicatingPreviously) {
 			throttleMeta.DisableTopicUpdates()
 		} else {
 			throttleMeta.EnableTopicUpdates()
@@ -253,6 +263,27 @@ func main() {
 		throttleMeta.reassigningBrokers, err = getReassigningBrokers(reassignments, zk)
 		if err != nil {
 			log.Println(err)
+		}
+
+		// Track broker replication states across intervals.
+		for b := range throttleMeta.reassigningBrokers.all {
+			brokersReplicatingNow[b] = struct{}{}
+		}
+
+		// Check for brokers that were previously seen replicating, but are no
+		// longer in this interval.
+		brokersDoneReplicating = brokersDoneReplicating[:0]
+		for b := range brokersReplicatingPreviously {
+			if _, replicating := brokersReplicatingNow[b]; !replicating {
+				brokersDoneReplicating = append(brokersDoneReplicating, b)
+			}
+		}
+
+		// Rebuild topicsReplicatingPreviously with the current replications
+		// for the next check iteration.
+		brokersReplicatingPreviously = make(brokerSet)
+		for t := range brokersReplicatingNow {
+			brokersReplicatingPreviously[t] = struct{}{}
 		}
 
 		// If topics are being reassigned, update the replication throttle.
