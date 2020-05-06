@@ -48,6 +48,16 @@ type BrokerThrottleOverride struct {
 	Config ThrottleOverrideConfig
 }
 
+// IDs returns a []int of broker IDs held by the BrokerOverrides.
+func (b BrokerOverrides) IDs() []int {
+	var ids []int
+	for id := range b {
+		ids = append(ids, id)
+	}
+
+	return ids
+}
+
 // Failure increments the failures count and returns true if the
 // count exceeds the failures threshold.
 func (r *ReplicationThrottleConfigs) Failure() bool {
@@ -112,6 +122,11 @@ func (r replicationCapacityByBroker) storeFollowerCapacity(id int, c float64) {
 	a := r[id]
 	a[1] = &c
 	r[id] = a
+}
+
+func (r replicationCapacityByBroker) storeLeaderAndFollerCapacity(id int, c float64) {
+	r.storeLeaderCapacity(id, c)
+	r.storeFollowerCapacity(id, c)
 }
 
 func (r replicationCapacityByBroker) setAllRatesWithDefault(ids []int, rate float64) {
@@ -209,6 +224,10 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 			return err
 		}
 	}
+
+	// Merge in broker-specific overrides.
+	overrideIDs := params.brokerOverrides.IDs()
+	capacities.setAllRatesWithDefault(overrideIDs, 0)
 
 	//Set broker throttle configs.
 	events, errs := applyBrokerThrottles(reassigning.all, capacities, params.previouslySetThrottles, params.limits, params.zk)
