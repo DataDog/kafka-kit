@@ -17,7 +17,7 @@ type ReplicationThrottleConfigs struct {
 	zk                     kafkazk.Handler
 	km                     kafkametrics.Handler
 	overrideRate           int
-	brokerOverrides        BrokerOverrides
+	brokerOverrides BrokerOverrides
 	events                 *DDEventWriter
 	previouslySetThrottles replicationCapacityByBroker
 	limits                 Limits
@@ -225,9 +225,18 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 		}
 	}
 
-	// Merge in broker-specific overrides.
-	overrideIDs := params.brokerOverrides.IDs()
-	capacities.setAllRatesWithDefault(overrideIDs, 0)
+	// Merge in broker-specific overrides if they're part of the reassignment.
+	for id := range reassigning.all {
+		if override, exists := params.brokerOverrides[id]; exists {
+			rate := override.Config.Rate
+			log.Printf("A broker throttle override is set for %d: %dMB/s\n", id, rate)
+			// Any brokers with throttle overrides that are being issued as part
+			// of a reassignemnt should be marked as such.
+			params.brokerOverrides[id].Applied = true
+			// Store the rate for both inbound and outbound traffic.
+			capacities.storeLeaderAndFollerCapacity(id, float64(rate))
+		}
+	}
 
 	//Set broker throttle configs.
 	events, errs := applyBrokerThrottles(reassigning.all, capacities, params.previouslySetThrottles, params.limits, params.zk)
