@@ -166,58 +166,57 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 // updateOverrideThrottles takes a *ReplicationThrottleConfigs and applies
 // replication throttles for any brokers with overrides set.
 func updateOverrideThrottles(params *ReplicationThrottleConfigs) error {
-	return nil
-	//
-	// // The rate spec we'll be applying, which is the override rates.
-	// var capacities = make(replicationCapacityByBroker)
-	// // Broker IDs that will have throttles set.
-	// var toAssign = make(map[int]struct{})
-	// // Broker IDs that should have previously set throttles removed.
-	// // TODO(jamie): the add/remove throttle funcs should take the same ID types.
-	// var toRemove []int
-	//
-	// for _, override := range params.brokerOverrides {
-	//   // ReassignmentParticipant have already had their override rates
-	//   // used as part of an ongoing reassignment.
-	//   if !override.ReassignmentParticipant {
-	//     rate := float64(override.Config.Rate)
-	//     // Rate == 0 means the rate was removed via the API.
-	//     if rate == 0 {
-	//       toRemove = append(toRemove, override.ID)
-	//     } else{
-	//       toAssign[override.ID] = struct{}{}
-	//       capacities.storeLeaderAndFollerCapacity(override.ID, rate)
-	//   }
-	// }
-	//
-	// if len(toAssign) > 0 || len(toRemove) > 0 {
-	//   log.Println("Updating additional throttles")
-	// } else {
-	//   return nil
-	// }
-	//
-	// // Set broker throttle configs.
-	// events, errs := applyBrokerThrottles(toAssign, capacities, params.previouslySetThrottles, params.limits, params.zk)
-	// for _, e := range errs {
-	//   log.Println(e)
-	// }
-	//
-	// // Append broker throttle info to event.
-	// var b bytes.Buffer
-	// if len(events) > 0 {
-	//   b.WriteString("Replication throttles changes for brokers [ID, role, rate]: ")
-	//
-	//   for e := range events {
-	//     b.WriteString(fmt.Sprintf("[%d, %s, %.2f], ", e.id, e.role, e.rate))
-	//   }
-	//
-	//   b.WriteString("\n")
-	// }
-	//
-	// // Ship it.
-	// params.events.Write("Additional broker replication throttle set", b.String())
-	//
-	// return removeBrokerThrottlesByID(params, toRemove)
+	// The rate spec we'll be applying, which is the override rates.
+	var capacities = make(replicationCapacityByBroker)
+	// Broker IDs that will have throttles set.
+	var toAssign = make(map[int]struct{})
+	// Broker IDs that should have previously set throttles removed.
+	var toRemove = make(map[int]struct{})
+
+	for _, override := range params.brokerOverrides {
+		// ReassignmentParticipant have already had their override rates
+		// used as part of an ongoing reassignment.
+		if !override.ReassignmentParticipant {
+			rate := float64(override.Config.Rate)
+			// Rate == 0 means the rate was removed via the API.
+			if rate == 0 {
+				toRemove[override.ID] = struct{}{}
+			} else {
+				toAssign[override.ID] = struct{}{}
+				capacities.storeLeaderAndFollerCapacity(override.ID, rate)
+			}
+		}
+	}
+
+	if len(toAssign) > 0 || len(toRemove) > 0 {
+		log.Println("Updating additional throttles")
+	} else {
+		return nil
+	}
+
+	// Set broker throttle configs.
+	events, errs := applyBrokerThrottles(toAssign, capacities, params.previouslySetThrottles, params.limits, params.zk)
+	for _, e := range errs {
+		log.Println(e)
+	}
+
+	// Append broker throttle info to event.
+	var b bytes.Buffer
+	if len(events) > 0 {
+		b.WriteString("Replication throttles changes for brokers [ID, role, rate]: ")
+
+		for e := range events {
+			b.WriteString(fmt.Sprintf("[%d, %s, %.2f], ", e.id, e.role, e.rate))
+		}
+
+		b.WriteString("\n")
+	}
+
+	// Ship it.
+	params.events.Write("Additional broker replication throttle set", b.String())
+
+	// Unset the broker throttles marked for removal.
+	return removeBrokerThrottlesByID(params, toRemove)
 }
 
 // applyBrokerThrottles takes a set of brokers, a replication throttle rate
@@ -282,7 +281,7 @@ func applyBrokerThrottles(bs map[int]struct{}, capacities, prevThrottles replica
 		// Write the throttle config.
 		changes, err := zk.UpdateKafkaConfig(brokerConfig)
 		if err != nil {
-			errs = append(errs, fmt.Sprintf("Error setting throttle on broker %d: %s\n", ID, err))
+			errs = append(errs, fmt.Sprintf("Error setting throttle on broker %d: %s", ID, err))
 		}
 
 		for i, changed := range changes {
@@ -427,7 +426,7 @@ func removeTopicThrottles(params *ReplicationThrottleConfigs) error {
 }
 
 // removeBrokerThrottlesByID removes broker throttle configs for the specified IDs.
-func removeBrokerThrottlesByID(params *ReplicationThrottleConfigs, ids []int) error {
+func removeBrokerThrottlesByID(params *ReplicationThrottleConfigs, ids map[int]struct{}) error {
 	var unthrottledBrokers []int
 	var errorEncountered bool
 
@@ -493,7 +492,7 @@ func removeBrokerThrottles(params *ReplicationThrottleConfigs) error {
 		return errs[0]
 	}
 
-	var ids []int
+	var ids = make(map[int]struct{})
 	for id := range brokers {
 		// Skip brokers with an override where AutoRemove is false.
 		if override, exists := params.brokerOverrides[id]; exists {
@@ -502,7 +501,7 @@ func removeBrokerThrottles(params *ReplicationThrottleConfigs) error {
 			}
 		}
 
-		ids = append(ids, id)
+		ids[id] = struct{}{}
 	}
 
 	return removeBrokerThrottlesByID(params, ids)
