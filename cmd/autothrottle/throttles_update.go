@@ -30,6 +30,7 @@ type brokerChangeEvent struct {
 // override is provided, that static value is used instead of a dynamically
 // determined value. Additionally, broker-specific overrides may be specified,
 // which take precedence over the global override.
+// TODO(jamie): this function is absolute Mad Max. Fix.
 func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 	// Creates lists from maps.
 	srcBrokers, dstBrokers, allBrokers := params.reassigningBrokers.lists()
@@ -128,6 +129,8 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 	// Set broker throttle configs.
 	events, errs := applyBrokerThrottles(params.reassigningBrokers.all, capacities, params.previouslySetThrottles, params.limits, params.zk)
 	for _, e := range errs {
+		// TODO(jamie): revisit whether we should actually be returning
+		// rather than just logging errors here.
 		log.Println(e)
 	}
 
@@ -163,48 +166,58 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 // updateOverrideThrottles takes a *ReplicationThrottleConfigs and applies
 // replication throttles for any brokers with overrides set.
 func updateOverrideThrottles(params *ReplicationThrottleConfigs) error {
-	// The rate spec we'll be applying, which is the override rates.
-	var capacities = make(replicationCapacityByBroker)
-	// Broker IDs that will have throttles set.
-	var toAssign = make(map[int]struct{})
-
-	for _, override := range params.brokerOverrides {
-		// ReassignmentParticipant have already had their override rates
-		// used as part of an ongoing reassignment.
-		if !override.ReassignmentParticipant {
-			toAssign[override.ID] = struct{}{}
-			capacities.storeLeaderAndFollerCapacity(override.ID, float64(override.Config.Rate))
-		}
-	}
-
-	if len(toAssign) > 0 {
-		log.Println("Updating additional throttles")
-	} else {
-		return nil
-	}
-
-	// Set broker throttle configs.
-	events, errs := applyBrokerThrottles(toAssign, capacities, params.previouslySetThrottles, params.limits, params.zk)
-	for _, e := range errs {
-		log.Println(e)
-	}
-
-	// Append broker throttle info to event.
-	var b bytes.Buffer
-	if len(events) > 0 {
-		b.WriteString("Replication throttles changes for brokers [ID, role, rate]: ")
-
-		for e := range events {
-			b.WriteString(fmt.Sprintf("[%d, %s, %.2f], ", e.id, e.role, e.rate))
-		}
-
-		b.WriteString("\n")
-	}
-
-	// Ship it.
-	params.events.Write("Additional broker replication throttle set", b.String())
-
 	return nil
+	//
+	// // The rate spec we'll be applying, which is the override rates.
+	// var capacities = make(replicationCapacityByBroker)
+	// // Broker IDs that will have throttles set.
+	// var toAssign = make(map[int]struct{})
+	// // Broker IDs that should have previously set throttles removed.
+	// // TODO(jamie): the add/remove throttle funcs should take the same ID types.
+	// var toRemove []int
+	//
+	// for _, override := range params.brokerOverrides {
+	//   // ReassignmentParticipant have already had their override rates
+	//   // used as part of an ongoing reassignment.
+	//   if !override.ReassignmentParticipant {
+	//     rate := float64(override.Config.Rate)
+	//     // Rate == 0 means the rate was removed via the API.
+	//     if rate == 0 {
+	//       toRemove = append(toRemove, override.ID)
+	//     } else{
+	//       toAssign[override.ID] = struct{}{}
+	//       capacities.storeLeaderAndFollerCapacity(override.ID, rate)
+	//   }
+	// }
+	//
+	// if len(toAssign) > 0 || len(toRemove) > 0 {
+	//   log.Println("Updating additional throttles")
+	// } else {
+	//   return nil
+	// }
+	//
+	// // Set broker throttle configs.
+	// events, errs := applyBrokerThrottles(toAssign, capacities, params.previouslySetThrottles, params.limits, params.zk)
+	// for _, e := range errs {
+	//   log.Println(e)
+	// }
+	//
+	// // Append broker throttle info to event.
+	// var b bytes.Buffer
+	// if len(events) > 0 {
+	//   b.WriteString("Replication throttles changes for brokers [ID, role, rate]: ")
+	//
+	//   for e := range events {
+	//     b.WriteString(fmt.Sprintf("[%d, %s, %.2f], ", e.id, e.role, e.rate))
+	//   }
+	//
+	//   b.WriteString("\n")
+	// }
+	//
+	// // Ship it.
+	// params.events.Write("Additional broker replication throttle set", b.String())
+	//
+	// return removeBrokerThrottlesByID(params, toRemove)
 }
 
 // applyBrokerThrottles takes a set of brokers, a replication throttle rate
@@ -368,12 +381,12 @@ func applyTopicThrottles(throttled topicThrottledReplicas, zk kafkazk.Handler) (
 }
 
 // removeAllThrottles calls removeTopicThrottles and removeBrokerThrottles in sequence.
-func removeAllThrottles(zk kafkazk.Handler, params *ReplicationThrottleConfigs) error {
-	for _, fn := range []func(kafkazk.Handler, *ReplicationThrottleConfigs) error{
+func removeAllThrottles(params *ReplicationThrottleConfigs) error {
+	for _, fn := range []func(*ReplicationThrottleConfigs) error{
 		removeTopicThrottles,
 		removeBrokerThrottles,
 	} {
-		if err := fn(zk, params); err != nil {
+		if err := fn(params); err != nil {
 			return err
 		}
 	}
@@ -382,9 +395,9 @@ func removeAllThrottles(zk kafkazk.Handler, params *ReplicationThrottleConfigs) 
 }
 
 // removeTopicThrottles removes all topic throttle configs.
-func removeTopicThrottles(zk kafkazk.Handler, params *ReplicationThrottleConfigs) error {
+func removeTopicThrottles(params *ReplicationThrottleConfigs) error {
 	// Get all topics.
-	topics, err := zk.GetTopics(topicsRegex)
+	topics, err := params.zk.GetTopics(topicsRegex)
 	if err != nil {
 		return err
 	}
@@ -400,7 +413,7 @@ func removeTopicThrottles(zk kafkazk.Handler, params *ReplicationThrottleConfigs
 		}
 
 		// Update the config.
-		_, err := zk.UpdateKafkaConfig(config)
+		_, err := params.zk.UpdateKafkaConfig(config)
 		if err != nil {
 			log.Printf("Error removing throttle config on topic %s: %s\n", topic, err)
 		}
@@ -414,7 +427,7 @@ func removeTopicThrottles(zk kafkazk.Handler, params *ReplicationThrottleConfigs
 }
 
 // removeBrokerThrottlesByID removes broker throttle configs for the specified IDs.
-func removeBrokerThrottlesByID(zk kafkazk.Handler, params *ReplicationThrottleConfigs, ids []int) error {
+func removeBrokerThrottlesByID(params *ReplicationThrottleConfigs, ids []int) error {
 	var unthrottledBrokers []int
 	var errorEncountered bool
 
@@ -429,7 +442,7 @@ func removeBrokerThrottlesByID(zk kafkazk.Handler, params *ReplicationThrottleCo
 			},
 		}
 
-		changed, err := zk.UpdateKafkaConfig(config)
+		changed, err := params.zk.UpdateKafkaConfig(config)
 		switch err.(type) {
 		case nil:
 		case kafkazk.ErrNoNode:
@@ -473,9 +486,9 @@ func removeBrokerThrottlesByID(zk kafkazk.Handler, params *ReplicationThrottleCo
 }
 
 // removeBrokerThrottles removes all broker throttle configs.
-func removeBrokerThrottles(zk kafkazk.Handler, params *ReplicationThrottleConfigs) error {
+func removeBrokerThrottles(params *ReplicationThrottleConfigs) error {
 	// Fetch brokers.
-	brokers, errs := zk.GetAllBrokerMeta(false)
+	brokers, errs := params.zk.GetAllBrokerMeta(false)
 	if errs != nil {
 		return errs[0]
 	}
@@ -492,5 +505,5 @@ func removeBrokerThrottles(zk kafkazk.Handler, params *ReplicationThrottleConfig
 		ids = append(ids, id)
 	}
 
-	return removeBrokerThrottlesByID(zk, params, ids)
+	return removeBrokerThrottlesByID(params, ids)
 }

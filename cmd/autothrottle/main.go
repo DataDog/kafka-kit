@@ -306,7 +306,9 @@ func main() {
 		// Apply any additional broker-specific throttles that were not applied as
 		// part of a reassignment.
 		if len(throttleMeta.brokerOverrides) > 0 {
-			updateOverrideThrottles(throttleMeta)
+			if err := updateOverrideThrottles(throttleMeta); err != nil {
+				log.Println(err)
+			}
 		}
 
 		// If there's no topics being reassigned, clear any throttles marked
@@ -319,7 +321,7 @@ func main() {
 				// Reset the interval.
 				interval = 0
 
-				err := removeAllThrottles(zk, throttleMeta)
+				err := removeAllThrottles(throttleMeta)
 				if err != nil {
 					log.Printf("Error removing throttles: %s\n", err.Error())
 				} else {
@@ -342,8 +344,8 @@ func main() {
 				}
 			}
 
-			// TODO(jamie): delete any broker override throttles from ZK that are
-			// set to 0.
+			// Remove and delete any broker-specific overrides set to 0.
+
 		}
 
 		<-ticker.C
