@@ -309,7 +309,7 @@ func main() {
 		// 	updateOverrideThrottles(throttleMeta)
 		// }
 
-		// If there's no tpics being reassigned, clear any throttles marked
+		// If there's no topics being reassigned, clear any throttles marked
 		// for automatic removal.
 		if len(throttleMeta.topics) == 0 {
 			log.Println("No topics undergoing reassignment")

@@ -226,6 +226,10 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 	for id := range params.reassigningBrokers.all {
 		if override, exists := params.brokerOverrides[id]; exists {
 			rate := override.Config.Rate
+			// A rate of 0 means we intend to remove this throttle override. Skip.
+			if rate == 0 {
+				continue
+			}
 			log.Printf("A broker throttle override is set for %d: %dMB/s\n", id, rate)
 			// Any brokers with throttle overrides that are being issued as part
 			// of a reassignemnt should be marked as such.

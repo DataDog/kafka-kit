@@ -180,12 +180,22 @@ func applyTopicThrottles(throttled topicThrottledReplicas, zk kafkazk.Handler) (
 	return events, errs
 }
 
-// removeAllThrottles removes all topic and broker throttle configs.
+// removeAllThrottles calls removeTopicThrottles and removeBrokerThrottles in sequence.
 func removeAllThrottles(zk kafkazk.Handler, params *ReplicationThrottleConfigs) error {
-	/****************************
-	Clear topic throttle configs.
-	****************************/
+	for _, fn := range []func(kafkazk.Handler, *ReplicationThrottleConfigs) error{
+		removeTopicThrottles,
+		removeBrokerThrottles,
+	} {
+		if err := fn(zk, params); err != nil {
+			return err
+		}
+	}
 
+	return nil
+}
+
+// removeTopicThrottles removes all topic throttle configs.
+func removeTopicThrottles(zk kafkazk.Handler, params *ReplicationThrottleConfigs) error {
 	// Get all topics.
 	topics, err := zk.GetTopics(topicsRegex)
 	if err != nil {
@@ -213,10 +223,11 @@ func removeAllThrottles(zk kafkazk.Handler, params *ReplicationThrottleConfigs) 
 		time.Sleep(250 * time.Millisecond)
 	}
 
-	/**********************
-	Clear broker throttles.
-	**********************/
+	return nil
+}
 
+// removeBrokerThrottles removes all broker throttle configs.
+func removeBrokerThrottles(zk kafkazk.Handler, params *ReplicationThrottleConfigs) error {
 	// Fetch brokers.
 	brokers, errs := zk.GetAllBrokerMeta(false)
 	if errs != nil {
@@ -224,6 +235,7 @@ func removeAllThrottles(zk kafkazk.Handler, params *ReplicationThrottleConfigs) 
 	}
 
 	var unthrottledBrokers []int
+	var errorEncountered bool
 
 	// Unset throttles.
 	for b := range brokers {
@@ -246,6 +258,7 @@ func removeAllThrottles(zk kafkazk.Handler, params *ReplicationThrottleConfigs) 
 			// creating that znode, we'll just ignore errors here; if the znodes
 			// don't exist, there's not even config to remove.
 		default:
+			errorEncountered = true
 			log.Printf("Error removing throttle on broker %d: %s\n", b, err)
 		}
 
@@ -266,7 +279,7 @@ func removeAllThrottles(zk kafkazk.Handler, params *ReplicationThrottleConfigs) 
 	}
 
 	// Lazily check if any errors were encountered, return a generic error.
-	if err != nil {
+	if errorEncountered {
 		return errors.New("one or more throttles were not cleared")
 	}
 

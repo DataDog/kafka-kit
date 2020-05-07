@@ -247,20 +247,15 @@ func removeThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler
 
 	configPath := overrideRateZnodePath
 	updateMessage := "throttle removed\n"
-	var err error
 
 	// A non-0 ID means that this is broker specific.
 	if id != 0 {
 		configPath = fmt.Sprintf("%s/%d", configPath, id)
 		updateMessage = fmt.Sprintf("broker %d: %s", id, updateMessage)
-		// When removing a broker-specific rate, we have to delete the entry.
-		err = removeThrottleOverride(zk, configPath)
-	} else {
-		// When removing the global rate, we simply set it to 0.
-		err = setThrottleOverride(zk, configPath, c)
 	}
 
-	// Handle errors.
+	// Removing a rate means setting it to 0.
+	err := setThrottleOverride(zk, configPath, c)
 	if err != nil {
 		switch err {
 		case errNoOverideSet:
