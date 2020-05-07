@@ -161,11 +161,49 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 }
 
 // updateOverrideThrottles takes a *ReplicationThrottleConfigs and applies
-// replication throttles for any brokers with overrides set. Additionally,
-// any brokers previously participating in a reassignment will have their
-// throttle configs stripped
-func updateOverrideThrottles(params *ReplicationThrottleConfigs, done brokerSet) error {
-	log.Println("Updating additional throttles")
+// replication throttles for any brokers with overrides set.
+func updateOverrideThrottles(params *ReplicationThrottleConfigs) error {
+	// The rate spec we'll be applying, which is the override rates.
+	var capacities = make(replicationCapacityByBroker)
+	// Broker IDs that will have throttles set.
+	var toAssign = make(map[int]struct{})
+
+	for _, override := range params.brokerOverrides {
+		// ReassignmentParticipant have already had their override rates
+		// used as part of an ongoing reassignment.
+		if !override.ReassignmentParticipant {
+			toAssign[override.ID] = struct{}{}
+			capacities.storeLeaderAndFollerCapacity(override.ID, float64(override.Config.Rate))
+		}
+	}
+
+	if len(toAssign) > 0 {
+		log.Println("Updating additional throttles")
+	} else {
+		return nil
+	}
+
+	// Set broker throttle configs.
+	events, errs := applyBrokerThrottles(toAssign, capacities, params.previouslySetThrottles, params.limits, params.zk)
+	for _, e := range errs {
+		log.Println(e)
+	}
+
+	// Append broker throttle info to event.
+	var b bytes.Buffer
+	if len(events) > 0 {
+		b.WriteString("Replication throttles changes for brokers [ID, role, rate]: ")
+
+		for e := range events {
+			b.WriteString(fmt.Sprintf("[%d, %s, %.2f], ", e.id, e.role, e.rate))
+		}
+
+		b.WriteString("\n")
+	}
+
+	// Ship it.
+	params.events.Write("Additional broker replication throttle set", b.String())
+
 	return nil
 }
 
