@@ -160,7 +160,12 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 	return nil
 }
 
-func updateOverrideThrottles(params *ReplicationThrottleConfigs) error {
+// updateOverrideThrottles takes a *ReplicationThrottleConfigs and applies
+// replication throttles for any brokers with overrides set. Additionally,
+// any brokers previously participating in a reassignment will have their
+// throttle configs stripped
+func updateOverrideThrottles(params *ReplicationThrottleConfigs, done brokerSet) error {
+	log.Println("Updating additional throttles")
 	return nil
 }
 
@@ -439,6 +444,13 @@ func removeBrokerThrottles(zk kafkazk.Handler, params *ReplicationThrottleConfig
 
 	var ids []int
 	for id := range brokers {
+		// Skip brokers with an override where AutoRemove is false.
+		if override, exists := params.brokerOverrides[id]; exists {
+			if !override.Config.AutoRemove {
+				continue
+			}
+		}
+
 		ids = append(ids, id)
 	}
 

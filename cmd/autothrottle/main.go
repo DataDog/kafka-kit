@@ -172,7 +172,7 @@ func main() {
 	// Brokers.
 	var brokersReplicatingPreviously = brokerSet{}
 	var brokersReplicatingNow = brokerSet{}
-	var brokersDoneReplicating = []int{}
+	var brokersDoneReplicating = brokerSet{}
 
 	// Params for the updateReplicationThrottle request.
 
@@ -272,10 +272,10 @@ func main() {
 
 		// Check for brokers that were previously seen replicating, but are no
 		// longer in this interval.
-		brokersDoneReplicating = brokersDoneReplicating[:0]
+		brokersDoneReplicating = make(brokerSet)
 		for b := range brokersReplicatingPreviously {
 			if _, replicating := brokersReplicatingNow[b]; !replicating {
-				brokersDoneReplicating = append(brokersDoneReplicating, b)
+				brokersDoneReplicating[b] = struct{}{}
 			}
 		}
 
@@ -306,7 +306,7 @@ func main() {
 		// Apply any additional broker-specific throttles that were not applied as
 		// part of a reassignment.
 		if len(throttleMeta.brokerOverrides) > 0 {
-			updateOverrideThrottles(throttleMeta)
+			updateOverrideThrottles(throttleMeta, brokersDoneReplicating)
 		}
 
 		// If there's no topics being reassigned, clear any throttles marked
