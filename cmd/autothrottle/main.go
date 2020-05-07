@@ -305,9 +305,9 @@ func main() {
 
 		// Apply any additional broker-specific throttles that were not applied as
 		// part of a reassignment.
-		// if len(throttleMeta.brokerOverrides) > 0 {
-		// 	updateOverrideThrottles(throttleMeta)
-		// }
+		if len(throttleMeta.brokerOverrides) > 0 {
+			updateOverrideThrottles(throttleMeta)
+		}
 
 		// If there's no topics being reassigned, clear any throttles marked
 		// for automatic removal.
