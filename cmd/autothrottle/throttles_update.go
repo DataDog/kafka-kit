@@ -226,19 +226,13 @@ func removeTopicThrottles(zk kafkazk.Handler, params *ReplicationThrottleConfigs
 	return nil
 }
 
-// removeBrokerThrottles removes all broker throttle configs.
-func removeBrokerThrottles(zk kafkazk.Handler, params *ReplicationThrottleConfigs) error {
-	// Fetch brokers.
-	brokers, errs := zk.GetAllBrokerMeta(false)
-	if errs != nil {
-		return errs[0]
-	}
-
+// removeBrokerThrottlesByID removes broker throttle configs for the specified IDs.
+func removeBrokerThrottlesByID(zk kafkazk.Handler, params *ReplicationThrottleConfigs, ids []int) error {
 	var unthrottledBrokers []int
 	var errorEncountered bool
 
 	// Unset throttles.
-	for b := range brokers {
+	for b := range ids {
 		config := kafkazk.KafkaConfig{
 			Type: "broker",
 			Name: strconv.Itoa(b),
@@ -289,4 +283,20 @@ func removeBrokerThrottles(zk kafkazk.Handler, params *ReplicationThrottleConfig
 	}
 
 	return nil
+}
+
+// removeBrokerThrottles removes all broker throttle configs.
+func removeBrokerThrottles(zk kafkazk.Handler, params *ReplicationThrottleConfigs) error {
+	// Fetch brokers.
+	brokers, errs := zk.GetAllBrokerMeta(false)
+	if errs != nil {
+		return errs[0]
+	}
+
+	var ids []int
+	for id := range brokers {
+		ids = append(ids, id)
+	}
+
+	return removeBrokerThrottlesByID(zk, params, ids)
 }
