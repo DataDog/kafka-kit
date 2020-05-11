@@ -248,13 +248,13 @@ func main() {
 		}
 
 		// Check if a global throttle override was configured.
-		overrideCfg, err := getThrottleOverride(zk, overrideRateZnodePath)
+		overrideCfg, err := fetchThrottleOverride(zk, overrideRateZnodePath)
 		if err != nil {
 			log.Println(err)
 		}
 
 		// Fetch all broker-specific overrides.
-		throttleMeta.brokerOverrides, err = getBrokerOverrides(zk, overrideRateZnodePath)
+		throttleMeta.brokerOverrides, err = fetchBrokerOverrides(zk, overrideRateZnodePath)
 		if err != nil {
 			log.Println(err)
 		}
@@ -336,7 +336,7 @@ func main() {
 
 			// Remove any configured throttle overrides if AutoRemove is true.
 			if overrideCfg.AutoRemove {
-				err := setThrottleOverride(zk, overrideRateZnodePath, ThrottleOverrideConfig{})
+				err := storeThrottleOverride(zk, overrideRateZnodePath, ThrottleOverrideConfig{})
 				if err != nil {
 					log.Println(err)
 				} else {

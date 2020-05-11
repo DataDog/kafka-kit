@@ -54,7 +54,7 @@ func initAPI(c *APIConfig, zk kafkazk.Handler) {
 		r, _ := zk.Get(overrideRateZnodePath)
 		if rate, err := strconv.Atoi(string(r)); err == nil {
 			// Populate the updated config.
-			err := setThrottleOverride(zk, overrideRateZnodePath, ThrottleOverrideConfig{Rate: rate})
+			err := storeThrottleOverride(zk, overrideRateZnodePath, ThrottleOverrideConfig{Rate: rate})
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -142,7 +142,7 @@ func getThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler) {
 		configPath = fmt.Sprintf("%s/%d", configPath, id)
 	}
 
-	r, err := getThrottleOverride(zk, configPath)
+	r, err := fetchThrottleOverride(zk, configPath)
 
 	respMessage := fmt.Sprintf("a throttle override is configured at %dMB/s, autoremove==%v\n", r.Rate, r.AutoRemove)
 	noOverrideMessage := "no throttle override is set\n"
@@ -217,7 +217,7 @@ func setThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler) {
 	}
 
 	// Set the config.
-	err = setThrottleOverride(zk, configPath, rateCfg)
+	err = storeThrottleOverride(zk, configPath, rateCfg)
 	if err != nil {
 		writeNLError(w, err)
 		return
@@ -255,7 +255,7 @@ func removeThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler
 	}
 
 	// Removing a rate means setting it to 0.
-	err := setThrottleOverride(zk, configPath, c)
+	err := storeThrottleOverride(zk, configPath, c)
 	if err != nil {
 		switch err {
 		case errNoOverideSet:

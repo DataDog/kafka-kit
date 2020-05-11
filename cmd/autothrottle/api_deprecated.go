@@ -19,7 +19,7 @@ func getThrottleDeprecated(w http.ResponseWriter, req *http.Request, zk kafkazk.
 		return
 	}
 
-	r, err := getThrottleOverride(zk, overrideRateZnodePath)
+	r, err := fetchThrottleOverride(zk, overrideRateZnodePath)
 	if err != nil {
 		io.WriteString(w, err.Error())
 		return
@@ -87,7 +87,7 @@ func setThrottleDeprecated(w http.ResponseWriter, req *http.Request, zk kafkazk.
 		AutoRemove: remove,
 	}
 
-	err = setThrottleOverride(zk, overrideRateZnodePath, rateCfg)
+	err = storeThrottleOverride(zk, overrideRateZnodePath, rateCfg)
 	if err != nil {
 		io.WriteString(w, fmt.Sprintf("%s\n", err))
 	} else {
@@ -111,7 +111,7 @@ func removeThrottleDeprecated(w http.ResponseWriter, req *http.Request, zk kafka
 
 	io.WriteString(w, errDeprecated)
 
-	err := setThrottleOverride(zk, overrideRateZnodePath, c)
+	err := storeThrottleOverride(zk, overrideRateZnodePath, c)
 	if err != nil {
 		io.WriteString(w, fmt.Sprintf("%s\n", err))
 	} else {
