@@ -9,8 +9,8 @@ import (
 
 func TestNewClient(t *testing.T) {
 	mkac := &MockedKafkaAdminClient{}
-	mkac.On("NewAdminClient", &kafka.ConfigMap{"bootstrap.servers": "kafka:9092"}).Return(&kafka.AdminClient{}, nil)
-	_, err := NewClientWithFactory(Config{BootstrapServers: "kafka:9092"}, mkac.NewAdminClient)
+	mkac.On("NewAdminClient", &kafka.ConfigMap{"bootstrap.servers": "kafka:9092", "security.protocol": "PLAINTEXT"}).Return(&kafka.AdminClient{}, nil)
+	_, err := NewClientWithFactory(Config{BootstrapServers: "kafka:9092", SecurityProtocol: "PLAINTEXT"}, mkac.NewAdminClient)
 	assert.Nil(t, err)
 	mkac.AssertExpectations(t)
 }

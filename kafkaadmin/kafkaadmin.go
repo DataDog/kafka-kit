@@ -47,13 +47,9 @@ func NewClientWithFactory(cfg Config, factory FactoryFunc) (*Client, error) {
 func newClient(cfg Config, factory FactoryFunc) (*Client, error) {
 	c := &Client{}
 
-	fmt.Printf("config: %v\n", cfg)
 	kafkaCfg := &kafka.ConfigMap{
 		"bootstrap.servers": cfg.BootstrapServers,
 		"security.protocol": cfg.SecurityProtocol,
-		"sasl.mechanism":    cfg.SASLMechanism,
-		"sasl.username":     cfg.SASLUsername,
-		"sasl.password":     cfg.SASLPassword,
 	}
 
 	if cfg.SecurityProtocol == "SSL" || cfg.SecurityProtocol == "SASL_SSL" {
@@ -61,6 +57,12 @@ func newClient(cfg Config, factory FactoryFunc) (*Client, error) {
 			return nil, fmt.Errorf("kafka %s is enabled but SSLCALocation was not provided", cfg.SecurityProtocol)
 		}
 		kafkaCfg.SetKey("ssl.ca.location", cfg.SSLCALocation)
+	}
+
+	if cfg.SecurityProtocol == "SASL_SSL" {
+		kafkaCfg.SetKey("sasl.mechanism", cfg.SASLMechanism)
+		kafkaCfg.SetKey("sasl.username", cfg.SASLUsername)
+		kafkaCfg.SetKey("sasl.password", cfg.SASLPassword)
 	}
 
 	k, err := factory(kafkaCfg)
