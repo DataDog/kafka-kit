@@ -219,6 +219,32 @@ func updateOverrideThrottles(params *ReplicationThrottleConfigs) error {
 	return removeBrokerThrottlesByID(params, toRemove)
 }
 
+// purgeOverrideThrottles takes a *ReplicationThrottleConfigs and removes
+// broker overrides from ZK that have been set to a value of 0.
+func purgeOverrideThrottles(params *ReplicationThrottleConfigs) []error {
+	// Broker IDs that should have previously set throttles removed.
+	var toRemove = make(map[int]struct{})
+
+	for _, override := range params.brokerOverrides {
+		rate := float64(override.Config.Rate)
+		// Rate == 0 means the rate was removed via the API.
+		if rate == 0 {
+			toRemove[override.ID] = struct{}{}
+		}
+	}
+
+	var errs []error
+
+	for id := range toRemove {
+		path := fmt.Sprintf("%s/%d", overrideRateZnodePath, id)
+		if err := removeThrottleOverride(params.zk, path); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	return errs
+}
+
 // applyBrokerThrottles takes a set of brokers, a replication throttle rate
 // string, rate, map for tracking applied throttles, and zk kafkazk.Handler
 // zookeeper client. For each broker, the throttle rate is applied and if

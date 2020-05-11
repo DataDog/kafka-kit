@@ -345,7 +345,12 @@ func main() {
 			}
 
 			// Remove and delete any broker-specific overrides set to 0.
-
+			if errs := purgeOverrideThrottles(throttleMeta); errs != nil {
+				log.Println("Error removing persisted broker throttle overrides")
+				for i := range errs {
+					log.Println(errs[i])
+				}
+			}
 		}
 
 		<-ticker.C
