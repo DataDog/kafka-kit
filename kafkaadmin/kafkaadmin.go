@@ -49,7 +49,10 @@ func newClient(cfg Config, factory FactoryFunc) (*Client, error) {
 
 	kafkaCfg := &kafka.ConfigMap{
 		"bootstrap.servers": cfg.BootstrapServers,
-		"security.protocol": cfg.SecurityProtocol,
+	}
+
+	if cfg.SecurityProtocol != "" {
+		kafkaCfg.SetKey("security.protocol", cfg.SecurityProtocol)
 	}
 
 	if cfg.SecurityProtocol == "SSL" || cfg.SecurityProtocol == "SASL_SSL" {

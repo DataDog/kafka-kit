@@ -45,7 +45,7 @@ func main() {
 	flag.StringVar(&zkConfig.Connect, "zk-addr", "localhost:2181", "ZooKeeper connect string")
 	flag.StringVar(&zkConfig.Prefix, "zk-prefix", "", "ZooKeeper prefix (if Kafka is configured with a chroot path prefix)")
 	flag.StringVar(&adminConfig.BootstrapServers, "bootstrap-servers", "localhost", "Kafka bootstrap servers")
-	flag.StringVar(&adminConfig.SecurityProtocol, "kafka-security-protocol", "PLAINTEXT", fmt.Sprintf("Protocol used to communicate with brokers. Supported: %s", strings.Join(securityProtocols, ", ")))
+	flag.StringVar(&adminConfig.SecurityProtocol, "kafka-security-protocol", "", fmt.Sprintf("Protocol used to communicate with brokers. Supported: %s", strings.Join(securityProtocols, ", ")))
 	flag.StringVar(&adminConfig.SSLCALocation, "kafka-ssl-ca-location", "", "CA certificate path (.pem/.crt) for verifying broker's identity. Needed for SSL and SASL_SSL protocols.")
 	flag.StringVar(&adminConfig.SASLMechanism, "kafka-sasl-mechanism", "", fmt.Sprintf("SASL mechanism to use for authentication. Supported: %s", strings.Join(saslMechanims, ", ")))
 	flag.StringVar(&adminConfig.SASLUsername, "kafka-sasl-username", "", "SASL username for use with the PLAIN and SASL-SCRAM-* mechanisms")
@@ -67,16 +67,20 @@ func main() {
 		os.Exit(1)
 	}
 
-	adminConfig.SecurityProtocol = strings.ToUpper(adminConfig.SecurityProtocol)
-	if _, validChoice := kafkaadmin.SecurityProtocolSet[adminConfig.SecurityProtocol]; !validChoice {
-		fmt.Printf("Invalid kafka security protocol. Supported protocols: %s\n", strings.Join(securityProtocols, ", "))
-		os.Exit(1)
+	if adminConfig.SecurityProtocol != "" {
+		adminConfig.SecurityProtocol = strings.ToUpper(adminConfig.SecurityProtocol)
+		if _, validChoice := kafkaadmin.SecurityProtocolSet[adminConfig.SecurityProtocol]; !validChoice {
+			fmt.Printf("Invalid kafka security protocol. Supported protocols: %s\n", strings.Join(securityProtocols, ", "))
+			os.Exit(1)
+		}
 	}
 
-	adminConfig.SASLMechanism = strings.ToUpper(adminConfig.SASLMechanism)
-	if _, validChoice := kafkaadmin.SASLMechanismSet[adminConfig.SASLMechanism]; !validChoice {
-		fmt.Printf("Invalid kafka SASL mechanism. Supported mechanisms: %s\n", strings.Join(saslMechanims, ", "))
-		os.Exit(1)
+	if adminConfig.SASLMechanism != "" {
+		adminConfig.SASLMechanism = strings.ToUpper(adminConfig.SASLMechanism)
+		if _, validChoice := kafkaadmin.SASLMechanismSet[adminConfig.SASLMechanism]; !validChoice {
+			fmt.Printf("Invalid kafka SASL mechanism. Supported mechanisms: %s\n", strings.Join(saslMechanims, ", "))
+			os.Exit(1)
+		}
 	}
 
 	log.Println("Registry running")
