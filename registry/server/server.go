@@ -193,8 +193,11 @@ func (s *Server) InitKafkaAdmin(ctx context.Context, wg *sync.WaitGroup, cfg adm
 		k, err := kafkaadmin.NewClient(
 			kafkaadmin.Config{
 				BootstrapServers: cfg.BootstrapServers,
-				SSLEnabled:       cfg.SSLEnabled,
 				SSLCALocation:    cfg.SSLCALocation,
+				SecurityProtocol: cfg.SecurityProtocol,
+				SASLMechanism:    cfg.SASLMechanism,
+				SASLUsername:     cfg.SASLUsername,
+				SASLPassword:     cfg.SASLPassword,
 			})
 		if err != nil {
 			return err

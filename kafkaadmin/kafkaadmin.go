@@ -10,6 +10,14 @@ import (
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
+var (
+	emtpy struct{}
+	// SecurityProtocolSet is the set of protocols supported to communicate with brokers
+	SecurityProtocolSet = map[string]struct{}{"PLAINTEXT": emtpy, "SSL": emtpy, "SASL_PLAINTEXT": emtpy, "SASL_SSL": emtpy}
+	// SASLMechanismSet is the set of mechanisms supported for client to broker authentication
+	SASLMechanismSet = map[string]struct{}{"PLAIN": emtpy, "SCRAM-SHA-256": emtpy, "SCRAM-SHA-512": emtpy}
+)
+
 type FactoryFunc func(conf *kafka.ConfigMap) (*kafka.AdminClient, error)
 
 type Client struct {
@@ -19,8 +27,11 @@ type Client struct {
 // Config holds Client configuration parameters.
 type Config struct {
 	BootstrapServers string
-	SSLEnabled       bool
 	SSLCALocation    string
+	SecurityProtocol string
+	SASLMechanism    string
+	SASLUsername     string
+	SASLPassword     string
 }
 
 // NewClient returns a new Client.
@@ -36,14 +47,18 @@ func NewClientWithFactory(cfg Config, factory FactoryFunc) (*Client, error) {
 func newClient(cfg Config, factory FactoryFunc) (*Client, error) {
 	c := &Client{}
 
+	fmt.Printf("config: %v\n", cfg)
 	kafkaCfg := &kafka.ConfigMap{
 		"bootstrap.servers": cfg.BootstrapServers,
+		"security.protocol": cfg.SecurityProtocol,
+		"sasl.mechanism":    cfg.SASLMechanism,
+		"sasl.username":     cfg.SASLUsername,
+		"sasl.password":     cfg.SASLPassword,
 	}
 
-	if cfg.SSLEnabled {
-		kafkaCfg.SetKey("security.protocol", "SSL")
+	if cfg.SecurityProtocol == "SSL" || cfg.SecurityProtocol == "SASL_SSL" {
 		if cfg.SSLCALocation == "" {
-			return nil, fmt.Errorf("kafka SSL is enabled but SSLCALocation was not provided")
+			return nil, fmt.Errorf("kafka %s is enabled but SSLCALocation was not provided", cfg.SecurityProtocol)
 		}
 		kafkaCfg.SetKey("ssl.ca.location", cfg.SSLCALocation)
 	}

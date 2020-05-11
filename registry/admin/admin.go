@@ -13,8 +13,11 @@ type Client interface {
 type Config struct {
 	Type             string
 	BootstrapServers string
-	SSLEnabled       bool
 	SSLCALocation    string
+	SecurityProtocol string
+	SASLMechanism    string
+	SASLUsername     string
+	SASLPassword     string
 }
 
 // CreateTopicConfig holds CreateTopic parameters.
