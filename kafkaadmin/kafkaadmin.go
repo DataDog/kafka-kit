@@ -4,6 +4,7 @@ package kafkaadmin
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/DataDog/kafka-kit/registry/admin"
 
@@ -62,7 +63,7 @@ func newClient(cfg Config, factory FactoryFunc) (*Client, error) {
 		kafkaCfg.SetKey("ssl.ca.location", cfg.SSLCALocation)
 	}
 
-	if cfg.SecurityProtocol == "SASL_SSL" {
+	if strings.HasPrefix(cfg.SecurityProtocol, "SASL_") {
 		kafkaCfg.SetKey("sasl.mechanism", cfg.SASLMechanism)
 		kafkaCfg.SetKey("sasl.username", cfg.SASLUsername)
 		kafkaCfg.SetKey("sasl.password", cfg.SASLPassword)
