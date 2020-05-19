@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"sort"
 	"strconv"
@@ -143,19 +142,6 @@ func mergeMaps(a map[int]struct{}, b map[int]struct{}) map[int]struct{} {
 	}
 
 	return m
-}
-
-// sliceToString takes []string and returns a comma delimited string.
-func sliceToString(l []string) string {
-	var b bytes.Buffer
-	for n, i := range l {
-		b.WriteString(i)
-		if n < len(l)-1 {
-			b.WriteString(",")
-		}
-	}
-
-	return b.String()
 }
 
 func roleFromIndex(i int) string {

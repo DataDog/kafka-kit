@@ -368,13 +368,13 @@ func applyTopicThrottles(throttled topicThrottledReplicas, zk kafkazk.Handler) (
 			Configs: []kafkazk.KafkaConfigKV{},
 		}
 
-		leaderList := sliceToString(throttled[t]["leaders"])
+		leaderList := strings.Join(throttled[t]["leaders"], ",")
 		if leaderList != "" {
 			c := kafkazk.KafkaConfigKV{"leader.replication.throttled.replicas", leaderList}
 			config.Configs = append(config.Configs, c)
 		}
 
-		followerList := sliceToString(throttled[t]["followers"])
+		followerList := strings.Join(throttled[t]["followers"], ",")
 		if followerList != "" {
 			c := kafkazk.KafkaConfigKV{"follower.replication.throttled.replicas", followerList}
 			config.Configs = append(config.Configs, c)

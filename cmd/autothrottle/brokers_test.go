@@ -124,22 +124,6 @@ func TestLists(t *testing.T) {
 	}
 }
 
-func TestSliceToString(t *testing.T) {
-	in := []string{}
-	out := sliceToString(in)
-
-	if out != "" {
-		t.Errorf("Expected empty string, got '%s'", out)
-	}
-
-	in = []string{"one", "two"}
-	out = sliceToString(in)
-
-	if out != "one,two" {
-		t.Errorf("Expected string 'one,two', got '%s'", out)
-	}
-}
-
 func mockReassigningBrokers() reassigningBrokers {
 	b := reassigningBrokers{
 		src:               map[int]struct{}{},
