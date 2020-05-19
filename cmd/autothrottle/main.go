@@ -311,6 +311,14 @@ func main() {
 			}
 		}
 
+		// Remove and delete any broker-specific overrides set to 0.
+		if errs := purgeOverrideThrottles(throttleMeta); errs != nil {
+			log.Println("Error removing persisted broker throttle overrides")
+			for i := range errs {
+				log.Println(errs[i])
+			}
+		}
+
 		// If there's no topics being reassigned, clear any throttles marked
 		// for automatic removal.
 		if len(throttleMeta.topics) == 0 {
@@ -341,14 +349,6 @@ func main() {
 					log.Println(err)
 				} else {
 					log.Println("Global throttle override removed")
-				}
-			}
-
-			// Remove and delete any broker-specific overrides set to 0.
-			if errs := purgeOverrideThrottles(throttleMeta); errs != nil {
-				log.Println("Error removing persisted broker throttle overrides")
-				for i := range errs {
-					log.Println(errs[i])
 				}
 			}
 		}
