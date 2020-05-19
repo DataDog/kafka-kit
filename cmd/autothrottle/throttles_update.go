@@ -235,10 +235,6 @@ func purgeOverrideThrottles(params *ReplicationThrottleConfigs) []error {
 
 	var errs []error
 
-	if len(toRemove) > 0 {
-		log.Println("Removing persisted broker-level overrides")
-	}
-
 	for id := range toRemove {
 		path := fmt.Sprintf("%s/%d", overrideRateZnodePath, id)
 		if err := removeThrottleOverride(params.zk, path); err != nil {
