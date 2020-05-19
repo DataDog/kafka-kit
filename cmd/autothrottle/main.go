@@ -50,6 +50,7 @@ var (
 )
 
 type topicSet map[string]struct{}
+type brokerSet map[int]struct{}
 
 func (t1 topicSet) isSubSetOf(t2 topicSet) bool {
 	for k := range t1 {
@@ -161,9 +162,17 @@ func main() {
 	knownThrottles := true
 
 	var reassignments kafkazk.Reassignments
-	var replicatingPreviously = topicSet{}
-	var replicatingNow = topicSet{}
-	var done []string
+
+	// Replication state tracking across intervals:
+
+	// Topics.
+	var topicsReplicatingPreviously = topicSet{}
+	var topicsReplicatingNow = topicSet{}
+	var topicsDoneReplicating []string
+	// Brokers.
+	var brokersReplicatingPreviously = brokerSet{}
+	var brokersReplicatingNow = brokerSet{}
+	var brokersDoneReplicating = brokerSet{}
 
 	// Params for the updateReplicationThrottle request.
 
@@ -188,61 +197,93 @@ func main() {
 		failureThreshold:       Config.FailureThreshold,
 	}
 
-	overridePath := fmt.Sprintf("/%s/%s", apiConfig.ZKPrefix, apiConfig.RateSetting)
-
 	// Run.
 	var interval int64
 	var ticker = time.NewTicker(time.Duration(Config.Interval) * time.Second)
 
+	// TODO(jamie): refactor this loop.
 	for {
 		interval++
 		throttleMeta.topics = throttleMeta.topics[:0]
 
 		// Get topics undergoing reassignment.
 		reassignments = zk.GetReassignments() // XXX This needs to return an error.
-		replicatingNow = make(map[string]struct{})
+		topicsReplicatingNow = make(topicSet)
 		for t := range reassignments {
 			throttleMeta.topics = append(throttleMeta.topics, t)
-			replicatingNow[t] = struct{}{}
+			topicsReplicatingNow[t] = struct{}{}
 		}
 
 		// Check for topics that were previously seen replicating, but are no
 		// longer in this interval.
-		done = done[:0]
-		for t := range replicatingPreviously {
-			if _, replicating := replicatingNow[t]; !replicating {
-				done = append(done, t)
+		topicsDoneReplicating = topicsDoneReplicating[:0]
+		for t := range topicsReplicatingPreviously {
+			if _, replicating := topicsReplicatingNow[t]; !replicating {
+				topicsDoneReplicating = append(topicsDoneReplicating, t)
 			}
 		}
 
 		// Log and write event.
-		if len(done) > 0 {
-			m := fmt.Sprintf("Topics done reassigning: %s", done)
+		if len(topicsDoneReplicating) > 0 {
+			m := fmt.Sprintf("Topics done reassigning: %s", topicsDoneReplicating)
 			log.Println(m)
 			events.Write("Topics done reassigning", m)
 		}
 
-		// Rebuild replicatingPreviously with the current replications
+		// Rebuild topicsReplicatingPreviously with the current replications
 		// for the next check iteration.
-		replicatingPreviously = make(map[string]struct{})
-		for t := range replicatingNow {
-			replicatingPreviously[t] = struct{}{}
+		topicsReplicatingPreviously = make(map[string]struct{})
+		for t := range topicsReplicatingNow {
+			topicsReplicatingPreviously[t] = struct{}{}
 		}
 
 		// If all of the currently replicating topics are a subset
 		// of the previously replicating topics, we can stop updating
 		// the Kafka topic throttled replicas list. This minimizes
 		// state that must be propagated through the cluster.
-		if replicatingNow.isSubSetOf(replicatingPreviously) {
+		if topicsReplicatingNow.isSubSetOf(topicsReplicatingPreviously) {
 			throttleMeta.DisableTopicUpdates()
 		} else {
 			throttleMeta.EnableTopicUpdates()
 		}
 
-		// Fetch any throttle override config.
-		overrideCfg, err := getThrottleOverride(zk, overridePath)
+		// Check if a global throttle override was configured.
+		overrideCfg, err := fetchThrottleOverride(zk, overrideRateZnodePath)
 		if err != nil {
 			log.Println(err)
+		}
+
+		// Fetch all broker-specific overrides.
+		throttleMeta.brokerOverrides, err = fetchBrokerOverrides(zk, overrideRateZnodePath)
+		if err != nil {
+			log.Println(err)
+		}
+
+		// Get the maps of brokers handling reassignments.
+		throttleMeta.reassigningBrokers, err = getReassigningBrokers(reassignments, zk)
+		if err != nil {
+			log.Println(err)
+		}
+
+		// Track broker replication states across intervals.
+		for b := range throttleMeta.reassigningBrokers.all {
+			brokersReplicatingNow[b] = struct{}{}
+		}
+
+		// Check for brokers that were previously seen replicating, but are no
+		// longer in this interval.
+		brokersDoneReplicating = make(brokerSet)
+		for b := range brokersReplicatingPreviously {
+			if _, replicating := brokersReplicatingNow[b]; !replicating {
+				brokersDoneReplicating[b] = struct{}{}
+			}
+		}
+
+		// Rebuild topicsReplicatingPreviously with the current replications
+		// for the next check iteration.
+		brokersReplicatingPreviously = make(brokerSet)
+		for t := range brokersReplicatingNow {
+			brokersReplicatingPreviously[t] = struct{}{}
 		}
 
 		// If topics are being reassigned, update the replication throttle.
@@ -260,7 +301,27 @@ func main() {
 				// Set knownThrottles.
 				knownThrottles = true
 			}
-		} else {
+		}
+
+		// Apply any additional broker-specific throttles that were not applied as
+		// part of a reassignment.
+		if len(throttleMeta.brokerOverrides) > 0 {
+			if err := updateOverrideThrottles(throttleMeta); err != nil {
+				log.Println(err)
+			}
+		}
+
+		// Remove and delete any broker-specific overrides set to 0.
+		if errs := purgeOverrideThrottles(throttleMeta); errs != nil {
+			log.Println("Error removing persisted broker throttle overrides")
+			for i := range errs {
+				log.Println(errs[i])
+			}
+		}
+
+		// If there's no topics being reassigned, clear any throttles marked
+		// for automatic removal.
+		if len(throttleMeta.topics) == 0 {
 			log.Println("No topics undergoing reassignment")
 
 			// Unset any throttles.
@@ -268,7 +329,7 @@ func main() {
 				// Reset the interval.
 				interval = 0
 
-				err := removeAllThrottles(zk, throttleMeta)
+				err := removeAllThrottles(throttleMeta)
 				if err != nil {
 					log.Printf("Error removing throttles: %s\n", err.Error())
 				} else {
@@ -283,11 +344,11 @@ func main() {
 
 			// Remove any configured throttle overrides if AutoRemove is true.
 			if overrideCfg.AutoRemove {
-				err := setThrottleOverride(zk, overridePath, ThrottleOverrideConfig{})
+				err := storeThrottleOverride(zk, overrideRateZnodePath, ThrottleOverrideConfig{})
 				if err != nil {
 					log.Println(err)
 				} else {
-					log.Println("Throttle override removed")
+					log.Println("Global throttle override removed")
 				}
 			}
 		}
