@@ -156,7 +156,7 @@ func getThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler) {
 	// Handle errors.
 	if err != nil {
 		switch err {
-		case errNoOverideSet:
+		case errNoOverrideSet:
 			// Do nothing, let the rate condition handle
 			// no override set messages.
 		default:
@@ -258,7 +258,7 @@ func removeThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler
 	err := storeThrottleOverride(zk, configPath, c)
 	if err != nil {
 		switch err {
-		case errNoOverideSet:
+		case errNoOverrideSet:
 			// Do nothing.
 		default:
 			writeNLError(w, err)

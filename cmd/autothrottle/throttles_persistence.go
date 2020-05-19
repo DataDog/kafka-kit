@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	errNoOverideSet = errors.New("no override set at path")
+	errNoOverrideSet = errors.New("no override set at path")
 )
 
 // fetchThrottleOverride gets a throttle override from path p.
@@ -21,7 +21,7 @@ func fetchThrottleOverride(zk kafkazk.Handler, p string) (*ThrottleOverrideConfi
 	if err != nil {
 		switch err.(type) {
 		case kafkazk.ErrNoNode:
-			return c, errNoOverideSet
+			return c, errNoOverrideSet
 		default:
 			return c, fmt.Errorf("error getting throttle override: %s", err)
 		}
