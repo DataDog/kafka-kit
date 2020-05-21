@@ -254,3 +254,7 @@ func TestTopicMappings(t *testing.T) {
 		t.Errorf("Unexpected error: %s", err)
 	}
 }
+
+func TestDeleteTopic(t *testing.T){
+	t.Error(nil, nil)
+}

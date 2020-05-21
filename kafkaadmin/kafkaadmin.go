@@ -21,6 +21,7 @@ var (
 
 type FactoryFunc func(conf *kafka.ConfigMap) (*kafka.AdminClient, error)
 
+// Client holds the kafka admin client
 type Client struct {
 	c *kafka.AdminClient
 }
@@ -102,6 +103,16 @@ func (c Client) CreateTopic(ctx context.Context, cfg admin.CreateTopicConfig) er
 	topic := []kafka.TopicSpecification{spec}
 
 	_, err := c.c.CreateTopics(ctx, topic)
+
+	return err
+}
+
+// DeleteTopic deletes a topic.
+func (c Client) DeleteTopic(ctx context.Context, topicName string) error {
+
+	topic := []string{topicName}
+
+	_, err := c.c.DeleteTopics(ctx, topic)
 
 	return err
 }

@@ -193,6 +193,39 @@ func (s *Server) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*
 	return empty, err
 }
 
+// DeleteTopic ...
+func(s *Server) DeleteTopic(ctx context.Context, req *pb.DeleteTopicRequest) (*pb.Empty, error) {
+	empty := &pb.Empty{}
+
+	ctx, err := s.ValidateRequest(ctx, req, writeRequest)
+	if err != nil {
+		return empty, err
+	}
+
+	if len(req.Topic) == 0 {
+		return nil, ErrTopicFieldMissing
+	}
+
+	if req.Topic == "" {
+		return nil, ErrTopicNameEmpty
+	}
+
+	reqParams := &pb.TopicRequest{Name: req.Topic}
+
+	// Check if the topic exists.
+	resp, err := s.ListTopics(ctx, reqParams)
+	if err != nil {
+		return empty, err
+	}
+
+	if len(resp.Names) > 0 {
+		if err = s.kafkaadmin.DeleteTopic(ctx, req.Topic); err != nil {
+			return empty, err
+		}
+	}
+	return empty, nil
+}
+
 // TopicMappings returns all broker IDs that hold at least one partition for
 // the requested topic. The topic is specified in the TopicRequest.Name
 // field.

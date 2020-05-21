@@ -71,6 +71,13 @@ service Registry {
     };
   }
 
+  // DeleteTopic deletes a topic
+  rpc DeleteTopic (DeleteTopicRequest) returns (Empty) {
+    option (google.api.http) = {
+      delete: "/v1/topics/delete/{topic}"
+    };
+  }
+
   // TopicMappings returns a BrokerResponse with the ids field
   // populated with broker IDs that hold at least one partition
   // for the requested topic. The topic is specified in the
@@ -173,6 +180,11 @@ message TopicRequest {
 message CreateTopicRequest {
   Topic topic = 1;
   repeated string target_broker_tags = 2;
+}
+
+message DeleteTopicRequest {
+  string topic = 1;
+  // repeated string target_broker_tags = 2;
 }
 
 message TopicResponse {

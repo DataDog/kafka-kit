@@ -8,6 +8,7 @@ import (
 type Client interface {
 	Close()
 	CreateTopic(context.Context, CreateTopicConfig) error
+	DeleteTopic(ctx context.Context, topicName string) error
 }
 
 type Config struct {
