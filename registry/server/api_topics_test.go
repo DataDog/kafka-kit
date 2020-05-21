@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	pb "github.com/DataDog/kafka-kit/registry/protos"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetTopics(t *testing.T) {
@@ -256,5 +257,14 @@ func TestTopicMappings(t *testing.T) {
 }
 
 func TestDeleteTopic(t *testing.T){
-	t.Skip("Implement me")
+
+	s := testServer()
+
+	res, err := s.DeleteTopic(
+		context.Background(), 
+		&pb.DeleteTopicRequest{Topic: "test_topic"},
+	)
+
+	assert.NoError(t, err)
+	assert.Equal(t, res, &pb.Empty{})
 }

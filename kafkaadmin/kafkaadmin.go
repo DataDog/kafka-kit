@@ -114,5 +114,9 @@ func (c Client) DeleteTopic(ctx context.Context, topicName string) error {
 
 	_, err := c.c.DeleteTopics(ctx, topic)
 
-	return err
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
