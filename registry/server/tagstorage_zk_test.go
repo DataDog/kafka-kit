@@ -6,7 +6,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/DataDog/kafka-kit/kafkazk"
+	"github.com/DataDog/kafka-kit/v3/kafkazk"
 )
 
 var (

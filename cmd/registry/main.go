@@ -10,10 +10,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/DataDog/kafka-kit/kafkaadmin"
-	"github.com/DataDog/kafka-kit/kafkazk"
-	"github.com/DataDog/kafka-kit/registry/admin"
-	"github.com/DataDog/kafka-kit/registry/server"
+	"github.com/DataDog/kafka-kit/v3/kafkaadmin"
+	"github.com/DataDog/kafka-kit/v3/kafkazk"
+	"github.com/DataDog/kafka-kit/v3/registry/admin"
+	"github.com/DataDog/kafka-kit/v3/registry/server"
 
 	"github.com/jamiealquiza/envy"
 	"github.com/masterminds/semver"

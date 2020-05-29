@@ -11,10 +11,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/DataDog/kafka-kit/kafkaadmin"
-	"github.com/DataDog/kafka-kit/kafkazk"
-	"github.com/DataDog/kafka-kit/registry/admin"
-	pb "github.com/DataDog/kafka-kit/registry/protos"
+	"github.com/DataDog/kafka-kit/v3/kafkaadmin"
+	"github.com/DataDog/kafka-kit/v3/kafkazk"
+	"github.com/DataDog/kafka-kit/v3/registry/admin"
+	pb "github.com/DataDog/kafka-kit/v3/registry/protos"
 
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
