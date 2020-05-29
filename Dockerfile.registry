@@ -41,7 +41,7 @@ COPY registry registry
 
 # Build.
 RUN protoc -I registry -I /go/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis protos/registry.proto --go_out=plugins=grpc:registry --grpc-gateway_out=logtostderr=true:registry
-RUN go install github.com/DataDog/kafka-kit/cmd/registry
+RUN go install ./cmd/registry
 
 # Runtime.
 EXPOSE 8090/tcp
