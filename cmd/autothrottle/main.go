@@ -204,13 +204,11 @@ func main() {
 	// TODO(jamie): refactor this loop.
 	for {
 		interval++
-		throttleMeta.topics = throttleMeta.topics[:0]
 
 		// Get topics undergoing reassignment.
 		reassignments = zk.GetReassignments() // XXX This needs to return an error.
 		topicsReplicatingNow = make(topicSet)
 		for t := range reassignments {
-			throttleMeta.topics = append(throttleMeta.topics, t)
 			topicsReplicatingNow[t] = struct{}{}
 		}
 
@@ -287,8 +285,12 @@ func main() {
 		}
 
 		// If topics are being reassigned, update the replication throttle.
-		if len(throttleMeta.topics) > 0 {
-			log.Printf("Topics with ongoing reassignments: %s\n", throttleMeta.topics)
+		if len(topicsReplicatingNow) > 0 {
+			var topics []string
+			for t := range topicsReplicatingNow {
+				topics = append(topics, t)
+			}
+			log.Printf("Topics with ongoing reassignments: %s\n", topics)
 
 			// Update the throttleMeta.
 			throttleMeta.overrideRate = overrideCfg.Rate
@@ -340,7 +342,7 @@ func main() {
 
 		// If there's no topics being reassigned, clear any throttles marked
 		// for automatic removal.
-		if len(throttleMeta.topics) == 0 {
+		if len(topicsReplicatingNow) == 0 {
 			log.Println("No topics undergoing reassignment")
 
 			// Unset any throttles.
