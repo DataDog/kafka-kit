@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/DataDog/kafka-kit/kafkametrics"
+	"github.com/DataDog/kafka-kit/v3/kafkametrics"
 )
 
 // replicationCapacityByBroker is a mapping of broker ID to capacity.

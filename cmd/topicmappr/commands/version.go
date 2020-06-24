@@ -7,7 +7,7 @@ import (
 )
 
 // This can be set with
-// -ldflags "-X github.com/DataDog/kafka-kit/cmd/topicmappr/commands.version=x.x.x"
+// -ldflags "-X github.com/DataDog/kafka-kit/v3/cmd/topicmappr/commands.version=x.x.x"
 var version = "0.0.0"
 
 func init() {

@@ -3,7 +3,7 @@ package commands
 import (
 	"testing"
 
-	"github.com/DataDog/kafka-kit/kafkazk"
+	"github.com/DataDog/kafka-kit/v3/kafkazk"
 )
 
 func TestNotInReplicaSet(t *testing.T) {

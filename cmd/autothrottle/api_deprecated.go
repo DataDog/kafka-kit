@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/DataDog/kafka-kit/kafkazk"
+	"github.com/DataDog/kafka-kit/v3/kafkazk"
 )
 
 var errDeprecated = "WARN: this route is deprecated - refer to documentation\n"

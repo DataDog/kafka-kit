@@ -7,9 +7,9 @@ import (
 	"regexp"
 	"sort"
 
-	"github.com/DataDog/kafka-kit/kafkazk"
-	"github.com/DataDog/kafka-kit/registry/admin"
-	pb "github.com/DataDog/kafka-kit/registry/protos"
+	"github.com/DataDog/kafka-kit/v3/kafkazk"
+	"github.com/DataDog/kafka-kit/v3/registry/admin"
+	pb "github.com/DataDog/kafka-kit/v3/registry/protos"
 )
 
 var (

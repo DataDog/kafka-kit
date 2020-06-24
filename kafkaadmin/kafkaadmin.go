@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/DataDog/kafka-kit/registry/admin"
+	"github.com/DataDog/kafka-kit/v3/registry/admin"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 )

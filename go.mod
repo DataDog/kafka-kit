@@ -1,4 +1,4 @@
-module github.com/DataDog/kafka-kit
+module github.com/DataDog/kafka-kit/v3
 
 go 1.13
 

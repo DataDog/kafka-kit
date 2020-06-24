@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DataDog/kafka-kit/kafkametrics"
-	"github.com/DataDog/kafka-kit/kafkazk"
+	"github.com/DataDog/kafka-kit/v3/kafkametrics"
+	"github.com/DataDog/kafka-kit/v3/kafkazk"
 )
 
 // brokerChangeEvent is the message type returned in the events channel
