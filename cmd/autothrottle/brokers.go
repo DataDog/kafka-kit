@@ -18,24 +18,6 @@ type reassigningBrokers struct {
 	throttledReplicas topicThrottledReplicas
 }
 
-// topicThrottledReplicas is a map of topic names to throttled types.
-// This is ultimately populated as follows:
-//   map[topic]map[leaders]["0:1001", "1:1002"]
-//   map[topic]map[followers]["2:1003", "3:1004"]
-type topicThrottledReplicas map[topic]throttled
-
-// throttled is a replica type (leader, follower) to replica list.
-type throttled map[replicaType]brokerIDs
-
-// topic name.
-type topic string
-
-// leader, follower.
-type replicaType string
-
-// Replica broker IDs as a []string.
-type brokerIDs []string
-
 // lists returns a sorted []int of broker IDs for the src, dst
 // and all brokers from a reassigningBrokers.
 func (bm reassigningBrokers) lists() ([]int, []int, []int) {
