@@ -306,6 +306,25 @@ func main() {
 		// Apply any additional broker-specific throttles that were not applied as
 		// part of a reassignment.
 		if len(throttleMeta.brokerOverrides) > 0 {
+			// Find under-replicated topics that include brokers with static
+			// overrides that aren't being reassigned. In order for broker-specific
+			// throttles to be applied, topics being replicated by those brokers
+			// must include them in the follower.replication.throttled.replicas
+			// dynamic configuration parameter. It's clumsy, but this is the way
+			// Kafka was designed.
+
+			// Get non-reassigning brokers with throttles
+			// Get topics by brokers
+			recovering, err := getRecoveringTopics(throttleMeta)
+			if err != nil {
+				log.Println(err)
+			}
+
+			_ = recovering
+
+			// Generate throttled replica configurations
+			// Pass to updateOverrideThrottles
+
 			if err := updateOverrideThrottles(throttleMeta); err != nil {
 				log.Println(err)
 			}
