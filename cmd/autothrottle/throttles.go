@@ -45,6 +45,18 @@ type BrokerThrottleOverride struct {
 	Config ThrottleOverrideConfig
 }
 
+// Copy returns a copy of a BrokerThrottleOverride.
+func (b BrokerThrottleOverride) Copy() BrokerThrottleOverride {
+	return BrokerThrottleOverride{
+		ID:                      b.ID,
+		ReassignmentParticipant: b.ReassignmentParticipant,
+		Config: ThrottleOverrideConfig{
+			Rate:       b.Config.Rate,
+			AutoRemove: b.Config.AutoRemove,
+		},
+	}
+}
+
 // IDs returns a []int of broker IDs held by the BrokerOverrides.
 func (b BrokerOverrides) IDs() []int {
 	var ids []int
@@ -53,6 +65,22 @@ func (b BrokerOverrides) IDs() []int {
 	}
 
 	return ids
+}
+
+// BrokerOverridesFilterFn specifies a filter function.
+type BrokerOverridesFilterFn func(BrokerThrottleOverride) bool
+
+// Filter takes a BrokerOverridesFilterFn and returns a BrokerOverrides where
+// all elements return true as an input to the filter func.
+func (b BrokerOverrides) Filter(fn BrokerOverridesFilterFn) BrokerOverrides {
+	var bo = make(BrokerOverrides)
+	for _, bto := range b {
+		if fn(bto) {
+			bo[bto.ID] = bto.Copy()
+		}
+	}
+
+	return bo
 }
 
 // Failure increments the failures count and returns true if the
