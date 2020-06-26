@@ -315,17 +315,16 @@ func main() {
 			// dynamic configuration parameter. It's clumsy, but this is the way
 			// Kafka was designed.
 
-			// Get non-reassigning brokers with throttles
-			// Get topics by brokers
-			recovering, err := getRecoveringTopics(throttleMeta)
+			// Get a topicThrottledReplicas for all topics that have partition
+			// assignments to any brokers with overrides.
+			// TODO(jamie): is there a scenario where we should exclude topics
+			// have also have a reassignment? We're discovering topics here by
+			// reverse lookup of brokers that are not reassignment participants.
+			var err error
+			throttleMeta.overrideThrottleLists, err = getTopicsWithThrottledBrokers(throttleMeta)
 			if err != nil {
-				log.Println(err)
+				log.Printf("Error fetching topic states: %s\n", err)
 			}
-
-			_ = recovering
-
-			// Generate throttled replica configurations
-			// Pass to updateOverrideThrottles
 
 			if err := updateOverrideThrottles(throttleMeta); err != nil {
 				log.Println(err)

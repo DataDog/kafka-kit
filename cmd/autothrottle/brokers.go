@@ -76,6 +76,8 @@ func getReassigningBrokers(r kafkazk.Reassignments, zk kafkazk.Handler) (reassig
 		// assigned in the reassignments. The current leaders will be sources,
 		// new brokers in the assignment list (but not in the current ISR state)
 		// will be destinations.
+		// TODO(jamie): the throttledReplicas can be populated here with the recently
+		// added topicThrottledReplicas.addReplica method.
 		for p := range tstate {
 			partn, _ := strconv.Atoi(p)
 			if reassigning, exists := r[t][partn]; exists {

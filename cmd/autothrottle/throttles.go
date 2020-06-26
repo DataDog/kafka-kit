@@ -8,12 +8,14 @@ import (
 // ReplicationThrottleConfigs holds all the data needed to call
 // updateReplicationThrottle.
 type ReplicationThrottleConfigs struct {
-	topics                 []string // TODO(jamie): probably don't even need this anymore.
-	reassignments          kafkazk.Reassignments
-	zk                     kafkazk.Handler
-	km                     kafkametrics.Handler
-	overrideRate           int
+	reassignments kafkazk.Reassignments
+	zk            kafkazk.Handler
+	km            kafkametrics.Handler
+	overrideRate  int
+	// The following two fields are for brokers with static overrides set
+	// and a topicThrottledReplicas for topics where those brokers are assigned.
 	brokerOverrides        BrokerOverrides
+	overrideThrottleLists  topicThrottledReplicas
 	reassigningBrokers     reassigningBrokers
 	events                 *DDEventWriter
 	previouslySetThrottles replicationCapacityByBroker

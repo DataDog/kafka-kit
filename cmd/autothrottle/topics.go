@@ -16,9 +16,9 @@ type topicThrottledReplicas map[topic]throttled
 // throttled is a replica type (leader, follower) to replica list.
 type throttled map[replicaType]brokerIDs
 
-// AddReplica takes a topic, partition number, role (leader, follower), and
+// addReplica takes a topic, partition number, role (leader, follower), and
 // broker ID and adds the configuration to the topicThrottledReplicas.
-func (ttr topicThrottledReplicas) AddReplica(topic topic, partn string, role replicaType, id string) {
+func (ttr topicThrottledReplicas) addReplica(topic topic, partn string, role replicaType, id string) {
 	// Check / create the topic entry.
 	if _, exist := ttr[topic]; !exist {
 		ttr[topic] = make(throttled)
@@ -104,7 +104,7 @@ func getTopicsWithThrottledBrokers(params *ReplicationThrottleConfigs) (topicThr
 				// If the replica is a throttled broker, append that broker to the
 				// throttled list for this {topic, partition}.
 				if _, exists := throttledBrokers[assignedID]; exists {
-					throttleLists.AddReplica(
+					throttleLists.addReplica(
 						topic(topicName),
 						partn,
 						replicaType("follower"),
