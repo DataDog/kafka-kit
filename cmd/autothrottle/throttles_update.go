@@ -134,14 +134,6 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 		log.Println(e)
 	}
 
-	// Set topic throttle configs.
-	if !params.skipTopicUpdates {
-		_, errs = applyTopicThrottles(params.reassigningBrokers.throttledReplicas, params.zk)
-		for _, e := range errs {
-			log.Println(e)
-		}
-	}
-
 	// Append broker throttle info to event.
 	var b bytes.Buffer
 	if len(events) > 0 {
@@ -152,6 +144,14 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 		}
 
 		b.WriteString("\n")
+	}
+
+	// Set topic throttle configs.
+	if !params.skipTopicUpdates {
+		_, errs = applyTopicThrottles(params.reassigningBrokers.throttledReplicas, params.zk)
+		for _, e := range errs {
+			log.Println(e)
+		}
 	}
 
 	// Append topic stats to event.
