@@ -135,14 +135,12 @@ func roleFromIndex(i int) string {
 }
 
 func inSlice(id int, s []int) bool {
-	found := false
 	for _, i := range s {
 		if id == i {
-			found = true
+			return true
 		}
 	}
-
-	return found
+	return false
 }
 
 // incompleteBrokerMetrics takes a []int of all broker IDs involved in
