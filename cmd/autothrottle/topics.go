@@ -90,46 +90,31 @@ func getTopicsWithThrottledBrokers(params *ReplicationThrottleConfigs) (topicThr
 
 	throttledBrokers := params.brokerOverrides.Filter(notReassignmentParticipant)
 
-	Filter out topic states where the target brokers are assigned to at least
-	one partition.
-	assignedToBroker := func(ts kafkazk.TopicState) bool {
-		for _, assignment := range ts.Partitions {
-			for _, id := range assignment {
-				if _, exists := overrides[id]; exists {
-					return true
+	// Construct a topicThrottledReplicas that includes any topics with replicas
+	// assigned to brokers with overrides. The throttled list only includes brokers
+	// with throttles set rather than all configured replicas.
+	var throttleLists = make(topicThrottledReplicas)
+
+	// For each topic...
+	for topicName, state := range states {
+		// For each partition...
+		for partn, replicas := range state.Partitions {
+			// For each replica assignment...
+			for _, assignedID := range replicas {
+				// If the replica is a throttled broker, append that broker to the
+				// throttled list for this {topic, partition}.
+				if _, exists := throttledBrokers[assignedID]; exists {
+					throttleLists.AddReplica(
+						topic(topicName),
+						partn,
+						replicaType("follower"),
+						strconv.Itoa(assignedID))
 				}
 			}
 		}
-		return false
 	}
 
-	return states.Filter(assignedToID), nil
-
-	// // Construct a topicThrottledReplicas that includes any topics with replicas
-	// // assigned to brokers with overrides. The throttled list only includes brokers
-	// // with throttles set rather than all configured replicas.
-	// var throttleLists = make(topicThrottledReplicas)
-	//
-	// // For each topic...
-	// for topicName, state := range states {
-	// 	// For each partition...
-	// 	for partn, replicas := range state.Partitions {
-	// 		// For each replica assignment...
-	// 		for _, assignedID := range replicas {
-	// 			// If the replica is a throttled broker, append that broker to the
-	// 			// throttled list for this {topic, partition}.
-	// 			if _, exists := throttledBrokers[assignedID]; exists {
-	// 				throttleLists.AddReplica(
-	// 					topic(topicName),
-	// 					partn,
-	// 					replicaType("follower"),
-	// 					strconv.Itoa(assignedID))
-	// 			}
-	// 		}
-	// 	}
-	// }
-	//
-	// return throttleLists, nil
+	return throttleLists, nil
 }
 
 // getAllTopicStates returns a TopicStates for all topics in Kafka.
