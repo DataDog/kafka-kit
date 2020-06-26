@@ -97,7 +97,10 @@ func getTopicsWithThrottledBrokers(params *ReplicationThrottleConfigs) (topicThr
 
 	// For each topic...
 	for topicName, state := range states {
-		// TODO(jamie): skip consumer offsets
+		// TODO(jamie): make this configurable.
+		if topicName == "__consumer_offsets" {
+			continue
+		}
 		// For each partition...
 		for partn, replicas := range state.Partitions {
 			// For each replica assignment...
