@@ -84,6 +84,7 @@ func getTopicsWithThrottledBrokers(params *ReplicationThrottleConfigs) (topicThr
 	}
 
 	// Lookup brokers with overrides set that are not a reassignment participant.
+	// TODO(jamie): skip brokers where the throttle is 0.
 	notReassignmentParticipant := func(bto BrokerThrottleOverride) bool {
 		return !bto.ReassignmentParticipant
 	}
@@ -97,6 +98,7 @@ func getTopicsWithThrottledBrokers(params *ReplicationThrottleConfigs) (topicThr
 
 	// For each topic...
 	for topicName, state := range states {
+		// TODO(jamie): skip consumer offsets
 		// For each partition...
 		for partn, replicas := range state.Partitions {
 			// For each replica assignment...
@@ -107,7 +109,7 @@ func getTopicsWithThrottledBrokers(params *ReplicationThrottleConfigs) (topicThr
 					throttleLists.addReplica(
 						topic(topicName),
 						partn,
-						replicaType("follower"),
+						replicaType("followers"),
 						strconv.Itoa(assignedID))
 				}
 			}
