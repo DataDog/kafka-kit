@@ -22,16 +22,60 @@ type replicaType string
 // Replica broker IDs as a []string.
 type brokerIDs []string
 
-// topicStates is a map of topic names to kafakzk.TopicState.
-type topicStates map[string]kafkazk.TopicState
+// TopicStates is a map of topic names to kafakzk.TopicState.
+type TopicStates map[string]kafkazk.TopicState
 
-// getRecoveringTopics
-func getRecoveringTopics(params *ReplicationThrottleConfigs) (topicStates, error) {
-	return getAllTopicStates(params.zk)
+// TopicStatesFilterFn specifies a filter function.
+type TopicStatesFilterFn func(kafkazk.TopicState) bool
+
+// Filter takes a TopicStatesFilterFn and returns a TopicStates where
+// all elements return true as an input to the filter func.
+func (t TopicStates) Filter(fn TopicStatesFilterFn) TopicStates {
+	var ts = make(TopicStates)
+	for name, state := range t {
+		if fn(state) {
+			ts[name] = state
+		}
+	}
+
+	return ts
 }
 
-func getAllTopicStates(zk kafkazk.Handler) (topicStates, error) {
-	var states = make(topicStates)
+// getTopicsWithThrottledBrokers returns a TopicStates that includes any topics that
+// have partitions assigned to brokers with a static throttle rate set.
+func getTopicsWithThrottledBrokers(params *ReplicationThrottleConfigs) (TopicStates, error) {
+	// Fetch all topic states.
+	states, err := getAllTopicStates(params.zk)
+	if err != nil {
+		return nil, err
+	}
+
+	// Lookup brokers with overrides set that are not a reassignment participant.
+	overridesFilterFn := func(bto BrokerThrottleOverride) bool {
+		return !bto.ReassignmentParticipant
+	}
+
+	overrides := params.brokerOverrides.Filter(overridesFilterFn)
+
+	// Filter out topic states where the target brokers are assigned to at least
+	// one partition.
+	statesFilterFn := func(ts kafkazk.TopicState) bool {
+		for _, assignment := range ts.Partitions {
+			for _, id := range assignment {
+				if _, exists := overrides[id]; exists {
+					return true
+				}
+			}
+		}
+		return false
+	}
+
+	return states.Filter(statesFilterFn), nil
+}
+
+// getAllTopicStates returns a TopicStates for all topics in Kafka.
+func getAllTopicStates(zk kafkazk.Handler) (TopicStates, error) {
+	var states = make(TopicStates)
 
 	// Get all topics.
 	topics, err := zk.GetTopics(topicsRegex)
