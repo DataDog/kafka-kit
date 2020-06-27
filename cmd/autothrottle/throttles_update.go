@@ -193,7 +193,7 @@ func updateOverrideThrottles(params *ReplicationThrottleConfigs) error {
 	}
 
 	if len(toAssign) > 0 || len(toRemove) > 0 {
-		log.Println("Updating additional throttles")
+		log.Println("Setting broker level throttle overrides")
 	} else {
 		return nil
 	}
@@ -223,7 +223,7 @@ func updateOverrideThrottles(params *ReplicationThrottleConfigs) error {
 	}
 
 	// Ship it.
-	params.events.Write("Additional broker replication throttle set", b.String())
+	params.events.Write("Broker level throttle override(s) configured", b.String())
 
 	// Unset the broker throttles marked for removal.
 	return removeBrokerThrottlesByID(params, toRemove)

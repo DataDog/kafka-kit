@@ -308,15 +308,12 @@ func main() {
 		// Apply any additional broker-specific throttles that were not applied as
 		// part of a reassignment.
 		if len(throttleMeta.brokerOverrides) > 0 {
-			// Find under-replicated topics that include brokers with static
-			// overrides that aren't being reassigned. In order for broker-specific
+			// Find all topics that include brokers with static overrides
+			// configured that aren't being reassigned. In order for broker-specific
 			// throttles to be applied, topics being replicated by those brokers
 			// must include them in the follower.replication.throttled.replicas
 			// dynamic configuration parameter. It's clumsy, but this is the way
 			// Kafka was designed.
-
-			// Get a topicThrottledReplicas for all topics that have partition
-			// assignments to any brokers with overrides.
 			// TODO(jamie): is there a scenario where we should exclude topics
 			// have also have a reassignment? We're discovering topics here by
 			// reverse lookup of brokers that are not reassignment participants.
