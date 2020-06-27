@@ -340,8 +340,20 @@ func main() {
 		}
 
 		// If there's no topics being reassigned, clear any throttles marked
-		// for automatic removal.
-		if len(topicsReplicatingNow) == 0 {
+		// for automatic removal. Also, check if there's any broker throttles set.
+		// There's a somewhat complicated state problem here; if we previously
+		// set a broker throttle override but there's no reassignment, we'll
+		// immediately clear it here. There's two options:
+		//
+		// 1) Simply hold up clearing throttles if there's a broker throttle
+		//   override set.
+		// 2) Fetch all topics where any brokers with overrides are assigned
+		//   replicas, fetch all topic ISR states, diff the ISR states and the
+		//   replica assignments to track under-replicated topics, then adding
+		//   an under-replicated == 0 condition here.
+		//
+		// We're going with option 1 for now.
+		if len(topicsReplicatingNow) == 0 && len(throttleMeta.brokerOverrides) == 0 {
 			log.Println("No topics undergoing reassignment")
 
 			// Unset any throttles.
