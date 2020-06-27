@@ -337,6 +337,8 @@ func main() {
 			for i := range errs {
 				log.Println(errs[i])
 			}
+
+			knownThrottles = true
 		}
 
 		// If there's no topics being reassigned, clear any throttles marked
