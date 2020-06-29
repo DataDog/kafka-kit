@@ -136,9 +136,9 @@ Autothrottle is also designed to fail-safe and avoid any unspecified decision mo
 
 ## Admin API
 
-The administrative API allows overrides to be set. If an override is set, Datadog metrics will not be fetched.
+The administrative API allows overrides to be set at two levels: global and granularly on a per-broker basis. This feature may be useful if there's a failure in the backing metrics system or a manually set rate is simply preferred.
 
-When setting a throttle, an optional `autoremove` bool parameter can be specified. If set, the throttle override will be removed
+A global override applies a static inbound and outbound rate to all brokers that are handling a partition reassignment. When setting a throttle, an optional `autoremove` bool parameter can be specified. If set, the throttle override will be removed once the next reassignment completes.
 
 ```
 $ curl -XPOST "localhost:8080/throttle?rate=200&autoremove=true"
@@ -147,6 +147,23 @@ throttle successfully set to 200MB/s, autoremove==true
 $ curl "localhost:8080/throttle"
 a throttle override is configured at 200MB/s, autoremove==true
 
-$ curl -XPOST localhost:8080/throttle/remove
+$ curl -XPOST "localhost:8080/throttle/remove"
 throttle successfully removed
 ```
+
+A broker level override rate applies to both reassignment replication as well as recovery traffic. For instance, if a broker level override is set to 50MB/s and the broker is stopped for a period of time before being resumed, it will catch up at only 50MB/s.
+
+```
+$ curl -XPOST "localhost:8080/throttle/1001?rate=50"                 
+broker 1001: throttle successfully set to 50MB/s, autoremove==false
+
+$ curl "localhost:8080/throttle/1001"
+broker 1001: a throttle override is configured at 50MB/s, autoremove==false
+
+$ curl -XPOST "localhost:8080/throttle/remove/1001"
+broker 1001: throttle removed
+```
+
+Two considerations to take note of:
+- Broker level throttle rates are "out-of-band" from reassignments. When a global rate is in place, it's dynamically applied against any broker that participates in a reassignment, even if the reassignment does not occur until after the throttle is set. With a broker level override, it is directly associated with a specific broker and goes into effect immediately rather than eventually becoming active should a reassignment occur. This is done to ensure that activity such as a recovery or bootstrap can be throttled, which doesn't have any (easily accessible) registered state in ZooKeeper to watch. Due to this, `autoremove` has no effect because there is no event that would trigger the removal. This is an explicit design decision due to some complexity in how Kafka throttle internals function.
+- Any broker level override will prevent a global throttle `autoremove` from taking place. This is also an explicit design decision because of number of states that we have to account for; encoding logic that _does the right thing_ would possibly become more complex because "the right thing" is highly conditional. Instead, we impose this simple, functional rule: broker level overrides freeze all automatic throttle clearing while in effect.
