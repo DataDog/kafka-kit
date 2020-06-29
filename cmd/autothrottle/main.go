@@ -325,6 +325,8 @@ func main() {
 
 			if err := updateOverrideThrottles(throttleMeta); err != nil {
 				log.Println(err)
+			} else {
+				knownThrottles = true
 			}
 		}
 
@@ -334,8 +336,6 @@ func main() {
 			for i := range errs {
 				log.Println(errs[i])
 			}
-
-			knownThrottles = true
 		}
 
 		// If there's no topics being reassigned, clear any throttles marked
@@ -352,26 +352,52 @@ func main() {
 		//   an under-replicated == 0 condition here.
 		//
 		// We're going with option 1 for now.
-		if len(topicsReplicatingNow) == 0 && len(throttleMeta.brokerOverrides) == 0 {
+
+		// Capture all the current conditions:
+
+		// Are there throttles eligible to be cleared?
+		var throttlesToClear = knownThrottles || interval == Config.CleanupAfter
+
+		// Are any topics being reassigned?
+		var topicsReassigning bool
+		if len(topicsReplicatingNow) > 0 {
+			topicsReassigning = true
+		}
+
+		// Do any brokers have throttle overrides set?
+		var brokerOverridesSet bool
+		if len(throttleMeta.brokerOverrides) > 0 {
+			brokerOverridesSet = true
+		}
+
+		// Next steps according to the varous conditions:
+
+		if !topicsReassigning {
 			log.Println("No topics undergoing reassignment")
+		}
 
-			// Unset any throttles.
-			if knownThrottles || interval == Config.CleanupAfter {
-				// Reset the interval.
-				interval = 0
+		if !topicsReassigning && throttlesToClear && brokerOverridesSet {
+			log.Println("One or more broker level override are set; automatic throttle removal will be skipped")
+		}
 
-				err := removeAllThrottles(throttleMeta)
-				if err != nil {
-					log.Printf("Error removing throttles: %s\n", err.Error())
-				} else {
-					// Only set knownThrottles to false if we've removed all
-					// without error.
-					knownThrottles = false
-				}
+		// If there's previously set throttles but no topics reassigning nor
+		// broker overrides set, we can issue a global throttle removal.
+		if throttlesToClear && !topicsReassigning && !brokerOverridesSet {
+			// Reset the interval count.
+			interval = 0
 
-				// Ensure topic updates are re-enabled.
-				throttleMeta.EnableTopicUpdates()
+			// Remove all the broker + topic throttle configs.
+			err := removeAllThrottles(throttleMeta)
+			if err != nil {
+				log.Printf("Error removing throttles: %s\n", err.Error())
+			} else {
+				// Only set knownThrottles to false if we've removed all
+				// without error.
+				knownThrottles = false
 			}
+
+			// Ensure topic throttle updates are re-enabled.
+			throttleMeta.EnableTopicUpdates()
 
 			// Remove any configured throttle overrides if AutoRemove is true.
 			if overrideCfg.AutoRemove {
