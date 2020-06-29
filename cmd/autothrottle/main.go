@@ -257,6 +257,10 @@ func main() {
 			log.Println(err)
 		}
 
+		// Get a count of brokers with active overrides, ie where the override
+		// rate is non-0.
+		activeBrokerOverrides := len(throttleMeta.brokerOverrides.Filter(hasActiveOverride))
+
 		// Get the maps of brokers handling reassignments.
 		throttleMeta.reassigningBrokers, err = getReassigningBrokers(reassignments, zk)
 		if err != nil {
@@ -325,7 +329,12 @@ func main() {
 
 			if err := updateOverrideThrottles(throttleMeta); err != nil {
 				log.Println(err)
-			} else {
+			}
+
+			// If we're updating (which includes removing) throttles and the
+			// active count (those not marked for removal) is > 0, we should
+			// set the knownThrottles to true.
+			if activeBrokerOverrides > 0 {
 				knownThrottles = true
 			}
 		}
@@ -366,7 +375,7 @@ func main() {
 
 		// Do any brokers have throttle overrides set?
 		var brokerOverridesSet bool
-		if len(throttleMeta.brokerOverrides) > 0 {
+		if activeBrokerOverrides > 0 {
 			brokerOverridesSet = true
 		}
 
