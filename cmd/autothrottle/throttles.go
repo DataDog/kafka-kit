@@ -72,6 +72,12 @@ func (b BrokerOverrides) IDs() []int {
 // BrokerOverridesFilterFn specifies a filter function.
 type BrokerOverridesFilterFn func(BrokerThrottleOverride) bool
 
+// Filter funcs.
+
+func hasActiveOverride(bto BrokerThrottleOverride) bool {
+	return bto.Config.Rate != 0
+}
+
 // Filter takes a BrokerOverridesFilterFn and returns a BrokerOverrides where
 // all elements return true as an input to the filter func.
 func (b BrokerOverrides) Filter(fn BrokerOverridesFilterFn) BrokerOverrides {
