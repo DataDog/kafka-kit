@@ -233,10 +233,6 @@ func main() {
 			log.Println(err)
 		}
 
-		// Get brokers with active overrides, ie where the override rate is non-0,
-		// that are also not part of a reassignment.
-		activeOverrideBrokers := throttleMeta.brokerOverrides.Filter(notReassignmentParticipant)
-
 		// Get the maps of brokers handling reassignments.
 		throttleMeta.reassigningBrokers, err = getReassigningBrokers(reassignments, zk)
 		if err != nil {
@@ -259,6 +255,10 @@ func main() {
 				knownThrottles = true
 			}
 		}
+
+		// Get brokers with active overrides, ie where the override rate is non-0,
+		// that are also not part of a reassignment.
+		activeOverrideBrokers := throttleMeta.brokerOverrides.Filter(notReassignmentParticipant)
 
 		// Apply any additional broker-specific throttles that were not applied as
 		// part of a reassignment.
