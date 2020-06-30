@@ -198,7 +198,7 @@ func main() {
 
 		// Check for topics that were previously seen replicating, but are no
 		// longer in this interval.
-		topicsDoneReplicating := topicsReplicatingNow.diff(topicsReplicatingPreviously)
+		topicsDoneReplicating := topicsReplicatingPreviously.diff(topicsReplicatingNow)
 
 		// Log and write event.
 		if len(topicsDoneReplicating) > 0 {
@@ -206,10 +206,6 @@ func main() {
 			log.Println(m)
 			events.Write("Topics done reassigning", m)
 		}
-
-		// Rebuild topicsReplicatingPreviously with the current replications
-		// for the next check iteration.
-		topicsReplicatingPreviously = topicsReplicatingNow.copy()
 
 		// If all of the currently replicating topics are a subset
 		// of the previously replicating topics, we can stop updating
@@ -220,6 +216,10 @@ func main() {
 		} else {
 			throttleMeta.EnableTopicUpdates()
 		}
+
+		// Rebuild topicsReplicatingPreviously with the current replications
+		// for the next check iteration.
+		topicsReplicatingPreviously = topicsReplicatingNow.copy()
 
 		// Check if a global throttle override was configured.
 		overrideCfg, err := fetchThrottleOverride(zk, overrideRateZnodePath)
