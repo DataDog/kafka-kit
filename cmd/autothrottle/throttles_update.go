@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -377,6 +378,11 @@ func applyTopicThrottles(throttled topicThrottledReplicas, zk kafkazk.Handler) (
 			Name:    string(t),
 			Configs: []kafkazk.KafkaConfigKV{},
 		}
+
+		// The sort is important; it avoids unecessary config updates due to the same
+		// data but in different orders.
+		sort.Strings(throttled[t]["leaders"])
+		sort.Strings(throttled[t]["followers"])
 
 		leaderList := strings.Join(throttled[t]["leaders"], ",")
 		if leaderList != "" {
