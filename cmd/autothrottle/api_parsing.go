@@ -9,7 +9,12 @@ import (
 	"strings"
 )
 
-var errBrokerIDNotProvided = errors.New("broker ID not provided")
+var (
+	errBrokerIDNotProvided  = errors.New("broker ID not provided")
+	errRateParamUnspecified = errors.New("rate param must be specified")
+	errRateParamIsZero      = errors.New("rate param must be >0")
+	errRateParamNotInt      = errors.New("rate param must be supplied as an integer")
+)
 
 // parseRateParam takes a *http.Request and returns the specified
 // 'rate' request parameter formatted as a int.
@@ -19,11 +24,11 @@ func parseRateParam(req *http.Request) (int, error) {
 
 	switch {
 	case r == "":
-		return 0, errors.New("rate param must be specified")
+		return 0, errRateParamUnspecified
 	case r == "0":
-		return 0, errors.New("rate param must be >0")
+		return 0, errRateParamIsZero
 	case err != nil:
-		return 0, errors.New("rate param must be supplied as an integer")
+		return 0, errRateParamNotInt
 	}
 
 	return rate, nil
