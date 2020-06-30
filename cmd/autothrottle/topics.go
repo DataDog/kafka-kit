@@ -3,8 +3,13 @@ package main
 import (
 	"fmt"
 	"strconv"
+	"errors"
 
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
+)
+
+var (
+	errInvalidReplicaType error = errors.New("invalid replica type")
 )
 
 // topicThrottledReplicas is a map of topic names to throttled types.
@@ -16,9 +21,18 @@ type topicThrottledReplicas map[topic]throttled
 // throttled is a replica type (leader, follower) to replica list.
 type throttled map[replicaType]brokerIDs
 
+var acceptedReplicaTypes = map[replicaType]struct{}{
+	"leaders": struct{}{},
+	"followers": struct{}{},
+}
+
 // addReplica takes a topic, partition number, role (leader, follower), and
 // broker ID and adds the configuration to the topicThrottledReplicas.
-func (ttr topicThrottledReplicas) addReplica(topic topic, partn string, role replicaType, id string) {
+func (ttr topicThrottledReplicas) addReplica(topic topic, partn string, role replicaType, id string) error {
+	if _, exist := acceptedReplicaTypes[role]; !exist {
+		return errInvalidReplicaType
+	}
+
 	// Check / create the topic entry.
 	if _, exist := ttr[topic]; !exist {
 		ttr[topic] = make(throttled)
@@ -35,7 +49,7 @@ func (ttr topicThrottledReplicas) addReplica(topic topic, partn string, role rep
 	// If the entry is already in the list, return early.
 	for _, entry := range ttr[topic][role] {
 		if entry == str {
-			return
+			return nil
 		}
 	}
 
@@ -43,6 +57,8 @@ func (ttr topicThrottledReplicas) addReplica(topic topic, partn string, role rep
 	l := ttr[topic][role]
 	l = append(l, str)
 	ttr[topic][role] = l
+
+	return nil
 }
 
 // topic name.
