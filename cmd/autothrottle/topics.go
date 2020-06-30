@@ -1,9 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
-	"errors"
 
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
 )
@@ -22,7 +22,7 @@ type topicThrottledReplicas map[topic]throttled
 type throttled map[replicaType]brokerIDs
 
 var acceptedReplicaTypes = map[replicaType]struct{}{
-	"leaders": struct{}{},
+	"leaders":   struct{}{},
 	"followers": struct{}{},
 }
 
