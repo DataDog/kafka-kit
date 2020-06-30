@@ -12,17 +12,18 @@ type ReplicationThrottleConfigs struct {
 	zk            kafkazk.Handler
 	km            kafkametrics.Handler
 	overrideRate  int
-	// The following two fields are for brokers with static overrides set
+	// The following three fields are for brokers with static overrides set
 	// and a topicThrottledReplicas for topics where those brokers are assigned.
-	brokerOverrides        BrokerOverrides
-	overrideThrottleLists  topicThrottledReplicas
-	reassigningBrokers     reassigningBrokers
-	events                 *DDEventWriter
-	previouslySetThrottles replicationCapacityByBroker
-	limits                 Limits
-	failureThreshold       int
-	failures               int
-	skipTopicUpdates       bool
+	brokerOverrides          BrokerOverrides
+	overrideThrottleLists    topicThrottledReplicas
+	skipOverrideTopicUpdates bool
+	reassigningBrokers       reassigningBrokers
+	events                   *DDEventWriter
+	previouslySetThrottles   replicationCapacityByBroker
+	limits                   Limits
+	failureThreshold         int
+	failures                 int
+	skipTopicUpdates         bool
 }
 
 // ThrottleOverrideConfig holds throttle override configurations.
@@ -114,10 +115,21 @@ func (r *ReplicationThrottleConfigs) DisableTopicUpdates() {
 	r.skipTopicUpdates = true
 }
 
-// DisableTopicUpdates allow topic throttled replica lists from being
-// updated in ZooKeeper.
+// DisableTopicUpdates allows topic throttled replica lists updates in ZooKeeper.
 func (r *ReplicationThrottleConfigs) EnableTopicUpdates() {
 	r.skipTopicUpdates = false
+}
+
+// DisableOverrideTopicUpdates prevents topic throttled replica lists for
+// topics assigned to override brokers from being updated in ZooKeeper.
+func (r *ReplicationThrottleConfigs) DisableOverrideTopicUpdates() {
+	r.skipOverrideTopicUpdates = true
+}
+
+// EnableOverrideTopicUpdates allows topic throttled replica lists for
+// topics assigned to override brokers to be updated in ZooKeeper.
+func (r *ReplicationThrottleConfigs) EnableOverrideTopicUpdates() {
+	r.skipOverrideTopicUpdates = false
 }
 
 // ThrottledBrokers is a list of brokers with a throttle applied
