@@ -115,6 +115,7 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 			// Any brokers with throttle overrides that are being issued as part
 			// of a reassignemnt should be marked as such.
 			override.ReassignmentParticipant = true
+			params.brokerOverrides[id] = override
 
 			rate := override.Config.Rate
 			// A rate of 0 means we intend to remove this throttle override. Skip.

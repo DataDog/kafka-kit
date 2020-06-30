@@ -299,9 +299,8 @@ func main() {
 				log.Println(err)
 			}
 
-			// If we're updating (which includes removing) throttles and the
-			// active count (those not marked for removal) is > 0, we should
-			// set the knownThrottles to true.
+			// If we're updating throttles and the active count (those not marked for
+			// removal) is > 0, we should set the knownThrottles to true.
 			if len(activeOverrideBrokers) > 0 {
 				knownThrottles = true
 			}
