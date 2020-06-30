@@ -337,7 +337,7 @@ func main() {
 		}
 
 		if !topicsReassigning && throttlesToClear && brokerOverridesSet {
-			log.Println("One or more broker level override are set; automatic throttle removal will be skipped")
+			log.Println("One or more brokers level override are set; automatic throttle removal will be skipped")
 		}
 
 		// If there's previously set throttles but no topics reassigning nor
