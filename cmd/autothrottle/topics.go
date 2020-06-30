@@ -100,10 +100,6 @@ func getTopicsWithThrottledBrokers(params *ReplicationThrottleConfigs) (topicThr
 	}
 
 	// Lookup brokers with overrides set that are not a reassignment participant.
-	notReassignmentParticipant := func(bto BrokerThrottleOverride) bool {
-		return !bto.ReassignmentParticipant && bto.Config.Rate != 0
-	}
-
 	throttledBrokers := params.brokerOverrides.Filter(notReassignmentParticipant)
 
 	// Construct a topicThrottledReplicas that includes any topics with replicas

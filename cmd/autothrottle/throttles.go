@@ -79,6 +79,10 @@ func hasActiveOverride(bto BrokerThrottleOverride) bool {
 	return bto.Config.Rate != 0
 }
 
+func notReassignmentParticipant(bto BrokerThrottleOverride) bool {
+	return !bto.ReassignmentParticipant && bto.Config.Rate != 0
+}
+
 // Filter takes a BrokerOverridesFilterFn and returns a BrokerOverrides where
 // all elements return true as an input to the filter func.
 func (b BrokerOverrides) Filter(fn BrokerOverridesFilterFn) BrokerOverrides {

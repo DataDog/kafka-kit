@@ -233,9 +233,9 @@ func main() {
 			log.Println(err)
 		}
 
-		// Get a count of brokers with active overrides, ie where the override
-		// rate is non-0.
-		activeBrokerOverrides := len(throttleMeta.brokerOverrides.Filter(hasActiveOverride))
+		// Get brokers with active overrides, ie where the override rate is non-0,
+		// that are also not part of a reassignment.
+		activeOverrideBrokers := throttleMeta.brokerOverrides.Filter(notReassignmentParticipant)
 
 		// Get the maps of brokers handling reassignments.
 		throttleMeta.reassigningBrokers, err = getReassigningBrokers(reassignments, zk)
@@ -282,7 +282,7 @@ func main() {
 			// list configs. If the brokers with overrides remains the same,
 			// we don't need to need to update those configs.
 			var brokersThrottledNow = newSet()
-			for broker := range throttleMeta.brokerOverrides.Filter(hasActiveOverride) {
+			for broker := range activeOverrideBrokers {
 				brokersThrottledNow.add(strconv.Itoa(broker))
 			}
 
@@ -302,7 +302,7 @@ func main() {
 			// If we're updating (which includes removing) throttles and the
 			// active count (those not marked for removal) is > 0, we should
 			// set the knownThrottles to true.
-			if activeBrokerOverrides > 0 {
+			if len(activeOverrideBrokers) > 0 {
 				knownThrottles = true
 			}
 		}
@@ -343,11 +343,11 @@ func main() {
 
 		// Do any brokers have throttle overrides set?
 		var brokerOverridesSet bool
-		if activeBrokerOverrides > 0 {
+		if len(activeOverrideBrokers) > 0 {
 			brokerOverridesSet = true
 		}
 
-		// Next steps according to the varous conditions:
+		// Next steps according to the various conditions:
 
 		if !topicsReassigning {
 			log.Println("No topics undergoing reassignment")
