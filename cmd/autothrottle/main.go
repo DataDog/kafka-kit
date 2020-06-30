@@ -153,6 +153,8 @@ func main() {
 	// Tracking topic replication states across intervals.
 	var topicsReplicatingPreviously = newSet()
 	var topicsReplicatingNow = newSet()
+	var topicsRecoveringPreviously = newSet()
+	var topicsRecoveringNow = newSet()
 
 	// Params for the updateReplicationThrottle request.
 
@@ -241,11 +243,7 @@ func main() {
 
 		// If topics are being reassigned, update the replication throttle.
 		if len(topicsReplicatingNow) > 0 {
-			var topics []string
-			for t := range topicsReplicatingNow {
-				topics = append(topics, t)
-			}
-			log.Printf("Topics with ongoing reassignments: %s\n", topics)
+			log.Printf("Topics with ongoing reassignments: %s\n", topicsReplicatingNow.keys())
 
 			// Update the throttleMeta.
 			throttleMeta.overrideRate = overrideCfg.Rate
@@ -278,6 +276,21 @@ func main() {
 				log.Printf("Error fetching topic states: %s\n", err)
 			}
 
+			// Track whether or not we need to propagate throttled replica lists
+			// topic configs.
+			for topic := range throttleMeta.overrideThrottleLists {
+				topicsRecoveringNow.add(string(topic))
+			}
+
+			if topicsRecoveringNow.isSubSet(topicsRecoveringPreviously) {
+				throttleMeta.DisableOverrideTopicUpdates()
+			} else {
+				throttleMeta.EnableOverrideTopicUpdates()
+			}
+
+			topicsRecoveringPreviously = topicsRecoveringNow.copy()
+
+			// Update throttles.
 			if err := updateOverrideThrottles(throttleMeta); err != nil {
 				log.Println(err)
 			}
@@ -358,6 +371,7 @@ func main() {
 
 			// Ensure topic throttle updates are re-enabled.
 			throttleMeta.EnableTopicUpdates()
+			throttleMeta.EnableOverrideTopicUpdates()
 
 			// Remove any configured throttle overrides if AutoRemove is true.
 			if overrideCfg.AutoRemove {

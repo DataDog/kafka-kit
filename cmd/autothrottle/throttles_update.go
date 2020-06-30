@@ -207,9 +207,11 @@ func updateOverrideThrottles(params *ReplicationThrottleConfigs) error {
 	}
 
 	// Set topic throttle configs.
-	_, errs = applyTopicThrottles(params.overrideThrottleLists, params.zk)
-	for _, e := range errs {
-		log.Println(e)
+	if !params.skipOverrideTopicUpdates {
+		_, errs = applyTopicThrottles(params.overrideThrottleLists, params.zk)
+		for _, e := range errs {
+			log.Println(e)
+		}
 	}
 
 	// Append broker throttle info to event.
