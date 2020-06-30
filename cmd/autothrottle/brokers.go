@@ -18,24 +18,6 @@ type reassigningBrokers struct {
 	throttledReplicas topicThrottledReplicas
 }
 
-// topicThrottledReplicas is a map of topic names to throttled types.
-// This is ultimately populated as follows:
-//   map[topic]map[leaders]["0:1001", "1:1002"]
-//   map[topic]map[followers]["2:1003", "3:1004"]
-type topicThrottledReplicas map[topic]throttled
-
-// throttled is a replica type (leader, follower) to replica list.
-type throttled map[replicaType]brokerIDs
-
-// topic name.
-type topic string
-
-// leader, follower.
-type replicaType string
-
-// Replica broker IDs as a []string.
-type brokerIDs []string
-
 // lists returns a sorted []int of broker IDs for the src, dst
 // and all brokers from a reassigningBrokers.
 func (bm reassigningBrokers) lists() ([]int, []int, []int) {
@@ -94,6 +76,8 @@ func getReassigningBrokers(r kafkazk.Reassignments, zk kafkazk.Handler) (reassig
 		// assigned in the reassignments. The current leaders will be sources,
 		// new brokers in the assignment list (but not in the current ISR state)
 		// will be destinations.
+		// TODO(jamie): the throttledReplicas can be populated here with the recently
+		// added topicThrottledReplicas.addReplica method.
 		for p := range tstate {
 			partn, _ := strconv.Atoi(p)
 			if reassigning, exists := r[t][partn]; exists {
@@ -153,14 +137,12 @@ func roleFromIndex(i int) string {
 }
 
 func inSlice(id int, s []int) bool {
-	found := false
 	for _, i := range s {
 		if id == i {
-			found = true
+			return true
 		}
 	}
-
-	return found
+	return false
 }
 
 // incompleteBrokerMetrics takes a []int of all broker IDs involved in

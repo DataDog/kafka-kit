@@ -57,3 +57,53 @@ func TestBrokerReplicationCapacities(t *testing.T) {
 func float64ptr(f float64) *float64 {
 	return &f
 }
+
+func TestStoreLeaderCapacity(t *testing.T) {
+	capacities := replicationCapacityByBroker{}
+
+	capacities.storeLeaderCapacity(1001, 100)
+	out := capacities[1001]
+
+	// Index 0 is the leader position.
+	val := out[0]
+
+	if val == nil {
+		t.Fatal("Unexpected nil value")
+	}
+
+	if *val != 100 {
+		t.Errorf("Expected value '100', got '%f'", *val)
+	}
+
+	// Index 1 is the follower position.
+	val = out[1]
+
+	if val != nil {
+		t.Errorf("Expected nil value, got %v", *val)
+	}
+}
+
+func TestStoreFollowerCapacity(t *testing.T) {
+	capacities := replicationCapacityByBroker{}
+
+	capacities.storeFollowerCapacity(1001, 100)
+	out := capacities[1001]
+
+	// Index 1 is the follower position.
+	val := out[1]
+
+	if val == nil {
+		t.Fatal("Unexpected nil value")
+	}
+
+	if *val != 100 {
+		t.Errorf("Expected value '100', got '%f'", *val)
+	}
+
+	// Index 0 is the leader position.
+	val = out[0]
+
+	if val != nil {
+		t.Errorf("Expected nil value, got %v", *val)
+	}
+}

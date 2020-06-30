@@ -34,8 +34,9 @@ WORKDIR /go/src/github.com/DataDog/kafka-kit
 COPY go.mod go.mod
 RUN go mod download
 
-COPY cmd/registry cmd/registry
+COPY cmd cmd
 COPY kafkaadmin kafkaadmin
+COPY kafkametrics kafkametrics
 COPY kafkazk kafkazk
 COPY registry registry
 

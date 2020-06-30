@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -111,16 +112,18 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 	// Merge in broker-specific overrides if they're part of the reassignment.
 	for id := range params.reassigningBrokers.all {
 		if override, exists := params.brokerOverrides[id]; exists {
+			// Any brokers with throttle overrides that are being issued as part
+			// of a reassignemnt should be marked as such.
+			override.ReassignmentParticipant = true
+			params.brokerOverrides[id] = override
+
 			rate := override.Config.Rate
 			// A rate of 0 means we intend to remove this throttle override. Skip.
 			if rate == 0 {
 				continue
 			}
+
 			log.Printf("A broker throttle override is set for %d: %dMB/s\n", id, rate)
-			// Any brokers with throttle overrides that are being issued as part
-			// of a reassignemnt should be marked as such.
-			override.ReassignmentParticipant = true
-			params.brokerOverrides[id] = override
 			// Store the rate for both inbound and outbound traffic.
 			capacities.storeLeaderAndFollerCapacity(id, float64(rate))
 		}
@@ -132,14 +135,6 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 		// TODO(jamie): revisit whether we should actually be returning
 		// rather than just logging errors here.
 		log.Println(e)
-	}
-
-	// Set topic throttle configs.
-	if !params.skipTopicUpdates {
-		_, errs = applyTopicThrottles(params.reassigningBrokers.throttledReplicas, params.zk)
-		for _, e := range errs {
-			log.Println(e)
-		}
 	}
 
 	// Append broker throttle info to event.
@@ -154,8 +149,20 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 		b.WriteString("\n")
 	}
 
+	// Set topic throttle configs.
+	if !params.skipTopicUpdates {
+		_, errs = applyTopicThrottles(params.reassigningBrokers.throttledReplicas, params.zk)
+		for _, e := range errs {
+			log.Println(e)
+		}
+	}
+
 	// Append topic stats to event.
-	b.WriteString(fmt.Sprintf("Topics currently undergoing replication: %v", params.topics))
+	var topics []string
+	for t := range params.reassignments {
+		topics = append(topics, t)
+	}
+	b.WriteString(fmt.Sprintf("Topics currently undergoing replication: %v", topics))
 
 	// Ship it.
 	params.events.Write("Broker replication throttle set", b.String())
@@ -189,7 +196,7 @@ func updateOverrideThrottles(params *ReplicationThrottleConfigs) error {
 	}
 
 	if len(toAssign) > 0 || len(toRemove) > 0 {
-		log.Println("Updating additional throttles")
+		log.Println("Setting broker level throttle overrides")
 	} else {
 		return nil
 	}
@@ -198,6 +205,14 @@ func updateOverrideThrottles(params *ReplicationThrottleConfigs) error {
 	events, errs := applyBrokerThrottles(toAssign, capacities, params.previouslySetThrottles, params.limits, params.zk)
 	for _, e := range errs {
 		log.Println(e)
+	}
+
+	// Set topic throttle configs.
+	if !params.skipOverrideTopicUpdates {
+		_, errs = applyTopicThrottles(params.overrideThrottleLists, params.zk)
+		for _, e := range errs {
+			log.Println(e)
+		}
 	}
 
 	// Append broker throttle info to event.
@@ -213,7 +228,7 @@ func updateOverrideThrottles(params *ReplicationThrottleConfigs) error {
 	}
 
 	// Ship it.
-	params.events.Write("Additional broker replication throttle set", b.String())
+	params.events.Write("Broker level throttle override(s) configured", b.String())
 
 	// Unset the broker throttles marked for removal.
 	return removeBrokerThrottlesByID(params, toRemove)
@@ -367,6 +382,11 @@ func applyTopicThrottles(throttled topicThrottledReplicas, zk kafkazk.Handler) (
 			Name:    string(t),
 			Configs: []kafkazk.KafkaConfigKV{},
 		}
+
+		// The sort is important; it avoids unecessary config updates due to the same
+		// data but in different orders.
+		sort.Strings(throttled[t]["leaders"])
+		sort.Strings(throttled[t]["followers"])
 
 		leaderList := strings.Join(throttled[t]["leaders"], ",")
 		if leaderList != "" {

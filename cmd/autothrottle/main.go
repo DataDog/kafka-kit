@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -48,19 +49,6 @@ var (
 	// Misc.
 	topicsRegex = []*regexp.Regexp{regexp.MustCompile(".*")}
 )
-
-type topicSet map[string]struct{}
-type brokerSet map[int]struct{}
-
-func (t1 topicSet) isSubSetOf(t2 topicSet) bool {
-	for k := range t1 {
-		if _, exist := t2[k]; !exist {
-			return false
-		}
-	}
-
-	return true
-}
 
 func main() {
 	v := flag.Bool("version", false, "version")
@@ -163,16 +151,12 @@ func main() {
 
 	var reassignments kafkazk.Reassignments
 
-	// Replication state tracking across intervals:
+	// Track topic replication states across intervals.
+	var topicsReplicatingNow = newSet()
+	var topicsReplicatingPreviously = newSet()
 
-	// Topics.
-	var topicsReplicatingPreviously = topicSet{}
-	var topicsReplicatingNow = topicSet{}
-	var topicsDoneReplicating []string
-	// Brokers.
-	var brokersReplicatingPreviously = brokerSet{}
-	var brokersReplicatingNow = brokerSet{}
-	var brokersDoneReplicating = brokerSet{}
+	// Track override broker states.
+	var brokersThrottledPreviously = newSet()
 
 	// Params for the updateReplicationThrottle request.
 
@@ -204,48 +188,38 @@ func main() {
 	// TODO(jamie): refactor this loop.
 	for {
 		interval++
-		throttleMeta.topics = throttleMeta.topics[:0]
 
 		// Get topics undergoing reassignment.
 		reassignments = zk.GetReassignments() // XXX This needs to return an error.
-		topicsReplicatingNow = make(topicSet)
+		topicsReplicatingNow = newSet()
 		for t := range reassignments {
-			throttleMeta.topics = append(throttleMeta.topics, t)
-			topicsReplicatingNow[t] = struct{}{}
+			topicsReplicatingNow.add(t)
 		}
 
 		// Check for topics that were previously seen replicating, but are no
 		// longer in this interval.
-		topicsDoneReplicating = topicsDoneReplicating[:0]
-		for t := range topicsReplicatingPreviously {
-			if _, replicating := topicsReplicatingNow[t]; !replicating {
-				topicsDoneReplicating = append(topicsDoneReplicating, t)
-			}
-		}
+		topicsDoneReplicating := topicsReplicatingPreviously.diff(topicsReplicatingNow)
 
 		// Log and write event.
 		if len(topicsDoneReplicating) > 0 {
-			m := fmt.Sprintf("Topics done reassigning: %s", topicsDoneReplicating)
+			m := fmt.Sprintf("Topics done reassigning: %s", topicsDoneReplicating.keys())
 			log.Println(m)
 			events.Write("Topics done reassigning", m)
-		}
-
-		// Rebuild topicsReplicatingPreviously with the current replications
-		// for the next check iteration.
-		topicsReplicatingPreviously = make(map[string]struct{})
-		for t := range topicsReplicatingNow {
-			topicsReplicatingPreviously[t] = struct{}{}
 		}
 
 		// If all of the currently replicating topics are a subset
 		// of the previously replicating topics, we can stop updating
 		// the Kafka topic throttled replicas list. This minimizes
 		// state that must be propagated through the cluster.
-		if topicsReplicatingNow.isSubSetOf(topicsReplicatingPreviously) {
+		if topicsReplicatingNow.isSubSet(topicsReplicatingPreviously) {
 			throttleMeta.DisableTopicUpdates()
 		} else {
 			throttleMeta.EnableTopicUpdates()
 		}
+
+		// Rebuild topicsReplicatingPreviously with the current replications
+		// for the next check iteration.
+		topicsReplicatingPreviously = topicsReplicatingNow.copy()
 
 		// Check if a global throttle override was configured.
 		overrideCfg, err := fetchThrottleOverride(zk, overrideRateZnodePath)
@@ -265,30 +239,9 @@ func main() {
 			log.Println(err)
 		}
 
-		// Track broker replication states across intervals.
-		for b := range throttleMeta.reassigningBrokers.all {
-			brokersReplicatingNow[b] = struct{}{}
-		}
-
-		// Check for brokers that were previously seen replicating, but are no
-		// longer in this interval.
-		brokersDoneReplicating = make(brokerSet)
-		for b := range brokersReplicatingPreviously {
-			if _, replicating := brokersReplicatingNow[b]; !replicating {
-				brokersDoneReplicating[b] = struct{}{}
-			}
-		}
-
-		// Rebuild topicsReplicatingPreviously with the current replications
-		// for the next check iteration.
-		brokersReplicatingPreviously = make(brokerSet)
-		for t := range brokersReplicatingNow {
-			brokersReplicatingPreviously[t] = struct{}{}
-		}
-
 		// If topics are being reassigned, update the replication throttle.
-		if len(throttleMeta.topics) > 0 {
-			log.Printf("Topics with ongoing reassignments: %s\n", throttleMeta.topics)
+		if len(topicsReplicatingNow) > 0 {
+			log.Printf("Topics with ongoing reassignments: %s\n", topicsReplicatingNow.keys())
 
 			// Update the throttleMeta.
 			throttleMeta.overrideRate = overrideCfg.Rate
@@ -303,11 +256,53 @@ func main() {
 			}
 		}
 
+		// Get brokers with active overrides, ie where the override rate is non-0,
+		// that are also not part of a reassignment.
+		activeOverrideBrokers := throttleMeta.brokerOverrides.Filter(notReassignmentParticipant)
+
 		// Apply any additional broker-specific throttles that were not applied as
 		// part of a reassignment.
 		if len(throttleMeta.brokerOverrides) > 0 {
+			// Find all topics that include brokers with static overrides
+			// configured that aren't being reassigned. In order for broker-specific
+			// throttles to be applied, topics being replicated by those brokers
+			// must include them in the follower.replication.throttled.replicas
+			// dynamic configuration parameter. It's clumsy, but this is the way
+			// Kafka was designed.
+			// TODO(jamie): is there a scenario where we should exclude topics
+			// have also have a reassignment? We're discovering topics here by
+			// reverse lookup of brokers that are not reassignment participants.
+			var err error
+			throttleMeta.overrideThrottleLists, err = getTopicsWithThrottledBrokers(throttleMeta)
+			if err != nil {
+				log.Printf("Error fetching topic states: %s\n", err)
+			}
+
+			// Determine whether we need to propagate topic throttle replica
+			// list configs. If the brokers with overrides remains the same,
+			// we don't need to need to update those configs.
+			var brokersThrottledNow = newSet()
+			for broker := range activeOverrideBrokers {
+				brokersThrottledNow.add(strconv.Itoa(broker))
+			}
+
+			if brokersThrottledNow.equal(brokersThrottledPreviously) {
+				throttleMeta.DisableOverrideTopicUpdates()
+			} else {
+				throttleMeta.EnableOverrideTopicUpdates()
+			}
+
+			brokersThrottledPreviously = brokersThrottledNow.copy()
+
+			// Update throttles.
 			if err := updateOverrideThrottles(throttleMeta); err != nil {
 				log.Println(err)
+			}
+
+			// If we're updating throttles and the active count (those not marked for
+			// removal) is > 0, we should set the knownThrottles to true.
+			if len(activeOverrideBrokers) > 0 {
+				knownThrottles = true
 			}
 		}
 
@@ -320,27 +315,66 @@ func main() {
 		}
 
 		// If there's no topics being reassigned, clear any throttles marked
-		// for automatic removal.
-		if len(throttleMeta.topics) == 0 {
+		// for automatic removal. Also, check if there's any broker throttles set.
+		// There's a somewhat complicated state problem here; if we previously
+		// set a broker throttle override but there's no reassignment, we'll
+		// immediately clear it here. There's two options:
+		//
+		// 1) Simply hold up clearing throttles if there's a broker throttle
+		//   override set.
+		// 2) Fetch all topics where any brokers with overrides are assigned
+		//   replicas, fetch all topic ISR states, diff the ISR states and the
+		//   replica assignments to track under-replicated topics, then adding
+		//   an under-replicated == 0 condition here.
+		//
+		// We're going with option 1 for now.
+
+		// Capture all the current conditions:
+
+		// Are there throttles eligible to be cleared?
+		var throttlesToClear = knownThrottles || interval == Config.CleanupAfter
+
+		// Are any topics being reassigned?
+		var topicsReassigning bool
+		if len(topicsReplicatingNow) > 0 {
+			topicsReassigning = true
+		}
+
+		// Do any brokers have throttle overrides set?
+		var brokerOverridesSet bool
+		if len(activeOverrideBrokers) > 0 {
+			brokerOverridesSet = true
+		}
+
+		// Next steps according to the various conditions:
+
+		if !topicsReassigning {
 			log.Println("No topics undergoing reassignment")
+		}
 
-			// Unset any throttles.
-			if knownThrottles || interval == Config.CleanupAfter {
-				// Reset the interval.
-				interval = 0
+		if !topicsReassigning && throttlesToClear && brokerOverridesSet {
+			log.Println("One or more brokers level override are set; automatic throttle removal will be skipped")
+		}
 
-				err := removeAllThrottles(throttleMeta)
-				if err != nil {
-					log.Printf("Error removing throttles: %s\n", err.Error())
-				} else {
-					// Only set knownThrottles to false if we've removed all
-					// without error.
-					knownThrottles = false
-				}
+		// If there's previously set throttles but no topics reassigning nor
+		// broker overrides set, we can issue a global throttle removal.
+		if throttlesToClear && !topicsReassigning && !brokerOverridesSet {
+			// Reset the interval count.
+			interval = 0
 
-				// Ensure topic updates are re-enabled.
-				throttleMeta.EnableTopicUpdates()
+			// Remove all the broker + topic throttle configs.
+			err := removeAllThrottles(throttleMeta)
+			if err != nil {
+				log.Printf("Error removing throttles: %s\n", err.Error())
+			} else {
+				// Only set knownThrottles to false if we've removed all
+				// without error.
+				knownThrottles = false
 			}
+
+			// Ensure topic throttle updates are re-enabled.
+			throttleMeta.EnableTopicUpdates()
+			throttleMeta.EnableOverrideTopicUpdates()
 
 			// Remove any configured throttle overrides if AutoRemove is true.
 			if overrideCfg.AutoRemove {
