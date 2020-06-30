@@ -101,3 +101,22 @@ func TestParseAutoRemoveParam(t *testing.T) {
 		}
 	}
 }
+
+func TestParsePaths(t *testing.T) {
+	url := "http://localhost/throttle/add"
+	req, _ := http.NewRequest("POST", url, nil)
+
+	out := parsePaths(req)
+	expected := []string{"throttle", "add"}
+
+	if len(out) != len(expected) {
+		t.Fatalf("Expected len '%d', got '%d'", len(expected), len(out))
+	}
+
+	for i := range expected {
+		if out[i] != expected[i] {
+			t.Errorf("Expected output '%v', got '%v'", expected, out)
+			break
+		}
+	}
+}
