@@ -14,6 +14,7 @@ var (
 	errRateParamUnspecified = errors.New("rate param must be specified")
 	errRateParamIsZero      = errors.New("rate param must be >0")
 	errRateParamNotInt      = errors.New("rate param must be supplied as an integer")
+	errAutoRemoveNotBool    = errors.New("autoremove param must be a bool")
 )
 
 // parseRateParam takes a *http.Request and returns the specified
@@ -44,7 +45,7 @@ func parseAutoRemoveParam(req *http.Request) (bool, error) {
 	if c != "" {
 		autoRemove, err = strconv.ParseBool(c)
 		if err != nil {
-			return autoRemove, errors.New("autoremove param must be a bool")
+			return autoRemove, errAutoRemoveNotBool
 		}
 	}
 
