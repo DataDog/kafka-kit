@@ -21,6 +21,15 @@ type topicThrottledReplicas map[topic]throttled
 // throttled is a replica type (leader, follower) to replica list.
 type throttled map[replicaType]brokerIDs
 
+// topic name.
+type topic string
+
+// leader, follower.
+type replicaType string
+
+// Replica broker IDs as a []string where string == partition_number:broker_id.
+type brokerIDs []string
+
 var acceptedReplicaTypes = map[replicaType]struct{}{
 	"leaders":   struct{}{},
 	"followers": struct{}{},
@@ -60,15 +69,6 @@ func (ttr topicThrottledReplicas) addReplica(topic topic, partn string, role rep
 
 	return nil
 }
-
-// topic name.
-type topic string
-
-// leader, follower.
-type replicaType string
-
-// Replica broker IDs as a []string.
-type brokerIDs []string
 
 // TopicStates is a map of topic names to kafakzk.TopicState.
 type TopicStates map[string]kafkazk.TopicState
