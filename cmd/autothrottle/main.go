@@ -156,7 +156,6 @@ func main() {
 	var topicsReplicatingPreviously = newSet()
 
 	// Track override broker states.
-	var brokersThrottledNow = newSet()
 	var brokersThrottledPreviously = newSet()
 
 	// Params for the updateReplicationThrottle request.
@@ -279,6 +278,22 @@ func main() {
 				log.Printf("Error fetching topic states: %s\n", err)
 			}
 
+			// Determine whether we need to propagate topic throttle replica
+			// list configs. If the brokers with overrides remains the same,
+			// we don't need to need to update those configs.
+			var brokersThrottledNow = newSet()
+			for broker := range throttleMeta.brokerOverrides.Filter(hasActiveOverride) {
+				brokersThrottledNow.add(strconv.Itoa(broker))
+			}
+
+			if brokersThrottledNow.equal(brokersThrottledPreviously) {
+				throttleMeta.DisableOverrideTopicUpdates()
+			} else {
+				throttleMeta.EnableOverrideTopicUpdates()
+			}
+
+			brokersThrottledPreviously = brokersThrottledNow.copy()
+
 			// Update throttles.
 			if err := updateOverrideThrottles(throttleMeta); err != nil {
 				log.Println(err)
@@ -290,21 +305,6 @@ func main() {
 			if activeBrokerOverrides > 0 {
 				knownThrottles = true
 			}
-
-			// Determine whether we need to propagate topic throttle replica
-			// list configs. If the brokers with overrides remains the same,
-			// we don't need to need to update those configs.
-			for broker := range throttleMeta.brokerOverrides {
-				brokersThrottledNow.add(strconv.Itoa(broker))
-			}
-
-			if brokersThrottledNow.equal(brokersThrottledPreviously) {
-				throttleMeta.DisableOverrideTopicUpdates()
-			} else {
-				throttleMeta.EnableOverrideTopicUpdates()
-			}
-
-			brokersThrottledPreviously = brokersThrottledNow.copy()
 		}
 
 		// Remove and delete any broker-specific overrides set to 0.
