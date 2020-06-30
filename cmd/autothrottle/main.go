@@ -49,19 +49,6 @@ var (
 	topicsRegex = []*regexp.Regexp{regexp.MustCompile(".*")}
 )
 
-type topicSet map[string]struct{}
-type brokerSet map[int]struct{}
-
-func (t1 topicSet) isSubSetOf(t2 topicSet) bool {
-	for k := range t1 {
-		if _, exist := t2[k]; !exist {
-			return false
-		}
-	}
-
-	return true
-}
-
 func main() {
 	v := flag.Bool("version", false, "version")
 	flag.StringVar(&Config.APIKey, "api-key", "", "Datadog API key")
@@ -163,16 +150,9 @@ func main() {
 
 	var reassignments kafkazk.Reassignments
 
-	// Replication state tracking across intervals:
-
-	// Topics.
-	var topicsReplicatingPreviously = topicSet{}
-	var topicsReplicatingNow = topicSet{}
-	var topicsDoneReplicating []string
-	// Brokers.
-	var brokersReplicatingPreviously = brokerSet{}
-	var brokersReplicatingNow = brokerSet{}
-	var brokersDoneReplicating = brokerSet{}
+	// Tracking topic replication states across intervals.
+	var topicsReplicatingPreviously = newSet()
+	var topicsReplicatingNow = newSet()
 
 	// Params for the updateReplicationThrottle request.
 
@@ -207,39 +187,31 @@ func main() {
 
 		// Get topics undergoing reassignment.
 		reassignments = zk.GetReassignments() // XXX This needs to return an error.
-		topicsReplicatingNow = make(topicSet)
+		topicsReplicatingNow = newSet()
 		for t := range reassignments {
-			topicsReplicatingNow[t] = struct{}{}
+			topicsReplicatingNow.add(t)
 		}
 
 		// Check for topics that were previously seen replicating, but are no
 		// longer in this interval.
-		topicsDoneReplicating = topicsDoneReplicating[:0]
-		for t := range topicsReplicatingPreviously {
-			if _, replicating := topicsReplicatingNow[t]; !replicating {
-				topicsDoneReplicating = append(topicsDoneReplicating, t)
-			}
-		}
+		topicsDoneReplicating := topicsReplicatingNow.diff(topicsReplicatingPreviously)
 
 		// Log and write event.
 		if len(topicsDoneReplicating) > 0 {
-			m := fmt.Sprintf("Topics done reassigning: %s", topicsDoneReplicating)
+			m := fmt.Sprintf("Topics done reassigning: %s", topicsDoneReplicating.keys())
 			log.Println(m)
 			events.Write("Topics done reassigning", m)
 		}
 
 		// Rebuild topicsReplicatingPreviously with the current replications
 		// for the next check iteration.
-		topicsReplicatingPreviously = make(map[string]struct{})
-		for t := range topicsReplicatingNow {
-			topicsReplicatingPreviously[t] = struct{}{}
-		}
+		topicsReplicatingPreviously = topicsReplicatingNow.copy()
 
 		// If all of the currently replicating topics are a subset
 		// of the previously replicating topics, we can stop updating
 		// the Kafka topic throttled replicas list. This minimizes
 		// state that must be propagated through the cluster.
-		if topicsReplicatingNow.isSubSetOf(topicsReplicatingPreviously) {
+		if topicsReplicatingNow.isSubSet(topicsReplicatingPreviously) {
 			throttleMeta.DisableTopicUpdates()
 		} else {
 			throttleMeta.EnableTopicUpdates()
@@ -265,27 +237,6 @@ func main() {
 		throttleMeta.reassigningBrokers, err = getReassigningBrokers(reassignments, zk)
 		if err != nil {
 			log.Println(err)
-		}
-
-		// Track broker replication states across intervals.
-		for b := range throttleMeta.reassigningBrokers.all {
-			brokersReplicatingNow[b] = struct{}{}
-		}
-
-		// Check for brokers that were previously seen replicating, but are no
-		// longer in this interval.
-		brokersDoneReplicating = make(brokerSet)
-		for b := range brokersReplicatingPreviously {
-			if _, replicating := brokersReplicatingNow[b]; !replicating {
-				brokersDoneReplicating[b] = struct{}{}
-			}
-		}
-
-		// Rebuild topicsReplicatingPreviously with the current replications
-		// for the next check iteration.
-		brokersReplicatingPreviously = make(brokerSet)
-		for t := range brokersReplicatingNow {
-			brokersReplicatingPreviously[t] = struct{}{}
 		}
 
 		// If topics are being reassigned, update the replication throttle.
