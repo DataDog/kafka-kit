@@ -88,3 +88,23 @@ func TestIsSubSet(t *testing.T) {
 		t.Errorf("Expected %v to not be subset of %v\n", s1.keys(), s2.keys())
 	}
 }
+
+func TestEqual(t *testing.T) {
+	s1 := newSet()
+	s2 := newSet()
+
+	for _, key := range []string{"key1", "key2", "key3"} {
+		s1.add(key)
+		s2.add(key)
+	}
+
+	if !s1.equal(s2) {
+		t.Error("Expected set equality")
+	}
+
+	s2.add("key4")
+
+	if s1.equal(s2) {
+		t.Error("Expected set inequality")
+	}
+}

@@ -49,3 +49,12 @@ func (s set) isSubSet(s2 set) bool {
 	}
 	return true
 }
+
+func (s set) equal(s2 set) bool {
+	for k := range s {
+		if _, exist := s2[k]; !exist {
+			return false
+		}
+	}
+	return len(s) == len(s2)
+}
