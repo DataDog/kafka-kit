@@ -88,6 +88,8 @@ func brokerMetrics(c *Config) (map[string]map[string]float64, error) {
 	return d, nil
 }
 
+// latestValue takes a []dd.DataPoint and returns the most recent (in time)
+// non-nil datapoint.
 func latestValue(points []dd.DataPoint) (float64, error) {
 	for i := len(points) - 1; i >= 0; i-- {
 		val := points[i][1]
