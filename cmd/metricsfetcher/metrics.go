@@ -9,7 +9,7 @@ import (
 	dd "github.com/zorkian/go-datadog-api"
 )
 
-// Both fuctions here fetch 2x the span in duration to handle lagging
+// Both functions here fetch 2x the span in duration to handle lagging
 // metrics from the DD API. This should result in a max of two rollup values
 // per timeseries. We then choose the latest non-nil value.
 
