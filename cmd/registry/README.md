@@ -1,8 +1,14 @@
 # Overview
 
-### BETA
+The Registry service exposes Kafka topic and broker metadata via a gRPC & HTTP API. Resources can be queried and filtered using inherent attributes along with custom, user-defined tags.
 
-The Registry service exposes Kafka topic and broker metadata via a gRPC & HTTP API. Lookups can be filtered by tag values (any field in topic and broker message response types) with eventual support for user-defined, custom tags.
+Some example questions a user might ask by querying the Registry service:
+- _Give me all broker IDs where the rack equals us-east-1a_
+- _Give me the configurations for all topics tagged "environment:dev"_
+
+Additionally, Registry is continuously receiving support for write operations. An example operations that's possible using tags and topic creation (see further into the README for the `target_broker_tags` feature):
+- _Tag brokers 1001, 1002, 1003 with "pool:inbound"_
+- _Create a topic named "inbound" with 32 partitions, a replication factor of 2, and place all partitions on brokers tagged "pool:inbound", and tag the topic "primary:true"_
 
 # Installation
 - `go get github.com/DataDog/kafka-kit/cmd/registry`
@@ -21,6 +27,16 @@ Usage of registry:
     	Server gRPC listen address [REGISTRY_GRPC_LISTEN] (default "localhost:8090")
   -http-listen string
     	Server HTTP listen address [REGISTRY_HTTP_LISTEN] (default "localhost:8080")
+  -kafka-sasl-mechanism string
+    	SASL mechanism to use for authentication. Supported: SCRAM-SHA-512, PLAIN, SCRAM-SHA-256 [REGISTRY_KAFKA_SASL_MECHANISM]
+  -kafka-sasl-password string
+    	SASL password for use with the PLAIN and SASL-SCRAM-* mechanisms [REGISTRY_KAFKA_SASL_PASSWORD]
+  -kafka-sasl-username string
+    	SASL username for use with the PLAIN and SASL-SCRAM-* mechanisms [REGISTRY_KAFKA_SASL_USERNAME]
+  -kafka-security-protocol string
+    	Protocol used to communicate with brokers. Supported: SSL, SASL_PLAINTEXT, SASL_SSL, PLAINTEXT [REGISTRY_KAFKA_SECURITY_PROTOCOL]
+  -kafka-ssl-ca-location string
+    	CA certificate path (.pem/.crt) for verifying broker's identity. Needed for SSL and SASL_SSL protocols. [REGISTRY_KAFKA_SSL_CA_LOCATION]
   -kafka-version string
     	Kafka release (Semantic Versioning) [REGISTRY_KAFKA_VERSION] (default "v0.10.2")
   -read-rate-limit int
@@ -51,6 +67,8 @@ $ registry --zk-addr zk-test-0.service.consul:2181 --zk-prefix kafka --bootstrap
 ```
 
 # API Examples
+
+See the Registry [proto](https://github.com/DataDog/kafka-kit/blob/master/registry/protos/registry.proto) definition for further details. The API is designed gRPC-first and provides HTTP using [grpc-gateway](https://github.com/grpc-ecosystem/grpc-gateway); the mappings are described in the proto file.
 
 ## List Topics
 Lists topic names.
@@ -212,7 +230,7 @@ $ curl -s "localhost:8080/v1/mappings/broker/1001" | jq
 ```
 
 ## Set Custom Tags
-Add user-defined custom tags. Multiple tags can be set at once. These show in `Get` requests and can be used seamlessly alongside default tags in lookup filtering. Since the tag filtering make no distinction between default and custom tags, setting custom tags names that conflict with default tags are rejected and indicated as such through the API.
+Add user-defined custom tags. Multiple tags can be set at once. These show in `Get` requests and can be used seamlessly alongside default tags in lookup filtering. Since the tag filtering make no distinction between inherent attribute and custom tags, setting custom tags names that conflict with default tags are rejected and indicated as such through the API.
 
 ```
 $ curl -XPUT "localhost:8080/v1/topics/tag/test0?tag=team:eng&tag=use:testing"
