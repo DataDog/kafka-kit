@@ -1,17 +1,22 @@
 # Overview
-Autothrottle is a service that looks for reassigning partition events (as part of a recovery or routine data movement) and dynamically applies broker replication throttles. This is done to run replications as fast as possible without starving out bandwidth from Kafka consumer clients.
+Autothrottle is a service that looks for partition reassignment events (as part of a broker replacement, scale up, storage rebalance, etc.) and dynamically sets broker replication throttles. The goal is to run replications as fast as possible without starving out bandwidth from Kafka consumer clients.
 
-It does this by running in a loop that looks up all topics undergoing replication, maps source vs destination broker involved, fetches metrics for each broker from the Datadog API, and calculates a throttle based on a map of known bandwidth limits specific to each instance type being observed. An updated throttle rate is determined at each loop interval and continuously applies the throttle to adapt to changes in workloads. Throttle rates are determined on a per replication path basis, as opposed to Kafka's out of the box tooling that sets a global inbound/outbound rate. Additionally, rather than wrapping the default Kafka CLI tools, the throttle is applied directly in ZooKeeper by autothrottle, mirroring the internals of Kafka's provided throttle rate mechanism. When no replication is occurring, autothrottle will clear all throttles across the cluster.
+Autothrottle does this by running a loop that looks up all topics undergoing replication, fetches metrics for each involved broker from the Datadog API, and calculates a throttle based on a configured table of known bandwidth limits specific to each instance according to its type. An updated throttle rate is determined at each loop interval and continuously applied in order to adapt bandwidth utilization to shifting workloads. Autothrottle always leaves a (configurable) bandwidth headroom to allow increased consumer consumption; if consumers demand more traffic and begin using up more of the headroom, autothrottle will back off the throttle rates. Conversely, if consumer traffic decreases while a reassignment is taking place, autothrottle will increase the replication bandwidth to minimize replication times.
 
-Additionally, autothrottle writes Datadog events at each check interval that detail what topics are undergoing replication, a list of all brokers involved, and throttle rates applied.
+In contrast to where Kafka's out of the box tooling allows users to manually set a static, global inbound and outbound rate, autothrottle determines path-optimal rates on an individual broker basis. It does this by building a graph of replication flows and individually calculating ideal transfer rates individually for inbound and outbound flow. This means that if a single broker is near saturation, it doesn't need to slow down the recovery pace of the entire replication group. This allows every broker to run right at target network utilization thresholds in any direction, minimizing recovery time and hotspots.
 
-Autothrottle is designed to work as a piggyback system that doesn't take ownership of your cluster, and can easily be overridden (through autothrottle via the admin API) or stopped safely at any time (allowing you to revert back to using off-the-shelf Kafka tools).
+All throttle control logic is applied directly to the cluster through ZooKeeper; autothrottle natively mirrors Kafka's throttle control implementation rather than wrapping CLI tools.
+
+Finally, autothrottle was designed to work as a piggyback system that doesn't take ownership of your cluster. It can easily be overridden (through the admin API), stopped safely at any time, or even outright disabled. This allows users to quickly revert to using other tools if desired.
 
 **Additional features**:
 - Configurable portion of free headroom available for use by replication (`--max-rate`)
 - Throttle rate change threshold to reduce propagating broker config updates (`--change-threshold`)
 - User-supplied map of instance type and capacity values (`--cap-map`)
-- Ability to dynamically set fixed replication rates (via the HTTP API)
+- Automatic throttle removal with periodic, cluster-wide cleanup
+- Ability to dynamically set override replication rates with broker level granularity (via the HTTP API)
+- Automatic fail-safe rates should loss of metrics visibility occur
+- Emits Datadog events at each check interval that detail what topics are undergoing replication, a list of all brokers involved, and throttle rates applied
 
 # Installation
 - `go get github.com/DataDog/kafka-kit/cmd/autothrottle`
@@ -20,7 +25,7 @@ Binary will be found at `$GOPATH/bin/autothrottle`
 
 **Compatibility**
 
-Tested with Go 1.10+ (required), Kafka 0.10.x, ZooKeeper 3.4.x.
+Tested with Go 1.10+ (required), Kafka 0.10, 2.2, ZooKeeper 3.4, 3.5
 
 # Usage
 
@@ -106,7 +111,7 @@ Usage of autothrottle:
   -min-rate float
     	Minimum replication throttle rate (MB/s) [AUTOTHROTTLE_MIN_RATE] (default 10)
   -net-rx-query string
-    	Datadog query for broker outbound bandwidth by host [AUTOTHROTTLE_NET_RX_QUERY] (default "avg:system.net.bytes_rcvd{service:kafka} by {host}")
+    	Datadog query for broker inbound bandwidth by host [AUTOTHROTTLE_NET_RX_QUERY] (default "avg:system.net.bytes_rcvd{service:kafka} by {host}")
   -net-tx-query string
     	Datadog query for broker outbound bandwidth by host [AUTOTHROTTLE_NET_TX_QUERY] (default "avg:system.net.bytes_sent{service:kafka} by {host}")
   -version
@@ -119,13 +124,13 @@ Usage of autothrottle:
     	ZooKeeper namespace prefix [AUTOTHROTTLE_ZK_PREFIX]
 ```
 
-## Rate Calculations, Applying Throttles
+## Detailed: Rate Calculations, Applying Throttles
 
-The throttle rate is calculated by building a map of destination (brokers where partitions are being replicated to) and source brokers (brokers where partitions are being replicated from) and determining a per-path rate based on the appropriate network utilization for the broker's role; source brokers (those sending out data) receive an outbound throttle based on their outbound network utilization and destination brokers (those receiving data) receive an inbound throttle based on their inbound network utilization. Autothrottle references the provided `-cap-map` to lookup the network capacity. Autothrottle compares the amount of ongoing network throughput against the capacity (subtracting any amount already allocated for replication in previous intervals) to determine headroom. If more headroom is available, the throttle will be raised to consume the `-max-{tx,rx}-rate` (defaults to 90%) percent of what's available. If it's negative (throughput exceeds the configured capacity), the throttle will be lowered.
+The throttle rate is calculated by building a graph of destination (brokers where partitions are being replicated to) and source brokers (brokers where partitions are being replicated from) and determining a per-path rate based on the appropriate network utilization for the broker's role; source brokers (those sending out data) receive an outbound throttle based on their outbound network utilization and destination brokers (those receiving data) receive an inbound throttle based on their inbound network utilization. Autothrottle references the provided `-cap-map` to lookup the network capacity. Autothrottle compares the amount of ongoing network throughput against the capacity (subtracting any amount already allocated for replication in previous intervals) to determine headroom. If more headroom is available, the throttle will be raised to consume the `-max-{tx,rx}-rate` (defaults to 90%) percent of what's available. If it's negative (throughput exceeds the configured capacity), the throttle will be lowered.
 
 Autothrottle fetches metrics and performs this check every `-interval` seconds. In order to reduce propagating updated throttles to brokers too aggressively, a new throttle won't be applied unless it deviates more than `-change-threshold` (defaults to 10%) percent from the previous throttle. Any time a throttle change is applied, topics are done replicating, or throttle rates cleared, autothrottle will write Datadog events tagged with `name:autothrottle` along with any additionally defined tags (via the `-dd-event-tags` param).
 
-Autothrottle is also designed to fail-safe and avoid any unspecified decision modes. If fetching metrics fails or returns partial data, autothrottle will log what's missing and revert brokers to a safety throttle rate of `-min-rate` (defaults to 10MB/s). In order to prevent flapping, a configurable number of sequential failures before reverting to the minimum rate can be set with the `-failure-threshold` param (defaults to 1).
+Autothrottle is also designed to fail-safe and avoid flying blind. If fetching metrics fails or returns partial data, autothrottle will log what's missing and revert brokers to a safety throttle rate of `-min-rate` (defaults to 10MB/s). In order to prevent flapping, a configurable number of sequential failures before reverting to the minimum rate can be set with the `-failure-threshold` param (defaults to 1).
 
 ## Operations Notes
 
@@ -166,4 +171,4 @@ broker 1001: throttle removed
 
 Two considerations to take note of:
 - Broker level throttle rates are "out-of-band" from reassignments. When a global rate is in place, it's dynamically applied against any broker that participates in a reassignment, even if the reassignment does not occur until after the throttle is set. With a broker level override, it is directly associated with a specific broker and goes into effect immediately rather than eventually becoming active should a reassignment occur. This is done to ensure that activity such as a recovery or bootstrap can be throttled, which doesn't have any (easily accessible) registered state in ZooKeeper to watch. Due to this, `autoremove` has no effect because there is no event that would trigger the removal. This is an explicit design decision due to some complexity in how Kafka throttle internals function.
-- Any broker level override will prevent a global throttle `autoremove` from taking place. This is also an explicit design decision because of number of states that we have to account for; encoding logic that _does the right thing_ would possibly become more complex because "the right thing" is highly conditional. Instead, we impose this simple, functional rule: broker level overrides freeze all automatic throttle clearing while in effect.
+- Any broker level override will prevent a global throttle `autoremove` from taking place. This is also an explicit design decision because of number of states that we have to account for; encoding logic that _does the right thing_ would possibly become more complex because "the right thing" is highly conditional. Instead, we impose this simple rule: any broker level override freezes all automatic throttle clearing while in effect.
