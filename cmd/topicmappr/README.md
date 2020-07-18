@@ -1,28 +1,37 @@
 # Overview
-Topicmappr was created as a replacement for Kafka's provided `kafka-reassign-partition.sh` tool, providing additional enhancements:
+Topicmappr replaces and extends the `kafka-reassign-partition` tool bundled with Kafka. Notable features:
 
-**Deterministic Output**
+**Cluster Storage Rebalancing, Partition Bin-packing**
 
-Given the same input, topicmappr should always provide the same output map.
+Topicmappr can be used to balance storage utilization among brokers by positioning partitions based on size and broker storage capacity. This can be used to relocate data from the most to least utilized brokers, scale up clusters with redistribution of partitions from existing brokers to new brokers, and from-scratch optimal placement using a first-fit descending bin-packing algorithm.
+
+Configurable storage bounds combined with some automated optimal parameter discovery ensures that the best possible storage placement is computed.
+
+**Constraints Satisfaction Partition Placement**
+
+Topicmappr honors Kafka's rack awareness configurations and enforces limits on how many replicas can be placed in the same zone (rack) while aiming to maximize leadership distribution, zone dispersion, and total replica distribution among brokers.
 
 **Minimal Partition Movement**
 
 Avoids reassigning partitions where movement isn't necessary, greatly reducing reassignment times and resource load for simple recoveries.
 
-**Balancing Partition Placement With Constraints**
+**Safer Operations**
 
-For each partition placement, topicmappr chooses the least utilized candidate broker (configurable as by storage or by partition counts) that satisfies the following constraints:
+Topicmappr minimizes unsafe replica placement, clearly informs users of what changes will be made or why a change isn't possible, and prevents storage placement decisions that would result in worst utilization.
 
-- the broker isn't already in the replica set
-- the broker isn't in any of the existing replica set localities (using the Kafka `rack-id` parameter)
+**Leadership Optimization**
 
-Provided enough brokers, topicmapper determines the appropriate leadership, follower and failure domain balance.
+Leadership can be evenly distributed among brokers, optionally without even moving data.
 
-**Change Summaries**
+**Deterministic Output**
 
-An output of what's changed along with advisory notices (e.g. insufficient broker counts supplied to satisfy all constraints at the desired partition/replica count) that helps users make clear decisions.
+A given input always creates the same output.
 
-Additional statistical output is included where available. For instance, broker-to-broker relationships are represented as node degree counts (where edges are defined as brokers that belong in a common replica set for any given partition). These values can be used as a probabilistic indicator of replication bandwidth; replacing a broker with more edges will likely replicate from more source brokers than one with fewer edges.
+**Informative Operational Output**
+
+An output of what's intended to change along with advisory notices (e.g. insufficient broker counts supplied to satisfy all constraints at the desired partition/replica count) that helps users make informed decisions decisions.
+
+Additional statistical output is included where available. For instance, broker-to-broker relationships are represented as node degree counts (where an edge between nodes is defined as occupying the same replica set). These values can be used as a probabilistic indicator of replication bandwidth; replacing a broker with more edges will likely replicate from more source brokers than one with fewer edges, minimizing recovery time and replication source impact.
 
 # Installation
 - `go get github.com/DataDog/kafka-kit/cmd/topicmappr`
