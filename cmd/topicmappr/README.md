@@ -17,7 +17,7 @@ Avoids reassigning partitions where movement isn't necessary, greatly reducing r
 
 **Safer Operations**
 
-Topicmappr minimizes unsafe replica placement, clearly informs users of what changes will be made or why a change isn't possible, and prevents storage placement decisions that would result in worst utilization.
+Topicmappr minimizes unsafe replica placement, clearly informs users of what changes will be made or why a change isn't possible, and prevents storage placement decisions that would result in worse utilization.
 
 **Leadership Optimization**
 
@@ -25,7 +25,7 @@ Leadership can be evenly distributed among brokers, optionally without even movi
 
 **Deterministic Output**
 
-A given input always creates the same output.
+A given input always produces the same output.
 
 **Informative Operational Output**
 
