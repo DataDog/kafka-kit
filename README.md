@@ -4,24 +4,24 @@
 
 Read the blog post: [Introducing Kafka-Kit: Tools for Scaling Kafka](https://www.datadoghq.com/blog/engineering/introducing-kafka-kit-tools-for-scaling-kafka/)
 
-This repository contains several tools for managing Kafka topic data. See the README for each tool for further details.
+This repository contains several services and tools for that help better operate Kafka. See the README for each tool for further details.
 
 # topicmappr
-A drop-in replacement for the `kafka-reassign-partition` tool bundled with Kafka. Topicmappr allows for minimal movement broker replacements, many-at-once topic management, replica placement constraints, storage-based rebalancing, and other features.
+Topicmappr replaces and extends the `kafka-reassign-partition` tool bundled with Kafka. It allows for minimal movement broker replacements, cluster storage rebalancing / partition bin-packing, leadership optimization, many-at-once topic management, and more—all with rack awareness support.
 
 [README](cmd/topicmappr)
 
 # registry
-A gRPC+HTTP API for Kafka that allows granular resource lookup and custom user tagging.
+A gRPC+HTTP API service for Kafka that allows granular resource (topics, brokers) lookup and management with custom tagging support.
 
 [README](cmd/registry)
 
 # autothrottle
-A service that catches Kafka replication/recovery events and dynamically applies broker replication throttles, driven by metrics via the Datadog API.
+A service that automatically paces Kafka replication/recovery throttle rates, powered with metrics using the Datadog API.
 
 [README](cmd/autothrottle)
 
 # metricsfetcher
-A utility that fetches metrics via the Datadog API for storage-based partition mapping.
+A utility that fetches metrics via the Datadog API for Kafka storage rebalancing and partition mapping with topicmappr.
 
 [README](cmd/metricsfetcher)
