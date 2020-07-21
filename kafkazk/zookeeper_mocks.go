@@ -1,12 +1,34 @@
 package kafkazk
 
 import (
+	"errors"
 	"regexp"
+	"strings"
 	"time"
 )
 
+var (
+	errNotExist = errors.New("znode doesn't exist")
+)
+
 // Mock mocks the Handler interface.
-type Mock struct{}
+type Mock struct {
+	data map[string]*MockZnode
+}
+
+// MockZnode mocks a ZooKeeper znode.
+type MockZnode struct {
+	value    []byte
+	version  int32
+	children map[string]*MockZnode
+}
+
+// NewZooKeeperMock returns a mock ZooKeeper.
+func NewZooKeeperMock() Handler {
+	return &Mock{
+		data: map[string]*MockZnode{},
+	}
+}
 
 // Many of these methods aren't complete mocks as they haven't been needed.
 
@@ -26,9 +48,8 @@ func (zk *Mock) GetPendingDeletion() ([]string, error) {
 }
 
 // Create mocks Create.
-func (zk *Mock) Create(a, b string) error {
-	_, _ = a, b
-	return nil
+func (zk *Mock) Create(p, d string) error {
+	return zk.Set(p, d)
 }
 
 // CreateSequential mocks CreateSequential.
@@ -38,32 +59,143 @@ func (zk *Mock) CreateSequential(a, b string) error {
 }
 
 // Exists mocks Exists.
-func (zk *Mock) Exists(a string) (bool, error) {
-	_ = a
+func (zk *Mock) Exists(p string) (bool, error) {
+	_, err := zk.Get(p)
+	if err == errNotExist {
+		return false, nil
+	}
+
 	return true, nil
 }
 
 // Set mocks Set.
-func (zk *Mock) Set(a, b string) error {
-	_, _ = a, b
+func (zk *Mock) Set(p, d string) error {
+	pathTrimmed := strings.Trim(p, "/")
+	paths := strings.Split(pathTrimmed, "/")
+	var current *MockZnode
+
+	current = zk.data[paths[0]]
+	if current == nil {
+		current = &MockZnode{children: map[string]*MockZnode{}}
+		zk.data[paths[0]] = current
+	}
+
+	var path string
+	for _, path = range paths[1:] {
+		next, exist := current.children[path]
+		if !exist {
+			next = &MockZnode{children: map[string]*MockZnode{}}
+			current.children[path] = next
+		}
+		current = next
+	}
+
+	current.value = []byte(d)
+	current.version++
+
 	return nil
 }
 
 // Get mocks Get.
-func (zk *Mock) Get(a string) ([]byte, error) {
-	_ = a
-	return []byte{}, nil
+func (zk *Mock) Get(p string) ([]byte, error) {
+	pathTrimmed := strings.Trim(p, "/")
+	paths := strings.Split(pathTrimmed, "/")
+	var current *MockZnode
+
+	if current = zk.data[paths[0]]; current == nil {
+		return nil, errNotExist
+	}
+
+	for _, path := range paths[1:] {
+		next := current.children[path]
+		if next == nil {
+			return nil, errNotExist
+		}
+		current = next
+	}
+
+	return current.value, nil
 }
 
 // Delete mocks Delete.
-func (zk *Mock) Delete(a string) error {
-	_ = a
+func (zk *Mock) Delete(p string) error {
+	pathTrimmed := strings.Trim(p, "/")
+	paths := strings.Split(pathTrimmed, "/")
+	var current *MockZnode
+
+	if current = zk.data[paths[0]]; current == nil {
+		return errNotExist
+	}
+
+	for i, path := range paths[1:] {
+		next := current.children[path]
+		if next == nil {
+			return errNotExist
+		}
+
+		if i == len(paths)-2 {
+			delete(current.children, path)
+			return nil
+		}
+
+		current = next
+	}
+
 	return nil
 }
 
 // Children mocks children.
-func (zk *Mock) Children(a string) ([]string, error) {
-	return nil, nil
+func (zk *Mock) Children(p string) ([]string, error) {
+	pathTrimmed := strings.Trim(p, "/")
+	paths := strings.Split(pathTrimmed, "/")
+	children := []string{}
+	var current *MockZnode
+
+	if current = zk.data[paths[0]]; current == nil {
+		return nil, errNotExist
+	}
+
+	for i, path := range paths[1:] {
+		next := current.children[path]
+		if next == nil {
+			return nil, errNotExist
+		}
+
+		if i == len(paths)-2 {
+			for k := range next.children {
+				children = append(children, k)
+			}
+
+			return children, nil
+		}
+
+		current = next
+	}
+
+	return nil, errNotExist
+}
+
+func (zk *Mock) NextInt(p string) (int32, error) {
+	pathTrimmed := strings.Trim(p, "/")
+	paths := strings.Split(pathTrimmed, "/")
+	var current *MockZnode
+
+	if current = zk.data[paths[0]]; current == nil {
+		return 0, errNotExist
+	}
+
+	for _, path := range paths[1:] {
+		next := current.children[path]
+		if next == nil {
+			return 0, errNotExist
+		}
+		current = next
+	}
+
+	v := current.version
+	current.version++
+
+	return v, nil
 }
 
 // GetTopicState mocks GetTopicState.
