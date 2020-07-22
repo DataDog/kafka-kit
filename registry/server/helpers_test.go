@@ -1,9 +1,5 @@
 package server
 
-import (
-	"github.com/DataDog/kafka-kit/v3/kafkazk"
-)
-
 var (
 	testConfig = TagHandlerConfig{
 		Prefix: "test",
@@ -25,7 +21,7 @@ func testServer() *Server {
 
 func testTagHandler() *TagHandler {
 	th, _ := NewTagHandler(testConfig)
-	th.Store.(*ZKTagStorage).ZK = &kafkazk.Mock{}
+	th.Store = newzkTagStorageMock()
 
 	return th
 }

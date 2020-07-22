@@ -7,16 +7,16 @@ RUN apt-get install -y unzip curl git pkg-config software-properties-common apt-
 WORKDIR /root
 
 # Install Go.
-RUN curl -sOL https://dl.google.com/go/go1.13.8.linux-amd64.tar.gz
-RUN tar -C /usr/local -xzf go1.13.8.linux-amd64.tar.gz
+RUN curl -sOL https://golang.org/dl/go1.14.6.linux-amd64.tar.gz
+RUN tar -C /usr/local -xzf go1.14.6.linux-amd64.tar.gz
 ENV PATH=$PATH:/usr/local/go/bin:/go/bin
 ENV GOPATH=/go
 
 # Install protoc, grpc-gateway.
 RUN go get github.com/golang/protobuf/protoc-gen-go
 RUN go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
-RUN curl -sOL https://github.com/protocolbuffers/protobuf/releases/download/v3.11.4/protoc-3.11.4-linux-x86_64.zip
-RUN unzip protoc-3.11.4-linux-x86_64.zip -d protoc
+RUN curl -sOL https://github.com/protocolbuffers/protobuf/releases/download/v3.12.3/protoc-3.12.3-linux-x86_64.zip
+RUN unzip protoc-3.12.3-linux-x86_64.zip -d protoc
 RUN mv protoc/bin/* /usr/local/bin/
 RUN mv protoc/include/* /usr/local/include/
 

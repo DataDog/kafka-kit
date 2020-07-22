@@ -48,6 +48,7 @@ type Handler interface {
 	Get(string) ([]byte, error)
 	Delete(string) error
 	Children(string) ([]string, error)
+	NextInt(string) (int32, error)
 	Close()
 	Ready() bool
 	// Kafka specific.
@@ -286,6 +287,17 @@ func (z *ZKHandler) Children(p string) ([]string, error) {
 	}
 
 	return c, nil
+}
+
+// NextInt works as an atomic int generator. It does this by setting nil value
+// to path p and returns the znode version.
+func (z *ZKHandler) NextInt(p string) (int32, error) {
+	s, err := z.client.Set(p, []byte{}, -1)
+	if err != nil {
+		return 0, err
+	}
+
+	return s.Version, nil
 }
 
 // GetReassignments looks up any ongoing topic reassignments and

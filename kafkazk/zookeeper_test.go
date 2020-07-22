@@ -35,6 +35,7 @@ var (
 		zkprefix + "/config/topics",
 		zkprefix + "/config/brokers",
 		zkprefix + "/config/changes",
+		zkprefix + "/version",
 		// Topicmappr specific.
 		"/topicmappr_test",
 		"/topicmappr_test/brokermetrics",
@@ -344,6 +345,23 @@ func TestExists(t *testing.T) {
 
 	if !e {
 		t.Error("Expected path '/test' to exist")
+	}
+}
+
+func TestNextInt(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	for _, expected := range []int32{1, 2, 3} {
+		v, err := zki.NextInt(zkprefix + "/version")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if v != expected {
+			t.Errorf("Expected version value %d, got %d", expected, v)
+		}
 	}
 }
 
