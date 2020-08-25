@@ -88,33 +88,38 @@ func stripPendingDeletes(pm *kafkazk.PartitionMap, zk kafkazk.Handler) []string 
 		return []string{}
 	}
 
-	// This is used as a set of topic names
-	// pending deleting.
-	pending := map[string]struct{}{}
+	// Update the PartitionMap and return a list of removed topic names.
+	return removeTopics(pm, pd)
+}
 
-	for _, t := range pd {
-		pending[t] = struct{}{}
+// removeTopics takes a PartitionMap and list of topic names. Any topic names
+// specified will be removed from the PartitionMap and a []string of topics
+// that were found and removed is returned.
+func removeTopics(pm *kafkazk.PartitionMap, r []string) []string {
+	// Build a set of topic names to remove.
+	toExclude := map[string]struct{}{}
+	for _, t := range r {
+		toExclude[t] = struct{}{}
 	}
 
-	// Traverse the partition map and drop
-	// any pending topics.
+	// Traverse the partition map and drop the removals.
 
 	newPL := kafkazk.PartitionList{}
-	pendingExcluded := map[string]struct{}{}
+	removed := map[string]struct{}{}
 	for _, p := range pm.Partitions {
-		if _, exists := pending[p.Topic]; !exists {
+		if _, exists := toExclude[p.Topic]; !exists {
 			newPL = append(newPL, p)
 		} else {
-			pendingExcluded[p.Topic] = struct{}{}
+			removed[p.Topic] = struct{}{}
 		}
 	}
 
 	pm.Partitions = newPL
 
-	pendingExcludedNames := []string{}
-	for t := range pendingExcluded {
-		pendingExcludedNames = append(pendingExcludedNames, t)
+	removedNames := []string{}
+	for t := range removed {
+		removedNames = append(removedNames, t)
 	}
 
-	return pendingExcludedNames
+	return removedNames
 }
