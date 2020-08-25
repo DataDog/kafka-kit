@@ -123,7 +123,7 @@ func rebuild(cmd *cobra.Command, _ []string) {
 
 	// Build a partition map either from literal map text input or by fetching the
 	// map data from ZooKeeper. Store a copy of the original.
-	partitionMapIn, pending := getPartitionMap(cmd, zk)
+	partitionMapIn, pending, _ := getPartitionMap(cmd, zk)
 	originalMap := partitionMapIn.Copy()
 
 	// Get a list of affected topics.

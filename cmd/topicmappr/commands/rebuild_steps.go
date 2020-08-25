@@ -12,14 +12,15 @@ import (
 // *References to metrics metadata persisted in ZooKeeper, see:
 // https://github.com/DataDog/kafka-kit/tree/master/cmd/metricsfetcher#data-structures)
 
-// getPartitionMap returns a map of of partition, topic config
-// (particuarly what brokers compose every replica set) for all
-// topics specified. A partition map is either built from a string
-// literal input (json from off-the-shelf Kafka tools output) provided
-// via the ---map-string flag, or, by building a map based on topic
-// config found in ZooKeeper for all topics matching input provided
-// via the --topics flag.
-func getPartitionMap(cmd *cobra.Command, zk kafkazk.Handler) (*kafkazk.PartitionMap, []string) {
+// getPartitionMap returns a map of of partition, topic config (particuarly what
+// brokers compose every replica set) for all topics specified. A partition map
+// is either built from a string literal input (json from off-the-shelf Kafka
+// tools output) provided via the ---map-string flag, or, by building a map based
+// on topic config found in ZooKeeper for all topics matching input provided
+// via the --topics flag. Two []string are returned; topics excluded due to
+// pending deletion and topics explicitly excluded (via the --topics-exclude
+// flag), respectively.
+func getPartitionMap(cmd *cobra.Command, zk kafkazk.Handler) (*kafkazk.PartitionMap, []string, []string) {
 	ms := cmd.Flag("map-string").Value.String()
 	switch {
 	// The map was provided as text.
@@ -29,8 +30,8 @@ func getPartitionMap(cmd *cobra.Command, zk kafkazk.Handler) (*kafkazk.Partition
 			fmt.Println(err)
 			os.Exit(1)
 		}
-
-		return pm, []string{}
+		// Return the deserialized PartitionMap.
+		return pm, []string{}, []string{}
 	// Build a map using ZooKeeper metadata for all specified topics.
 	case len(Config.topics) > 0:
 		pm, err := kafkazk.PartitionMapFromZK(Config.topics, zk)
@@ -40,12 +41,15 @@ func getPartitionMap(cmd *cobra.Command, zk kafkazk.Handler) (*kafkazk.Partition
 		}
 
 		// Exclude any topics that are pending deletion.
-		p := stripPendingDeletes(pm, zk)
+		pd := stripPendingDeletes(pm, zk)
 
-		return pm, p
+		// Exclude topics explicitly listed.
+		//et := removeTopics(pm, Config.)
+
+		return pm, pd, []string{}
 	}
 
-	return nil, nil
+	return nil, nil, nil
 }
 
 // getSubAffinities, if enabled via --sub-affinity, takes reference broker maps
@@ -96,8 +100,7 @@ func getBrokers(cmd *cobra.Command, pm *kafkazk.PartitionMap, bm kafkazk.BrokerM
 	fr, _ := cmd.Flags().GetBool("force-rebuild")
 	brokers := kafkazk.BrokerMapFromPartitionMap(pm, bm, fr)
 
-	// Update the currentBrokers list with
-	// the provided broker list.
+	// Update the currentBrokers list with the provided broker list.
 	bs, msgs := brokers.Update(Config.brokers, bm)
 	for m := range msgs {
 		fmt.Printf("%s%s\n", indent, m)
@@ -106,9 +109,8 @@ func getBrokers(cmd *cobra.Command, pm *kafkazk.PartitionMap, bm kafkazk.BrokerM
 	return brokers, bs
 }
 
-// printChangesActions takes a BrokerStatus and prints out
-// information output describing changes in broker counts
-// and liveness.
+// printChangesActions takes a BrokerStatus and prints out information output
+// describing changes in broker counts and liveness.
 func printChangesActions(cmd *cobra.Command, bs *kafkazk.BrokerStatus) {
 	change := bs.New - bs.Replace
 	r, _ := cmd.Flags().GetInt("replication")
@@ -161,14 +163,13 @@ func printChangesActions(cmd *cobra.Command, bs *kafkazk.BrokerStatus) {
 	}
 }
 
-// updateReplicationFactor takes a PartitionMap and normalizes
-// the replica set length to an optionally provided value.
+// updateReplicationFactor takes a PartitionMap and normalizes the replica set
+// length to an optionally provided value.
 func updateReplicationFactor(cmd *cobra.Command, pm *kafkazk.PartitionMap) {
 	r, _ := cmd.Flags().GetInt("replication")
-	// If the replication factor is changed,
-	// the partition map input needs to have stub
-	// brokers appended (r factor increase) or
-	// existing brokers removed (r factor decrease).
+	// If the replication factor is changed, the partition map input needs to have
+	// stub brokers appended (r factor increase) or existing brokers removed
+	// (r factor decrease).
 	if r > 0 {
 		pm.SetReplication(r)
 	}
@@ -195,19 +196,18 @@ func buildMap(cmd *cobra.Command, pm *kafkazk.PartitionMap, pmm kafkazk.Partitio
 		rebuildParams.Affinities = af
 	}
 
-	// If we're doing a force rebuild, the input map
-	// must have all brokers stripped out.
+	// If we're doing a force rebuild, the input map must have all brokers stripped out.
 	// A few notes about doing force rebuilds:
 	// - Map rebuilds should always be called on a stripped PartitionMap copy.
 	// - The BrokerMap provided in the Rebuild call should have
 	//   been built from the original PartitionMap, not the stripped map.
 	// - A force rebuild assumes that all partitions will be lifted from
-	//   all brokers and repositioned. This means you should call the
-	//   SubStorageAll method on the BrokerMap if we're doing a "storage" placement strategy.
-	//   The SubStorageAll takes a PartitionMap and PartitionMetaMap. The PartitionMap is
-	//   used to find partition to broker relationships so that the storage used can
-	//   be readded to the broker's StorageFree value. The amount to be readded, the
-	//   size of the partition, is referenced from the PartitionMetaMap.
+	//   all brokers and repositioned. This means you should call the SubStorageAll
+	//   method on the BrokerMap if we're doing a "storage" placement strategy. The
+	//   SubStorageAll takes a PartitionMap and PartitionMetaMap. The PartitionMap
+	//   is used to find partition to broker relationships so that the storage used
+	//   can be readded to the broker's StorageFree value. The amount to be readded,
+	//   the size of the partition, is referenced from the PartitionMetaMap.
 
 	if fr, _ := cmd.Flags().GetBool("force-rebuild"); fr {
 		// Get a stripped map that we'll call rebuild on.
