@@ -3,8 +3,8 @@ package commands
 import (
 	"fmt"
 	"os"
-	"time"
 	"regexp"
+	"time"
 
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
 
