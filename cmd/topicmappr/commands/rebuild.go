@@ -25,6 +25,7 @@ func init() {
 	rootCmd.AddCommand(rebuildCmd)
 
 	rebuildCmd.Flags().String("topics", "", "Rebuild topics (comma delim. list) by lookup in ZooKeeper")
+	rebuildCmd.Flags().String("topics-exclude", "", "Exclude topics")
 	rebuildCmd.Flags().String("map-string", "", "Rebuild a partition map provided as a string literal")
 	rebuildCmd.Flags().Bool("use-meta", true, "Use broker metadata in placement constraints")
 	rebuildCmd.Flags().String("out-path", "", "Path to write output map files to")

@@ -36,6 +36,7 @@ func init() {
 	rootCmd.AddCommand(rebalanceCmd)
 
 	rebalanceCmd.Flags().String("topics", "", "Rebuild topics (comma delim. list) by lookup in ZooKeeper")
+	rebalanceCmd.Flags().String("topics-exclude", "", "Exclude topics")
 	rebalanceCmd.Flags().String("out-path", "", "Path to write output map files to")
 	rebalanceCmd.Flags().String("out-file", "", "If defined, write a combined map of all topics to a file")
 	rebalanceCmd.Flags().String("brokers", "", "Broker list to scope all partition placements to ('-1' for all currently mapped brokers, '-2' for all brokers in cluster)")
