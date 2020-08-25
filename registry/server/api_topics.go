@@ -76,6 +76,10 @@ func (s *Server) ListTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topi
 	return resp, nil
 }
 
+func (s *Server) ReassigningTopics(ctx context.Context, _ *pb.Empty) (*pb.TopicResponse, error) {
+	return nil, nil
+}
+
 // CreateTopic creates a topic if it doesn't exist. Topic tags can optionally
 // be set at topic creation time. Additionally, topics can be created on
 // a target set of brokers by specifying the broker tag(s) in the request.

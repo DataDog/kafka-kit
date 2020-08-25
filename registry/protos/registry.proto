@@ -71,6 +71,14 @@ service Registry {
     };
   }
 
+  // ReassigningTopics returns a TopicResponse with the names field populated
+  // with topic names of all topics undergoing a reassignment.
+  rpc ReassigningTopics (Empty) returns (TopicResponse) {
+    option (google.api.http) = {
+      get: "/v1/topics/reassigning"
+    };
+  }
+
   // TopicMappings returns a BrokerResponse with the ids field
   // populated with broker IDs that hold at least one partition
   // for the requested topic. The topic is specified in the
