@@ -21,19 +21,18 @@ func (e errors) Swap(i, j int)      { e[i], e[j] = e[j], e[i] }
 // printTopics takes a partition map and prints out the names of all topics
 // referenced in the map.
 func printTopics(pm *kafkazk.PartitionMap) {
-	topics := map[string]struct{}{}
-	for _, p := range pm.Partitions {
-		topics[p.Topic] = struct{}{}
-	}
+	topics := pm.Topics()
+	sort.Strings(topics)
 
 	fmt.Printf("\nTopics:\n")
-	for t := range topics {
+	for _, t := range topics {
 		fmt.Printf("%s%s\n", indent, t)
 	}
 }
 
 func printExcludedTopics(p []string, e []string) {
 	if len(p) > 0 {
+		sort.Strings(p)
 		fmt.Printf("\nTopics excluded due to pending deletion:\n")
 		for _, t := range p {
 			fmt.Printf("%s%s\n", indent, t)
@@ -41,6 +40,7 @@ func printExcludedTopics(p []string, e []string) {
 	}
 
 	if len(e) > 0 {
+		sort.Strings(e)
 		fmt.Printf("\nTopics excluded:\n")
 		for _, t := range e {
 			fmt.Printf("%s%s\n", indent, t)
