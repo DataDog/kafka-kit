@@ -12,7 +12,7 @@ import (
 )
 
 // checkMetaAge checks the age of the stored partition and broker storage
-// metrics data against the tolarated metrics age parameter.
+// metrics data against the tolerated metrics age parameter.
 func checkMetaAge(cmd *cobra.Command, zk kafkazk.Handler) {
 	age, err := zk.MaxMetaAge()
 	if err != nil {
