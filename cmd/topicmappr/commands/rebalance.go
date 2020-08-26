@@ -83,11 +83,14 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	// Exclude any topics that are pending deletion.
 	pending := stripPendingDeletes(partitionMapIn, zk)
 
+	// Exclude any explicit exclusions.
+	excluded := removeTopics(partitionMapIn, Config.topicsExclude)
+
 	// Print topics matched to input params.
 	printTopics(partitionMapIn)
 
 	// Print if any topics were excluded due to pending deletion.
-	printExcludedTopics(pending, []string{})
+	printExcludedTopics(pending, excluded)
 
 	// Get a broker map.
 	brokersIn := kafkazk.BrokerMapFromPartitionMap(partitionMapIn, brokerMeta, false)
