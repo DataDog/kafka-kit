@@ -53,27 +53,28 @@ func bootstrap(cmd *cobra.Command) {
 }
 
 // topicRegex takes a string of csv values and returns a []*regexp.Regexp.
-// The values are either literal and become ^value$ or are regex and compiled
-// and added as-is.
+// The values are either a string literal and become ^value$ or are regex and
+// compiled then added.
 func topicRegex(s string) []*regexp.Regexp {
 	var out []*regexp.Regexp
-	// Check values.
+
+	// Update string literals to ^value$ regex.
 	topicNames := strings.Split(s, ",")
 	for n, t := range topicNames {
 		if !containsRegex(t) {
 			topicNames[n] = fmt.Sprintf(`^%s$`, t)
 		}
+	}
 
-		// Compile topic regex.
-		for _, t := range topicNames {
-			r, err := regexp.Compile(t)
-			if err != nil {
-				fmt.Printf("Invalid topic regex: %s\n", t)
-				os.Exit(1)
-			}
-
-			out = append(out, r)
+	// Compile regex patterns.
+	for _, t := range topicNames {
+		r, err := regexp.Compile(t)
+		if err != nil {
+			fmt.Printf("Invalid topic regex: %s\n", t)
+			os.Exit(1)
 		}
+
+		out = append(out, r)
 	}
 
 	return out
