@@ -18,8 +18,8 @@ func (e errors) Len() int           { return len(e) }
 func (e errors) Less(i, j int) bool { return e[i].Error() < e[j].Error() }
 func (e errors) Swap(i, j int)      { e[i], e[j] = e[j], e[i] }
 
-// printTopics takes a partition map and prints out
-// the names of all topics referenced in the map.
+// printTopics takes a partition map and prints out the names of all topics
+// referenced in the map.
 func printTopics(pm *kafkazk.PartitionMap) {
 	topics := map[string]struct{}{}
 	for _, p := range pm.Partitions {
@@ -32,20 +32,26 @@ func printTopics(pm *kafkazk.PartitionMap) {
 	}
 }
 
-func printExcludedTopics(p []string) {
+func printExcludedTopics(p []string, e []string) {
 	if len(p) > 0 {
 		fmt.Printf("\nTopics excluded due to pending deletion:\n")
 		for _, t := range p {
 			fmt.Printf("%s%s\n", indent, t)
 		}
 	}
+
+	if len(e) > 0 {
+		fmt.Printf("\nTopics excluded:\n")
+		for _, t := range e {
+			fmt.Printf("%s%s\n", indent, t)
+		}
+	}
 }
 
-// printMapChanges takes the original input PartitionMap
-// and the final output PartitionMap and prints what's changed.
+// printMapChanges takes the original input PartitionMap and the final output
+// PartitionMap and prints what's changed.
 func printMapChanges(pm1, pm2 *kafkazk.PartitionMap) {
-	// Ensure the topic name and partition
-	// order match.
+	// Ensure the topic name and partition order match.
 	for i := range pm1.Partitions {
 		t1, t2 := pm1.Partitions[i].Topic, pm2.Partitions[i].Topic
 		p1, p2 := pm1.Partitions[i].Partition, pm2.Partitions[i].Partition

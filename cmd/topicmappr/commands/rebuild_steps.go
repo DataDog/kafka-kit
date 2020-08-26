@@ -44,9 +44,9 @@ func getPartitionMap(cmd *cobra.Command, zk kafkazk.Handler) (*kafkazk.Partition
 		pd := stripPendingDeletes(pm, zk)
 
 		// Exclude topics explicitly listed.
-		//et := removeTopics(pm, Config.)
+		et := removeTopics(pm, Config.topicsExclude)
 
-		return pm, pd, []string{}
+		return pm, pd, et
 	}
 
 	return nil, nil, nil
