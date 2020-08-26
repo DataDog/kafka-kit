@@ -26,8 +26,9 @@ var (
 
 	// Config holds global configs.
 	Config struct {
-		topics  []*regexp.Regexp
-		brokers []int
+		topics        []*regexp.Regexp
+		topicsExclude []*regexp.Regexp
+		brokers       []int
 	}
 )
 
@@ -41,27 +42,42 @@ func bootstrap(cmd *cobra.Command) {
 		cmd.Flags().Set("out-path", op+"/")
 	}
 
-	// Determine if regexp was provided in the topic
-	// name. If not, set the topic name to ^name$.
-	if t, _ := cmd.Flags().GetString("topics"); t != "" {
-		topicNames := strings.Split(t, ",")
-		for n, t := range topicNames {
-			if !containsRegex(t) {
-				topicNames[n] = fmt.Sprintf(`^%s$`, t)
-			}
-		}
+	// Populate topic include / exclude regex.
+	if include, _ := cmd.Flags().GetString("topics"); include != "" {
+		Config.topics = topicRegex(include)
+	}
 
-		// Compile topic regex.
-		for _, t := range topicNames {
-			r, err := regexp.Compile(t)
-			if err != nil {
-				fmt.Printf("Invalid topic regex: %s\n", t)
-				os.Exit(1)
-			}
+	if exclude, _ := cmd.Flags().GetString("topics-exclude"); exclude != "" {
+		Config.topicsExclude = topicRegex(exclude)
+	}
+}
 
-			Config.topics = append(Config.topics, r)
+// topicRegex takes a string of csv values and returns a []*regexp.Regexp.
+// The values are either a string literal and become ^value$ or are regex and
+// compiled then added.
+func topicRegex(s string) []*regexp.Regexp {
+	var out []*regexp.Regexp
+
+	// Update string literals to ^value$ regex.
+	topicNames := strings.Split(s, ",")
+	for n, t := range topicNames {
+		if !containsRegex(t) {
+			topicNames[n] = fmt.Sprintf(`^%s$`, t)
 		}
 	}
+
+	// Compile regex patterns.
+	for _, t := range topicNames {
+		r, err := regexp.Compile(t)
+		if err != nil {
+			fmt.Printf("Invalid topic regex: %s\n", t)
+			os.Exit(1)
+		}
+
+		out = append(out, r)
+	}
+
+	return out
 }
 
 // initZooKeeper inits a ZooKeeper connection if one is needed.

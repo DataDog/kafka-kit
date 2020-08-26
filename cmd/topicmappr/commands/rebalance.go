@@ -36,6 +36,7 @@ func init() {
 	rootCmd.AddCommand(rebalanceCmd)
 
 	rebalanceCmd.Flags().String("topics", "", "Rebuild topics (comma delim. list) by lookup in ZooKeeper")
+	rebalanceCmd.Flags().String("topics-exclude", "", "Exclude topics")
 	rebalanceCmd.Flags().String("out-path", "", "Path to write output map files to")
 	rebalanceCmd.Flags().String("out-file", "", "If defined, write a combined map of all topics to a file")
 	rebalanceCmd.Flags().String("brokers", "", "Broker list to scope all partition placements to ('-1' for all currently mapped brokers, '-2' for all brokers in cluster)")
@@ -82,11 +83,14 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	// Exclude any topics that are pending deletion.
 	pending := stripPendingDeletes(partitionMapIn, zk)
 
+	// Exclude any explicit exclusions.
+	excluded := removeTopics(partitionMapIn, Config.topicsExclude)
+
 	// Print topics matched to input params.
 	printTopics(partitionMapIn)
 
 	// Print if any topics were excluded due to pending deletion.
-	printExcludedTopics(pending)
+	printExcludedTopics(pending, excluded)
 
 	// Get a broker map.
 	brokersIn := kafkazk.BrokerMapFromPartitionMap(partitionMapIn, brokerMeta, false)

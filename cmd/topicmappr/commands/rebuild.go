@@ -25,6 +25,7 @@ func init() {
 	rootCmd.AddCommand(rebuildCmd)
 
 	rebuildCmd.Flags().String("topics", "", "Rebuild topics (comma delim. list) by lookup in ZooKeeper")
+	rebuildCmd.Flags().String("topics-exclude", "", "Exclude topics")
 	rebuildCmd.Flags().String("map-string", "", "Rebuild a partition map provided as a string literal")
 	rebuildCmd.Flags().Bool("use-meta", true, "Use broker metadata in placement constraints")
 	rebuildCmd.Flags().String("out-path", "", "Path to write output map files to")
@@ -122,14 +123,15 @@ func rebuild(cmd *cobra.Command, _ []string) {
 
 	// Build a partition map either from literal map text input or by fetching the
 	// map data from ZooKeeper. Store a copy of the original.
-	partitionMapIn, pending := getPartitionMap(cmd, zk)
+	partitionMapIn, pending, excluded := getPartitionMap(cmd, zk)
 	originalMap := partitionMapIn.Copy()
 
 	// Get a list of affected topics.
 	printTopics(partitionMapIn)
 
-	// Print if any topics were excluded due to pending deletion.
-	printExcludedTopics(pending)
+	// Print if any topics were excluded due to pending deletion or explicit
+	// exclusion.
+	printExcludedTopics(pending, excluded)
 
 	brokers, bs := getBrokers(cmd, partitionMapIn, brokerMeta)
 	brokersOrig := brokers.Copy()
