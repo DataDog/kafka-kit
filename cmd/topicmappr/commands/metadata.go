@@ -116,15 +116,18 @@ func removeTopics(pm *kafkazk.PartitionMap, r []*regexp.Regexp) []string {
 
 	// Traverse the partition map.
 	for _, p := range pm.Partitions {
-		for _, re := range r {
+		for i, re := range r {
 			// If the topic matches any regex pattern, add it to the removed set.
 			if re.MatchString(p.Topic) {
 				removed[p.Topic] = struct{}{}
 				break
 			}
 
-			// Else, it wasn't marked for removal; add it to the new PartitionList.
-			newPL = append(newPL, p)
+			// We've checked all patterns.
+			if i == len(r)-1 {
+				// Else, it wasn't marked for removal; add it to the new PartitionList.
+				newPL = append(newPL, p)
+			}
 		}
 	}
 

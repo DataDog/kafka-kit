@@ -17,8 +17,12 @@ func TestRemoveTopics(t *testing.T) {
 	pm := mergePartitionMaps(pm1, pm2, pm3)
 
 	// Remove all topics with a trailing digit.
-	re := regexp.MustCompile(`\d$`)
-	toRemove := []*regexp.Regexp{re}
+	toRemove := []*regexp.Regexp{
+		// Junk pattern.
+		regexp.MustCompile(`asdf`),
+		// Pattern we care about.
+		regexp.MustCompile(`\d$`),
+	}
 
 	removed := removeTopics(pm, toRemove)
 

@@ -22,17 +22,20 @@ import (
 // flag), respectively.
 func getPartitionMap(cmd *cobra.Command, zk kafkazk.Handler) (*kafkazk.PartitionMap, []string, []string) {
 	ms := cmd.Flag("map-string").Value.String()
+
 	switch {
 	// The map was provided as text.
 	case ms != "":
+		// Get a deserialized map.
 		pm, err := kafkazk.PartitionMapFromString(ms)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		// Return the deserialized PartitionMap.
-		return pm, []string{}, []string{}
-	// Build a map using ZooKeeper metadata for all specified topics.
+		// Exclude topics explicitly listed.
+		et := removeTopics(pm, Config.topicsExclude)
+		return pm, []string{}, et
+	// The map needs to be fetched via ZooKeeper metadata for all specified topics.
 	case len(Config.topics) > 0:
 		pm, err := kafkazk.PartitionMapFromZK(Config.topics, zk)
 		if err != nil {
