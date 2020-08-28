@@ -1,6 +1,7 @@
 # Third-party Variations
 
 - [tarvip/kafkakit-prometheus-metricsfetcher](https://github.com/tarvip/kafkakit-prometheus-metricsfetcher)
+- [BatchLabs/kafkakit-prometheus](https://github.com/BatchLabs/kafkakit-prometheus)
 
 # Overview
 
