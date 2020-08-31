@@ -79,7 +79,7 @@ func (s *Server) ListTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topi
 // ReassigningTopics returns a *pb.TopicResponse holding the names of all
 // topics currently undergoing reassignment.
 func (s *Server) ReassigningTopics(ctx context.Context, _ *pb.Empty) (*pb.TopicResponse, error) {
-	ctx, err := s.ValidateRequest(ctx, req, readRequest)
+	ctx, err := s.ValidateRequest(ctx, nil, readRequest)
 	if err != nil {
 		return nil, err
 	}
