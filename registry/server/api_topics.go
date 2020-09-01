@@ -76,6 +76,24 @@ func (s *Server) ListTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topi
 	return resp, nil
 }
 
+// ReassigningTopics returns a *pb.TopicResponse holding the names of all
+// topics currently undergoing reassignment.
+func (s *Server) ReassigningTopics(ctx context.Context, _ *pb.Empty) (*pb.TopicResponse, error) {
+	ctx, err := s.ValidateRequest(ctx, nil, readRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	reassigning := s.ZK.GetReassignments()
+	var names []string
+
+	for t := range reassigning {
+		names = append(names, t)
+	}
+
+	return &pb.TopicResponse{Names: names}, nil
+}
+
 // CreateTopic creates a topic if it doesn't exist. Topic tags can optionally
 // be set at topic creation time. Additionally, topics can be created on
 // a target set of brokers by specifying the broker tag(s) in the request.

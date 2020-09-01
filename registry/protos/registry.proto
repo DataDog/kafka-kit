@@ -1,9 +1,15 @@
-// Requires the googleapis repo. From the kafka-kit root:
-// protoc -I registry -I /path/to/googleapis protos/registry.proto --go_out=plugins=grpc:registry --grpc-gateway_out=logtostderr=true:registry
+/*
+Requires (see the Registry dockerfile for build hints):
+  - $ go get github.com/golang/protobuf/protoc-gen-go
+  - $ go get github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
+  - Install protoc (and includes)
+ From the kafka-kit repo root:
+  - $ protoc -I registry -I $GOPATH/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis protos/registry.proto --go_out=plugins=grpc:$GOPATH/src --grpc-gateway_out=logtostderr=true:$GOPATH/src
+*/
+
 syntax = "proto3";
-
 import "google/api/annotations.proto";
-
+option go_package = "github.com/DataDog/kafka-kit/registry/protos";
 package registry;
 
 service Registry {
@@ -68,6 +74,14 @@ service Registry {
     option (google.api.http) = {
       post: "/v1/topics/create"
       body: "*"
+    };
+  }
+
+  // ReassigningTopics returns a TopicResponse with the names field populated
+  // with topic names of all topics undergoing a reassignment.
+  rpc ReassigningTopics (Empty) returns (TopicResponse) {
+    option (google.api.http) = {
+      get: "/v1/topics/reassigning"
     };
   }
 
