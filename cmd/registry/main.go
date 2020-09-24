@@ -104,6 +104,11 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// Init a kafka consumer. Needed for offset translations.
+	if err := srvr.InitKafkaConsumer(ctx, wg, adminConfig); err != nil {
+		log.Fatal(err)
+	}
+
 	// Start the gRPC listener.
 	if err := srvr.RunRPC(ctx, wg); err != nil {
 		log.Fatal(err)
