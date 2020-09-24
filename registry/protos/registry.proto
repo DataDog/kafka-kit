@@ -220,11 +220,6 @@ message Topic {
 * MirrorMaker2 *
 ***************/
 
-message TopicPartition {
-  string topic = 1;
-  uint32 partition = 2;
-}
-
 message OffsetMapping {
   uint64 upstream_offset = 1;
   uint64 local_offset = 2;
