@@ -36,7 +36,7 @@ type Checkpoint struct {
 	Metadata        string
 }
 
-// TranslateOffsets translate a remote consumer group's offset into the corresponding local offsets.
+// TranslateOffsets translates the last committed remote consumer group's offset into the corresponding local offsets.
 func (s *Server) TranslateOffsets(ctx context.Context, req *pb.TranslateOffsetRequest) (*pb.TranslateOffsetResponse, error) {
 	ctx, err := s.ValidateRequest(ctx, req, readRequest)
 	if err != nil {
