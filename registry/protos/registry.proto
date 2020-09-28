@@ -140,6 +140,18 @@ service Registry {
       delete: "/v1/brokers/tag/{id}"
     };
   }
+
+  // TranslateOffsets returns a TranslateOffsetResponse with the
+  // the upstream/local offsets for the provided consumer group
+  // populated per topic/partition.
+  // The remote cluster alias and consumer group id are specified
+  // in the TranslateOffsetRequest.remote_cluster_alias and
+  // TranslateOffsetRequest.group_id respectively.
+  rpc TranslateOffsets (TranslateOffsetRequest) returns (TranslateOffsetResponse) {
+    option (google.api.http) = {
+      get: "/v1/translate-offsets/{remote_cluster_alias}/{group_id}"
+    };
+  }
 }
 
 message TagResponse {
@@ -202,6 +214,24 @@ message Topic {
   uint32 partitions = 6;
   uint32 replication = 7;
   map<string, string> configs = 8;
+}
+
+/***************
+* MirrorMaker2 *
+***************/
+
+message OffsetMapping {
+  uint64 upstream_offset = 1;
+  uint64 local_offset = 2;
+}
+
+message TranslateOffsetRequest {
+  string remote_cluster_alias = 1;
+  string group_id = 2;
+}
+
+message TranslateOffsetResponse {
+  map<string, OffsetMapping> offsets = 1;
 }
 
 /*******

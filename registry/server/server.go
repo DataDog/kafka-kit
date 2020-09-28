@@ -11,6 +11,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/confluentinc/confluent-kafka-go/kafka"
+
 	"github.com/DataDog/kafka-kit/v3/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
 	"github.com/DataDog/kafka-kit/v3/registry/admin"
@@ -38,6 +40,7 @@ type Server struct {
 	readReqThrottle  RequestThrottle
 	writeReqThrottle RequestThrottle
 	reqID            uint64
+	kafkaconsumer    *kafka.Consumer
 	// For tests.
 	test bool
 }
@@ -212,6 +215,39 @@ func (s *Server) InitKafkaAdmin(ctx context.Context, wg *sync.WaitGroup, cfg adm
 	go func() {
 		<-ctx.Done()
 		s.kafkaadmin.Close()
+		wg.Done()
+	}()
+
+	return nil
+}
+
+// InitKafkaConsumer takes a Context, WaitGroup and an admin.Config and initializes
+// a kafka.Consumer. A background shutdown procedure is called when the context is cancelled.
+func (s *Server) InitKafkaConsumer(ctx context.Context, wg *sync.WaitGroup, cfg admin.Config) error {
+	if s.test {
+		return nil
+	}
+
+	wg.Add(1)
+
+	switch cfg.Type {
+	case "kafka":
+		k, err := kafka.NewConsumer(
+			&kafka.ConfigMap{
+				"bootstrap.servers": cfg.BootstrapServers,
+				"group.id":          "registry",
+			})
+		if err != nil {
+			return err
+		}
+
+		s.kafkaconsumer = k
+		log.Printf("KafkaConsumer connected to bootstrap servers: %s\n", cfg.BootstrapServers)
+	}
+	// Shutdown procedure.
+	go func() {
+		<-ctx.Done()
+		s.kafkaconsumer.Close()
 		wg.Done()
 	}()
 
