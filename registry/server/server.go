@@ -232,10 +232,14 @@ func (s *Server) InitKafkaConsumer(ctx context.Context, wg *sync.WaitGroup, cfg 
 
 	switch cfg.Type {
 	case "kafka":
-		k, err := kafka.NewConsumer(
-			&kafka.ConfigMap{
-				"bootstrap.servers": cfg.BootstrapServers,
-				"group.id":          "registry",
+		k, err := kafkaadmin.NewConsumer(
+			kafkaadmin.Config{
+				BootstrapServers: cfg.BootstrapServers,
+				SSLCALocation:    cfg.SSLCALocation,
+				SecurityProtocol: cfg.SecurityProtocol,
+				SASLMechanism:    cfg.SASLMechanism,
+				SASLUsername:     cfg.SASLUsername,
+				SASLPassword:     cfg.SASLPassword,
 			})
 		if err != nil {
 			return err

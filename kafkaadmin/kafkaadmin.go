@@ -28,6 +28,7 @@ type Client struct {
 // Config holds Client configuration parameters.
 type Config struct {
 	BootstrapServers string
+	GroupId          string
 	SSLCALocation    string
 	SecurityProtocol string
 	SASLMechanism    string
@@ -35,21 +36,36 @@ type Config struct {
 	SASLPassword     string
 }
 
-// NewClient returns a new Client.
+// NewClient returns a new admin Client.
 func NewClient(cfg Config) (*Client, error) {
 	return newClient(cfg, kafka.NewAdminClient)
 }
 
-// NewClientWithFactory returns a new Client using a factory func for the kafkaAdminClient
+// NewClientWithFactory returns a new admin Client using a factory func for the kafkaAdminClient
 func NewClientWithFactory(cfg Config, factory FactoryFunc) (*Client, error) {
 	return newClient(cfg, factory)
 }
 
-func newClient(cfg Config, factory FactoryFunc) (*Client, error) {
-	c := &Client{}
+func NewConsumer(cfg Config) (*kafka.Consumer, error) {
+	kafkaCfg, err := cfgToConfigMap(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("[config] %s", err)
+	}
+	c, err := kafka.NewConsumer(kafkaCfg)
 
+	if err != nil {
+		err = fmt.Errorf("[librdkafka] %s", err)
+	}
+	return c, err
+}
+
+func cfgToConfigMap(cfg Config) (*kafka.ConfigMap, error) {
 	kafkaCfg := &kafka.ConfigMap{
 		"bootstrap.servers": cfg.BootstrapServers,
+	}
+
+	if cfg.GroupId != "" {
+		kafkaCfg.SetKey("group.id", cfg.GroupId)
 	}
 
 	if cfg.SecurityProtocol != "" {
@@ -67,6 +83,16 @@ func newClient(cfg Config, factory FactoryFunc) (*Client, error) {
 		kafkaCfg.SetKey("sasl.mechanism", cfg.SASLMechanism)
 		kafkaCfg.SetKey("sasl.username", cfg.SASLUsername)
 		kafkaCfg.SetKey("sasl.password", cfg.SASLPassword)
+	}
+	return kafkaCfg, nil
+}
+
+func newClient(cfg Config, factory FactoryFunc) (*Client, error) {
+	c := &Client{}
+
+	kafkaCfg, err := cfgToConfigMap(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("[config] %s", err)
 	}
 
 	k, err := factory(kafkaCfg)
