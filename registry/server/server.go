@@ -235,6 +235,7 @@ func (s *Server) InitKafkaConsumer(ctx context.Context, wg *sync.WaitGroup, cfg 
 		k, err := kafkaadmin.NewConsumer(
 			kafkaadmin.Config{
 				BootstrapServers: cfg.BootstrapServers,
+				GroupId:          "registry",
 				SSLCALocation:    cfg.SSLCALocation,
 				SecurityProtocol: cfg.SecurityProtocol,
 				SASLMechanism:    cfg.SASLMechanism,
