@@ -105,7 +105,7 @@ func printBrokerAssignmentStats(cmd *cobra.Command, pm1, pm2 *kafkazk.PartitionM
 
 	if cmd.Use == "rebalance" || cmd.Flag("placement").Value.String() == "storage" {
 		fmt.Println("\nStorage free change estimations:")
-		if psf != 1.0 && cmd.Use != "rebalance" {
+		if psf != 1.0 {
 			fmt.Printf("%sPartition size factor of %.2f applied\n", indent, psf)
 		}
 
