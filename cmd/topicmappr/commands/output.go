@@ -151,7 +151,10 @@ func printBrokerAssignmentStats(cmd *cobra.Command, pm1, pm2 *kafkazk.PartitionM
 		r1, r2 := mb1.StorageRange(), mb2.StorageRange()
 		fmt.Printf("%srange: %.2fGB -> %.2fGB\n", indent, r1/div, r2/div)
 		if r2 > r1 {
-			errs = append(errs, fmt.Errorf("broker free storage range increased"))
+			// Range increases are acceptable and common in scale up operations.
+			if cmd.Name() != "scale" {
+				errs = append(errs, fmt.Errorf("broker free storage range increased"))
+			}
 		}
 
 		// Range spread before/after.
