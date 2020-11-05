@@ -18,11 +18,9 @@ var rebalanceCmd = &cobra.Command{
 	Run:   rebalance,
 }
 
-// Rebalance may be configured to run a series
-// of rebalance plans. A rebalanceResults holds
-// any relevant output along with metadata that
-// hints at the quality of the output, such as
-// the resulting storage utilization range.
+// Rebalance may be configured to run a series of rebalance plans. A
+// rebalanceResults holds any relevant output along with metadata that hints at
+// the quality of the output, such as the resulting storageutilization range.
 type rebalanceResults struct {
 	storageRange float64
 	stdDev       float64
@@ -113,11 +111,10 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	results := make(chan rebalanceResults, 100)
 	wg := &sync.WaitGroup{}
 
-	// Compute a rebalanceResults output for all tolerance
-	// values 0.01..0.99 in parallel.
+	// Compute a rebalanceResults output for all tolerance values 0.01..0.99 in parallel.
 	for i := 0.01; i < 0.99; i += 0.01 {
-		// Whether we're using a fixed tolerance
-		// (non 0.00) set via flag or an iterative value.
+		// Whether we're using a fixed tolerance (non 0.00) set via flag or an
+		// iterative value.
 		tolFlag, _ := cmd.Flags().GetFloat64("tolerance")
 		var tol float64
 
@@ -147,10 +144,8 @@ func rebalance(cmd *cobra.Command, _ []string) {
 				tolerance:              tol,
 			}
 
-			// Iterate over offload targets, planning
-			// at most one relocation per iteration.
-			// Continue this loop until no more relocations
-			// can be planned.
+			// Iterate over offload targets, planning at most one relocation per iteration.
+			// Continue this loop until no more relocations can be planned.
 			for exhaustedCount := 0; exhaustedCount < len(offloadTargets); {
 				params.pass++
 				for _, sourceID := range offloadTargets {
@@ -159,8 +154,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 
 					relos := planRelocationsForBroker(cmd, params)
 
-					// If no relocations could be planned,
-					// increment the exhaustion counter.
+					// If no relocations could be planned, increment the exhaustion counter.
 					if relos == 0 {
 						exhaustedCount++
 					}
@@ -225,13 +219,11 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	// Print broker assignment statistics.
 	errs := printBrokerAssignmentStats(cmd, partitionMapIn, partitionMapOut, brokersIn, brokersOut)
 
-	// Handle errors that are possible
-	// to be overridden by the user (aka
-	// 'WARN' in topicmappr console output).
+	// Handle errors that are possible to be overridden by the user (aka 'WARN'
+	// in topicmappr console output).
 	handleOverridableErrs(cmd, errs)
 
-	// Ignore no-ops; rebalances will naturally have
-	// a high percentage of these.
+	// Ignore no-ops; rebalances will naturally have a high percentage of these.
 	partitionMapIn, partitionMapOut = skipReassignmentNoOps(partitionMapIn, partitionMapOut)
 
 	// Write maps.

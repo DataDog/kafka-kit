@@ -18,8 +18,8 @@ type offloadTargetsBySize struct {
 	bm kafkazk.BrokerMap
 }
 
-// We work with storage free, so a sort by utilization
-// descending requires an ascending sort.
+// We work with storage free, so a sort by utilization descending requires an
+// ascending sort.
 func (o offloadTargetsBySize) Len() int      { return len(o.t) }
 func (o offloadTargetsBySize) Swap(i, j int) { o.t[i], o.t[j] = o.t[j], o.t[i] }
 func (o offloadTargetsBySize) Less(i, j int) bool {
@@ -56,15 +56,12 @@ type planRelocationsForBrokerParams struct {
 	tolerance              float64
 }
 
-// relocationPlan is a mapping of topic,
-// partition to a [][2]int describing a series of
-// source and destination brokers to relocate
-// a partition to and from.
+// relocationPlan is a mapping of topic, partition to a [][2]int describing a
+// series of source and destination brokers to relocate a partition to and from.
 type relocationPlan map[string]map[int][][2]int
 
-// add takes a kafkazk.Partition and a [2]int pair of
-// source and destination broker IDs which the partition
-// is scheduled to relocate from and to.
+// add takes a kafkazk.Partition and a [2]int pair of source and destination
+// broker IDs which the partition is scheduled to relocate from and to.
 func (r relocationPlan) add(p kafkazk.Partition, ids [2]int) {
 	if _, exist := r[p.Topic]; !exist {
 		r[p.Topic] = make(map[int][][2]int)
@@ -73,9 +70,9 @@ func (r relocationPlan) add(p kafkazk.Partition, ids [2]int) {
 	r[p.Topic][p.Partition] = append(r[p.Topic][p.Partition], ids)
 }
 
-// isPlanned takes a kafkazk.Partition and returns whether
-// a relocation is planned for the partition, along with the
-// [][2]int list of source and destination broker ID pairs.
+// isPlanned takes a kafkazk.Partition and returns whether a relocation is
+// planned for the partition, along with the [][2]int list of source and
+// destination broker ID pairs.
 func (r relocationPlan) isPlanned(p kafkazk.Partition) ([][2]int, bool) {
 	var pairs [][2]int
 
@@ -91,8 +88,7 @@ func (r relocationPlan) isPlanned(p kafkazk.Partition) ([][2]int, bool) {
 }
 
 func validateBrokersForRebalance(cmd *cobra.Command, brokers kafkazk.BrokerMap, bm kafkazk.BrokerMetaMap) []int {
-	// No broker changes are permitted in rebalance
-	// other than new broker additions.
+	// No broker changes are permitted in rebalance other than new broker additions.
 	fmt.Println("\nValidating broker list:")
 
 	// Update the current BrokerList with
@@ -106,8 +102,7 @@ func validateBrokersForRebalance(cmd *cobra.Command, brokers kafkazk.BrokerMap, 
 		fmt.Printf("%s-\n", indent)
 	}
 
-	// Check if any referenced brokers are marked as having
-	// missing/partial metrics data.
+	// Check if any referenced brokers are marked as having missing/partial metrics data.
 	ensureBrokerMetrics(cmd, brokers, bm)
 
 	switch {
@@ -130,16 +125,13 @@ func validateBrokersForRebalance(cmd *cobra.Command, brokers kafkazk.BrokerMap, 
 
 	var offloadTargets []int
 
-	// Switch on the target selection method. If
-	// a storage threshold in gigabytes is specified,
-	// prefer this. Otherwise, use the percentage below
-	// mean threshold.
+	// Switch on the target selection method. If a storage threshold in gigabytes
+	// is specified, prefer this. Otherwise, use the percentage below mean threshold.
 	switch {
 	case stg > 0.00:
 		selectorMethod.WriteString(fmt.Sprintf("(< %.2fGB storage free)", stg))
 
-		// Get all non-new brokers with a StorageFree
-		// below the storage threshold in GB.
+		// Get all non-new brokers with a StorageFree below the storage threshold in GB.
 		f := func(b *kafkazk.Broker) bool {
 			if !b.New && b.StorageFree < stg*div {
 				return true
@@ -156,9 +148,8 @@ func validateBrokersForRebalance(cmd *cobra.Command, brokers kafkazk.BrokerMap, 
 	default:
 		selectorMethod.WriteString(fmt.Sprintf("(>= %.2f%% threshold below hmean)", st*100))
 
-		// Find brokers where the storage free is t %
-		// below the harmonic mean. Specifying 0 targets
-		// all non-new brokers.
+		// Find brokers where the storage free is t % below the harmonic mean.
+		// Specifying 0 targets all non-new brokers.
 		switch st {
 		case 0.00:
 			f := func(b *kafkazk.Broker) bool { return !b.New }
@@ -190,9 +181,8 @@ func validateBrokersForRebalance(cmd *cobra.Command, brokers kafkazk.BrokerMap, 
 }
 
 func printRebalanceParams(cmd *cobra.Command, results []rebalanceResults, brokers kafkazk.BrokerMap, tol float64) {
-	// Print rebalance parameters as a result of
-	// input configurations and brokers found
-	// to be beyond the storage threshold.
+	// Print rebalance parameters as a result of input configurations and brokers
+	// found to be beyond the storage threshold.
 	fmt.Println("\nRebalance parameters:")
 
 	pst, _ := cmd.Flags().GetInt("partition-size-threshold")
@@ -210,8 +200,7 @@ func printRebalanceParams(cmd *cobra.Command, results []rebalanceResults, broker
 
 	verbose, _ := cmd.Flags().GetBool("verbose")
 
-	// Print the top 10 rebalance results
-	// in verbose.
+	// Print the top 10 rebalance results in verbose.
 	if verbose {
 		fmt.Printf("%s-\n%sTop 10 rebalance map results\n", indent, indent)
 		for i, r := range results {
@@ -268,9 +257,8 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 
 	targetLocality := brokers[sourceID].Locality
 
-	// Plan partition movements. Each time a partition is planned
-	// to be moved, it's unmapped from the broker so that it's
-	// not retried the next iteration.
+	// Plan partition movements. Each time a partition is planned to be moved, it's
+	// unmapped from the broker so that it's not retried the next iteration.
 	var reloCount int
 	for _, partn := range topPartn {
 		// Get a storage sorted brokerList.
@@ -282,12 +270,11 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 		// Find a destination broker.
 		var dest *kafkazk.Broker
 
-		// Whether or not the destination broker should have the same
-		// rack.id as the target. If so, choose the least utilized broker
-		// in same locality. If not, choose the least utilized broker
-		// the satisfies placement constraints considering the brokers
-		// in the replica list (excluding the sourceID broker since it
-		// will be replaced).
+		// Whether or not the destination broker should have the same rack.id as the
+		// target. If so, choose the least utilized broker in same locality. If not,
+		// choose the least utilized broker the satisfies placement constraints
+		// considering the brokers in the replica list (excluding the sourceID broker
+		// since it will be replaced).
 		switch localityScoped {
 		case true:
 			for _, b := range brokerList {
@@ -302,9 +289,8 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 				}
 			}
 		case false:
-			// Get constraints for all brokers in the
-			// partition replica set, excluding the
-			// sourceID broker.
+			// Get constraints for all brokers in the partition replica set, excluding
+			// the sourceID broker.
 			replicaSet := kafkazk.BrokerList{}
 			for _, id := range partn.Replicas {
 				if id != sourceID {
@@ -312,8 +298,7 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 				}
 			}
 
-			// Include brokers already scheduled to
-			// receive this partition.
+			// Include brokers already scheduled to receive this partition.
 			if pairs, planned := plan.isPlanned(partn); planned {
 				for _, p := range pairs {
 					replicaSet = append(replicaSet, brokers[p[1]])
@@ -322,9 +307,8 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 
 			c := kafkazk.MergeConstraints(replicaSet)
 
-			// Add all offload targets to the constraints.
-			// We're populating empty Brokers using just
-			// the IDs so that the rack IDs aren't excluded.
+			// Add all offload targets to the constraints. We're populating empty
+			// Brokers using just the IDs so that the rack IDs aren't excluded.
 			for id := range offloadTargetsMap {
 				c.Add(&kafkazk.Broker{ID: id})
 			}
@@ -333,10 +317,9 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 			dest, _ = brokerList.BestCandidate(c, "storage", 0)
 		}
 
-		// If dest == nil, it's likely that the only available
-		// destination brokers that don't break placement constraints
-		// are already taking a replica for the partition. Continue
-		// to the next partition.
+		// If dest == nil, it's likely that the only available destination brokers
+		// that don't break placement constraints are already taking a replica for
+		// the partition. Continue to the next partition.
 		if dest == nil {
 			continue
 		}
@@ -351,9 +334,8 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 		sourceFree := brokers[sourceID].StorageFree + pSize
 		destFree := dest.StorageFree - pSize
 
-		// If the estimated storage change pushes either the
-		// target or destination beyond the threshold distance
-		// from the mean, try the next partition.
+		// If the estimated storage change pushes either the target or destination
+		// beyond the threshold distance from the mean, try the next partition.
 
 		sLim := meanStorageFree * (1 + tolerance)
 		if sourceFree > sLim {
@@ -389,8 +371,7 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 		brokers[sourceID].StorageFree = sourceFree
 		brokers[dest.ID].StorageFree = destFree
 
-		// Remove the partition as being mapped
-		// to the source broker.
+		// Remove the partition as being mapped to the source broker.
 		mappings.Remove(sourceID, partn)
 
 		if verbose {
@@ -415,9 +396,8 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 func applyRelocationPlan(cmd *cobra.Command, pm *kafkazk.PartitionMap, plan relocationPlan) {
 	// Traverse the partition list.
 	for _, partn := range pm.Partitions {
-		// If a relocation is planned for the partition,
-		// replace the source ID with the planned
-		// destination ID.
+		// If a relocation is planned for the partition, replace the source ID with
+		// the planned destination ID.
 		if pairs, planned := plan.isPlanned(partn); planned {
 			for i, r := range partn.Replicas {
 				for _, relo := range pairs {

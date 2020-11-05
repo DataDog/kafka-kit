@@ -99,8 +99,7 @@ func printBrokerAssignmentStats(cmd *cobra.Command, pm1, pm2 *kafkazk.PartitionM
 			indent, use.ID, use.Leader, use.Follower, use.Leader+use.Follower)
 	}
 
-	// If we're using the storage placement strategy,
-	// write anticipated storage changes.
+	// If we're using the storage placement strategy, write anticipated storage changes.
 	psf, _ := cmd.Flags().GetFloat64("partition-size-factor")
 
 	if cmd.Use == "rebalance" || cmd.Flag("placement").Value.String() == "storage" {
@@ -119,8 +118,7 @@ func printBrokerAssignmentStats(cmd *cobra.Command, pm1, pm2 *kafkazk.PartitionM
 		// input and wasn't marked for replacement (generally, users are doing storage placements
 		// particularly to balance out the storage of the input broker list).
 
-		// Filter function for brokers where the Replaced
-		// field is false.
+		// Filter function for brokers where the Replaced field is false.
 		nonReplaced := func(b *kafkazk.Broker) bool {
 			if b.Replace {
 				return false
@@ -136,8 +134,7 @@ func printBrokerAssignmentStats(cmd *cobra.Command, pm1, pm2 *kafkazk.PartitionM
 			}
 		}
 
-		// Filter function for brokers that are in the
-		// partition map.
+		// Filter function for brokers that are in the partition map.
 		mapped := func(b *kafkazk.Broker) bool {
 			if _, exist := mappedIDs[b.ID]; exist {
 				return true
@@ -295,10 +292,9 @@ func writeMaps(cmd *cobra.Command, pm *kafkazk.PartitionMap, phasedPM *kafkazk.P
 	}
 }
 
-// handleOverridableErrs handles errors that can be optionally ignored
-// by the user (hence being referred to as 'WARN' in the
-// CLI). If --ignore-warns is false (default), any errors passed
-// here will cause an exit(1).
+// handleOverridableErrs handles errors that can be optionally ignored by the
+// user (hence being referred to as 'WARN' in the CLI). If --ignore-warns is
+// false (default), any errors passed here will cause an exit(1).
 func handleOverridableErrs(cmd *cobra.Command, e errors) {
 	fmt.Println("\nWARN:")
 	if len(e) > 0 {
@@ -317,8 +313,8 @@ func handleOverridableErrs(cmd *cobra.Command, e errors) {
 	}
 }
 
-// whatChanged takes a before and after broker replica set
-// and returns a string describing what changed.
+// whatChanged takes a before and after broker replica set and returns a string
+// describing what changed.
 func whatChanged(s1 []int, s2 []int) string {
 	var changes []string
 
@@ -339,8 +335,7 @@ func whatChanged(s1 []int, s2 []int) string {
 		changes = append(changes, "increased replication")
 	}
 
-	// If the len is the same,
-	// check elements.
+	// If the len is the same, check elements.
 	if !lchanged {
 		for i := range a {
 			if a[i] != b[i] {
@@ -356,9 +351,8 @@ func whatChanged(s1 []int, s2 []int) string {
 
 	// Determine what else changed.
 
-	// Get smaller replica set len between
-	// old vs new, then cap both to this len for
-	// comparison.
+	// Get smaller replica set len between old vs new, then cap both to this
+	// len for comparison.
 	slen := int(math.Min(float64(len(a)), float64(len(b))))
 
 	a = a[:slen]
@@ -381,16 +375,13 @@ func whatChanged(s1 []int, s2 []int) string {
 		}
 	}
 
-	// If the broker lists changed but
-	// are the same after sorting,
-	// we've just changed the preferred
-	// leader.
+	// If the broker lists changed but are the same after sorting, we've just
+	// changed the preferred leader.
 	if echanged && samePostSort {
 		changes = append(changes, "preferred leader")
 	}
 
-	// If the broker lists changed and
-	// aren't the same after sorting, we've
+	// If the broker lists changed and aren't the same after sorting, we've
 	// replaced a broker.
 	if echanged && !samePostSort {
 		changes = append(changes, "replaced broker")

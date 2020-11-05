@@ -12,8 +12,7 @@ import (
 )
 
 func validateBrokersForScale(cmd *cobra.Command, brokers kafkazk.BrokerMap, bm kafkazk.BrokerMetaMap) []int {
-	// No broker changes are permitted in rebalance
-	// other than new broker additions.
+	// No broker changes are permitted in rebalance other than new broker additions.
 	fmt.Println("\nValidating broker list:")
 
 	// Update the current BrokerList with
@@ -27,8 +26,7 @@ func validateBrokersForScale(cmd *cobra.Command, brokers kafkazk.BrokerMap, bm k
 		fmt.Printf("%s-\n", indent)
 	}
 
-	// Check if any referenced brokers are marked as having
-	// missing/partial metrics data.
+	// Check if any referenced brokers are marked as having missing/partial metrics data.
 	ensureBrokerMetrics(cmd, brokers, bm)
 
 	switch {
@@ -40,7 +38,8 @@ func validateBrokersForScale(cmd *cobra.Command, brokers kafkazk.BrokerMap, bm k
 		fmt.Printf("%s-\n", indent)
 		fmt.Printf("%sOK\n", indent)
 	default:
-		fmt.Println("%s[ERROR] scale requires additional brokers")
+		fmt.Printf("%s[ERROR] scale requires additional brokers\n", indent)
+		os.Exit(1)
 	}
 
 	var selectorMethod bytes.Buffer
@@ -72,9 +71,8 @@ func validateBrokersForScale(cmd *cobra.Command, brokers kafkazk.BrokerMap, bm k
 }
 
 func printScaleParams(cmd *cobra.Command, results []rebalanceResults, brokers kafkazk.BrokerMap, tol float64) {
-	// Print rebalance parameters as a result of
-	// input configurations and brokers found
-	// to be beyond the storage threshold.
+	// Print rebalance parameters as a result of input configurations and brokers
+	// found to be beyond the storage threshold.
 	fmt.Println("\nScale parameters:")
 
 	pst, _ := cmd.Flags().GetInt("partition-size-threshold")
