@@ -320,7 +320,7 @@ func printReassignmentParams(cmd *cobra.Command, results []reassignmentBundle, b
 
 	// Print the top 10 rebalance results in verbose.
 	if verbose {
-		fmt.Printf("%s-\n%sTop 10 %s map results\n", indent, subCmd, indent)
+		fmt.Printf("%s-\nTop 10 %s map results\n", indent, subCmd)
 		for i, r := range results {
 			fmt.Printf("%stolerance: %.2f -> range: %.2fGB, std. deviation: %.2fGB\n",
 				indent, r.tolerance, r.storageRange/div, r.stdDev/div)
