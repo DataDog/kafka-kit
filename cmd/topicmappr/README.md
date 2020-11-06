@@ -56,6 +56,7 @@ Available Commands:
   help        Help about any command
   rebalance   Rebalance partition allotments among a set of topics and brokers
   rebuild     Rebuild a partition map for one or more topics
+  scale       Redistribute partitions to additional brokers
   version     Print the version
 
 Flags:
@@ -100,6 +101,7 @@ Flags:
       --skip-no-ops                   Skip no-op partition assigments
       --sub-affinity                  Replacement broker substitution affinity
       --topics string                 Rebuild topics (comma delim. list) by lookup in ZooKeeper
+      --topics-exclude string         Exclude topics
       --use-meta                      Use broker metadata in placement constraints (default true)
       --zk-metrics-prefix string      ZooKeeper namespace prefix for Kafka metrics (when using storage placement) (default "topicmappr")
 
@@ -120,7 +122,7 @@ Usage:
 Flags:
       --brokers string                 Broker list to scope all partition placements to ('-1' for all currently mapped brokers, '-2' for all brokers in cluster)
   -h, --help                           help for rebalance
-      --locality-scoped                Disallow a relocation to traverse rack.id values among brokers
+      --locality-scoped                Ensure that all partition movements are scoped by rack.id
       --metrics-age int                Kafka metrics age tolerance (in minutes) (default 60)
       --optimize-leadership            Rebalance all broker leader/follower ratios
       --out-file string                If defined, write a combined map of all topics to a file
@@ -131,6 +133,37 @@ Flags:
       --storage-threshold-gb float     Storage free in gigabytes to target for partition offload (those below the specified value); 0 [default] defers target selection to --storage-threshold
       --tolerance float                Percent distance from the mean storage free to limit storage scheduling (0 performs automatic tolerance selection)
       --topics string                  Rebuild topics (comma delim. list) by lookup in ZooKeeper
+      --topics-exclude string          Exclude topics
+      --verbose                        Verbose output
+      --zk-metrics-prefix string       ZooKeeper namespace prefix for Kafka metrics (default "topicmappr")
+
+Global Flags:
+      --ignore-warns       Produce a map even if warnings are encountered [TOPICMAPPR_IGNORE_WARNS]
+      --zk-addr string     ZooKeeper connect string [TOPICMAPPR_ZK_ADDR] (default "localhost:2181")
+      --zk-prefix string   ZooKeeper prefix (if Kafka is configured with a chroot path prefix) [TOPICMAPPR_ZK_PREFIX]
+```
+
+## scale usage
+
+```
+Redistribute partitions to additional brokers
+
+Usage:
+  topicmappr scale [flags]
+
+Flags:
+      --brokers string                 Broker list to scope all partition placements to ('-1' for all currently mapped brokers, '-2' for all brokers in cluster)
+  -h, --help                           help for scale
+      --locality-scoped                Ensure that all partition movements are scoped by rack.id
+      --metrics-age int                Kafka metrics age tolerance (in minutes) (default 60)
+      --optimize-leadership            Scale all broker leader/follower ratios
+      --out-file string                If defined, write a combined map of all topics to a file
+      --out-path string                Path to write output map files to
+      --partition-limit int            Limit the number of top partitions by size eligible for relocation per broker (default 30)
+      --partition-size-threshold int   Size in megabytes where partitions below this value will not be moved in a scale (default 512)
+      --tolerance float                Percent distance from the mean storage free to limit storage scheduling (0 performs automatic tolerance selection)
+      --topics string                  Rebuild topics (comma delim. list) by lookup in ZooKeeper
+      --topics-exclude string          Exclude topics
       --verbose                        Verbose output
       --zk-metrics-prefix string       ZooKeeper namespace prefix for Kafka metrics (default "topicmappr")
 
