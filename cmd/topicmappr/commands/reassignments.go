@@ -82,6 +82,8 @@ func computeReassignmentBundles(params computeReassignmentBundlesParams) chan re
 				partitionSizeThreshold: params.partitionSizeThreshold,
 				offloadTargetsMap:      otm,
 				tolerance:              tol,
+				localityScoped:         params.localityScoped,
+				verbose:                params.verbose,
 			}
 
 			// Iterate over offload targets, planning at most one relocation per iteration.

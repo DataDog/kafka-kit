@@ -15,19 +15,20 @@ type relocation struct {
 // planRelocationsForBrokerParams are used to plan partition relocations from
 // source brokers to destination brokers.
 type planRelocationsForBrokerParams struct {
-	sourceID               int
 	relos                  map[int][]relocation
 	mappings               kafkazk.Mappings
 	brokers                kafkazk.BrokerMap
 	partitionMeta          kafkazk.PartitionMetaMap
 	plan                   relocationPlan
-	pass                   int
 	topPartitionsLimit     int
 	partitionSizeThreshold int
 	offloadTargetsMap      map[int]struct{}
 	tolerance              float64
 	localityScoped         bool
 	verbose                bool
+	// These aren't specified by the user.
+	pass     int
+	sourceID int
 }
 
 // relocationPlan is a mapping of topic, partition to a [][2]int describing a
