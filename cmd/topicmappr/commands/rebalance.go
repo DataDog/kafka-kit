@@ -18,18 +18,6 @@ var rebalanceCmd = &cobra.Command{
 	Run:   rebalance,
 }
 
-// Rebalance may be configured to run a series of rebalance plans. A
-// rebalanceResults holds any relevant output along with metadata that hints at
-// the quality of the output, such as the resulting storageutilization range.
-type rebalanceResults struct {
-	storageRange float64
-	stdDev       float64
-	tolerance    float64
-	partitionMap *kafkazk.PartitionMap
-	relocations  map[int][]relocation
-	brokers      kafkazk.BrokerMap
-}
-
 func init() {
 	rootCmd.AddCommand(rebalanceCmd)
 
