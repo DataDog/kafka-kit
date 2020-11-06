@@ -200,7 +200,7 @@ func scale(cmd *cobra.Command, _ []string) {
 	partitionMapOut, brokersOut, relos := m.partitionMap, m.brokers, m.relocations
 
 	// Print parameters used for scale decisions.
-	printScaleParams(cmd, resultsByRange, brokersIn, m.tolerance)
+	printReassignmentParams(cmd, resultsByRange, brokersIn, m.tolerance)
 
 	// Optimize leaders.
 	if t, _ := cmd.Flags().GetBool("optimize-leadership"); t {

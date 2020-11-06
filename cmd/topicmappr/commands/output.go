@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"sort"
+	"strings"
 
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
 
@@ -288,6 +289,39 @@ func writeMaps(cmd *cobra.Command, pm *kafkazk.PartitionMap, phasedPM *kafkazk.P
 			fmt.Printf("%s%s", indent, err)
 		} else {
 			fmt.Printf("%s%s%s.json\n", indent, outPath, t)
+		}
+	}
+}
+
+func printReassignmentParams(cmd *cobra.Command, results []reassignmentBundle, brokers kafkazk.BrokerMap, tol float64) {
+	subCmd := cmd.Name()
+
+	fmt.Printf("\n%s parameters:\n", strings.Title(subCmd))
+
+	pst, _ := cmd.Flags().GetInt("partition-size-threshold")
+	mean, hMean := brokers.Mean(), brokers.HMean()
+
+	fmt.Printf("%sIgnoring partitions smaller than %dMB\n", indent, pst)
+	fmt.Printf("%sFree storage mean, harmonic mean: %.2fGB, %.2fGB\n",
+		indent, mean/div, hMean/div)
+
+	fmt.Printf("%sBroker free storage limits (with a %.2f%% tolerance from mean):\n",
+		indent, tol*100)
+
+	fmt.Printf("%s%sSources limited to <= %.2fGB\n", indent, indent, mean*(1+tol)/div)
+	fmt.Printf("%s%sDestinations limited to >= %.2fGB\n", indent, indent, mean*(1-tol)/div)
+
+	verbose, _ := cmd.Flags().GetBool("verbose")
+
+	// Print the top 10 rebalance results in verbose.
+	if verbose {
+		fmt.Printf("%s-\n%sTop 10 %s map results\n", indent, subCmd, indent)
+		for i, r := range results {
+			fmt.Printf("%stolerance: %.2f -> range: %.2fGB, std. deviation: %.2fGB\n",
+				indent, r.tolerance, r.storageRange/div, r.stdDev/div)
+			if i == 10 {
+				break
+			}
 		}
 	}
 }
