@@ -143,7 +143,7 @@ func scale(cmd *cobra.Command, _ []string) {
 					// Update the source broker ID
 					params.sourceID = sourceID
 
-					relos := planRelocationsForBroker(cmd, params)
+					relos := planRelocationsForBroker(params)
 
 					// If no relocations could be planned,
 					// increment the exhaustion counter.

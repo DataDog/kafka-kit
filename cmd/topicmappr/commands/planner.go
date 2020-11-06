@@ -4,27 +4,7 @@ import (
 	"fmt"
 
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
-
-	"github.com/spf13/cobra"
 )
-
-// reassignmentBundle holds a reassignment PartitionMap along with some input
-// parameters used to generate the map and expected results in broker storage
-// usage if the map were to be applied.
-type reassignmentBundle struct {
-	// The expected broker free storage range.
-	storageRange float64
-	// The expected broker free storage std. deviation.
-	stdDev float64
-	// The tolerance value used in the storage based partition reassignment.
-	tolerance float64
-	// The reassignment PartitionMap.
-	partitionMap *kafkazk.PartitionMap
-	// Partition relocations that constitute the reassignment.
-	relocations map[int][]relocation
-	// The brokers that the PartitionMap is assigning brokers to.
-	brokers kafkazk.BrokerMap
-}
 
 // Relocation is a kafakzk.Partition to destination broker ID.
 type relocation struct {
@@ -46,6 +26,8 @@ type planRelocationsForBrokerParams struct {
 	partitionSizeThreshold int
 	offloadTargetsMap      map[int]struct{}
 	tolerance              float64
+	localityScoped         bool
+	verbose                bool
 }
 
 // relocationPlan is a mapping of topic, partition to a [][2]int describing a
@@ -79,10 +61,8 @@ func (r relocationPlan) isPlanned(p kafkazk.Partition) ([][2]int, bool) {
 	return r[p.Topic][p.Partition], true
 }
 
-func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBrokerParams) int {
-	verbose, _ := cmd.Flags().GetBool("verbose")
-	localityScoped, _ := cmd.Flags().GetBool("locality-scoped")
-
+// TODO(jamie): ...wow
+func planRelocationsForBroker(params planRelocationsForBrokerParams) int {
 	relos := params.relos
 	mappings := params.mappings
 	brokers := params.brokers
@@ -93,6 +73,8 @@ func planRelocationsForBroker(cmd *cobra.Command, params planRelocationsForBroke
 	partitionSizeThreshold := float64(params.partitionSizeThreshold * 1 << 20)
 	offloadTargetsMap := params.offloadTargetsMap
 	tolerance := params.tolerance
+	localityScoped := params.localityScoped
+	verbose := params.verbose
 
 	// Use the arithmetic mean for target
 	// thresholds.

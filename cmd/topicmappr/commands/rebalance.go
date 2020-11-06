@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"sort"
-	"sync"
 
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
 
@@ -81,8 +80,8 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	// Get a broker map.
 	brokersIn := kafkazk.BrokerMapFromPartitionMap(partitionMapIn, brokerMeta, false)
 
-	// Validate all broker params, get a copy of the
-	// broker IDs targeted for partition offloading.
+	// Validate all broker params, get a copy of the broker IDs targeted for
+	// partition offloading.
 	offloadTargets := validateBrokersForRebalance(cmd, brokersIn, brokerMeta)
 
 	// Sort offloadTargets by storage free ascending.
@@ -90,88 +89,23 @@ func rebalance(cmd *cobra.Command, _ []string) {
 
 	partitionLimit, _ := cmd.Flags().GetInt("partition-limit")
 	partitionSizeThreshold, _ := cmd.Flags().GetInt("partition-size-threshold")
+	tolerance, _ := cmd.Flags().GetFloat64("tolerance")
+	localityScoped, _ := cmd.Flags().GetBool("locality-scoped")
+	verbose, _ := cmd.Flags().GetBool("verbose")
 
-	otm := map[int]struct{}{}
-	for _, id := range offloadTargets {
-		otm[id] = struct{}{}
+	params := computeReassignmentBundlesParams{
+		offloadTargets:         offloadTargets,
+		tolerance:              tolerance,
+		partitionMap:           partitionMapIn,
+		partitionMeta:          partitionMeta,
+		brokerMap:              brokersIn,
+		partitionLimit:         partitionLimit,
+		partitionSizeThreshold: partitionSizeThreshold,
+		localityScoped:         localityScoped,
+		verbose:                verbose,
 	}
 
-	results := make(chan reassignmentBundle, 100)
-	wg := &sync.WaitGroup{}
-
-	// Compute a reassignmentBundle output for all tolerance values 0.01..0.99 in parallel.
-	for i := 0.01; i < 0.99; i += 0.01 {
-		// Whether we're using a fixed tolerance (non 0.00) set via flag or an
-		// iterative value.
-		tolFlag, _ := cmd.Flags().GetFloat64("tolerance")
-		var tol float64
-
-		if tolFlag == 0.00 {
-			tol = i
-		} else {
-			tol = tolFlag
-		}
-
-		wg.Add(1)
-
-		go func() {
-			defer wg.Done()
-
-			partitionMap := partitionMapIn.Copy()
-
-			// Bundle planRelocationsForBrokerParams.
-			params := planRelocationsForBrokerParams{
-				relos:                  map[int][]relocation{},
-				mappings:               partitionMap.Mappings(),
-				brokers:                brokersIn.Copy(),
-				partitionMeta:          partitionMeta,
-				plan:                   relocationPlan{},
-				topPartitionsLimit:     partitionLimit,
-				partitionSizeThreshold: partitionSizeThreshold,
-				offloadTargetsMap:      otm,
-				tolerance:              tol,
-			}
-
-			// Iterate over offload targets, planning at most one relocation per iteration.
-			// Continue this loop until no more relocations can be planned.
-			for exhaustedCount := 0; exhaustedCount < len(offloadTargets); {
-				params.pass++
-				for _, sourceID := range offloadTargets {
-					// Update the source broker ID
-					params.sourceID = sourceID
-
-					relos := planRelocationsForBroker(cmd, params)
-
-					// If no relocations could be planned, increment the exhaustion counter.
-					if relos == 0 {
-						exhaustedCount++
-					}
-				}
-			}
-
-			// Update the partition map with the relocation plan.
-			applyRelocationPlan(partitionMap, params.plan)
-
-			// Insert the reassignmentBundle.
-			results <- reassignmentBundle{
-				storageRange: params.brokers.StorageRange(),
-				stdDev:       params.brokers.StorageStdDev(),
-				tolerance:    tol,
-				partitionMap: partitionMap,
-				relocations:  params.relos,
-				brokers:      params.brokers,
-			}
-
-		}()
-
-		// Break early if we're using a fixed tolerance value.
-		if tolFlag != 0.00 {
-			break
-		}
-	}
-
-	wg.Wait()
-	close(results)
+	results := computeReassignmentBundles(params)
 
 	// Merge all results into a slice.
 	resultsByRange := []reassignmentBundle{}
