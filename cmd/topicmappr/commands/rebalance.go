@@ -150,7 +150,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 			}
 
 			// Update the partition map with the relocation plan.
-			applyRelocationPlan(cmd, partitionMap, params.plan)
+			applyRelocationPlan(partitionMap, params.plan)
 
 			// Insert the reassignmentBundle.
 			results <- reassignmentBundle{
@@ -197,6 +197,11 @@ func rebalance(cmd *cobra.Command, _ []string) {
 
 	// Print parameters used for rebalance decisions.
 	printRebalanceParams(cmd, resultsByRange, brokersIn, m.tolerance)
+
+	// Optimize leaders.
+	if t, _ := cmd.Flags().GetBool("optimize-leadership"); t {
+		partitionMapOut.OptimizeLeaderFollower()
+	}
 
 	// Print planned relocations.
 	printPlannedRelocations(offloadTargets, relos, partitionMeta)
