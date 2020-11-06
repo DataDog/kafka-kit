@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"sort"
@@ -42,9 +41,6 @@ func validateBrokersForScale(cmd *cobra.Command, brokers kafkazk.BrokerMap, bm k
 		os.Exit(1)
 	}
 
-	var selectorMethod bytes.Buffer
-	selectorMethod.WriteString("Brokers targeted for partition offloading ")
-
 	var offloadTargets []int
 
 	// Offload targets are all non-new brokers.
@@ -56,6 +52,8 @@ func validateBrokersForScale(cmd *cobra.Command, brokers kafkazk.BrokerMap, bm k
 	}
 
 	sort.Ints(offloadTargets)
+
+	fmt.Println("\nBrokers targeted for partition offloading:")
 
 	// Exit if we've hit insufficient broker counts.
 	if len(offloadTargets) == 0 {
