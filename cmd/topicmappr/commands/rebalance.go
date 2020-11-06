@@ -96,10 +96,10 @@ func rebalance(cmd *cobra.Command, _ []string) {
 		otm[id] = struct{}{}
 	}
 
-	results := make(chan rebalanceResults, 100)
+	results := make(chan reassignmentBundle, 100)
 	wg := &sync.WaitGroup{}
 
-	// Compute a rebalanceResults output for all tolerance values 0.01..0.99 in parallel.
+	// Compute a reassignmentBundle output for all tolerance values 0.01..0.99 in parallel.
 	for i := 0.01; i < 0.99; i += 0.01 {
 		// Whether we're using a fixed tolerance (non 0.00) set via flag or an
 		// iterative value.
@@ -152,8 +152,8 @@ func rebalance(cmd *cobra.Command, _ []string) {
 			// Update the partition map with the relocation plan.
 			applyRelocationPlan(cmd, partitionMap, params.plan)
 
-			// Insert the rebalanceResults.
-			results <- rebalanceResults{
+			// Insert the reassignmentBundle.
+			results <- reassignmentBundle{
 				storageRange: params.brokers.StorageRange(),
 				stdDev:       params.brokers.StorageStdDev(),
 				tolerance:    tol,
@@ -174,7 +174,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	close(results)
 
 	// Merge all results into a slice.
-	resultsByRange := []rebalanceResults{}
+	resultsByRange := []reassignmentBundle{}
 	for r := range results {
 		resultsByRange = append(resultsByRange, r)
 	}

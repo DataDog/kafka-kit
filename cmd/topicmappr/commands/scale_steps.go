@@ -70,7 +70,7 @@ func validateBrokersForScale(cmd *cobra.Command, brokers kafkazk.BrokerMap, bm k
 	return offloadTargets
 }
 
-func printScaleParams(cmd *cobra.Command, results []rebalanceResults, brokers kafkazk.BrokerMap, tol float64) {
+func printScaleParams(cmd *cobra.Command, results []reassignmentBundle, brokers kafkazk.BrokerMap, tol float64) {
 	// Print rebalance parameters as a result of input configurations and brokers
 	// found to be beyond the storage threshold.
 	fmt.Println("\nScale parameters:")

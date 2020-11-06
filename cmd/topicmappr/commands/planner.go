@@ -8,22 +8,32 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Rebalance may be configured to run a series of rebalance plans. A
-// rebalanceResults holds any relevant output along with metadata that hints at
-// the quality of the output, such as the resulting storageutilization range.
-type rebalanceResults struct {
+// reassignmentBundle holds a reassignment PartitionMap along with some input
+// parameters used to generate the map and expected results in broker storage
+// usage if the map were to be applied.
+type reassignmentBundle struct {
+	// The expected broker free storage range.
 	storageRange float64
-	stdDev       float64
-	tolerance    float64
+	// The expected broker free storage std. deviation.
+	stdDev float64
+	// The tolerance value used in the storage based partition reassignment.
+	tolerance float64
+	// The reassignment PartitionMap.
 	partitionMap *kafkazk.PartitionMap
-	relocations  map[int][]relocation
-	brokers      kafkazk.BrokerMap
+	// Partition relocations that constitute the reassignment.
+	relocations map[int][]relocation
+	// The brokers that the PartitionMap is assigning brokers to.
+	brokers kafkazk.BrokerMap
 }
+
+// Relocation is a kafakzk.Partition to destination broker ID.
 type relocation struct {
 	partition   kafkazk.Partition
 	destination int
 }
 
+// planRelocationsForBrokerParams are used to plan partition relocations from
+// source brokers to destination brokers.
 type planRelocationsForBrokerParams struct {
 	sourceID               int
 	relos                  map[int][]relocation
