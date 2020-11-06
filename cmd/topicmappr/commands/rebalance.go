@@ -106,6 +106,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 		verbose:                verbose,
 	}
 
+	// Generate reassignmentBundles for a rebalance.
 	results := computeReassignmentBundles(params)
 
 	// Merge all results into a slice.
