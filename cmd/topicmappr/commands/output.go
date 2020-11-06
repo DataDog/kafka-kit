@@ -103,9 +103,14 @@ func printBrokerAssignmentStats(cmd *cobra.Command, pm1, pm2 *kafkazk.PartitionM
 	// If we're using the storage placement strategy, write anticipated storage changes.
 	psf, _ := cmd.Flags().GetFloat64("partition-size-factor")
 
-	if cmd.Use == "rebalance" || cmd.Flag("placement").Value.String() == "storage" {
+	switch {
+	case
+		cmd.Name() == "scale",
+		cmd.Name() == "rebalance",
+		cmd.Flag("placement").Value.String() == "storage":
+
 		fmt.Println("\nStorage free change estimations:")
-		if psf != 1.0 && cmd.Use != "rebalance" {
+		if psf != 1.0 && cmd.Name() != "rebalance" {
 			fmt.Printf("%sPartition size factor of %.2f applied\n", indent, psf)
 		}
 
@@ -196,7 +201,7 @@ func printBrokerAssignmentStats(cmd *cobra.Command, pm1, pm2 *kafkazk.PartitionM
 			newStorage := bm2[id].StorageFree / div
 
 			// Skip reporting non-changes when using rebalance.
-			// if cmd.Use == "rebalance" && diff[1] == 0.00 {
+			// if cmd.Name() == "rebalance" && diff[1] == 0.00 {
 			// 	continue
 			// }
 
