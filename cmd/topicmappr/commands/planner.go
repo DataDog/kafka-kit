@@ -258,24 +258,27 @@ func applyRelocationPlan(pm *kafkazk.PartitionMap, plan relocationPlan) {
 	}
 }
 
-func printPlannedRelocations(targets []int, relos map[int][]relocation, pmm kafkazk.PartitionMetaMap) {
-	var total float64
+// Sort offload targets by size.
+type offloadTargetsBySize struct {
+	t  []int
+	bm kafkazk.BrokerMap
+}
 
-	for _, id := range targets {
-		fmt.Printf("\nBroker %d relocations planned:\n", id)
+// We work with storage free, so a sort by utilization descending requires an
+// ascending sort.
+func (o offloadTargetsBySize) Len() int      { return len(o.t) }
+func (o offloadTargetsBySize) Swap(i, j int) { o.t[i], o.t[j] = o.t[j], o.t[i] }
+func (o offloadTargetsBySize) Less(i, j int) bool {
+	s1 := o.bm[o.t[i]].StorageFree
+	s2 := o.bm[o.t[j]].StorageFree
 
-		if _, exist := relos[id]; !exist {
-			fmt.Printf("%s[none]\n", indent)
-			continue
-		}
-
-		for _, r := range relos[id] {
-			pSize, _ := pmm.Size(r.partition)
-			total += pSize / div
-			fmt.Printf("%s[%.2fGB] %s p%d -> %d\n",
-				indent, pSize/div, r.partition.Topic, r.partition.Partition, r.destination)
-		}
+	if s1 < s2 {
+		return true
 	}
-	fmt.Printf("%s-\n", indent)
-	fmt.Printf("%sTotal relocation volume: %.2fGB\n", indent, total)
+
+	if s1 > s2 {
+		return false
+	}
+
+	return o.t[i] < o.t[j]
 }

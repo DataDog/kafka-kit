@@ -11,31 +11,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Sort offload targets by size.
-type offloadTargetsBySize struct {
-	t  []int
-	bm kafkazk.BrokerMap
-}
-
-// We work with storage free, so a sort by utilization descending requires an
-// ascending sort.
-func (o offloadTargetsBySize) Len() int      { return len(o.t) }
-func (o offloadTargetsBySize) Swap(i, j int) { o.t[i], o.t[j] = o.t[j], o.t[i] }
-func (o offloadTargetsBySize) Less(i, j int) bool {
-	s1 := o.bm[o.t[i]].StorageFree
-	s2 := o.bm[o.t[j]].StorageFree
-
-	if s1 < s2 {
-		return true
-	}
-
-	if s1 > s2 {
-		return false
-	}
-
-	return o.t[i] < o.t[j]
-}
-
 func validateBrokersForRebalance(cmd *cobra.Command, brokers kafkazk.BrokerMap, bm kafkazk.BrokerMetaMap) []int {
 	// No broker changes are permitted in rebalance other than new broker additions.
 	fmt.Println("\nValidating broker list:")

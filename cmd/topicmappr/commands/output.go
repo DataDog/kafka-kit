@@ -326,6 +326,28 @@ func printReassignmentParams(cmd *cobra.Command, results []reassignmentBundle, b
 	}
 }
 
+func printPlannedRelocations(targets []int, relos map[int][]relocation, pmm kafkazk.PartitionMetaMap) {
+	var total float64
+
+	for _, id := range targets {
+		fmt.Printf("\nBroker %d relocations planned:\n", id)
+
+		if _, exist := relos[id]; !exist {
+			fmt.Printf("%s[none]\n", indent)
+			continue
+		}
+
+		for _, r := range relos[id] {
+			pSize, _ := pmm.Size(r.partition)
+			total += pSize / div
+			fmt.Printf("%s[%.2fGB] %s p%d -> %d\n",
+				indent, pSize/div, r.partition.Topic, r.partition.Partition, r.destination)
+		}
+	}
+	fmt.Printf("%s-\n", indent)
+	fmt.Printf("%sTotal relocation volume: %.2fGB\n", indent, total)
+}
+
 // handleOverridableErrs handles errors that can be optionally ignored by the
 // user (hence being referred to as 'WARN' in the CLI). If --ignore-warns is
 // false (default), any errors passed here will cause an exit(1).
