@@ -1,5 +1,3 @@
-// The scale command is mostly the same as rebalance, so several common functions
-// are shared from the rebalance_steps file.
 package commands
 
 import (
