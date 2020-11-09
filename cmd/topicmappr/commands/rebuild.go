@@ -159,8 +159,8 @@ func rebuild(cmd *cobra.Command, _ []string) {
 	// Apply any replication factor settings.
 	updateReplicationFactor(cmd, partitionMapIn)
 
-	// Build a new map using the provided list of brokers.
-	// This is OK to run even when a no-op is intended.
+	// Build a new map using the provided list of brokers. This is OK to run even
+	// when a no-op is intended.
 	partitionMapOut, errs := buildMap(cmd, partitionMapIn, partitionMeta, brokers, affinities)
 
 	// Optimize leaders.

@@ -71,8 +71,7 @@ func getSubAffinities(cmd *cobra.Command, bm kafkazk.BrokerMap, bmo kafkazk.Brok
 		}
 	}
 
-	// Print whether any affinities
-	// were inferred.
+	// Print whether any affinities were inferred.
 	for a, b := range affinities {
 		var inferred string
 		if bmo[a].Missing {
@@ -230,8 +229,7 @@ func buildMap(cmd *cobra.Command, pm *kafkazk.PartitionMap, pmm kafkazk.Partitio
 		return partitionMapInStripped.Rebuild(rebuildParams)
 	}
 
-	// Update the StorageFree only on brokers
-	// marked for replacement.
+	// Update the StorageFree only on brokers marked for replacement.
 	if placement == "storage" {
 		replacedBrokers := func(b *kafkazk.Broker) bool { return b.Replace }
 		err := rebuildParams.BM.SubStorage(pm, pmm, replacedBrokers)

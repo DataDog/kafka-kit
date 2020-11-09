@@ -25,8 +25,8 @@ func TestPhasedReassignment(t *testing.T) {
 
 	phased := phasedReassignment(pm1, pm2)
 
-	// These maps should be equal; phasedReassignment will
-	// be a no-op since all of the pm2 leaders == the pm1 leaders.
+	// These maps should be equal; phasedReassignment will be a no-op since all of
+	// the pm2 leaders == the pm1 leaders.
 	if eq, _ := pm2.Equal(phased); !eq {
 		t.Errorf("Unexpected PartitionMap inequality")
 	}

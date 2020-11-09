@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"sort"
+	"strings"
 
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
 
@@ -99,13 +100,17 @@ func printBrokerAssignmentStats(cmd *cobra.Command, pm1, pm2 *kafkazk.PartitionM
 			indent, use.ID, use.Leader, use.Follower, use.Leader+use.Follower)
 	}
 
-	// If we're using the storage placement strategy,
-	// write anticipated storage changes.
+	// If we're using the storage placement strategy, write anticipated storage changes.
 	psf, _ := cmd.Flags().GetFloat64("partition-size-factor")
 
-	if cmd.Use == "rebalance" || cmd.Flag("placement").Value.String() == "storage" {
+	switch {
+	case
+		cmd.Name() == "scale",
+		cmd.Name() == "rebalance",
+		cmd.Flag("placement").Value.String() == "storage":
+
 		fmt.Println("\nStorage free change estimations:")
-		if psf != 1.0 && cmd.Use != "rebalance" {
+		if psf != 1.0 && cmd.Name() != "rebalance" {
 			fmt.Printf("%sPartition size factor of %.2f applied\n", indent, psf)
 		}
 
@@ -119,8 +124,7 @@ func printBrokerAssignmentStats(cmd *cobra.Command, pm1, pm2 *kafkazk.PartitionM
 		// input and wasn't marked for replacement (generally, users are doing storage placements
 		// particularly to balance out the storage of the input broker list).
 
-		// Filter function for brokers where the Replaced
-		// field is false.
+		// Filter function for brokers where the Replaced field is false.
 		nonReplaced := func(b *kafkazk.Broker) bool {
 			if b.Replace {
 				return false
@@ -136,8 +140,7 @@ func printBrokerAssignmentStats(cmd *cobra.Command, pm1, pm2 *kafkazk.PartitionM
 			}
 		}
 
-		// Filter function for brokers that are in the
-		// partition map.
+		// Filter function for brokers that are in the partition map.
 		mapped := func(b *kafkazk.Broker) bool {
 			if _, exist := mappedIDs[b.ID]; exist {
 				return true
@@ -151,7 +154,10 @@ func printBrokerAssignmentStats(cmd *cobra.Command, pm1, pm2 *kafkazk.PartitionM
 		r1, r2 := mb1.StorageRange(), mb2.StorageRange()
 		fmt.Printf("%srange: %.2fGB -> %.2fGB\n", indent, r1/div, r2/div)
 		if r2 > r1 {
-			errs = append(errs, fmt.Errorf("broker free storage range increased"))
+			// Range increases are acceptable and common in scale up operations.
+			if cmd.Name() != "scale" {
+				errs = append(errs, fmt.Errorf("broker free storage range increased"))
+			}
 		}
 
 		// Range spread before/after.
@@ -193,11 +199,6 @@ func printBrokerAssignmentStats(cmd *cobra.Command, pm1, pm2 *kafkazk.PartitionM
 
 			originalStorage := bm1[id].StorageFree / div
 			newStorage := bm2[id].StorageFree / div
-
-			// Skip reporting non-changes when using rebalance.
-			// if cmd.Use == "rebalance" && diff[1] == 0.00 {
-			// 	continue
-			// }
 
 			fmt.Printf("%sBroker %d: %.2f -> %.2f (%+.2fGB, %.2f%%) %s\n",
 				indent, id, originalStorage, newStorage, diff[0]/div, diff[1], replace)
@@ -292,10 +293,64 @@ func writeMaps(cmd *cobra.Command, pm *kafkazk.PartitionMap, phasedPM *kafkazk.P
 	}
 }
 
-// handleOverridableErrs handles errors that can be optionally ignored
-// by the user (hence being referred to as 'WARN' in the
-// CLI). If --ignore-warns is false (default), any errors passed
-// here will cause an exit(1).
+func printReassignmentParams(cmd *cobra.Command, results []reassignmentBundle, brokers kafkazk.BrokerMap, tol float64) {
+	subCmd := cmd.Name()
+
+	fmt.Printf("\n%s parameters:\n", strings.Title(subCmd))
+
+	pst, _ := cmd.Flags().GetInt("partition-size-threshold")
+	mean, hMean := brokers.Mean(), brokers.HMean()
+
+	fmt.Printf("%sIgnoring partitions smaller than %dMB\n", indent, pst)
+	fmt.Printf("%sFree storage mean, harmonic mean: %.2fGB, %.2fGB\n",
+		indent, mean/div, hMean/div)
+
+	fmt.Printf("%sBroker free storage limits (with a %.2f%% tolerance from mean):\n",
+		indent, tol*100)
+
+	fmt.Printf("%s%sSources limited to <= %.2fGB\n", indent, indent, mean*(1+tol)/div)
+	fmt.Printf("%s%sDestinations limited to >= %.2fGB\n", indent, indent, mean*(1-tol)/div)
+
+	verbose, _ := cmd.Flags().GetBool("verbose")
+
+	// Print the top 10 rebalance results in verbose.
+	if verbose {
+		fmt.Printf("%s-\nTop 10 %s map results\n", indent, subCmd)
+		for i, r := range results {
+			fmt.Printf("%stolerance: %.2f -> range: %.2fGB, std. deviation: %.2fGB\n",
+				indent, r.tolerance, r.storageRange/div, r.stdDev/div)
+			if i == 10 {
+				break
+			}
+		}
+	}
+}
+
+func printPlannedRelocations(targets []int, relos map[int][]relocation, pmm kafkazk.PartitionMetaMap) {
+	var total float64
+
+	for _, id := range targets {
+		fmt.Printf("\nBroker %d relocations planned:\n", id)
+
+		if _, exist := relos[id]; !exist {
+			fmt.Printf("%s[none]\n", indent)
+			continue
+		}
+
+		for _, r := range relos[id] {
+			pSize, _ := pmm.Size(r.partition)
+			total += pSize / div
+			fmt.Printf("%s[%.2fGB] %s p%d -> %d\n",
+				indent, pSize/div, r.partition.Topic, r.partition.Partition, r.destination)
+		}
+	}
+	fmt.Printf("%s-\n", indent)
+	fmt.Printf("%sTotal relocation volume: %.2fGB\n", indent, total)
+}
+
+// handleOverridableErrs handles errors that can be optionally ignored by the
+// user (hence being referred to as 'WARN' in the CLI). If --ignore-warns is
+// false (default), any errors passed here will cause an exit(1).
 func handleOverridableErrs(cmd *cobra.Command, e errors) {
 	fmt.Println("\nWARN:")
 	if len(e) > 0 {
@@ -314,8 +369,8 @@ func handleOverridableErrs(cmd *cobra.Command, e errors) {
 	}
 }
 
-// whatChanged takes a before and after broker replica set
-// and returns a string describing what changed.
+// whatChanged takes a before and after broker replica set and returns a string
+// describing what changed.
 func whatChanged(s1 []int, s2 []int) string {
 	var changes []string
 
@@ -336,8 +391,7 @@ func whatChanged(s1 []int, s2 []int) string {
 		changes = append(changes, "increased replication")
 	}
 
-	// If the len is the same,
-	// check elements.
+	// If the len is the same, check elements.
 	if !lchanged {
 		for i := range a {
 			if a[i] != b[i] {
@@ -353,9 +407,8 @@ func whatChanged(s1 []int, s2 []int) string {
 
 	// Determine what else changed.
 
-	// Get smaller replica set len between
-	// old vs new, then cap both to this len for
-	// comparison.
+	// Get smaller replica set len between old vs new, then cap both to this
+	// len for comparison.
 	slen := int(math.Min(float64(len(a)), float64(len(b))))
 
 	a = a[:slen]
@@ -378,16 +431,13 @@ func whatChanged(s1 []int, s2 []int) string {
 		}
 	}
 
-	// If the broker lists changed but
-	// are the same after sorting,
-	// we've just changed the preferred
-	// leader.
+	// If the broker lists changed but are the same after sorting, we've just
+	// changed the preferred leader.
 	if echanged && samePostSort {
 		changes = append(changes, "preferred leader")
 	}
 
-	// If the broker lists changed and
-	// aren't the same after sorting, we've
+	// If the broker lists changed and aren't the same after sorting, we've
 	// replaced a broker.
 	if echanged && !samePostSort {
 		changes = append(changes, "replaced broker")

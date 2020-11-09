@@ -115,14 +115,11 @@ func initZooKeeper(cmd *cobra.Command) (kafkazk.Handler, error) {
 	return zk, nil
 }
 
-// containsRegex takes a topic name
-// reference and returns whether or not
+// containsRegex takes a topic name reference and returns whether or not
 // it should be interpreted as regex.
 func containsRegex(t string) bool {
-	// Check each character of the
-	// topic name. If it doesn't contain
-	// a legal Kafka topic name character, we're
-	// going to assume it's regex.
+	// Check each character of the topic name. If it doesn't contain a legal Kafka
+	// topic name character, we're going to assume it's regex.
 	for _, c := range t {
 		if !topicNormalChar.MatchString(string(c)) {
 			return true
@@ -139,8 +136,7 @@ func brokerStringToSlice(s string) []int {
 	parts := strings.Split(s, ",")
 	var is []int
 
-	// Iterate and convert
-	// each broker ID.
+	// Iterate and convert each broker ID.
 	for _, p := range parts {
 		i, err := strconv.Atoi(strings.TrimSpace(p))
 		// Err and exit on bad input.
