@@ -48,9 +48,15 @@ func (r replicationCapacityByBroker) setAllRatesWithDefault(ids []int, rate floa
 	}
 }
 
+func (r replicationCapacityByBroker) reset() {
+	for id := range r {
+		delete(r, id)
+	}
+}
+
 // brokerReplicationCapacities traverses the list of all brokers participating
 // in the reassignment. For each broker, it determines whether the broker is
-// a leader (source) or a follower (destination), and calculates an throttle
+// a leader (source) or a follower (destination), and calculates a throttle
 // accordingly, returning a replicationCapacityByBroker and error.
 func brokerReplicationCapacities(rtc *ReplicationThrottleConfigs, reassigning reassigningBrokers, bm kafkametrics.BrokerMetrics) (replicationCapacityByBroker, error) {
 	capacities := replicationCapacityByBroker{}
