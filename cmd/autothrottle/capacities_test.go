@@ -107,3 +107,20 @@ func TestStoreFollowerCapacity(t *testing.T) {
 		t.Errorf("Expected nil value, got %v", *val)
 	}
 }
+
+func TestReset(t *testing.T) {
+	capacities := replicationCapacityByBroker{}
+	capacities.setAllRatesWithDefault([]int{1001, 1002, 1003}, 100)
+
+	// Check expected len.
+	if len(capacities) != 3 {
+		t.Errorf("Expected len 3, got %d", len(capacities))
+	}
+
+	// Reset, check len.
+	capacities.reset()
+
+	if len(capacities) != 0 {
+		t.Errorf("Expected len 0, got %d", len(capacities))
+	}
+}
