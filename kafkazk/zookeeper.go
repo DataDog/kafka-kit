@@ -56,6 +56,7 @@ type Handler interface {
 	GetTopicStateISR(string) (TopicStateISR, error)
 	UpdateKafkaConfig(KafkaConfig) ([]bool, error)
 	GetReassignments() Reassignments
+	GetUnderReplicated() ([]string, error)
 	GetPendingDeletion() ([]string, error)
 	GetTopics([]*regexp.Regexp) ([]string, error)
 	GetTopicConfig(string) (*TopicConfig, error)
@@ -624,6 +625,47 @@ func (z *ZKHandler) GetTopicState(t string) (*TopicState, error) {
 	}
 
 	return ts, nil
+}
+
+// GetUnderReplicated returns a []string of all under-replicated topics.
+func (z *ZKHandler) GetUnderReplicated() ([]string, error) {
+	var underReplicated []string
+
+	// Get a list of all topics.
+	topics, err := z.GetTopics([]*regexp.Regexp{regexp.MustCompile(".*")})
+	if err != nil {
+		return underReplicated, err
+	}
+
+	// For each topic, compare the configured replica set against the ISR.
+	for _, topic := range topics {
+		configuredState, err := z.GetTopicState(topic)
+		if err != nil {
+			return underReplicated, err
+		}
+
+		currentState, err := z.GetTopicStateISR(topic)
+		if err != nil {
+			return underReplicated, err
+		}
+
+		// Compare.
+		for partn, replicaSet := range configuredState.Partitions {
+			state, ok := currentState[partn]
+			if !ok {
+				return underReplicated, fmt.Errorf("Inconsistent configuration and ISR state for %s", topic)
+			}
+
+			// It's cheaper/faster to compare the lengths; there's no known scenario
+			// where a configured replica set would be [a,b,c] but the ISR is [a,b,d].
+			if len(replicaSet) != len(state.ISR) {
+				underReplicated = append(underReplicated, topic)
+				break
+			}
+		}
+	}
+
+	return underReplicated, nil
 }
 
 // GetTopicStateISR takes a topic name. If the topic exists, the topic state
