@@ -43,6 +43,10 @@ func (zk *Mock) GetReassignments() Reassignments {
 	return r
 }
 
+func (zk *Mock) GetUnderReplicated() ([]string, error) {
+	return []string{"reassigning_topic"}, nil
+}
+
 func (zk *Mock) GetPendingDeletion() ([]string, error) {
 	return []string{"deleting_topic"}, nil
 }
