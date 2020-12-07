@@ -391,7 +391,9 @@ func TestGetUnderReplicated(t *testing.T) {
 		t.Error(err)
 	}
 
-	t.Log(ur)
+	if len(ur) != 1 || ur[0] != "topic2" {
+		t.Errorf("Expected 'topic2' in under replicated results, got '%s'", ur[0])
+	}
 }
 
 func TestGetReassignments(t *testing.T) {
