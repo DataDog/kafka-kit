@@ -132,7 +132,9 @@ func TestSetup(t *testing.T) {
 		// Create topics.
 		partitionMeta := NewPartitionMetaMap()
 		data := []byte(`{"version":1,"partitions":{"0":[1001,1002],"1":[1002,1001],"2":[1003,1004],"3":[1004,1003]}}`)
+
 		for i := 0; i < 5; i++ {
+			// Init config.
 			topic := fmt.Sprintf("topic%d", i)
 			p := fmt.Sprintf("%s/brokers/topics/%s", zkprefix, topic)
 			paths = append(paths, p)
@@ -140,6 +142,7 @@ func TestSetup(t *testing.T) {
 			if err != nil {
 				t.Error(err)
 			}
+
 			// Create partition meta.
 			partitionMeta[topic] = map[int]*PartitionMeta{
 				0: &PartitionMeta{Size: 1000.00},
@@ -147,39 +150,52 @@ func TestSetup(t *testing.T) {
 				2: &PartitionMeta{Size: 3000.00},
 				3: &PartitionMeta{Size: 4000.00},
 			}
-		}
 
-		// Create topic state for topic0.
-		statePaths := []string{
-			fmt.Sprintf("%s/brokers/topics/topic0/partitions", zkprefix),
-		}
+			// Create topic configs, states.
+			statePaths := []string{
+				fmt.Sprintf("%s/brokers/topics/topic%d/partitions", zkprefix, i),
+			}
 
-		for i := 0; i < 4; i++ {
-			statePaths = append(statePaths, fmt.Sprintf("%s/brokers/topics/topic0/partitions/%d", zkprefix, i))
-			statePaths = append(statePaths, fmt.Sprintf("%s/brokers/topics/topic0/partitions/%d/state", zkprefix, i))
-		}
+			for j := 0; j < 4; j++ {
+				statePaths = append(statePaths, fmt.Sprintf("%s/brokers/topics/topic%d/partitions/%d", zkprefix, i, j))
+				statePaths = append(statePaths, fmt.Sprintf("%s/brokers/topics/topic%d/partitions/%d/state", zkprefix, i, j))
+			}
 
-		for _, p := range statePaths {
-			_, err := zkc.Create(p, []byte{}, 0, zkclient.WorldACL(31))
+			for _, p := range statePaths {
+				_, err := zkc.Create(p, []byte{}, 0, zkclient.WorldACL(31))
+				if err != nil {
+					t.Error(err)
+				}
+			}
+
+			paths = append(paths, statePaths...)
+
+			config := `{"version":1,"partitions":{"0":[1001,1002], "1":[1002,1001], "2":[1003,1004], "3":[1004,1003]}}`
+			cfgPath := fmt.Sprintf("%s/brokers/topics/topic%d", zkprefix, i)
+			_, err = zkc.Set(cfgPath, []byte(config), -1)
 			if err != nil {
 				t.Error(err)
 			}
-		}
 
-		paths = append(paths, statePaths...)
+			states := []string{
+				`{"controller_epoch":1,"leader":1001,"version":1,"leader_epoch":1,"isr":[1001,1002]}`,
+				`{"controller_epoch":1,"leader":1002,"version":1,"leader_epoch":1,"isr":[1002,1001]}`,
+				`{"controller_epoch":1,"leader":1003,"version":1,"leader_epoch":1,"isr":[1003,1004]}`,
+				`{"controller_epoch":1,"leader":1004,"version":1,"leader_epoch":1,"isr":[1004,1003]}`,
+			}
 
-		states := []string{
-			`{"controller_epoch":1,"leader":1004,"version":1,"leader_epoch":1,"isr":[1001]}`,
-			`{"controller_epoch":1,"leader":1004,"version":1,"leader_epoch":1,"isr":[1002,1001]}`,
-			`{"controller_epoch":1,"leader":1004,"version":1,"leader_epoch":1,"isr":[1003,1004]}`,
-			`{"controller_epoch":1,"leader":1004,"version":1,"leader_epoch":1,"isr":[1004,1003]}`,
-		}
+			// We need at least one topic/partition to appear as under-replicated to
+			// test some functions.
+			if i == 2 {
+				states[0] = `{"controller_epoch":1,"leader":1002,"version":1,"leader_epoch":2,"isr":[1002]}`
+			}
 
-		for n, s := range states {
-			path := fmt.Sprintf("%s/brokers/topics/topic0/partitions/%d/state", zkprefix, n)
-			_, err := zkc.Set(path, []byte(s), -1)
-			if err != nil {
-				t.Error(err)
+			for n, s := range states {
+				path := fmt.Sprintf("%s/brokers/topics/topic%d/partitions/%d/state", zkprefix, i, n)
+				_, err := zkc.Set(path, []byte(s), -1)
+				if err != nil {
+					t.Error(err)
+				}
 			}
 		}
 
@@ -363,6 +379,19 @@ func TestNextInt(t *testing.T) {
 			t.Errorf("Expected version value %d, got %d", expected, v)
 		}
 	}
+}
+
+func TestGetUnderReplicated(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	ur, err := zki.GetUnderReplicated()
+	if err != nil {
+		t.Error(err)
+	}
+
+	t.Log(ur)
 }
 
 func TestGetReassignments(t *testing.T) {
@@ -793,7 +822,7 @@ func TestGetTopicStateISR(t *testing.T) {
 	}
 
 	expected := map[string][]int{
-		"0": []int{1001},
+		"0": []int{1001, 1002},
 		"1": []int{1002, 1001},
 		"2": []int{1003, 1004},
 		"3": []int{1004, 1003},
