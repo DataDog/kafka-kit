@@ -25,6 +25,8 @@ var (
 		"broker": struct{}{},
 		"topic":  struct{}{},
 	}
+	// Misc.
+	allTopicsRegexp = regexp.MustCompile(".*")
 )
 
 // ErrNoNode error type is specifically for
@@ -632,7 +634,7 @@ func (z *ZKHandler) GetUnderReplicated() ([]string, error) {
 	var underReplicated []string
 
 	// Get a list of all topics.
-	topics, err := z.GetTopics([]*regexp.Regexp{regexp.MustCompile(".*")})
+	topics, err := z.GetTopics([]*regexp.Regexp{allTopicsRegexp})
 	if err != nil {
 		return underReplicated, err
 	}
