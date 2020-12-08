@@ -94,6 +94,22 @@ func (s *Server) ReassigningTopics(ctx context.Context, _ *pb.Empty) (*pb.TopicR
 	return &pb.TopicResponse{Names: names}, nil
 }
 
+// UnderReplicatedTopics returns a *pb.TopicResponse holding the names of all
+// under replicated topics.
+func (s *Server) UnderReplicatedTopics(ctx context.Context, _ *pb.Empty) (*pb.TopicResponse, error) {
+	ctx, err := s.ValidateRequest(ctx, nil, readRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	reassigning, err := s.ZK.GetUnderReplicated()
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.TopicResponse{Names: reassigning}, nil
+}
+
 // CreateTopic creates a topic if it doesn't exist. Topic tags can optionally
 // be set at topic creation time. Additionally, topics can be created on
 // a target set of brokers by specifying the broker tag(s) in the request.
