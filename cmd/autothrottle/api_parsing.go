@@ -85,7 +85,7 @@ func brokerIDFromPath(req *http.Request) (string, error) {
 	if idStr == "all" {
 		return idStr, nil
 	}
-	
+
 	_, err := strconv.Atoi(idStr)
 	if err != nil {
 		return "0", errors.New("broker param must be provided as integer or the string 'all'")

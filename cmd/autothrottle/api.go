@@ -139,7 +139,7 @@ func getThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler) {
 	// A non-0 ID means that this is broker specific.
 	if id != "0" {
 		// Update the config path.
-		configPath = fmt.Sprintf("%s/%d", configPath, id)
+		configPath = fmt.Sprintf("%s/%s", configPath, id)
 	}
 
 	r, err := fetchThrottleOverride(zk, configPath)
@@ -149,8 +149,8 @@ func getThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler) {
 
 	// Update the response message.
 	if id != "0" {
-		respMessage = fmt.Sprintf("broker %d: %s", id, respMessage)
-		noOverrideMessage = fmt.Sprintf("broker %d: %s", id, noOverrideMessage)
+		respMessage = fmt.Sprintf("broker %s: %s", id, respMessage)
+		noOverrideMessage = fmt.Sprintf("broker %s: %s", id, noOverrideMessage)
 	}
 
 	// Handle errors.
@@ -279,7 +279,7 @@ func writeOverride(w http.ResponseWriter, id string, configPath string, updateMe
 }
 
 func formatConfigAndMessage(configPath string, id string, updateMessage string) (string, string) {
-	configPath = fmt.Sprintf("%s/%d", configPath, id)
-	updateMessage = fmt.Sprintf("broker %d: %s", id, updateMessage)
+	configPath = fmt.Sprintf("%s/%s", configPath, id)
+	updateMessage = fmt.Sprintf("broker %s: %s", id, updateMessage)
 	return configPath, updateMessage
 }
