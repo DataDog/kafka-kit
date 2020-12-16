@@ -61,10 +61,10 @@ func parsePaths(req *http.Request) []string {
 
 // brokerIDFromPath takes a *http.Request and returns a broker ID from the
 // path elements.
-func brokerIDFromPath(req *http.Request) (int, error) {
+func brokerIDFromPath(req *http.Request) (string, error) {
 	paths := parsePaths(req)
 	if len(paths) < 2 {
-		return 0, errBrokerIDNotProvided
+		return "0", errBrokerIDNotProvided
 	}
 
 	var idStr string
@@ -73,7 +73,7 @@ func brokerIDFromPath(req *http.Request) (int, error) {
 	// vs /throttle/123.
 	if paths[1] == "remove" {
 		if len(paths) < 3 {
-			return 0, errBrokerIDNotProvided
+			return "0", errBrokerIDNotProvided
 		}
 		// Path elements = [throttle, remove, 1230].
 		idStr = paths[2]
@@ -82,12 +82,16 @@ func brokerIDFromPath(req *http.Request) (int, error) {
 		idStr = paths[1]
 	}
 
-	id, err := strconv.Atoi(idStr)
+	if idStr == "all" {
+		return idStr, nil
+	}
+	
+	_, err := strconv.Atoi(idStr)
 	if err != nil {
-		return 0, errors.New("broker param must be provided as integer")
+		return "0", errors.New("broker param must be provided as integer or the string 'all'")
 	}
 
-	return id, nil
+	return idStr, nil
 }
 
 // writeNLError writes the provided error with an appended newline to the
