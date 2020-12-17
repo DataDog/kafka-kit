@@ -122,25 +122,25 @@ func TestParsePaths(t *testing.T) {
 }
 
 func TestBrokerIDFromPath(t *testing.T) {
-	expected := 1234
+	expected := "1234"
 
 	// Test path for adding throttle.
-	url := fmt.Sprintf("http://localhost/throttle/%d", expected)
+	url := fmt.Sprintf("http://localhost/throttle/%s", expected)
 	req, _ := http.NewRequest("POST", url, nil)
 
 	out, _ := brokerIDFromPath(req)
 
 	if out != expected {
-		t.Errorf("Expected broker ID '%d', got '%d'", expected, out)
+		t.Errorf("Expected broker ID '%s', got '%s'", expected, out)
 	}
 
 	// Test path for removing throttle.
-	url = fmt.Sprintf("http://localhost/throttle/remove/%d", expected)
+	url = fmt.Sprintf("http://localhost/throttle/remove/%s", expected)
 	req, _ = http.NewRequest("POST", url, nil)
 
 	out, _ = brokerIDFromPath(req)
 
 	if out != expected {
-		t.Errorf("Expected broker ID '%d', got '%d'", expected, out)
+		t.Errorf("Expected broker ID '%s', got '%s'", expected, out)
 	}
 }
