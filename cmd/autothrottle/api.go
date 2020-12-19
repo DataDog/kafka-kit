@@ -137,7 +137,7 @@ func getThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler) {
 	configPath := overrideRateZnodePath
 
 	// A non-0 ID means that this is broker specific.
-	if id != "0" {
+	if id != "" {
 		// Update the config path.
 		configPath = fmt.Sprintf("%s/%s", configPath, id)
 	}
@@ -148,7 +148,7 @@ func getThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler) {
 	noOverrideMessage := "no throttle override is set\n"
 
 	// Update the response message.
-	if id != "0" {
+	if id != "" {
 		respMessage = fmt.Sprintf("broker %s: %s", id, respMessage)
 		noOverrideMessage = fmt.Sprintf("broker %s: %s", id, noOverrideMessage)
 	}
@@ -259,7 +259,7 @@ func removeThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler
 
 func writeOverride(w http.ResponseWriter, id string, configPath string, updateMessage string, err error, zk kafkazk.Handler, c ThrottleOverrideConfig) {
 	// A non-0 ID means that this is broker specific.
-	if id != "0" {
+	if id != "" {
 		configPath, updateMessage = formatConfigAndMessage(configPath, id, updateMessage)
 	}
 
