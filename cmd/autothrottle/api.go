@@ -249,8 +249,7 @@ func removeThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler
 				var invalidBrokerMsg = fmt.Sprintf("invalid node %q is not an integer under path %q", childId, parentPath)
 				io.WriteString(w, invalidBrokerMsg)
 			}
-			configPath, updateMessage = formatConfigAndMessage(configPath, childId, updateMessage)
-			writeOverride(w, id, configPath, updateMessage, err, zk, c)
+			writeOverride(w, childId, configPath, updateMessage, err, zk, c)
 		}
 	} else {
 		writeOverride(w, id, configPath, updateMessage, err, zk, c)
