@@ -104,7 +104,7 @@ func throttleGetSet(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler
 	}
 }
 
-// throttleRemove removes either the global or broker-specific throttle.
+// throttleRemove removes either the global, broker-specific throttle, or all broker-specific throttles.
 func throttleRemove(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler) {
 	logReq(req)
 
@@ -120,7 +120,7 @@ func throttleRemove(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler
 	}
 }
 
-// getThrottle sets a throtle rate that applies to all brokers.
+// getThrottle returns the throttle rate applied to all brokers.
 func getThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler) {
 	// Determine whether this is a global or broker-specific throttle lookup.
 	var id string
@@ -173,7 +173,7 @@ func getThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler) {
 	}
 }
 
-// setThrottle returns the throttle rate applied to all brokers.
+// setThrottle sets a throtle rate that applies to all brokers.
 func setThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler) {
 	// Check rate param.
 	rate, err := parseRateParam(req)
@@ -212,7 +212,7 @@ func setThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler) {
 	writeOverride(w, id, configPath, updateMessage, err, zk, rateCfg)
 }
 
-// removeThrottle removes the throttle rate applied to all brokers.
+// removeThrottle removes the throttle rate for a specific broker, the global rate, or for all brokers.
 func removeThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler) {
 	// Removing a rate means setting it to 0.
 	c := ThrottleOverrideConfig{
@@ -249,8 +249,7 @@ func removeThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler
 				var invalidBrokerMsg = fmt.Sprintf("invalid node %q is not an integer under path %q", childId, parentPath)
 				io.WriteString(w, invalidBrokerMsg)
 			}
-			configPath, updateMessage = formatConfigAndMessage(configPath, childId, updateMessage)
-			writeOverride(w, id, configPath, updateMessage, err, zk, c)
+			writeOverride(w, childId, configPath, updateMessage, err, zk, c)
 		}
 	} else {
 		writeOverride(w, id, configPath, updateMessage, err, zk, c)
