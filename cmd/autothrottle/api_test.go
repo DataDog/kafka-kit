@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/DataDog/kafka-kit/v3/kafkazk"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/DataDog/kafka-kit/v3/kafkazk"
 )
 
 func TestSetThrottle(t *testing.T) {
