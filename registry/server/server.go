@@ -11,12 +11,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/confluentinc/confluent-kafka-go/kafka"
-
 	"github.com/DataDog/kafka-kit/v3/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
 	"github.com/DataDog/kafka-kit/v3/registry/admin"
 	pb "github.com/DataDog/kafka-kit/v3/registry/protos"
+	"github.com/confluentinc/confluent-kafka-go/kafka"
+	grpctrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/google.golang.org/grpc"
 
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
@@ -113,7 +113,15 @@ func (s *Server) RunRPC(ctx context.Context, wg *sync.WaitGroup) error {
 		return err
 	}
 
-	srvr := grpc.NewServer()
+	srvr := grpc.NewServer(
+		grpc.UnaryInterceptor(
+			grpctrace.UnaryServerInterceptor(
+				grpctrace.WithServiceName(
+					"kafka-registry",
+				),
+			),
+		),
+	)
 	pb.RegisterRegistryServer(srvr, s)
 
 	// Shutdown procedure.
