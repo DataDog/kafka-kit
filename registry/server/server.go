@@ -14,14 +14,14 @@ import (
 	"github.com/DataDog/kafka-kit/v3/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
 	"github.com/DataDog/kafka-kit/v3/registry/admin"
-	pb "github.com/DataDog/kafka-kit/v3/registry/protos"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
-	grpctrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/google.golang.org/grpc"
 
+	pb "github.com/DataDog/kafka-kit/v3/registry/protos"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
+	grpctrace "gopkg.in/DataDog/dd-trace-go.v1/contrib/google.golang.org/grpc"
 )
 
 const (
