@@ -68,6 +68,27 @@ func (s *Server) ListBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.Br
 	return resp, nil
 }
 
+// UnmappedBrokers returns a list of broker IDs that hold no partitions. An
+// optional list of topic names can be specified in the UnmappedBrokersRequest
+// exclude field where partitions for those topics are not considered. For
+// example, broker 1000 holds no partitions other than one belonging to
+// the 'test0' topic. If UnmappedBrokers is called with 'test0' specified as
+// an exclude name, broker 1000 will be returned in the BrokerResponse as
+// an unmapped broker.
+func (s *Server) UnmappedBrokers(ctx context.Context, req *pb.UnmappedBrokersRequest) (*pb.BrokerResponse, error) {
+	ctx, err := s.ValidateRequest(ctx, req, readRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	_ = req
+
+	// Populate response Ids field.
+	resp := &pb.BrokerResponse{Ids: nil}
+
+	return resp, nil
+}
+
 // BrokerMappings returns all topic names that have at least one partition
 // held by the requested broker. The broker is specified in the BrokerRequest.ID
 // field.
