@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/DataDog/kafka-kit.svg?branch=master)](https://travis-ci.org/DataDog/kafka-kit)
+[![Build Status](https://travis-ci.com/DataDog/kafka-kit.svg?branch=master)](https://travis-ci.org/DataDog/kafka-kit)
 
 # Kafka topic management tools
 
