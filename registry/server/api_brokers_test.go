@@ -73,6 +73,39 @@ func TestListBrokers(t *testing.T) {
 	}
 }
 
+func TestUnmappedBrokers(t *testing.T) {
+	s := testServer()
+
+	tests := map[int]*pb.UnmappedBrokersRequest{
+		0: &pb.UnmappedBrokersRequest{},
+		1: &pb.UnmappedBrokersRequest{Exclude: []string{"test_topic"}},
+		2: &pb.UnmappedBrokersRequest{Exclude: []string{"test_topic", "test_topic2"}},
+	}
+
+	expected := map[int]idList{
+		0: idList{1005, 1007},
+		1: idList{1005, 1007},
+		2: idList{1001, 1002, 1003, 1004, 1005, 1007},
+	}
+
+	for i, req := range tests {
+		resp, err := s.UnmappedBrokers(context.Background(), req)
+		if err != nil {
+			t.Errorf("Unexpected error: %s", err)
+		}
+
+		if resp.Ids == nil {
+			t.Errorf("Expected a non-nil BrokerResponse.Ids field")
+		}
+
+		brokers := resp.Ids
+
+		if !intsEqual(expected[i], brokers) {
+			t.Errorf("Expected broker list %v, got %v", expected[i], brokers)
+		}
+	}
+}
+
 func TestCustomTagBrokerFilter(t *testing.T) {
 	s := testServer()
 

@@ -68,6 +68,88 @@ func (s *Server) ListBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.Br
 	return resp, nil
 }
 
+// UnmappedBrokers returns a list of broker IDs that hold no partitions. An
+// optional list of topic names can be specified in the UnmappedBrokersRequest
+// exclude field where partitions for those topics are not considered. For
+// example, broker 1000 holds no partitions other than one belonging to
+// the 'test0' topic. If UnmappedBrokers is called with 'test0' specified as
+// an exclude name, broker 1000 will be returned in the BrokerResponse as
+// an unmapped broker.
+func (s *Server) UnmappedBrokers(ctx context.Context, req *pb.UnmappedBrokersRequest) (*pb.BrokerResponse, error) {
+	ctx, err := s.ValidateRequest(ctx, req, readRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build a map of the exclude names.
+	var exclude = map[string]struct{}{}
+	for _, e := range req.Exclude {
+		exclude[e] = struct{}{}
+	}
+
+	// Get a kafkazk.BrokerMetaMap.
+	bm, errs := s.ZK.GetAllBrokerMeta(false)
+	if errs != nil {
+		return nil, ErrFetchingBrokers
+	}
+
+	// Get all topic names.
+	ts, err := s.ZK.GetTopics([]*regexp.Regexp{regexp.MustCompile(".*")})
+	if err != nil {
+		return nil, ErrFetchingTopics
+	}
+
+	// Strip any topic names that are listed as exclusions.
+	var topics []string
+	for _, name := range ts {
+		if _, excluded := exclude[name]; !excluded {
+			topics = append(topics, name)
+		}
+	}
+
+	// Get a kafkazk.PartitionMap for each topic.
+	var pms []*kafkazk.PartitionMap
+	for _, name := range topics {
+		pm, err := s.ZK.GetPartitionMap(name)
+		if err != nil {
+			return nil, err
+		}
+		pms = append(pms, pm)
+	}
+
+	// Build a set of all broker IDs seen in all partition maps.
+	var mappedBrokers = map[int]struct{}{}
+	// For each partition map...
+	for _, pm := range pms {
+		// For each partition...
+		for _, partn := range pm.Partitions {
+			// Populate each replica (broker) in the partition replica list into
+			// the mapped broker set.
+			for _, r := range partn.Replicas {
+				mappedBrokers[r] = struct{}{}
+			}
+		}
+	}
+
+	// Diff. {all brokers} and {mapped brokers}.
+	var unmappedBrokers = map[int]struct{}{}
+	for id := range bm {
+		if _, mapped := mappedBrokers[id]; !mapped {
+			unmappedBrokers[id] = struct{}{}
+		}
+	}
+
+	// Populate response Ids field.
+	resp := &pb.BrokerResponse{}
+	for id := range unmappedBrokers {
+		resp.Ids = append(resp.Ids, uint32(id))
+	}
+
+	sort.Sort(idList(resp.Ids))
+
+	return resp, nil
+}
+
 // BrokerMappings returns all topic names that have at least one partition
 // held by the requested broker. The broker is specified in the BrokerRequest.ID
 // field.

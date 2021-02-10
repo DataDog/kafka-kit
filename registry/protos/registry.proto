@@ -35,6 +35,19 @@ service Registry {
     };
   }
 
+  // UnmappedBrokers returns a BrokerResponse with the ids field
+  // populated with broker IDs that do not hold any assigned partitions.
+  // Any topic names specified in the UnmappedBrokersRequest exclude field
+  // are ignored. For example, broker 1000 holds no partitions other
+  // than one belonging to the 'test0' topic. If UnmappedBrokers is called
+  // with 'test0' specified as an exclude name, broker 1000 will be returned
+  // in the BrokerResponse as an unmapped broker.
+  rpc UnmappedBrokers (UnmappedBrokersRequest) returns (BrokerResponse) {
+    option (google.api.http) = {
+      get: "/v1/brokers/unmapped"
+    };
+  }
+
   // GetTopics returns a TopicResponse with the topics field populated
   // with full topic metadata. If the input TopicRequest.name field is
   // non-nil, a single topic is returned matching the name specified in the
@@ -95,7 +108,7 @@ service Registry {
 
   // TopicMappings returns a BrokerResponse with the ids field
   // populated with broker IDs that hold at least one partition
-  // for the requested topic. The topic is specified in the
+  // for the requested topic. Both a single topic name or specified in the
   // TopicRequest.name field.
   rpc TopicMappings (TopicRequest) returns (BrokerResponse) {
     option (google.api.http) = {
@@ -178,6 +191,10 @@ message BrokerRequest {
 message BrokerResponse {
   map<uint32, Broker> brokers = 5;
   repeated uint32 ids = 6;
+}
+
+message UnmappedBrokersRequest {
+  repeated string exclude = 1;
 }
 
 message Broker {

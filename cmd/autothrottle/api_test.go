@@ -12,7 +12,7 @@ import (
 func TestSetThrottle(t *testing.T) {
 	// GIVEN
 	zk := kafkazk.NewZooKeeperMock()
-	req, err := http.NewRequest("POST","/throttle?rate=5&autoremove=false", nil )
+	req, err := http.NewRequest("POST", "/throttle?rate=5&autoremove=false", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,7 +30,7 @@ func TestSetThrottle(t *testing.T) {
 func TestSetBrokerThrottle(t *testing.T) {
 	// GIVEN
 	zk := kafkazk.NewZooKeeperMock()
-	req, err := http.NewRequest("POST","/throttle/123?rate=5&autoremove=false", nil )
+	req, err := http.NewRequest("POST", "/throttle/123?rate=5&autoremove=false", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,11 +47,11 @@ func TestSetBrokerThrottle(t *testing.T) {
 
 func TestGetThrottle(t *testing.T) {
 	// GIVEN
-	overrideRateZnode     = "override_rate"
+	overrideRateZnode = "override_rate"
 	zk := kafkazk.NewZooKeeperMock()
 
-	setReq, err := http.NewRequest("POST","/throttle?rate=5&autoremove=false", nil )
-	getReq, err := http.NewRequest("GET","/throttle", nil )
+	setReq, err := http.NewRequest("POST", "/throttle?rate=5&autoremove=false", nil)
+	getReq, err := http.NewRequest("GET", "/throttle", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,11 +70,11 @@ func TestGetThrottle(t *testing.T) {
 
 func TestGetBrokerThrottle(t *testing.T) {
 	// GIVEN
-	overrideRateZnode     = "override_rate"
+	overrideRateZnode = "override_rate"
 	zk := kafkazk.NewZooKeeperMock()
 
-	setReq, err := http.NewRequest("POST","/throttle/123?rate=5&autoremove=false", nil )
-	getReq, err := http.NewRequest("GET","/throttle/123", nil )
+	setReq, err := http.NewRequest("POST", "/throttle/123?rate=5&autoremove=false", nil)
+	getReq, err := http.NewRequest("GET", "/throttle/123", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,12 +93,12 @@ func TestGetBrokerThrottle(t *testing.T) {
 
 func TestRemoveThrottle(t *testing.T) {
 	// GIVEN
-	overrideRateZnode     = "override_rate"
+	overrideRateZnode = "override_rate"
 	zk := kafkazk.NewZooKeeperMock()
 
-	setReq, err := http.NewRequest("POST","/throttle?rate=5&autoremove=false", nil )
-	removeReq, err := http.NewRequest("POST","/throttle/remove", nil )
-	getReq, err := http.NewRequest("GET","/throttle", nil )
+	setReq, err := http.NewRequest("POST", "/throttle?rate=5&autoremove=false", nil)
+	removeReq, err := http.NewRequest("POST", "/throttle/remove", nil)
+	getReq, err := http.NewRequest("GET", "/throttle", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,12 +121,12 @@ func TestRemoveThrottle(t *testing.T) {
 
 func TestRemoveBrokerThrottle(t *testing.T) {
 	// GIVEN
-	overrideRateZnode     = "override_rate"
+	overrideRateZnode = "override_rate"
 	zk := kafkazk.NewZooKeeperMock()
 
-	setReq, err := http.NewRequest("POST","/throttle/123?rate=5&autoremove=false", nil )
-	removeReq, err := http.NewRequest("POST","/throttle/remove/123", nil )
-	getReq, err := http.NewRequest("GET","/throttle/123", nil )
+	setReq, err := http.NewRequest("POST", "/throttle/123?rate=5&autoremove=false", nil)
+	removeReq, err := http.NewRequest("POST", "/throttle/remove/123", nil)
+	getReq, err := http.NewRequest("GET", "/throttle/123", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,15 +149,15 @@ func TestRemoveBrokerThrottle(t *testing.T) {
 
 func TestRemoveAllBrokerThrottle(t *testing.T) {
 	// GIVEN
-	overrideRateZnode     = "override_rate"
+	overrideRateZnode = "override_rate"
 	overrideRateZnodePath = fmt.Sprintf("%s/%s", "zkChroot", overrideRateZnode)
 	zk := kafkazk.NewZooKeeperMock()
 
-	setReq, err := http.NewRequest("POST","/throttle/123?rate=5&autoremove=false", nil )
-	setReq2, err := http.NewRequest("POST","/throttle/456?rate=10&autoremove=false", nil )
-	removeReq, err := http.NewRequest("POST","/throttle/remove/all", nil )
-	getReq, err := http.NewRequest("GET","/throttle/123", nil )
-	getReq2, err := http.NewRequest("GET","/throttle/456", nil )
+	setReq, err := http.NewRequest("POST", "/throttle/123?rate=5&autoremove=false", nil)
+	setReq2, err := http.NewRequest("POST", "/throttle/456?rate=10&autoremove=false", nil)
+	removeReq, err := http.NewRequest("POST", "/throttle/remove/all", nil)
+	getReq, err := http.NewRequest("GET", "/throttle/123", nil)
+	getReq2, err := http.NewRequest("GET", "/throttle/456", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
