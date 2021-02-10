@@ -1,0 +1,15 @@
+name: run tests
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: run tests
+      run: docker-compose run --rm --name registry_test registry go test -v ./...
