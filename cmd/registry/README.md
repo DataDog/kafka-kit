@@ -205,6 +205,20 @@ $ curl -s "localhost:8080/v1/brokers/list?tag=port:9092&tag=rack:a" | jq
 }
 ```
 
+## Get unmapped brokers
+Returns brokers that host no partitions. Optionally, `exclude` topic names can be specified where any partitions belonging to excluded topics are not counted as to whether a broker is considered mapped.
+
+```
+$ curl -s "localhost:8080/v1/brokers/unmapped?exclude=test1&exclude=test2&exclude=__consumer_offsets" | jq
+{
+  "ids": [
+    1001,
+    1002,
+    1003
+  ]
+}
+```
+
 ## Broker<->Topic Mappings
 Returns brokers by topic or topics by brokers.
 
