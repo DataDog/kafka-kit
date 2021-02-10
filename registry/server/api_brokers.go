@@ -145,6 +145,8 @@ func (s *Server) UnmappedBrokers(ctx context.Context, req *pb.UnmappedBrokersReq
 		resp.Ids = append(resp.Ids, uint32(id))
 	}
 
+	sort.Sort(idList(resp.Ids))
+
 	return resp, nil
 }
 
