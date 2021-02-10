@@ -81,10 +81,69 @@ func (s *Server) UnmappedBrokers(ctx context.Context, req *pb.UnmappedBrokersReq
 		return nil, err
 	}
 
-	_ = req
+	// Build a map of the exclude names.
+	var exclude = map[string]struct{}{}
+	for _, e := range req.Exclude {
+		exclude[e] = struct{}{}
+	}
+
+	// Get a kafkazk.BrokerMetaMap.
+	bm, errs := s.ZK.GetAllBrokerMeta(false)
+	if errs != nil {
+		return nil, ErrFetchingBrokers
+	}
+
+	// Get all topic names.
+	ts, err := s.ZK.GetTopics([]*regexp.Regexp{regexp.MustCompile(".*")})
+	if err != nil {
+		return nil, ErrFetchingTopics
+	}
+
+	// Strip any topic names that are listed as exclusions.
+	var topics []string
+	for _, name := range ts {
+		if _, excluded := exclude[name]; !excluded {
+			topics = append(topics, name)
+		}
+	}
+
+	// Get a kafkazk.PartitionMap for each topic.
+	var pms []*kafkazk.PartitionMap
+	for _, name := range topics {
+		pm, err := s.ZK.GetPartitionMap(name)
+		if err != nil {
+			return nil, err
+		}
+		pms = append(pms, pm)
+	}
+
+	// Build a set of all broker IDs seen in all partition maps.
+	var mappedBrokers = map[int]struct{}{}
+	// For each partition map...
+	for _, pm := range pms {
+		// For each partition...
+		for _, partn := range pm.Partitions {
+			// Populate each replica (broker) in the partition replica list into
+			// the mapped broker set.
+			for _, r := range partn.Replicas {
+				mappedBrokers[r] = struct{}{}
+			}
+		}
+	}
+
+	// Diff. {all brokers} and {mapped brokers}.
+	var unmappedBrokers = map[int]struct{}{}
+	for id := range bm {
+		if _, mapped := mappedBrokers[id]; !mapped {
+			unmappedBrokers[id] = struct{}{}
+		}
+	}
 
 	// Populate response Ids field.
-	resp := &pb.BrokerResponse{Ids: nil}
+	resp := &pb.BrokerResponse{}
+	for id := range unmappedBrokers {
+		resp.Ids = append(resp.Ids, uint32(id))
+	}
 
 	return resp, nil
 }
