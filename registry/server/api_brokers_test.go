@@ -168,7 +168,7 @@ func TestTagBroker(t *testing.T) {
 		1: ErrBrokerIDEmpty,
 		2: ErrNilTags,
 		3: ErrNilTags,
-		4: ErrBrokerNotExist,
+		4: nil, // No errors even if the broker doesn't exist.
 	}
 
 	for i, req := range tests {
