@@ -275,18 +275,6 @@ func (s *Server) TagBroker(ctx context.Context, req *pb.BrokerRequest) (*pb.TagR
 		return nil, err
 	}
 
-	// Ensure the broker exists.
-
-	// Get brokers from ZK.
-	brokers, errs := s.ZK.GetAllBrokerMeta(false)
-	if errs != nil {
-		return nil, ErrFetchingBrokers
-	}
-
-	if _, exist := brokers[int(req.Id)]; !exist {
-		return nil, ErrBrokerNotExist
-	}
-
 	// Set the tags.
 	id := fmt.Sprintf("%d", req.Id)
 	err = s.Tags.Store.SetTags(KafkaObject{Type: "broker", ID: id}, ts)
