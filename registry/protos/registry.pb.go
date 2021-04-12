@@ -851,8 +851,11 @@ type RegistryClient interface {
 	//"target_broker_tags": ["pool:tests"]
 	//}'
 	CreateTopic(ctx context.Context, in *CreateTopicRequest, opts ...grpc.CallOption) (*Empty, error)
-	// DeleteTopic takes a TopicRequest and deletes the topic specified in the
-	// TopicRequest.name field.
+	//
+	//DeleteTopic takes a TopicRequest and deletes the topic specified in the
+	//TopicRequest.name field.
+	//Example:
+	//$ curl -XDELETE "localhost:8080/v1/topics/mytopic"
 	DeleteTopic(ctx context.Context, in *TopicRequest, opts ...grpc.CallOption) (*Empty, error)
 	// ReassigningTopics returns a TopicResponse with the names field populated
 	// with topic names of all topics undergoing a reassignment.
@@ -1094,8 +1097,11 @@ type RegistryServer interface {
 	//"target_broker_tags": ["pool:tests"]
 	//}'
 	CreateTopic(context.Context, *CreateTopicRequest) (*Empty, error)
-	// DeleteTopic takes a TopicRequest and deletes the topic specified in the
-	// TopicRequest.name field.
+	//
+	//DeleteTopic takes a TopicRequest and deletes the topic specified in the
+	//TopicRequest.name field.
+	//Example:
+	//$ curl -XDELETE "localhost:8080/v1/topics/mytopic"
 	DeleteTopic(context.Context, *TopicRequest) (*Empty, error)
 	// ReassigningTopics returns a TopicResponse with the names field populated
 	// with topic names of all topics undergoing a reassignment.
