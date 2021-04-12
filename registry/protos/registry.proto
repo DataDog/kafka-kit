@@ -90,6 +90,14 @@ service Registry {
     };
   }
 
+  // DeleteTopic takes a TopicRequest and deletes the topic specified in the
+  // TopicRequest.name field.
+  rpc DeleteTopic (TopicRequest) returns (Empty) {
+    option (google.api.http) = {
+      delete: "/v1/topics/{name}"
+    };
+  }
+
   // ReassigningTopics returns a TopicResponse with the names field populated
   // with topic names of all topics undergoing a reassignment.
   rpc ReassigningTopics (Empty) returns (TopicResponse) {
