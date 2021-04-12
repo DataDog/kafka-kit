@@ -294,3 +294,20 @@ $ curl -XPOST localhost:8080/v1/topics/create -d '{
   ]
 }'
 ```
+
+## Delete a Topic
+Deletes the specified topic. Attempting to delete a non-existent topic will return an error.
+
+```
+$ curl localhost:8080/v1/topics/list
+{"names":["__consumer_offsets","test1","test2"]}
+
+$ curl -XDELETE "localhost:8080/v1/topics/test2"
+{}
+
+$ curl localhost:8080/v1/topics/list
+{"names":["__consumer_offsets","test1"]}
+
+$ curl -XDELETE "localhost:8080/v1/topics/test2"
+{"error":"topic does not exist","code":2,"message":"topic does not exist"}
+```
