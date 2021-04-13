@@ -131,3 +131,9 @@ func (c Client) CreateTopic(ctx context.Context, cfg admin.CreateTopicConfig) er
 
 	return err
 }
+
+// DeleteTopic deletes a topic.
+func (c Client) DeleteTopic(ctx context.Context, name string) error {
+	_, err := c.c.DeleteTopics(ctx, []string{name})
+	return err
+}
