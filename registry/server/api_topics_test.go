@@ -78,8 +78,21 @@ func TestListTopics(t *testing.T) {
 		topics := resp.Names
 
 		if !stringsEqual(expected[i], topics) {
-			t.Errorf("Expected Topic list %s, got %s", expected[i], topics)
+			t.Errorf("Expected topic list %s, got %s", expected[i], topics)
 		}
+	}
+}
+
+func TestReassigningTopics(t *testing.T) {
+	s := testServer()
+
+	out, err := s.ReassigningTopics(context.Background(), nil)
+	if err != nil {
+		t.Errorf("Unexpected error: %s", err)
+	}
+
+	if len(out.Names) != 1 || out.Names[0] != "reassigning_topic" {
+		t.Errorf("Unexpected reassigning topic output")
 	}
 }
 
