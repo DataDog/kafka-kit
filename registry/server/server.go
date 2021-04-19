@@ -59,11 +59,9 @@ type Config struct {
 // NewServer initializes a *Server.
 func NewServer(c Config) (*Server, error) {
 	switch {
-	case c.ZKTagsPrefix == "":
-		fallthrough
-	case c.ReadReqRate < 1:
-		fallthrough
-	case c.WriteReqRate < 1:
+	case c.ZKTagsPrefix == "",
+		c.ReadReqRate < 1,
+		c.WriteReqRate < 1:
 		return nil, errors.New("invalid configuration parameter(s)")
 	}
 

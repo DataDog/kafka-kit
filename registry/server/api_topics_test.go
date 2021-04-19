@@ -115,7 +115,7 @@ func TestCreateTopic(t *testing.T) {
 	}
 
 	cfg := Config{
-		ReadReqRate: 1,
+		ReadReqRate:  1,
 		WriteReqRate: 1,
 	}
 
