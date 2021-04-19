@@ -24,7 +24,7 @@ var (
 var (
 	zkc *zkclient.Conn
 	zki Handler
-	// To track znodes created.
+	// Paths to pre-populate.
 	paths = []string{
 		zkprefix,
 		zkprefix + "/brokers",
@@ -109,6 +109,7 @@ func TestSetup(t *testing.T) {
 		Prefix:        configPrefix,
 		MetricsPrefix: "topicmappr_test",
 	})
+
 	if err != nil {
 		t.Errorf("Error initializing ZooKeeper client: %s", err)
 	}
@@ -138,7 +139,6 @@ func TestSetup(t *testing.T) {
 		// Init config.
 		topic := fmt.Sprintf("topic%d", i)
 		p := fmt.Sprintf("%s/brokers/topics/%s", zkprefix, topic)
-		paths = append(paths, p)
 		_, err := zkc.Create(p, data, 0, zkclient.WorldACL(31))
 		if err != nil {
 			t.Error(err)
@@ -168,8 +168,6 @@ func TestSetup(t *testing.T) {
 				t.Error(err)
 			}
 		}
-
-		paths = append(paths, statePaths...)
 
 		config := `{"version":1,"partitions":{"0":[1001,1002], "1":[1002,1001], "2":[1003,1004], "3":[1004,1003]}}`
 		cfgPath := fmt.Sprintf("%s/brokers/topics/topic%d", zkprefix, i)
@@ -215,7 +213,6 @@ func TestSetup(t *testing.T) {
 	}
 
 	// Create delete_topics data.
-	paths = append(paths, zkprefix+"/admin/delete_topics/deleting_topic")
 	_, err = zkc.Create(zkprefix+"/admin/delete_topics/deleting_topic", []byte{}, 0, zkclient.WorldACL(31))
 	if err != nil {
 		t.Error(err)
@@ -223,7 +220,6 @@ func TestSetup(t *testing.T) {
 
 	// Create topic config.
 	data = []byte(`{"version":1,"config":{"retention.ms":"129600000"}}`)
-	paths = append(paths, zkprefix+"/config/topics/topic0")
 	_, err = zkc.Create(zkprefix+"/config/topics/topic0", data, 0, zkclient.WorldACL(31))
 	if err != nil {
 		t.Error(err)
@@ -237,8 +233,6 @@ func TestSetup(t *testing.T) {
 			100+i, rack[i%3], 100+i, time.Now().Unix())
 		p := fmt.Sprintf("%s/brokers/ids/%d", zkprefix, 1001+i)
 
-		paths = append(paths, p)
-
 		// Add.
 		_, err = zkc.Create(p, []byte(data), 0, zkclient.WorldACL(31))
 		if err != nil {
@@ -250,7 +244,6 @@ func TestSetup(t *testing.T) {
 	if err := setBrokerMetrics(); err != nil {
 		t.Error(err)
 	}
-
 }
 
 func setBrokerMetrics() error {
@@ -268,7 +261,6 @@ func setBrokerMetrics() error {
 
 func TestCreateSetGetDelete(t *testing.T) {
 	err := zki.Create("/test", "")
-	paths = append(paths, "/test")
 	if err != nil {
 		t.Error(err)
 	}
@@ -332,7 +324,6 @@ func TestCreateSequential(t *testing.T) {
 	}
 
 	for i, z := range c {
-		paths = append(paths, "/test/"+expected[i])
 		if z != expected[i] {
 			t.Errorf("Expected znode '%s', got '%s'", expected[i], z)
 		}
@@ -810,14 +801,10 @@ func TestUpdateKafkaConfigBroker(t *testing.T) {
 		},
 	}
 
-	paths = append(paths, zkprefix+"/config/brokers/1001")
-
 	_, err := zki.UpdateKafkaConfig(c)
 	if err != nil {
 		t.Error(err)
 	}
-
-	paths = append(paths, zkprefix+"/config/changes/config_change_0000000000")
 
 	// Re-running the same config should
 	// be a no-op.
@@ -869,8 +856,6 @@ func TestUpdateKafkaConfigTopic(t *testing.T) {
 		t.Error(err)
 	}
 
-	paths = append(paths, zkprefix+"/config/changes/config_change_0000000001")
-
 	// Re-running the same config should
 	// be a no-op.
 	changes, err := zki.UpdateKafkaConfig(c)
@@ -908,20 +893,29 @@ func TestUpdateKafkaConfigTopic(t *testing.T) {
 
 // TestTearDown does any tear down cleanup.
 func TestTearDown(t *testing.T) {
-	// We sort the paths by descending
-	// length. This ensures that we're always
-	// deleting children first.
-	sort.Sort(byLen(paths))
-
 	// Test data to be removed.
+	roots := []string{
+		"/kafkazk_test",
+		"/test",
+		"/topicmappr_test",
+	}
+
+	var paths []string
+	for _, p := range roots {
+		paths = append(paths, allChildren(p)...)
+	}
+
+	sort.Sort(sort.Reverse(byLength(paths)))
 
 	for _, p := range paths {
 		_, s, err := zkc.Get(p)
 		if err != nil {
+			t.Log(p)
 			t.Error(err)
 		} else {
 			err = zkc.Delete(p, s.Version)
 			if err != nil {
+				t.Log(p)
 				t.Error(err)
 			}
 		}
@@ -930,3 +924,21 @@ func TestTearDown(t *testing.T) {
 	zki.Close()
 	zkc.Close()
 }
+
+// Recursive search.
+func allChildren(p string) []string {
+	paths := []string{p}
+
+	children, _, _ := zkc.Children(p)
+	for _, c := range children {
+		paths = append(paths, allChildren(fmt.Sprintf("%s/%s", p, c))...)
+	}
+
+	return paths
+}
+
+type byLength []string
+
+func (s byLength) Len() int           { return len(s) }
+func (s byLength) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s byLength) Less(i, j int) bool { return len(s[i]) < len(s[j]) }
