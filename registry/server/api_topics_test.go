@@ -96,6 +96,19 @@ func TestReassigningTopics(t *testing.T) {
 	}
 }
 
+func TestUnderReplicated(t *testing.T) {
+	s := testServer()
+
+	out, err := s.UnderReplicatedTopics(context.Background(), nil)
+	if err != nil {
+		t.Errorf("Unexpected error: %s", err)
+	}
+
+	if len(out.Names) != 1 || out.Names[0] != "underreplicated_topic" {
+		t.Errorf("Unexpected under replicated topic output")
+	}
+}
+
 func TestCustomTagTopicFilter(t *testing.T) {
 	s := testServer()
 
