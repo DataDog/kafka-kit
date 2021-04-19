@@ -16,21 +16,21 @@ func TestCreateTopic(t *testing.T) {
 	}
 
 	tests := map[int]*pb.CreateTopicRequest{
-		1: &pb.CreateTopicRequest{
+		0: &pb.CreateTopicRequest{
 			Topic: &pb.Topic{Name: "new_topic", Partitions: 1, Replication: 1},
 		},
-		2: &pb.CreateTopicRequest{
+		1: &pb.CreateTopicRequest{
 			Topic: &pb.Topic{Name: "new_topic", Partitions: 1, Replication: 1},
 		},
 	}
 
 	expectedErrors := map[int]error{
-		1: nil,
-		2: ErrTopicAlreadyExists,
+		0: nil,
+		1: ErrTopicAlreadyExists,
 	}
 
-	for i, req := range tests {
-		_, err := s.CreateTopic(context.Background(), req)
+	for i := 0; i < len(tests); i++ {
+		_, err := s.CreateTopic(context.Background(), tests[i])
 		if err != expectedErrors[i] {
 			t.Errorf("Expected error '%s' for test %d, got '%s'", expectedErrors[i], i, err)
 		}
@@ -44,17 +44,17 @@ func TestDeleteTopic(t *testing.T) {
 	}
 
 	tests := map[int]*pb.TopicRequest{
-		1: &pb.TopicRequest{
+		0: &pb.TopicRequest{
 			Name: "new_topic",
 		},
 	}
 
 	expectedErrors := map[int]error{
-		1: nil,
+		0: nil,
 	}
 
-	for i, req := range tests {
-		_, err := s.DeleteTopic(context.Background(), req)
+	for i := 0; i < len(tests); i++ {
+		_, err := s.DeleteTopic(context.Background(), tests[i])
 		if err != expectedErrors[i] {
 			t.Errorf("Expected error '%s' for test %d, got '%s'", expectedErrors[i], i, err)
 		}

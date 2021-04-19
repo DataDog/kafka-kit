@@ -306,7 +306,7 @@ func TestCreateSequential(t *testing.T) {
 		}
 	}
 
-	c, _, err := zkc.Children(zkprefix+"/test")
+	c, _, err := zkc.Children(zkprefix + "/test")
 	if err != nil {
 		t.Error(err)
 	}

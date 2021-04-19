@@ -11,7 +11,7 @@ import (
 
 var (
 	testConfig = TagHandlerConfig{
-		Prefix: "test",
+		Prefix: "registry_test",
 	}
 )
 
