@@ -238,7 +238,7 @@ func TestSubStorageAll(t *testing.T) {
 	allBrokers := func(b *Broker) bool { return true }
 	err := bm.SubStorage(pm, pmm, allBrokers)
 	if err != nil {
-		t.Errorf("Unexpected error: %s", err)
+		t.Fatal(err)
 	}
 
 	expected := map[int]float64{
@@ -273,7 +273,7 @@ func TestSubStorageReplacements(t *testing.T) {
 	replacedBrokers := func(b *Broker) bool { return b.Replace }
 	err := bm.SubStorage(pm, pmm, replacedBrokers)
 	if err != nil {
-		t.Errorf("Unexpected error: %s", err)
+		t.Fatal(err)
 	}
 
 	// Only 1003 should be affected.

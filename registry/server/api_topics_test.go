@@ -25,7 +25,7 @@ func TestGetTopics(t *testing.T) {
 	for i, req := range tests {
 		resp, err := s.GetTopics(context.Background(), req)
 		if err != nil {
-			t.Errorf("Unexpected error: %s", err)
+			t.Fatal(err)
 		}
 
 		if resp.Topics == nil {
@@ -68,7 +68,7 @@ func TestListTopics(t *testing.T) {
 	for i, req := range tests {
 		resp, err := s.ListTopics(context.Background(), req)
 		if err != nil {
-			t.Errorf("Unexpected error: %s", err)
+			t.Fatal(err)
 		}
 
 		if resp.Names == nil {
@@ -88,7 +88,7 @@ func TestReassigningTopics(t *testing.T) {
 
 	out, err := s.ReassigningTopics(context.Background(), nil)
 	if err != nil {
-		t.Errorf("Unexpected error: %s", err)
+		t.Fatal(err)
 	}
 
 	if len(out.Names) != 1 || out.Names[0] != "reassigning_topic" {
@@ -101,11 +101,27 @@ func TestUnderReplicated(t *testing.T) {
 
 	out, err := s.UnderReplicatedTopics(context.Background(), nil)
 	if err != nil {
-		t.Errorf("Unexpected error: %s", err)
+		t.Fatal(err)
 	}
 
 	if len(out.Names) != 1 || out.Names[0] != "underreplicated_topic" {
 		t.Errorf("Unexpected under replicated topic output")
+	}
+}
+
+func TestCreateTopic(t *testing.T) {
+	if testing.Short() {
+		t.Skip()
+	}
+
+	cfg := Config{
+		ReadReqRate: 1,
+		WriteReqRate: 1,
+	}
+
+	_, err := NewServer(cfg)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -140,7 +156,7 @@ func TestCustomTagTopicFilter(t *testing.T) {
 	for i, req := range tests {
 		resp, err := s.ListTopics(context.Background(), req)
 		if err != nil {
-			t.Errorf("Unexpected error: %s", err)
+			t.Fatal(err)
 		}
 
 		if resp.Names == nil {
@@ -193,7 +209,7 @@ func TestDeleteTopicTags(t *testing.T) {
 
 	_, err := s.TagTopic(context.Background(), req)
 	if err != nil {
-		t.Errorf("Unexpected error: %s", err)
+		t.Fatal(err)
 	}
 
 	// Delete two tags.
@@ -204,14 +220,14 @@ func TestDeleteTopicTags(t *testing.T) {
 
 	_, err = s.DeleteTopicTags(context.Background(), req)
 	if err != nil {
-		t.Errorf("Unexpected error: %s", err)
+		t.Fatal(err)
 	}
 
 	// Fetch tags.
 	req = &pb.TopicRequest{Name: "test_topic"}
 	resp, err := s.GetTopics(context.Background(), req)
 	if err != nil {
-		t.Errorf("Unexpected error: %s", err)
+		t.Fatal(err)
 	}
 
 	expected := TagSet{"k3": "v3"}
@@ -260,7 +276,7 @@ func TestTopicMappings(t *testing.T) {
 	for i, req := range tests {
 		resp, err := s.TopicMappings(context.Background(), req)
 		if err != nil {
-			t.Errorf("Unexpected error: %s", err)
+			t.Fatal(err)
 		}
 
 		if resp.Ids == nil {
@@ -277,6 +293,6 @@ func TestTopicMappings(t *testing.T) {
 	_, err := s.TopicMappings(context.Background(), req)
 
 	if err != ErrTopicNameEmpty {
-		t.Errorf("Unexpected error: %s", err)
+		t.Fatal(err)
 	}
 }

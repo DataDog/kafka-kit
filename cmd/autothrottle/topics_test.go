@@ -21,7 +21,7 @@ func TestAddReplica(t *testing.T) {
 	for _, typ := range types {
 		err := ttr.addReplica("test", "0", replicaType(typ), "1001")
 		if err != nil {
-			t.Errorf("Unexpected error: %s", err)
+			t.Fatal(err)
 		}
 	}
 

@@ -19,7 +19,7 @@ func TestBrokersFromSeries(t *testing.T) {
 	bs, err := brokersFromSeries(series, 0)
 
 	if err != nil {
-		t.Errorf("Unexpected error: %s", err)
+		t.Fatal(err)
 	}
 
 	if len(bs) != 5 {

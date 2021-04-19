@@ -18,7 +18,7 @@ func TestConstraintsMatch(t *testing.T) {
 
 	b, err := constraintsMatch(ref, m)
 	if err != nil {
-		t.Errorf("Unexpected error: %s", err)
+		t.Fatal(err)
 	}
 
 	if b.ID != 1004 {
@@ -74,7 +74,7 @@ func TestSubstitutionAffinities(t *testing.T) {
 	bm[1004].New = true
 	sa, err := bm.SubstitutionAffinities(pm)
 	if err != nil {
-		t.Errorf("Unexpected error: %s", err)
+		t.Fatal(err)
 	}
 
 	if sa[1001].ID != 1004 {
@@ -159,7 +159,7 @@ func TestSubstitutionAffinitiesInferred(t *testing.T) {
 
 	sa, err := bm.SubstitutionAffinities(pm)
 	if err != nil {
-		t.Errorf("Unexpected error: %s", err)
+		t.Fatal(err)
 	}
 	if sa[1001].ID != 1007 {
 		t.Error("Expected substitution affinity 1001->1007")

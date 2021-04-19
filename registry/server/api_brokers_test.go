@@ -25,7 +25,7 @@ func TestGetBrokers(t *testing.T) {
 	for i, req := range tests {
 		resp, err := s.GetBrokers(context.Background(), req)
 		if err != nil {
-			t.Errorf("Unexpected error: %s", err)
+			t.Fatal(err)
 		}
 
 		if resp.Brokers == nil {
@@ -58,7 +58,7 @@ func TestListBrokers(t *testing.T) {
 	for i, req := range tests {
 		resp, err := s.ListBrokers(context.Background(), req)
 		if err != nil {
-			t.Errorf("Unexpected error: %s", err)
+			t.Fatal(err)
 		}
 
 		if resp.Ids == nil {
@@ -91,7 +91,7 @@ func TestUnmappedBrokers(t *testing.T) {
 	for i, req := range tests {
 		resp, err := s.UnmappedBrokers(context.Background(), req)
 		if err != nil {
-			t.Errorf("Unexpected error: %s", err)
+			t.Fatal(err)
 		}
 
 		if resp.Ids == nil {
@@ -137,7 +137,7 @@ func TestCustomTagBrokerFilter(t *testing.T) {
 	for i, req := range tests {
 		resp, err := s.ListBrokers(context.Background(), req)
 		if err != nil {
-			t.Errorf("Unexpected error: %s", err)
+			t.Fatal(err)
 		}
 
 		if resp.Ids == nil {
@@ -190,7 +190,7 @@ func TestDeleteBrokerTags(t *testing.T) {
 
 	_, err := s.TagBroker(context.Background(), req)
 	if err != nil {
-		t.Errorf("Unexpected error: %s", err)
+		t.Fatal(err)
 	}
 
 	// Delete two tags.
@@ -201,14 +201,14 @@ func TestDeleteBrokerTags(t *testing.T) {
 
 	_, err = s.DeleteBrokerTags(context.Background(), req)
 	if err != nil {
-		t.Errorf("Unexpected error: %s", err)
+		t.Fatal(err)
 	}
 
 	// Fetch tags.
 	req = &pb.BrokerRequest{Id: 1001}
 	resp, err := s.GetBrokers(context.Background(), req)
 	if err != nil {
-		t.Errorf("Unexpected error: %s", err)
+		t.Fatal(err)
 	}
 
 	expected := TagSet{"k3": "v3"}
@@ -257,7 +257,7 @@ func TestBrokerMappings(t *testing.T) {
 	for i, req := range tests {
 		resp, err := s.BrokerMappings(context.Background(), req)
 		if err != nil {
-			t.Errorf("Unexpected error: %s", err)
+			t.Fatal(err)
 		}
 
 		if resp.Names == nil {
@@ -274,7 +274,7 @@ func TestBrokerMappings(t *testing.T) {
 	_, err := s.BrokerMappings(context.Background(), req)
 
 	if err != ErrBrokerNotExist {
-		t.Errorf("Unexpected error: %s", err)
+		t.Fatal(err)
 	}
 
 	// Test no ID.
@@ -282,6 +282,6 @@ func TestBrokerMappings(t *testing.T) {
 	_, err = s.BrokerMappings(context.Background(), req)
 
 	if err != ErrBrokerIDEmpty {
-		t.Errorf("Unexpected error: %s", err)
+		t.Fatal(err)
 	}
 }

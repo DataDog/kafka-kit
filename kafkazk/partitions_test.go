@@ -113,7 +113,7 @@ func TestSize(t *testing.T) {
 
 	s, err := pmm.Size(pm.Partitions[0])
 	if err != nil {
-		t.Errorf("Unexpected error: %s", err)
+		t.Fatal(err)
 	}
 
 	if s != 1000.00 {
@@ -501,7 +501,7 @@ func TestRebuildByCountSA(t *testing.T) {
 	// Get substitution affinities.
 	sa, err := brokers.SubstitutionAffinities(pm)
 	if err != nil {
-		t.Errorf("Unexpected error: %s", err)
+		t.Fatal(err)
 	}
 
 	rebuildParams := RebuildParams{
