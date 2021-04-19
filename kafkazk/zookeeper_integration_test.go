@@ -314,7 +314,7 @@ func TestCreateSequential(t *testing.T) {
 	sort.Strings(c)
 
 	if len(c) != 3 {
-		t.Errorf("Expected 3 znodes to be found, got %d", len(c))
+		t.Fatalf("Expected 3 znodes to be found, got %d", len(c))
 	}
 
 	expected := []string{
