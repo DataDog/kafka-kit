@@ -294,19 +294,19 @@ func TestCreateSetGetDelete(t *testing.T) {
 }
 
 func TestCreateSequential(t *testing.T) {
-	err := zki.Create("/test", "")
+	err := zki.Create(zkprefix+"/test", "")
 	if err != nil {
 		t.Error(err)
 	}
 
 	for i := 0; i < 3; i++ {
-		err = zki.CreateSequential("/test/seq", "")
+		err = zki.CreateSequential(zkprefix+"/test/seq", "")
 		if err != nil {
 			t.Error(err)
 		}
 	}
 
-	c, _, err := zkc.Children("/test")
+	c, _, err := zkc.Children(zkprefix+"/test")
 	if err != nil {
 		t.Error(err)
 	}
@@ -331,18 +331,17 @@ func TestCreateSequential(t *testing.T) {
 }
 
 func TestExists(t *testing.T) {
-	e, err := zki.Exists("/test")
+	e, err := zki.Exists(zkprefix)
 	if err != nil {
 		t.Error(err)
 	}
 
 	if !e {
-		t.Error("Expected path '/test' to exist")
+		t.Errorf("Expected path '%s' to exist", zkprefix)
 	}
 }
 
 func TestNextInt(t *testing.T) {
-
 	for _, expected := range []int32{1, 2, 3} {
 		v, err := zki.NextInt(zkprefix + "/version")
 		if err != nil {
@@ -895,8 +894,7 @@ func TestUpdateKafkaConfigTopic(t *testing.T) {
 func TestTearDown(t *testing.T) {
 	// Test data to be removed.
 	roots := []string{
-		"/kafkazk_test",
-		"/test",
+		zkprefix,
 		"/topicmappr_test",
 	}
 
