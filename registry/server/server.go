@@ -264,7 +264,7 @@ func (s *Server) InitKafkaConsumer(ctx context.Context, wg *sync.WaitGroup, cfg 
 // context is cancelled.
 func (s *Server) DialZK(ctx context.Context, wg *sync.WaitGroup, c *kafkazk.Config) error {
 	if s.test {
-		s.ZK = &kafkazk.Mock{}
+		s.ZK = kafkazk.NewZooKeeperMock()
 		return nil
 	}
 
