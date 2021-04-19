@@ -1,3 +1,5 @@
+// +build integration
+
 package server
 
 import (
@@ -23,10 +25,6 @@ var (
 )
 
 func TestSetup(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
 	overrideZKAddr := os.Getenv("TEST_ZK_ADDR")
 	if overrideZKAddr != "" {
 		zkaddr = overrideZKAddr
@@ -55,10 +53,6 @@ func TestSetup(t *testing.T) {
 }
 
 func TestSetTags(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
 	testTagSets := map[int]TagSet{
 		0: TagSet{"key": "value", "key2": "value2"},
 		1: TagSet{"key": "value"},
@@ -98,10 +92,6 @@ func TestSetTags(t *testing.T) {
 }
 
 func TestTagSetFailures(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
 	// Test invalid KafkaObject Type.
 	o := KafkaObject{Type: "test", ID: "1002"}
 
@@ -146,10 +136,6 @@ func TestTagSetFailures(t *testing.T) {
 }
 
 func TestGetTags(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
 	testTagSets := map[int]TagSet{
 		0: TagSet{"key": "value", "key2": "value2"},
 		1: TagSet{"key": "value"},
@@ -186,10 +172,6 @@ func TestGetTags(t *testing.T) {
 }
 
 func TestGetTagsFailures(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
 	// Test invalid object.
 	_, err := store.GetTags(KafkaObject{Type: "fail"})
 	if err != ErrInvalidKafkaObjectType {
@@ -204,10 +186,6 @@ func TestGetTagsFailures(t *testing.T) {
 }
 
 func TestDeleteTags(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
 	testTagSets := map[int]TagSet{
 		0: TagSet{"key": "value", "key2": "value2", "key3": "value3"},
 		1: TagSet{"key": "value"},
@@ -255,10 +233,6 @@ func TestDeleteTags(t *testing.T) {
 }
 
 func TestDeleteTagsFailures(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
 	// Test invalid object.
 	err := store.DeleteTags(KafkaObject{Type: "fail"}, Tags{"k"})
 	if err != ErrInvalidKafkaObjectType {
@@ -293,10 +267,6 @@ func (a byLen) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 // TestTearDown does any tear down cleanup.
 func TestTearDown(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
 	// We sort the paths by descending
 	// length. This ensures that we're always
 	// deleting children first.

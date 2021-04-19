@@ -109,22 +109,6 @@ func TestUnderReplicated(t *testing.T) {
 	}
 }
 
-func TestCreateTopic(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
-	cfg := Config{
-		ReadReqRate:  1,
-		WriteReqRate: 1,
-	}
-
-	_, err := NewServer(cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
 func TestCustomTagTopicFilter(t *testing.T) {
 	s := testServer()
 

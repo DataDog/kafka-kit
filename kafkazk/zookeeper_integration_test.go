@@ -1,3 +1,5 @@
+// +build integration
+
 package kafkazk
 
 import (
@@ -82,177 +84,173 @@ func rawHandler(c *Config) (*ZKHandler, error) {
 // run. The removal logic in TestTearDown is quite rudimentary. If any
 // steps fail, subsequent test runs will likely produce errors.
 func TestSetup(t *testing.T) {
-	if !testing.Short() {
-		overrideZKAddr := os.Getenv("TEST_ZK_ADDR")
-		if overrideZKAddr != "" {
-			zkaddr = overrideZKAddr
-		}
+	overrideZKAddr := os.Getenv("TEST_ZK_ADDR")
+	if overrideZKAddr != "" {
+		zkaddr = overrideZKAddr
+	}
 
-		// Init a direct client.
-		var err error
-		zkc, _, err = zkclient.Connect([]string{zkaddr}, time.Second, zkclient.WithLogInfo(false))
+	// Init a direct client.
+	var err error
+	zkc, _, err = zkclient.Connect([]string{zkaddr}, time.Second, zkclient.WithLogInfo(false))
+	if err != nil {
+		t.Fatalf("Error initializing ZooKeeper client: %s", err)
+	}
+
+	// Init a ZooKeeper based Handler.
+	var configPrefix string
+	if len(zkprefix) > 0 {
+		configPrefix = zkprefix[1:]
+	} else {
+		configPrefix = ""
+	}
+
+	zki, err = NewHandler(&Config{
+		Connect:       zkaddr,
+		Prefix:        configPrefix,
+		MetricsPrefix: "topicmappr_test",
+	})
+	if err != nil {
+		t.Errorf("Error initializing ZooKeeper client: %s", err)
+	}
+
+	time.Sleep(250 * time.Millisecond)
+	if !zki.Ready() {
+		t.Fatal("ZooKeeper client not ready in 250ms")
+	}
+
+	/*****************
+	Populate test data
+	*****************/
+
+	// Create paths.
+	for _, p := range paths {
+		_, err := zkc.Create(p, []byte{}, 0, zkclient.WorldACL(31))
 		if err != nil {
-			t.Fatalf("Error initializing ZooKeeper client: %s", err)
+			t.Error(fmt.Sprintf("path %s: %s", p, err))
 		}
+	}
 
-		// Init a ZooKeeper based Handler.
-		var configPrefix string
-		if len(zkprefix) > 0 {
-			configPrefix = zkprefix[1:]
-		} else {
-			configPrefix = ""
-		}
+	// Create topics.
+	partitionMeta := NewPartitionMetaMap()
+	data := []byte(`{"version":1,"partitions":{"0":[1001,1002],"1":[1002,1001],"2":[1003,1004],"3":[1004,1003]}}`)
 
-		zki, err = NewHandler(&Config{
-			Connect:       zkaddr,
-			Prefix:        configPrefix,
-			MetricsPrefix: "topicmappr_test",
-		})
+	for i := 0; i < 5; i++ {
+		// Init config.
+		topic := fmt.Sprintf("topic%d", i)
+		p := fmt.Sprintf("%s/brokers/topics/%s", zkprefix, topic)
+		paths = append(paths, p)
+		_, err := zkc.Create(p, data, 0, zkclient.WorldACL(31))
 		if err != nil {
-			t.Errorf("Error initializing ZooKeeper client: %s", err)
+			t.Error(err)
 		}
 
-		time.Sleep(250 * time.Millisecond)
-		if !zki.Ready() {
-			t.Fatal("ZooKeeper client not ready in 250ms")
+		// Create partition meta.
+		partitionMeta[topic] = map[int]*PartitionMeta{
+			0: &PartitionMeta{Size: 1000.00},
+			1: &PartitionMeta{Size: 2000.00},
+			2: &PartitionMeta{Size: 3000.00},
+			3: &PartitionMeta{Size: 4000.00},
 		}
 
-		/*****************
-		Populate test data
-		*****************/
+		// Create topic configs, states.
+		statePaths := []string{
+			fmt.Sprintf("%s/brokers/topics/topic%d/partitions", zkprefix, i),
+		}
 
-		// Create paths.
-		for _, p := range paths {
+		for j := 0; j < 4; j++ {
+			statePaths = append(statePaths, fmt.Sprintf("%s/brokers/topics/topic%d/partitions/%d", zkprefix, i, j))
+			statePaths = append(statePaths, fmt.Sprintf("%s/brokers/topics/topic%d/partitions/%d/state", zkprefix, i, j))
+		}
+
+		for _, p := range statePaths {
 			_, err := zkc.Create(p, []byte{}, 0, zkclient.WorldACL(31))
 			if err != nil {
-				t.Error(fmt.Sprintf("path %s: %s", p, err))
-			}
-		}
-
-		// Create topics.
-		partitionMeta := NewPartitionMetaMap()
-		data := []byte(`{"version":1,"partitions":{"0":[1001,1002],"1":[1002,1001],"2":[1003,1004],"3":[1004,1003]}}`)
-
-		for i := 0; i < 5; i++ {
-			// Init config.
-			topic := fmt.Sprintf("topic%d", i)
-			p := fmt.Sprintf("%s/brokers/topics/%s", zkprefix, topic)
-			paths = append(paths, p)
-			_, err := zkc.Create(p, data, 0, zkclient.WorldACL(31))
-			if err != nil {
-				t.Error(err)
-			}
-
-			// Create partition meta.
-			partitionMeta[topic] = map[int]*PartitionMeta{
-				0: &PartitionMeta{Size: 1000.00},
-				1: &PartitionMeta{Size: 2000.00},
-				2: &PartitionMeta{Size: 3000.00},
-				3: &PartitionMeta{Size: 4000.00},
-			}
-
-			// Create topic configs, states.
-			statePaths := []string{
-				fmt.Sprintf("%s/brokers/topics/topic%d/partitions", zkprefix, i),
-			}
-
-			for j := 0; j < 4; j++ {
-				statePaths = append(statePaths, fmt.Sprintf("%s/brokers/topics/topic%d/partitions/%d", zkprefix, i, j))
-				statePaths = append(statePaths, fmt.Sprintf("%s/brokers/topics/topic%d/partitions/%d/state", zkprefix, i, j))
-			}
-
-			for _, p := range statePaths {
-				_, err := zkc.Create(p, []byte{}, 0, zkclient.WorldACL(31))
-				if err != nil {
-					t.Error(err)
-				}
-			}
-
-			paths = append(paths, statePaths...)
-
-			config := `{"version":1,"partitions":{"0":[1001,1002], "1":[1002,1001], "2":[1003,1004], "3":[1004,1003]}}`
-			cfgPath := fmt.Sprintf("%s/brokers/topics/topic%d", zkprefix, i)
-			_, err = zkc.Set(cfgPath, []byte(config), -1)
-			if err != nil {
-				t.Error(err)
-			}
-
-			states := []string{
-				`{"controller_epoch":1,"leader":1001,"version":1,"leader_epoch":1,"isr":[1001,1002]}`,
-				`{"controller_epoch":1,"leader":1002,"version":1,"leader_epoch":1,"isr":[1002,1001]}`,
-				`{"controller_epoch":1,"leader":1003,"version":1,"leader_epoch":1,"isr":[1003,1004]}`,
-				`{"controller_epoch":1,"leader":1004,"version":1,"leader_epoch":1,"isr":[1004,1003]}`,
-			}
-
-			// We need at least one topic/partition to appear as under-replicated to
-			// test some functions.
-			if i == 2 {
-				states[0] = `{"controller_epoch":1,"leader":1002,"version":1,"leader_epoch":2,"isr":[1002]}`
-			}
-
-			for n, s := range states {
-				path := fmt.Sprintf("%s/brokers/topics/topic%d/partitions/%d/state", zkprefix, i, n)
-				_, err := zkc.Set(path, []byte(s), -1)
-				if err != nil {
-					t.Error(err)
-				}
-			}
-		}
-
-		// Store partition meta.
-		data, _ = json.Marshal(partitionMeta)
-		_, err = zkc.Set("/topicmappr_test/partitionmeta", data, -1)
-		if err != nil {
-			t.Error(err)
-		}
-
-		// Create reassignments data.
-		data = []byte(`{"version":1,"partitions":[{"topic":"topic0","partition":0,"replicas":[1003,1004]}]}`)
-		_, err = zkc.Set(zkprefix+"/admin/reassign_partitions", data, -1)
-		if err != nil {
-			t.Error(err)
-		}
-
-		// Create delete_topics data.
-		paths = append(paths, zkprefix+"/admin/delete_topics/deleting_topic")
-		_, err = zkc.Create(zkprefix+"/admin/delete_topics/deleting_topic", []byte{}, 0, zkclient.WorldACL(31))
-		if err != nil {
-			t.Error(err)
-		}
-
-		// Create topic config.
-		data = []byte(`{"version":1,"config":{"retention.ms":"129600000"}}`)
-		paths = append(paths, zkprefix+"/config/topics/topic0")
-		_, err = zkc.Create(zkprefix+"/config/topics/topic0", data, 0, zkclient.WorldACL(31))
-		if err != nil {
-			t.Error(err)
-		}
-
-		// Create brokers.
-		rack := []string{"a", "b", "c"}
-		for i := 0; i < 5; i++ {
-			// Create data.
-			data := fmt.Sprintf(`{"listener_security_protocol_map":{"PLAINTEXT":"PLAINTEXT"},"endpoints":["PLAINTEXT://10.0.1.%d:9092"],"rack":"%s","jmx_port":9999,"host":"10.0.1.%d","timestamp":"%d","port":9092,"version":4}`,
-				100+i, rack[i%3], 100+i, time.Now().Unix())
-			p := fmt.Sprintf("%s/brokers/ids/%d", zkprefix, 1001+i)
-
-			paths = append(paths, p)
-
-			// Add.
-			_, err = zkc.Create(p, []byte(data), 0, zkclient.WorldACL(31))
-			if err != nil {
 				t.Error(err)
 			}
 		}
 
-		// Create broker metrics.
-		if err := setBrokerMetrics(); err != nil {
+		paths = append(paths, statePaths...)
+
+		config := `{"version":1,"partitions":{"0":[1001,1002], "1":[1002,1001], "2":[1003,1004], "3":[1004,1003]}}`
+		cfgPath := fmt.Sprintf("%s/brokers/topics/topic%d", zkprefix, i)
+		_, err = zkc.Set(cfgPath, []byte(config), -1)
+		if err != nil {
 			t.Error(err)
 		}
 
-	} else {
-		t.Skip("Skipping long test setup")
+		states := []string{
+			`{"controller_epoch":1,"leader":1001,"version":1,"leader_epoch":1,"isr":[1001,1002]}`,
+			`{"controller_epoch":1,"leader":1002,"version":1,"leader_epoch":1,"isr":[1002,1001]}`,
+			`{"controller_epoch":1,"leader":1003,"version":1,"leader_epoch":1,"isr":[1003,1004]}`,
+			`{"controller_epoch":1,"leader":1004,"version":1,"leader_epoch":1,"isr":[1004,1003]}`,
+		}
+
+		// We need at least one topic/partition to appear as under-replicated to
+		// test some functions.
+		if i == 2 {
+			states[0] = `{"controller_epoch":1,"leader":1002,"version":1,"leader_epoch":2,"isr":[1002]}`
+		}
+
+		for n, s := range states {
+			path := fmt.Sprintf("%s/brokers/topics/topic%d/partitions/%d/state", zkprefix, i, n)
+			_, err := zkc.Set(path, []byte(s), -1)
+			if err != nil {
+				t.Error(err)
+			}
+		}
 	}
+
+	// Store partition meta.
+	data, _ = json.Marshal(partitionMeta)
+	_, err = zkc.Set("/topicmappr_test/partitionmeta", data, -1)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Create reassignments data.
+	data = []byte(`{"version":1,"partitions":[{"topic":"topic0","partition":0,"replicas":[1003,1004]}]}`)
+	_, err = zkc.Set(zkprefix+"/admin/reassign_partitions", data, -1)
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Create delete_topics data.
+	paths = append(paths, zkprefix+"/admin/delete_topics/deleting_topic")
+	_, err = zkc.Create(zkprefix+"/admin/delete_topics/deleting_topic", []byte{}, 0, zkclient.WorldACL(31))
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Create topic config.
+	data = []byte(`{"version":1,"config":{"retention.ms":"129600000"}}`)
+	paths = append(paths, zkprefix+"/config/topics/topic0")
+	_, err = zkc.Create(zkprefix+"/config/topics/topic0", data, 0, zkclient.WorldACL(31))
+	if err != nil {
+		t.Error(err)
+	}
+
+	// Create brokers.
+	rack := []string{"a", "b", "c"}
+	for i := 0; i < 5; i++ {
+		// Create data.
+		data := fmt.Sprintf(`{"listener_security_protocol_map":{"PLAINTEXT":"PLAINTEXT"},"endpoints":["PLAINTEXT://10.0.1.%d:9092"],"rack":"%s","jmx_port":9999,"host":"10.0.1.%d","timestamp":"%d","port":9092,"version":4}`,
+			100+i, rack[i%3], 100+i, time.Now().Unix())
+		p := fmt.Sprintf("%s/brokers/ids/%d", zkprefix, 1001+i)
+
+		paths = append(paths, p)
+
+		// Add.
+		_, err = zkc.Create(p, []byte(data), 0, zkclient.WorldACL(31))
+		if err != nil {
+			t.Error(err)
+		}
+	}
+
+	// Create broker metrics.
+	if err := setBrokerMetrics(); err != nil {
+		t.Error(err)
+	}
+
 }
 
 func setBrokerMetrics() error {
@@ -269,10 +267,6 @@ func setBrokerMetrics() error {
 }
 
 func TestCreateSetGetDelete(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
 	err := zki.Create("/test", "")
 	paths = append(paths, "/test")
 	if err != nil {
@@ -308,10 +302,6 @@ func TestCreateSetGetDelete(t *testing.T) {
 }
 
 func TestCreateSequential(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
 	err := zki.Create("/test", "")
 	if err != nil {
 		t.Error(err)
@@ -350,10 +340,6 @@ func TestCreateSequential(t *testing.T) {
 }
 
 func TestExists(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
 	e, err := zki.Exists("/test")
 	if err != nil {
 		t.Error(err)
@@ -365,9 +351,6 @@ func TestExists(t *testing.T) {
 }
 
 func TestNextInt(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
 
 	for _, expected := range []int32{1, 2, 3} {
 		v, err := zki.NextInt(zkprefix + "/version")
@@ -382,10 +365,6 @@ func TestNextInt(t *testing.T) {
 }
 
 func TestGetUnderReplicated(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
 	ur, err := zki.GetUnderReplicated()
 	if err != nil {
 		t.Error(err)
@@ -397,10 +376,6 @@ func TestGetUnderReplicated(t *testing.T) {
 }
 
 func TestGetReassignments(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
 	re := zki.GetReassignments()
 
 	if len(re) != 1 {
@@ -427,10 +402,6 @@ func TestGetReassignments(t *testing.T) {
 }
 
 func TestGetPendingDeletion(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
 	pd, err := zki.GetPendingDeletion()
 	if err != nil {
 		t.Error(err)
@@ -446,10 +417,6 @@ func TestGetPendingDeletion(t *testing.T) {
 }
 
 func TestGetTopics(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
 	rs := []*regexp.Regexp{
 		regexp.MustCompile("topic[0-2]"),
 	}
@@ -475,10 +442,6 @@ func TestGetTopics(t *testing.T) {
 }
 
 func TestGetTopicConfig(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
 	c, err := zki.GetTopicConfig("topic0")
 	if err != nil {
 		t.Error(err)
@@ -499,10 +462,6 @@ func TestGetTopicConfig(t *testing.T) {
 }
 
 func TestGetAllBrokerMeta(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
 	bm, err := zki.GetAllBrokerMeta(false)
 	if err != nil {
 		t.Error(err)
@@ -528,10 +487,6 @@ func TestGetAllBrokerMeta(t *testing.T) {
 }
 
 func TestGetBrokerMetrics(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
 	// Get broker meta withMetrics.
 	bm, err := zki.GetAllBrokerMeta(true)
 	if err != nil {
@@ -554,10 +509,6 @@ func TestGetBrokerMetrics(t *testing.T) {
 }
 
 func TestGetBrokerMetricsCompressed(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
 	// Create a compressed version of the metrics data.
 	data := []byte(`{
 		"1001": {"StorageFree": 10000.00},
@@ -611,10 +562,6 @@ func TestGetBrokerMetricsCompressed(t *testing.T) {
 }
 
 func TestGetAllPartitionMeta(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
 	pm, err := zki.GetAllPartitionMeta()
 	if err != nil {
 		t.Error(err)
@@ -644,10 +591,6 @@ func TestGetAllPartitionMeta(t *testing.T) {
 }
 
 func TestGetAllPartitionMetaCompressed(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
 	// Fetch and hold the original partition meta.
 	pm, err := zki.GetAllPartitionMeta()
 	if err != nil {
@@ -712,10 +655,6 @@ func TestGetAllPartitionMetaCompressed(t *testing.T) {
 }
 
 func TestOldestMetaTs(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
 	// Init a ZKHandler.
 	var configPrefix string
 	if len(zkprefix) > 0 {
@@ -771,10 +710,6 @@ func TestOldestMetaTs(t *testing.T) {
 }
 
 func TestGetTopicState(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
 	ts, err := zki.GetTopicState("topic0")
 	if err != nil {
 		t.Error(err)
@@ -810,10 +745,6 @@ func TestGetTopicState(t *testing.T) {
 }
 
 func TestGetTopicStateISR(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
 	ts, err := zki.GetTopicStateISR("topic0")
 	if err != nil {
 		t.Error(err)
@@ -849,10 +780,6 @@ func TestGetTopicStateISR(t *testing.T) {
 }
 
 func TestGetPartitionMap(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
 	pm, err := zki.GetPartitionMap("topic0")
 	if err != nil {
 		t.Error(err)
@@ -874,10 +801,6 @@ func TestGetPartitionMap(t *testing.T) {
 }
 
 func TestUpdateKafkaConfigBroker(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
 	c := KafkaConfig{
 		Type: "broker",
 		Name: "1001",
@@ -932,10 +855,6 @@ func TestUpdateKafkaConfigBroker(t *testing.T) {
 }
 
 func TestUpdateKafkaConfigTopic(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
 	c := KafkaConfig{
 		Type: "topic",
 		Name: "topic0",
@@ -989,10 +908,6 @@ func TestUpdateKafkaConfigTopic(t *testing.T) {
 
 // TestTearDown does any tear down cleanup.
 func TestTearDown(t *testing.T) {
-	if testing.Short() {
-		t.Skip()
-	}
-
 	// We sort the paths by descending
 	// length. This ensures that we're always
 	// deleting children first.

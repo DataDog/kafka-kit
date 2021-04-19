@@ -3,8 +3,10 @@ package server
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
+	"github.com/DataDog/kafka-kit/v3/registry/admin"
 )
 
 var (
@@ -35,13 +37,30 @@ func testIntegrationServer() (*Server, error) {
 		ZKTagsPrefix: testConfig.Prefix,
 	})
 
+	wg := &sync.WaitGroup{}
+	ctx, _ := context.WithTimeout(context.Background(), time.Second*3)
+
+	// Init kafakzk.
 	zkCfg := &kafkazk.Config{
 		Connect: "localhost:2181",
 	}
 
-	wg := &sync.WaitGroup{}
+	if err := s.DialZK(ctx, wg, zkCfg); err != nil {
+		return nil, err
+	}
 
-	if err := s.DialZK(context.Background(), wg, zkCfg); err != nil {
+	// Init KafkaAdmin.
+	adminConfig := admin.Config{
+		Type:             "kafka",
+		BootstrapServers: "kafka:9093",
+		SSLCALocation:    "/etc/kafka/config/kafka-ca-crt.pem",
+		SecurityProtocol: "SASL_SSL",
+		SASLMechanism:    "PLAIN",
+		SASLUsername:     "registry",
+		SASLPassword:     "registry-secret",
+	}
+
+	if err := s.InitKafkaAdmin(ctx, wg, adminConfig); err != nil {
 		return nil, err
 	}
 
