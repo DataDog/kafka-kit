@@ -1,5 +1,12 @@
 package server
 
+import (
+	"context"
+	"sync"
+
+	"github.com/DataDog/kafka-kit/v3/kafkazk"
+)
+
 var (
 	testConfig = TagHandlerConfig{
 		Prefix: "test",
@@ -17,6 +24,28 @@ func testServer() *Server {
 	s.DialZK(nil, nil, nil)
 
 	return s
+}
+
+func testIntegrationServer() (*Server, error) {
+	s, _ := NewServer(Config{
+		HTTPListen:   "localhost:8080",
+		GRPCListen:   "localhost:8090",
+		ReadReqRate:  1,
+		WriteReqRate: 1,
+		ZKTagsPrefix: testConfig.Prefix,
+	})
+
+	zkCfg := &kafkazk.Config{
+		Connect: "localhost:2181",
+	}
+
+	wg := &sync.WaitGroup{}
+
+	if err := s.DialZK(context.Background(), wg, zkCfg); err != nil {
+		return nil, err
+	}
+
+	return s, nil
 }
 
 func testTagHandler() *TagHandler {
