@@ -35,7 +35,7 @@ func NewZooKeeperMock() Handler {
 // GetReassignments mocks GetReassignments.
 func (zk *Mock) GetReassignments() Reassignments {
 	r := Reassignments{
-		"mock": map[int][]int{
+		"reassigning_topic": map[int][]int{
 			0: []int{1003, 1000, 1002},
 			1: []int{1005, 1010},
 		},
@@ -44,7 +44,7 @@ func (zk *Mock) GetReassignments() Reassignments {
 }
 
 func (zk *Mock) GetUnderReplicated() ([]string, error) {
-	return []string{"reassigning_topic"}, nil
+	return []string{"underreplicated_topic"}, nil
 }
 
 func (zk *Mock) GetPendingDeletion() ([]string, error) {
