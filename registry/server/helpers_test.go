@@ -42,7 +42,7 @@ func testIntegrationServer() (*Server, error) {
 
 	// Init kafakzk.
 	zkCfg := &kafkazk.Config{
-		Connect: "localhost:2181",
+		Connect: "zookeeper:2181",
 	}
 
 	if err := s.DialZK(ctx, wg, zkCfg); err != nil {
