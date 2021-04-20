@@ -12,16 +12,10 @@ import (
 )
 
 var (
-	zkaddr   = "localhost:2181"
+	zkaddr   = "zookeeper:2181"
 	zkprefix = "registry_test"
 
 	store *ZKTagStorage
-	// To track znodes created.
-	paths = []string{
-		zkprefix,
-		zkprefix + "/broker",
-		zkprefix + "/topic",
-	}
 )
 
 func TestSetup(t *testing.T) {
@@ -257,42 +251,15 @@ func TestDeleteTagsFailures(t *testing.T) {
 	}
 }
 
-// Sort by string length.
-
-type byLen []string
-
-func (a byLen) Len() int           { return len(a) }
-func (a byLen) Less(i, j int) bool { return len(a[i]) > len(a[j]) }
-func (a byLen) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-
 // TestTearDown does any tear down cleanup.
 func TestTearDown(t *testing.T) {
-	// We sort the paths by descending
-	// length. This ensures that we're always
-	// deleting children first.
-	sort.Sort(byLen(paths))
-
-	// Remove test data.
-
-	// Children first.
-	for _, p := range []string{"broker", "topic"} {
-		path := fmt.Sprintf("/%s/%s", zkprefix, p)
-		children, err := store.ZK.Children(path)
-		if err != nil {
-			t.Error(err)
-		}
-
-		for _, c := range children {
-			_ = store.ZK.Delete(fmt.Sprintf("%s/%s", path, c))
-		}
-	}
+	paths := allChildren("/" + testConfig.Prefix)
+	sort.Sort(sort.Reverse(byLength(paths)))
 
 	for _, p := range paths {
-		// The "/" addition is required because we're using
-		// the zkprefix var for both Kafka prefixes and the
-		// ZKTagStorage prefix configuration, which doesn't
-		// take a leading /.
-		if err := store.ZK.Delete("/" + p); err != nil {
+		err := store.ZK.Delete(p)
+		if err != nil {
+			t.Log(p)
 			t.Error(err)
 		}
 	}
