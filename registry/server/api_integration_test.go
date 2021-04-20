@@ -16,15 +16,19 @@ func TestCreateTopic(t *testing.T) {
 	}
 
 	tests := map[int]*pb.CreateTopicRequest{
+		// This should succeed.
 		0: &pb.CreateTopicRequest{
 			Topic: &pb.Topic{Name: "new_topic", Partitions: 1, Replication: 1},
 		},
+		// This should fail because we're trying to create the same topic twice.
 		1: &pb.CreateTopicRequest{
 			Topic: &pb.Topic{Name: "new_topic", Partitions: 1, Replication: 1},
 		},
+		// This should fail; incomplete request params.
 		2: &pb.CreateTopicRequest{
 			Topic: &pb.Topic{Name: "", Partitions: 1, Replication: 1},
 		},
+		// This should fail; incomplete request params.
 		3: &pb.CreateTopicRequest{},
 	}
 
@@ -56,14 +60,19 @@ func TestCreateTaggedTopic(t *testing.T) {
 	}
 
 	tests := map[int]*pb.CreateTopicRequest{
+		// This should succeed.
 		0: &pb.CreateTopicRequest{
 			Topic:            &pb.Topic{Name: "new_topic2", Partitions: 1, Replication: 1},
 			TargetBrokerTags: []string{"key:value"},
 		},
+		// This should fail because we're attempting to map the topic to a tag
+		// that isn't present on any brokers.
 		1: &pb.CreateTopicRequest{
 			Topic:            &pb.Topic{Name: "new_topic3", Partitions: 1, Replication: 1},
 			TargetBrokerTags: []string{"key:doesnt_exist"},
 		},
+		// This should fail because we're trying to create more replicas than we
+		// have available brokers for.
 		2: &pb.CreateTopicRequest{
 			Topic:            &pb.Topic{Name: "many_partitions", Partitions: 24, Replication: 3},
 			TargetBrokerTags: []string{"key:value"},
