@@ -22,11 +22,17 @@ func TestCreateTopic(t *testing.T) {
 		1: &pb.CreateTopicRequest{
 			Topic: &pb.Topic{Name: "new_topic", Partitions: 1, Replication: 1},
 		},
+		2: &pb.CreateTopicRequest{
+			Topic: &pb.Topic{Name: "", Partitions: 1, Replication: 1},
+		},
+		3: &pb.CreateTopicRequest{},
 	}
 
 	expectedErrors := map[int]error{
 		0: nil,
 		1: ErrTopicAlreadyExists,
+		2: ErrTopicNameEmpty,
+		3: ErrTopicFieldMissing,
 	}
 
 	for i := 0; i < len(tests); i++ {
@@ -56,12 +62,18 @@ func TestCreateTaggedTopic(t *testing.T) {
 		},
 		1: &pb.CreateTopicRequest{
 			Topic:            &pb.Topic{Name: "new_topic3", Partitions: 1, Replication: 1},
-			TargetBrokerTags: []string{"key:doesnt_exist"}},
+			TargetBrokerTags: []string{"key:doesnt_exist"},
+		},
+		2: &pb.CreateTopicRequest{
+			Topic:            &pb.Topic{Name: "many_partitions", Partitions: 24, Replication: 3},
+			TargetBrokerTags: []string{"key:value"},
+		},
 	}
 
 	expectedErrors := map[int]error{
 		0: nil,
 		1: ErrInsufficientBrokers,
+		2: ErrInsufficientBrokers,
 	}
 
 	for i := 0; i < len(tests); i++ {
