@@ -4,6 +4,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	pb "github.com/DataDog/kafka-kit/v3/registry/protos"
