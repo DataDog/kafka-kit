@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -18,8 +17,8 @@ var (
 
 func testServer() *Server {
 	s, _ := NewServer(Config{
-		ReadReqRate:  1,
-		WriteReqRate: 1,
+		ReadReqRate:  10,
+		WriteReqRate: 10,
 		ZKTagsPrefix: testConfig.Prefix,
 		test:         true,
 	})
@@ -33,8 +32,8 @@ func testIntegrationServer() (*Server, error) {
 	s, _ := NewServer(Config{
 		HTTPListen:   "localhost:8080",
 		GRPCListen:   "localhost:8090",
-		ReadReqRate:  1,
-		WriteReqRate: 1,
+		ReadReqRate:  10,
+		WriteReqRate: 10,
 		ZKTagsPrefix: testConfig.Prefix,
 	})
 
@@ -101,18 +100,6 @@ func stringsEqual(s1, s2 []string) bool {
 	}
 
 	return true
-}
-
-// Recursive search.
-func allChildren(p string) []string {
-	paths := []string{p}
-
-	children, _ := store.ZK.Children(p)
-	for _, c := range children {
-		paths = append(paths, allChildren(fmt.Sprintf("%s/%s", p, c))...)
-	}
-
-	return paths
 }
 
 type byLength []string
