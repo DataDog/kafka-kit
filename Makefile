@@ -5,11 +5,11 @@ K := $(foreach exec,$(EXECUTABLES),\
 build-container:
 	docker compose build
 
-run-compose:
+run-compose: build-container
 	docker compose up -d
 
 integration-test: build-container
-	docker-compose run --rm --name registry_test registry go test -timeout 1m --tags=integration ./...
+	docker-compose run --rm --name registry_test registry go test -timeout 30s --tags=integration ./...
 
 clean:
 	docker compose down
