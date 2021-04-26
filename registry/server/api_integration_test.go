@@ -104,10 +104,14 @@ func TestDeleteTopic(t *testing.T) {
 		0: &pb.TopicRequest{
 			Name: "new_topic",
 		},
+		1: &pb.TopicRequest{
+			Name: "new_topic2",
+		},
 	}
 
 	expectedErrors := map[int]error{
 		0: nil,
+		1: nil,
 	}
 
 	for i := 0; i < len(tests); i++ {
