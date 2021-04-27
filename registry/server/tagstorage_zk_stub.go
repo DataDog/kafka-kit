@@ -4,8 +4,8 @@ import (
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
 )
 
-// zkTagStorageMockMock mocks ZKTagStorage.
-type zkTagStorageMock struct {
+// zkTagStorageStubStub stubs ZKTagStorage.
+type zkTagStorageStub struct {
 	ReservedFields ReservedFields
 	Prefix         string
 	ZK             kafkazk.Handler
@@ -13,21 +13,21 @@ type zkTagStorageMock struct {
 	tags map[string]map[string]TagSet
 }
 
-// newzkTagStorageMockMock initializes a zkTagStorageMockMock.
-func newzkTagStorageMock() *zkTagStorageMock {
-	zks := &zkTagStorageMock{
-		Prefix: "mock",
+// newzkTagStorageStubStub initializes a zkTagStorageStubStub.
+func newzkTagStorageStub() *zkTagStorageStub {
+	zks := &zkTagStorageStub{
+		Prefix: "stub",
 		tags:   map[string]map[string]TagSet{},
 	}
 
-	zks.ZK = &kafkazk.Mock{}
+	zks.ZK = &kafkazk.Stub{}
 	zks.LoadReservedFields(GetReservedFields())
 
 	return zks
 }
 
-// SetTags mocks SetTags.
-func (t *zkTagStorageMock) SetTags(o KafkaObject, ts TagSet) error {
+// SetTags stubs SetTags.
+func (t *zkTagStorageStub) SetTags(o KafkaObject, ts TagSet) error {
 	if !o.Complete() {
 		return ErrInvalidKafkaObjectType
 	}
@@ -47,8 +47,8 @@ func (t *zkTagStorageMock) SetTags(o KafkaObject, ts TagSet) error {
 	return nil
 }
 
-// GetTags mocks GetTags.
-func (t *zkTagStorageMock) GetTags(o KafkaObject) (TagSet, error) {
+// GetTags stubs GetTags.
+func (t *zkTagStorageStub) GetTags(o KafkaObject) (TagSet, error) {
 	if !o.Complete() {
 		return nil, ErrInvalidKafkaObjectType
 	}
@@ -64,8 +64,8 @@ func (t *zkTagStorageMock) GetTags(o KafkaObject) (TagSet, error) {
 	return t.tags[o.Type][o.ID], nil
 }
 
-// DeleteTags mocks DeleteTags.
-func (t *zkTagStorageMock) DeleteTags(o KafkaObject, tl Tags) error {
+// DeleteTags stubs DeleteTags.
+func (t *zkTagStorageStub) DeleteTags(o KafkaObject, tl Tags) error {
 	if !o.Complete() {
 		return ErrInvalidKafkaObjectType
 	}
@@ -85,8 +85,8 @@ func (t *zkTagStorageMock) DeleteTags(o KafkaObject, tl Tags) error {
 	return nil
 }
 
-// FieldReserved mocks FieldReserved.
-func (t *zkTagStorageMock) FieldReserved(o KafkaObject, f string) bool {
+// FieldReserved stubs FieldReserved.
+func (t *zkTagStorageStub) FieldReserved(o KafkaObject, f string) bool {
 	if !o.Valid() {
 		return false
 	}
@@ -96,8 +96,8 @@ func (t *zkTagStorageMock) FieldReserved(o KafkaObject, f string) bool {
 	return ok
 }
 
-// LoadReservedFields mocks FieldReserved.
-func (t *zkTagStorageMock) LoadReservedFields(r ReservedFields) error {
+// LoadReservedFields stubs FieldReserved.
+func (t *zkTagStorageStub) LoadReservedFields(r ReservedFields) error {
 	t.ReservedFields = r
 
 	return nil

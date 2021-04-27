@@ -81,7 +81,7 @@ func NewServer(c Config) (*Server, error) {
 
 	th, _ := NewTagHandler(tcfg)
 	if c.test {
-		th.Store = newzkTagStorageMock()
+		th.Store = newzkTagStorageStub()
 	}
 
 	return &Server{
@@ -262,7 +262,7 @@ func (s *Server) InitKafkaConsumer(ctx context.Context, wg *sync.WaitGroup, cfg 
 // context is cancelled.
 func (s *Server) DialZK(ctx context.Context, wg *sync.WaitGroup, c *kafkazk.Config) error {
 	if s.test {
-		s.ZK = kafkazk.NewZooKeeperMock()
+		s.ZK = kafkazk.NewZooKeeperStub()
 		return nil
 	}
 

@@ -74,8 +74,8 @@ func TestDegreeDistribution(t *testing.T) {
 }
 
 func TestBrokerMapStorageDiff(t *testing.T) {
-	bm1 := newMockBrokerMap()
-	bm2 := newMockBrokerMap()
+	bm1 := newStubBrokerMap()
+	bm2 := newStubBrokerMap()
 
 	bm2[1001].StorageFree = 200.00
 	bm2[1002].StorageFree = 100.00
@@ -99,7 +99,7 @@ func TestBrokerMapStorageDiff(t *testing.T) {
 }
 
 func TestBrokerMapStorageRangeSpread(t *testing.T) {
-	bm := newMockBrokerMap()
+	bm := newStubBrokerMap()
 	rs := bm.StorageRangeSpread()
 
 	if rs != 300.00 {
@@ -108,7 +108,7 @@ func TestBrokerMapStorageRangeSpread(t *testing.T) {
 }
 
 func TestBrokerMapStorageRange(t *testing.T) {
-	bm := newMockBrokerMap()
+	bm := newStubBrokerMap()
 	r := bm.StorageRange()
 
 	if r != 300 {
@@ -117,7 +117,7 @@ func TestBrokerMapStorageRange(t *testing.T) {
 }
 
 func TestBrokerMapStorageStdDev(t *testing.T) {
-	bm := newMockBrokerMap()
+	bm := newStubBrokerMap()
 
 	sd := math.Round(bm.StorageStdDev()/0.001) * 0.001
 
@@ -127,7 +127,7 @@ func TestBrokerMapStorageStdDev(t *testing.T) {
 }
 
 func TestBrokerListSort(t *testing.T) {
-	b := newMockBrokerMap()
+	b := newStubBrokerMap()
 	bl := b.Filter(func(b *Broker) bool { return true }).List()
 
 	// Test sort brokersByStorage.
@@ -153,7 +153,7 @@ func TestBrokerListSort(t *testing.T) {
 }
 
 func TestHMean(t *testing.T) {
-	bm := newMockBrokerMap2()
+	bm := newStubBrokerMap2()
 
 	m := fmt.Sprintf("%.4f", bm.HMean())
 	if m != "247.0588" {
@@ -162,7 +162,7 @@ func TestHMean(t *testing.T) {
 }
 
 func TestMean(t *testing.T) {
-	bm := newMockBrokerMap2()
+	bm := newStubBrokerMap2()
 
 	m := fmt.Sprintf("%.4f", bm.Mean())
 	if m != "314.2857" {
@@ -171,7 +171,7 @@ func TestMean(t *testing.T) {
 }
 
 func TestAboveMean(t *testing.T) {
-	bm := newMockBrokerMap2()
+	bm := newStubBrokerMap2()
 
 	// With HMean.
 	tests := map[float64][]int{
@@ -200,7 +200,7 @@ func TestAboveMean(t *testing.T) {
 }
 
 func TestBelowMean(t *testing.T) {
-	bm := newMockBrokerMap2()
+	bm := newStubBrokerMap2()
 
 	// With HMean.
 	tests := map[float64][]int{

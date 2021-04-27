@@ -19,7 +19,7 @@ func TestNotInReplicaSet(t *testing.T) {
 }
 
 func TestPhasedReassignment(t *testing.T) {
-	zk := kafkazk.Mock{}
+	zk := kafkazk.Stub{}
 	pm1, _ := zk.GetPartitionMap("test_topic")
 	pm2 := pm1.Copy()
 

@@ -7,7 +7,7 @@ import (
 )
 
 func TestBrokerReplicationCapacities(t *testing.T) {
-	zk := &kafkazk.Mock{}
+	zk := &kafkazk.Stub{}
 	reassignments := zk.GetReassignments()
 	reassigningBrokers, _ := getReassigningBrokers(reassignments, zk)
 
@@ -15,7 +15,7 @@ func TestBrokerReplicationCapacities(t *testing.T) {
 		Minimum:            20,
 		SourceMaximum:      90,
 		DestinationMaximum: 80,
-		CapacityMap:        map[string]float64{"mock": 200.00},
+		CapacityMap:        map[string]float64{"stub": 200.00},
 	})
 
 	rtc := &ReplicationThrottleConfigs{
@@ -24,7 +24,7 @@ func TestBrokerReplicationCapacities(t *testing.T) {
 		limits:                 lim,
 	}
 
-	bm := mockBrokerMetrics()
+	bm := stubBrokerMetrics()
 	brc, _ := brokerReplicationCapacities(rtc, reassigningBrokers, bm)
 
 	expected := map[int][2]*float64{

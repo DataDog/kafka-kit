@@ -36,7 +36,7 @@ func TestChanges(t *testing.T) {
 }
 
 func TestSortBrokerListByCount(t *testing.T) {
-	b := newMockBrokerMap2()
+	b := newStubBrokerMap2()
 	bl := b.Filter(func(b *Broker) bool { return true }).List()
 
 	bl.SortByCount()
@@ -56,7 +56,7 @@ func TestSortBrokerListByCount(t *testing.T) {
 }
 
 func TestSortBrokerListByStorage(t *testing.T) {
-	b := newMockBrokerMap2()
+	b := newStubBrokerMap2()
 	bl := b.Filter(func(b *Broker) bool { return true }).List()
 
 	bl.SortByStorage()
@@ -76,7 +76,7 @@ func TestSortBrokerListByStorage(t *testing.T) {
 }
 
 func TestSortBrokerListByID(t *testing.T) {
-	b := newMockBrokerMap2()
+	b := newStubBrokerMap2()
 	bl := b.Filter(func(b *Broker) bool { return true }).List()
 
 	bl.SortByID()
@@ -96,7 +96,7 @@ func TestSortBrokerListByID(t *testing.T) {
 }
 
 func TestSortPseudoShuffle(t *testing.T) {
-	b := newMockBrokerMap2()
+	b := newStubBrokerMap2()
 	bl := b.Filter(func(b *Broker) bool { return true }).List()
 
 	// Test with seed val of 1.
@@ -121,9 +121,9 @@ func TestSortPseudoShuffle(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
-	zk := &Mock{}
+	zk := &Stub{}
 	bmm, _ := zk.GetAllBrokerMeta(false)
-	bm := newMockBrokerMap()
+	bm := newStubBrokerMap()
 	// 1001 isn't in the list, should
 	// add to the Missing count.
 	delete(bmm, 1001)
@@ -209,9 +209,9 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestUpdateIncludeExisting(t *testing.T) {
-	zk := &Mock{}
+	zk := &Stub{}
 	bmm, _ := zk.GetAllBrokerMeta(false)
-	bm := newMockBrokerMap()
+	bm := newStubBrokerMap()
 
 	bm.Update([]int{-1}, bmm)
 
@@ -224,7 +224,7 @@ func TestUpdateIncludeExisting(t *testing.T) {
 }
 
 func TestSubStorageAll(t *testing.T) {
-	bm := newMockBrokerMap()
+	bm := newStubBrokerMap()
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 	pmm := NewPartitionMetaMap()
 
@@ -257,7 +257,7 @@ func TestSubStorageAll(t *testing.T) {
 }
 
 func TestSubStorageReplacements(t *testing.T) {
-	bm := newMockBrokerMap()
+	bm := newStubBrokerMap()
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 	pmm := NewPartitionMetaMap()
 
@@ -293,7 +293,7 @@ func TestSubStorageReplacements(t *testing.T) {
 }
 
 func TestMapFilter(t *testing.T) {
-	bm1 := newMockBrokerMap2()
+	bm1 := newStubBrokerMap2()
 	f := func(b *Broker) bool {
 		if b.Locality == "a" {
 			return true
@@ -315,7 +315,7 @@ func TestMapFilter(t *testing.T) {
 }
 
 func TestListFilter(t *testing.T) {
-	bl1 := newMockBrokerMap2().List()
+	bl1 := newStubBrokerMap2().List()
 	f := func(b *Broker) bool {
 		if b.Locality == "a" {
 			return true
@@ -342,7 +342,7 @@ func TestListFilter(t *testing.T) {
 }
 
 func TestBrokerMapFromPartitionMap(t *testing.T) {
-	zk := &Mock{}
+	zk := &Stub{}
 	bmm, _ := zk.GetAllBrokerMeta(false)
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 	forceRebuild := false
@@ -351,7 +351,7 @@ func TestBrokerMapFromPartitionMap(t *testing.T) {
 	pm.Partitions = append(pm.Partitions, Partition{Topic: "test_topic", Partition: 4, Replicas: []int{-1}})
 
 	brokers := BrokerMapFromPartitionMap(pm, bmm, forceRebuild)
-	expected := newMockBrokerMap()
+	expected := newStubBrokerMap()
 
 	for id, b := range brokers {
 		_, exist := expected[id]
@@ -375,7 +375,7 @@ func TestBrokerMapFromPartitionMap(t *testing.T) {
 }
 
 func TestBrokerMapCopy(t *testing.T) {
-	bm1 := newMockBrokerMap()
+	bm1 := newStubBrokerMap()
 	bm2 := bm1.Copy()
 
 	if len(bm1) != len(bm2) {
@@ -399,7 +399,7 @@ func TestBrokerMapCopy(t *testing.T) {
 }
 
 func TestBrokerCopy(t *testing.T) {
-	bm := newMockBrokerMap()
+	bm := newStubBrokerMap()
 	b1 := bm[1001]
 	b2 := b1.Copy()
 
@@ -421,7 +421,7 @@ func TestBrokerCopy(t *testing.T) {
 	}
 }
 
-func newMockBrokerMap() BrokerMap {
+func newStubBrokerMap() BrokerMap {
 	return BrokerMap{
 		StubBrokerID: &Broker{ID: StubBrokerID, Replace: true},
 		1001:         &Broker{ID: 1001, Locality: "a", Used: 3, Replace: false, StorageFree: 100.00},
@@ -431,7 +431,7 @@ func newMockBrokerMap() BrokerMap {
 	}
 }
 
-func newMockBrokerMap2() BrokerMap {
+func newStubBrokerMap2() BrokerMap {
 	return BrokerMap{
 		StubBrokerID: &Broker{ID: StubBrokerID, Replace: true},
 		1001:         &Broker{ID: 1001, Locality: "a", Used: 2, Replace: false, StorageFree: 100.00},

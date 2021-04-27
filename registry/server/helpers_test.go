@@ -69,7 +69,7 @@ func testIntegrationServer() (*Server, error) {
 
 func testTagHandler() *TagHandler {
 	th, _ := NewTagHandler(testConfig)
-	th.Store = newzkTagStorageMock()
+	th.Store = newzkTagStorageStub()
 
 	return th
 }
