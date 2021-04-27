@@ -23,7 +23,8 @@ func testServer() *Server {
 		test:         true,
 	})
 
-	s.DialZK(nil, nil, nil)
+	s.ZK = kafkazk.NewZooKeeperStub()
+	s.Tags.Store = newzkTagStorageStub()
 
 	return s
 }

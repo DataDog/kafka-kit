@@ -80,9 +80,6 @@ func NewServer(c Config) (*Server, error) {
 	}
 
 	th, _ := NewTagHandler(tcfg)
-	if c.test {
-		th.Store = newzkTagStorageStub()
-	}
 
 	return &Server{
 		HTTPListen:       c.HTTPListen,
@@ -261,11 +258,6 @@ func (s *Server) InitKafkaConsumer(ctx context.Context, wg *sync.WaitGroup, cfg 
 // a kafkazk.Handler. A background shutdown procedure is called when the
 // context is cancelled.
 func (s *Server) DialZK(ctx context.Context, wg *sync.WaitGroup, c *kafkazk.Config) error {
-	if s.test {
-		s.ZK = kafkazk.NewZooKeeperStub()
-		return nil
-	}
-
 	wg.Add(1)
 
 	// Init.
