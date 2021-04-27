@@ -4,7 +4,7 @@
 
 Read the blog post: [Introducing Kafka-Kit: Tools for Scaling Kafka](https://www.datadoghq.com/blog/engineering/introducing-kafka-kit-tools-for-scaling-kafka/)
 
-This repository contains several services and tools for that help better operate Kafka. See the README for each tool for further details.
+This repository contains several services and tools for that help better operate Kafka. See the README for each tool for further details. See the [Development Guide](https://github.com/DataDog/kafka-kit/wiki/Development-Guide) for testing and contributing changes.
 
 # topicmappr
 Topicmappr replaces and extends the `kafka-reassign-partition` tool bundled with Kafka. It allows for minimal movement broker replacements, cluster storage rebalancing / partition bin-packing, leadership optimization, many-at-once topic management, and more—all with rack awareness support.
