@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	pb "github.com/DataDog/kafka-kit/v3/registry/protos"
 )
@@ -107,11 +108,19 @@ func TestDeleteTopic(t *testing.T) {
 		1: &pb.TopicRequest{
 			Name: "new_topic2",
 		},
+		2: &pb.TopicRequest{
+			Name: "new_topic2",
+		},
+		3: &pb.TopicRequest{
+			Name: "",
+		},
 	}
 
 	expectedErrors := map[int]error{
 		0: nil,
 		1: nil,
+		2: ErrTopicNotExist,
+		3: ErrTopicNameEmpty,
 	}
 
 	for i := 0; i < len(tests); i++ {
@@ -119,6 +128,9 @@ func TestDeleteTopic(t *testing.T) {
 		if err != expectedErrors[i] {
 			t.Errorf("Expected error '%s' for test %d, got '%s'", expectedErrors[i], i, err)
 		}
+		// Kafka is slow to actually handle topic deletes. This is unfortunately
+		// needed for reliable tests.
+		time.Sleep(time.Second)
 	}
 }
 
