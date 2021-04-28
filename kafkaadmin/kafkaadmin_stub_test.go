@@ -5,7 +5,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// MockedKafkaAdminClient is a stubed implementation of KafkaAdminClient
+// MockedKafkaAdminClient is a stubbed implementation of KafkaAdminClient
 type MockedKafkaAdminClient struct {
 	mock.Mock
 }
