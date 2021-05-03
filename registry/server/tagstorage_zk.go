@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
@@ -164,6 +165,62 @@ func (t *ZKTagStorage) GetTags(o KafkaObject) (TagSet, error) {
 	}
 
 	return tags, nil
+}
+
+// GetAllTags returns all tags stored in the tagstore, grouped by kafka object.
+func (t *ZKTagStorage) GetAllTags() (map[KafkaObject]TagSet, error) {
+
+	tags := map[KafkaObject]TagSet{}
+
+	brokerTags, err := t.GetAllTagsForType("broker")
+	if err != nil {
+		return nil, err
+	}
+	for broker, brokerTags := range brokerTags {
+		tags[broker] = brokerTags
+	}
+
+	topicTags, err := t.GetAllTagsForType("topic")
+	if err != nil {
+		return nil, err
+	}
+	for topic, topicTags := range topicTags {
+		tags[topic] = topicTags
+	}
+
+	return tags, nil
+}
+
+// GetAllTagsForType gets all the tags for objects of the given type. A convenience method that makes getting every tag a little easier.
+func (t *ZKTagStorage) GetAllTagsForType(kafkaObjectType string) (map[KafkaObject]TagSet, error) {
+	zNode := fmt.Sprintf("/%s/%s/", t.Prefix, kafkaObjectType)
+	children, err := t.ZK.Children(zNode)
+	if err != nil {
+		switch err.(type) {
+		case kafkazk.ErrNoNode:
+			return nil, ErrKafkaObjectDoesNotExist
+		default:
+			return nil, err
+		}
+	}
+
+	objectTags := map[KafkaObject]TagSet{}
+
+	for objectId := range children {
+		object := KafkaObject{Type: kafkaObjectType, ID: strconv.Itoa(objectId)}
+		tags, err := t.GetTags(object)
+		if err != nil {
+			switch err.(type) {
+			case kafkazk.ErrNoNode:
+				return nil, ErrKafkaObjectDoesNotExist
+			default:
+				return nil, err
+			}
+		}
+		objectTags[object] = tags
+	}
+
+	return objectTags, nil
 }
 
 // DeleteTags deletes all tags in the Tags for the requested KafkaObject.
