@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/DataDog/kafka-kit/v3/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
 	"github.com/DataDog/kafka-kit/v3/registry/admin"
 )
@@ -13,6 +14,13 @@ var (
 	testConfig = TagHandlerConfig{
 		Prefix: "registry_test",
 	}
+
+	kafkaBootstrapServers = "kafka:9093"
+	kafkaSSLCALocation    = "/etc/kafka/config/kafka-ca-crt.pem"
+	kafkaSecurityProtocol = "SASL_SSL"
+	kafkaSASLMechanism    = "PLAIN"
+	kafkaSASLUsername     = "registry"
+	kafkaSASLPassword     = "registry-secret"
 )
 
 func testServer() *Server {
@@ -53,12 +61,12 @@ func testIntegrationServer() (*Server, error) {
 	// Init KafkaAdmin.
 	adminConfig := admin.Config{
 		Type:             "kafka",
-		BootstrapServers: "kafka:9093",
-		SSLCALocation:    "/etc/kafka/config/kafka-ca-crt.pem",
-		SecurityProtocol: "SASL_SSL",
-		SASLMechanism:    "PLAIN",
-		SASLUsername:     "registry",
-		SASLPassword:     "registry-secret",
+		BootstrapServers: kafkaBootstrapServers,
+		SSLCALocation:    kafkaSSLCALocation,
+		SecurityProtocol: kafkaSecurityProtocol,
+		SASLMechanism:    kafkaSASLMechanism,
+		SASLUsername:     kafkaSASLUsername,
+		SASLPassword:     kafkaSASLPassword,
 	}
 
 	if err := s.InitKafkaAdmin(ctx, wg, adminConfig); err != nil {
@@ -66,6 +74,18 @@ func testIntegrationServer() (*Server, error) {
 	}
 
 	return s, nil
+}
+
+func kafkaAdminClient() (*kafkaadmin.Client, error) {
+	return kafkaadmin.NewClient(
+		kafkaadmin.Config{
+			BootstrapServers: kafkaBootstrapServers,
+			SSLCALocation:    kafkaSSLCALocation,
+			SecurityProtocol: kafkaSecurityProtocol,
+			SASLMechanism:    kafkaSASLMechanism,
+			SASLUsername:     kafkaSASLUsername,
+			SASLPassword:     kafkaSASLPassword,
+		})
 }
 
 func testTagHandler() *TagHandler {
