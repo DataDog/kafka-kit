@@ -118,26 +118,38 @@ func TestDeleteTopic(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	ka, err := kafkaAdminClient()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Pre-create a topic.
+	topicConfig := admin.CreateTopicConfig{
+		Name:              "topic_for_delete",
+		Partitions:        1,
+		ReplicationFactor: 1,
+	}
+
+	if err := ka.CreateTopic(context.Background(), topicConfig); err != nil {
+		t.Fatal(err)
+	}
+
 	tests := map[int]*pb.TopicRequest{
 		0: &pb.TopicRequest{
-			Name: "new_topic",
+			Name: "topic_for_delete",
 		},
 		1: &pb.TopicRequest{
-			Name: "new_topic2",
+			Name: "doest_exit",
 		},
 		2: &pb.TopicRequest{
-			Name: "new_topic2",
-		},
-		3: &pb.TopicRequest{
 			Name: "",
 		},
 	}
 
 	expectedErrors := map[int]error{
 		0: nil,
-		1: nil,
-		2: ErrTopicNotExist,
-		3: ErrTopicNameEmpty,
+		1: ErrTopicNotExist,
+		2: ErrTopicNameEmpty,
 	}
 
 	for i := 0; i < len(tests); i++ {
