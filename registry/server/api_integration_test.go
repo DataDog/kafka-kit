@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DataDog/kafka-kit/v3/registry/admin"
 	pb "github.com/DataDog/kafka-kit/v3/registry/protos"
 )
 
@@ -17,14 +18,30 @@ func TestCreateTopic(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	ka, err := kafkaAdminClient()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Pre-create a topic.
+	topicConfig := admin.CreateTopicConfig{
+		Name:              "exists",
+		Partitions:        1,
+		ReplicationFactor: 1,
+	}
+
+	if err := ka.CreateTopic(context.Background(), topicConfig); err != nil {
+		t.Fatal(err)
+	}
+
 	tests := map[int]*pb.CreateTopicRequest{
 		// This should succeed.
 		0: &pb.CreateTopicRequest{
 			Topic: &pb.Topic{Name: "new_topic", Partitions: 1, Replication: 1},
 		},
-		// This should fail because we're trying to create the same topic twice.
+		// This should fail because we're trying to create an existing topic.
 		1: &pb.CreateTopicRequest{
-			Topic: &pb.Topic{Name: "new_topic", Partitions: 1, Replication: 1},
+			Topic: &pb.Topic{Name: "exists", Partitions: 1, Replication: 1},
 		},
 		// This should fail; incomplete request params.
 		2: &pb.CreateTopicRequest{
