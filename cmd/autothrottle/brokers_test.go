@@ -9,7 +9,7 @@ import (
 )
 
 func TestGetReassigningBrokers(t *testing.T) {
-	zk := &kafkazk.Mock{}
+	zk := &kafkazk.Stub{}
 
 	re := zk.GetReassignments()
 	bmaps, _ := getReassigningBrokers(re, zk)
@@ -63,7 +63,7 @@ func TestGetReassigningBrokers(t *testing.T) {
 	expectedThrottledLeaders := []string{"0:1000", "1:1002"}
 	expectedThrottledFollowers := []string{"0:1003", "1:1005", "1:1010"}
 
-	throttledList := bmaps.throttledReplicas["mock"]["leaders"]
+	throttledList := bmaps.throttledReplicas["stub"]["leaders"]
 	sort.Strings(throttledList)
 	for n, s := range throttledList {
 		if s != expectedThrottledLeaders[n] {
@@ -71,7 +71,7 @@ func TestGetReassigningBrokers(t *testing.T) {
 		}
 	}
 
-	throttledList = bmaps.throttledReplicas["mock"]["followers"]
+	throttledList = bmaps.throttledReplicas["stub"]["followers"]
 	sort.Strings(throttledList)
 	for n, s := range throttledList {
 		if s != expectedThrottledFollowers[n] {
@@ -81,7 +81,7 @@ func TestGetReassigningBrokers(t *testing.T) {
 }
 
 func TestIncompleteBrokerMetrics(t *testing.T) {
-	bm := mockBrokerMetrics()
+	bm := stubBrokerMetrics()
 
 	ids := []int{1001, 1002, 1003}
 
@@ -97,7 +97,7 @@ func TestIncompleteBrokerMetrics(t *testing.T) {
 }
 
 func TestLists(t *testing.T) {
-	b := mockReassigningBrokers()
+	b := stubReassigningBrokers()
 
 	src, dst, all := b.lists()
 
@@ -124,7 +124,7 @@ func TestLists(t *testing.T) {
 	}
 }
 
-func mockReassigningBrokers() reassigningBrokers {
+func stubReassigningBrokers() reassigningBrokers {
 	b := reassigningBrokers{
 		src:               map[int]struct{}{},
 		dst:               map[int]struct{}{},
@@ -141,9 +141,9 @@ func mockReassigningBrokers() reassigningBrokers {
 		b.all[i] = struct{}{}
 	}
 
-	b.throttledReplicas["mock"] = throttled{}
+	b.throttledReplicas["stub"] = throttled{}
 
-	b.throttledReplicas["mock"]["leaders"] = brokerIDs{
+	b.throttledReplicas["stub"]["leaders"] = brokerIDs{
 		"0:1000",
 		"1:1001",
 		"2:1002",
@@ -151,7 +151,7 @@ func mockReassigningBrokers() reassigningBrokers {
 		"4:1004",
 	}
 
-	b.throttledReplicas["mock"]["followers"] = brokerIDs{
+	b.throttledReplicas["stub"]["followers"] = brokerIDs{
 		"0:1005",
 		"1:1006",
 		"2:1007",
@@ -162,82 +162,82 @@ func mockReassigningBrokers() reassigningBrokers {
 	return b
 }
 
-func mockBrokerMetrics() kafkametrics.BrokerMetrics {
+func stubBrokerMetrics() kafkametrics.BrokerMetrics {
 	return kafkametrics.BrokerMetrics{
 		1000: &kafkametrics.Broker{
 			ID:           1000,
 			Host:         "host0",
-			InstanceType: "mock",
+			InstanceType: "stub",
 			NetTX:        80.00,
 			NetRX:        80.00,
 		},
 		1001: &kafkametrics.Broker{
 			ID:           1001,
 			Host:         "host1",
-			InstanceType: "mock",
+			InstanceType: "stub",
 			NetTX:        80.00,
 			NetRX:        80.00,
 		},
 		1002: &kafkametrics.Broker{
 			ID:           1002,
 			Host:         "host2",
-			InstanceType: "mock",
+			InstanceType: "stub",
 			NetTX:        80.00,
 			NetRX:        80.00,
 		},
 		1003: &kafkametrics.Broker{
 			ID:           1003,
 			Host:         "host3",
-			InstanceType: "mock",
+			InstanceType: "stub",
 			NetTX:        80.00,
 			NetRX:        80.00,
 		},
 		1004: &kafkametrics.Broker{
 			ID:           1004,
 			Host:         "host4",
-			InstanceType: "mock",
+			InstanceType: "stub",
 			NetTX:        80.00,
 			NetRX:        80.00,
 		},
 		1005: &kafkametrics.Broker{
 			ID:           1005,
 			Host:         "host5",
-			InstanceType: "mock",
+			InstanceType: "stub",
 			NetTX:        80.00,
 			NetRX:        180.00,
 		},
 		1006: &kafkametrics.Broker{
 			ID:           1006,
 			Host:         "host6",
-			InstanceType: "mock",
+			InstanceType: "stub",
 			NetTX:        80.00,
 			NetRX:        80.00,
 		},
 		1007: &kafkametrics.Broker{
 			ID:           1007,
 			Host:         "host7",
-			InstanceType: "mock",
+			InstanceType: "stub",
 			NetTX:        80.00,
 			NetRX:        80.00,
 		},
 		1008: &kafkametrics.Broker{
 			ID:           1008,
 			Host:         "host8",
-			InstanceType: "mock",
+			InstanceType: "stub",
 			NetTX:        80.00,
 			NetRX:        80.00,
 		},
 		1009: &kafkametrics.Broker{
 			ID:           1009,
 			Host:         "host9",
-			InstanceType: "mock",
+			InstanceType: "stub",
 			NetTX:        80.00,
 			NetRX:        80.00,
 		},
 		1010: &kafkametrics.Broker{
 			ID:           1010,
 			Host:         "host10",
-			InstanceType: "mock",
+			InstanceType: "stub",
 			NetTX:        80.00,
 			NetRX:        120.00,
 		},

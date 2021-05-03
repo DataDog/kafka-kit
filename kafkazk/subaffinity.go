@@ -84,10 +84,10 @@ func (b BrokerMap) SubstitutionAffinities(pm *PartitionMap) (SubstitutionAffinit
 		var match *Broker
 		for _, locality := range localities {
 			var err error
-			mockBroker := &Broker{
+			stubBroker := &Broker{
 				Locality: locality,
 			}
-			match, err = constraintsMatch(mockBroker, new)
+			match, err = constraintsMatch(stubBroker, new)
 			if err == nil {
 				break
 			}

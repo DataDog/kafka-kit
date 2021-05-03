@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/DataDog/kafka-kit.svg?branch=master)](https://travis-ci.org/DataDog/kafka-kit)
+[![run tests](https://github.com/DataDog/kafka-kit/actions/workflows/test.yaml/badge.svg)](https://github.com/DataDog/kafka-kit/actions/workflows/test.yaml)
 
 # Kafka topic management tools
 
@@ -25,3 +25,7 @@ A service that automatically paces Kafka replication/recovery throttle rates, po
 A utility that fetches metrics via the Datadog API for Kafka storage rebalancing and partition mapping with topicmappr.
 
 [README](cmd/metricsfetcher)
+
+# Development
+
+See the [Development Guide](https://github.com/DataDog/kafka-kit/wiki/Development-Guide) for testing and contributing changes.

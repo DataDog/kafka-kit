@@ -45,13 +45,13 @@ func TestReplicationHeadroom(t *testing.T) {
 		SourceMaximum:      80,
 		DestinationMaximum: 60,
 		CapacityMap: map[string]float64{
-			"mock": 100,
+			"stub": 100,
 		},
 	}
 
 	l, _ := NewLimits(c)
 	b := &kafkametrics.Broker{
-		InstanceType: "mock",
+		InstanceType: "stub",
 	}
 
 	// Test leader values.

@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"sort"
 	"strconv"
 
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
@@ -242,6 +243,8 @@ func removeThrottle(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler
 		var children []string
 		var parentPath = overrideRateZnodePath
 		children, err = zk.Children(parentPath)
+
+		sort.Strings(children)
 
 		// iterate through all broker ids we have under the parent
 		for _, childId := range children {

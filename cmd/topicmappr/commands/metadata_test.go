@@ -9,7 +9,7 @@ import (
 )
 
 func TestRemoveTopics(t *testing.T) {
-	zk := kafkazk.NewZooKeeperMock()
+	zk := kafkazk.NewZooKeeperStub()
 	pm1, _ := zk.GetPartitionMap("test")
 	pm2, _ := zk.GetPartitionMap("test2")
 	pm3, _ := zk.GetPartitionMap("test3")

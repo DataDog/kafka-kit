@@ -106,14 +106,14 @@ func testGetMapString5(n string) string {
 }
 
 func TestSize(t *testing.T) {
-	z := &Mock{}
+	z := &Stub{}
 
 	pm, _ := z.GetPartitionMap("test_topic")
 	pmm, _ := z.GetAllPartitionMeta()
 
 	s, err := pmm.Size(pm.Partitions[0])
 	if err != nil {
-		t.Errorf("Unexpected error: %s", err)
+		t.Fatal(err)
 	}
 
 	if s != 1000.00 {
@@ -136,7 +136,7 @@ func TestSize(t *testing.T) {
 }
 
 func TestSortBySize(t *testing.T) {
-	z := &Mock{}
+	z := &Stub{}
 
 	partitionMap, _ := z.GetPartitionMap("test_topic")
 	partitionMetaMap, _ := z.GetAllPartitionMeta()
@@ -261,7 +261,7 @@ func TestPartitionMapCopy(t *testing.T) {
 
 func TestPartitionMapFromString(t *testing.T) {
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
-	zk := &Mock{}
+	zk := &Stub{}
 	pm2, _ := zk.GetPartitionMap("test_topic")
 
 	// We expect equality here.
@@ -271,14 +271,14 @@ func TestPartitionMapFromString(t *testing.T) {
 }
 
 func TestPartitionMapFromZK(t *testing.T) {
-	zk := &Mock{}
+	zk := &Stub{}
 
 	r := []*regexp.Regexp{}
 	r = append(r, regexp.MustCompile("/^null$/"))
 	pm, err := PartitionMapFromZK(r, zk)
 
 	// This should fail because we're passing
-	// a regex that the mock call to GetTopics()
+	// a regex that the stub call to GetTopics()
 	// from PartitionMapFromZK doesn't have
 	// any matches.
 	if pm != nil || err.Error() != "No topics found matching: [/^null$/]" {
@@ -289,7 +289,7 @@ func TestPartitionMapFromZK(t *testing.T) {
 	r = append(r, regexp.MustCompile("test"))
 
 	// This is going to match both "test_topic"
-	// and "test_topic2" from the mock.
+	// and "test_topic2" from the stub.
 	pm, _ = PartitionMapFromZK(r, zk)
 
 	// Build a merged map of these for
@@ -399,7 +399,7 @@ func TestRebuildByCount(t *testing.T) {
 	forceRebuild := true
 	withMetrics := false
 
-	zk := &Mock{}
+	zk := &Stub{}
 	bm, _ := zk.GetAllBrokerMeta(withMetrics)
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 	pmm := NewPartitionMetaMap()
@@ -481,7 +481,7 @@ func TestRebuildByCountSA(t *testing.T) {
 	forceRebuild := true
 	withMetrics := false
 
-	zk := &Mock{}
+	zk := &Stub{}
 	bm, _ := zk.GetAllBrokerMeta(withMetrics)
 	// Simulate that we've lost broker 1002.
 	delete(bm, 1002)
@@ -501,7 +501,7 @@ func TestRebuildByCountSA(t *testing.T) {
 	// Get substitution affinities.
 	sa, err := brokers.SubstitutionAffinities(pm)
 	if err != nil {
-		t.Errorf("Unexpected error: %s", err)
+		t.Fatal(err)
 	}
 
 	rebuildParams := RebuildParams{
@@ -536,7 +536,7 @@ func TestRebuildByStorageDistribution(t *testing.T) {
 	forceRebuild := true
 	withMetrics := true
 
-	zk := &Mock{}
+	zk := &Stub{}
 	bm, _ := zk.GetAllBrokerMeta(withMetrics)
 	pm, _ := PartitionMapFromString(testGetMapString4("test_topic"))
 	pmm, _ := zk.GetAllPartitionMeta()
@@ -553,8 +553,8 @@ func TestRebuildByStorageDistribution(t *testing.T) {
 	allBrokers := func(b *Broker) bool { return true }
 	_ = brokers.SubStorage(pm, pmm, allBrokers)
 
-	// Normalize storage. The mock broker storage
-	// free vs mock partition sizes would actually
+	// Normalize storage. The stub broker storage
+	// free vs stub partition sizes would actually
 	// represent brokers with varying storage sizes.
 	for _, b := range brokers {
 		b.StorageFree = 6000.00
@@ -592,7 +592,7 @@ func TestRebuildByStorageStorage(t *testing.T) {
 	forceRebuild := true
 	withMetrics := true
 
-	zk := &Mock{}
+	zk := &Stub{}
 	bm, _ := zk.GetAllBrokerMeta(withMetrics)
 	pm, _ := PartitionMapFromString(testGetMapString4("test_topic"))
 	pmm, _ := zk.GetAllPartitionMeta()
@@ -609,8 +609,8 @@ func TestRebuildByStorageStorage(t *testing.T) {
 	allBrokers := func(b *Broker) bool { return true }
 	_ = brokers.SubStorage(pm, pmm, allBrokers)
 
-	// Normalize storage. The mock broker storage
-	// free vs mock partition sizes would actually
+	// Normalize storage. The stub broker storage
+	// free vs stub partition sizes would actually
 	// represent brokers with varying storage sizes.
 	for _, b := range brokers {
 		b.StorageFree = 6000.00
@@ -645,7 +645,7 @@ func TestRebuildByStorageStorage(t *testing.T) {
 
 func TestLocalitiesAvailable(t *testing.T) {
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
-	bm := newMockBrokerMap()
+	bm := newStubBrokerMap()
 
 	pm.SetReplication(2)
 

@@ -106,7 +106,7 @@ func TestPopulateFromTagMap(t *testing.T) {
 	b := kafkametrics.BrokerMetrics{}
 
 	// Test with complete input.
-	tagMap := mockTagMap()
+	tagMap := stubTagMap()
 	err := populateFromTagMap(b, map[string][]string{}, tagMap, "broker_id")
 	if err != nil {
 		t.Errorf("Unexpected error: %s\n", err)
@@ -121,8 +121,8 @@ func TestPopulateFromTagMap(t *testing.T) {
 		if broker.ID != id {
 			t.Errorf("Expected ID %d, got %d\n", id, broker.ID)
 		}
-		if broker.InstanceType != "mock" {
-			t.Errorf("Expected broker InstanceType mock, got %s\n", broker.InstanceType)
+		if broker.InstanceType != "stub" {
+			t.Errorf("Expected broker InstanceType stub, got %s\n", broker.InstanceType)
 		}
 	}
 
@@ -134,7 +134,7 @@ func TestPopulateFromTagMap(t *testing.T) {
 	}
 }
 
-func mockTagMap() map[*kafkametrics.Broker][]string {
+func stubTagMap() map[*kafkametrics.Broker][]string {
 	tm := map[*kafkametrics.Broker][]string{}
 
 	for i := 0; i < 5; i++ {
@@ -142,12 +142,12 @@ func mockTagMap() map[*kafkametrics.Broker][]string {
 		b := &kafkametrics.Broker{
 			ID:           bid,
 			Host:         fmt.Sprintf("host%d", i),
-			InstanceType: "mock",
+			InstanceType: "stub",
 			NetTX:        1073741824.00,
 		}
 
 		bidTag := fmt.Sprintf("broker_id:%d", bid)
-		tm[b] = []string{bidTag, "instance-type:mock"}
+		tm[b] = []string{bidTag, "instance-type:stub"}
 	}
 
 	return tm
@@ -155,10 +155,10 @@ func mockTagMap() map[*kafkametrics.Broker][]string {
 
 // This tests both tagValFromScope and valFromTags.
 func TestTagValFromScope(t *testing.T) {
-	series := mockSeries()
+	series := stubSeries()
 	v := tagValFromScope(series[0].GetScope(), "instance-type")
 
-	if v != "mock" {
-		t.Errorf("Expected tag val mock, got %s\n", v)
+	if v != "stub" {
+		t.Errorf("Expected tag val stub, got %s\n", v)
 	}
 }

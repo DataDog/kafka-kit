@@ -3,7 +3,7 @@
 # - $ docker-compose up [-d]
 #
 # To run the tests (one-off; does not require a previous docker-compose up):
-# - $ docker-compose run --rm --name registry_test registry go test -v ./...
+# - $ docker-compose run --rm --name registry_test registry go test --tags=integration ./...
 #
 # To run 3 instances of kafka, and 1 instance of zk and the registry:
 # - $ docker-compose up --scale kafka=3

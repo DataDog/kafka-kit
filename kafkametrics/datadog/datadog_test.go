@@ -15,11 +15,11 @@ import (
 
 func TestBrokersFromSeries(t *testing.T) {
 	// Test with expected input.
-	series := mockSeries()
+	series := stubSeries()
 	bs, err := brokersFromSeries(series, 0)
 
 	if err != nil {
-		t.Errorf("Unexpected error: %s", err)
+		t.Fatal(err)
 	}
 
 	if len(bs) != 5 {
@@ -27,7 +27,7 @@ func TestBrokersFromSeries(t *testing.T) {
 	}
 
 	// Test with unexpected input.
-	series = mockSeriesWithoutPoints()
+	series = stubSeriesWithoutPoints()
 	bs, err = brokersFromSeries(series, 0)
 	if err == nil {
 		t.Error("Expected error")
@@ -38,13 +38,13 @@ func TestBrokersFromSeries(t *testing.T) {
 	}
 }
 
-func mockSeries() []dd.Series {
+func stubSeries() []dd.Series {
 	ss := []dd.Series{}
 	var f1 = 0.00
 	var f2 = 1073741824.00
 
 	for i := 0; i < 5; i++ {
-		scope := fmt.Sprintf("host%d,broker_id:100%d,instance-type:mock", i, i)
+		scope := fmt.Sprintf("host%d,broker_id:100%d,instance-type:stub", i, i)
 		s := dd.Series{
 			Scope:  &scope,
 			Points: []dd.DataPoint{dd.DataPoint{&f1, &f2}},
@@ -55,11 +55,11 @@ func mockSeries() []dd.Series {
 	return ss
 }
 
-func mockSeriesWithoutPoints() []dd.Series {
+func stubSeriesWithoutPoints() []dd.Series {
 	ss := []dd.Series{}
 
 	for i := 0; i < 5; i++ {
-		scope := fmt.Sprintf("host%d,broker_id:100%d,instance-type:mock", i, i)
+		scope := fmt.Sprintf("host%d,broker_id:100%d,instance-type:stub", i, i)
 		s := dd.Series{
 			Scope:  &scope,
 			Points: []dd.DataPoint{},

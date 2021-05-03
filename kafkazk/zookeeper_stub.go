@@ -1,3 +1,6 @@
+// This file is entirely for tests, but isn't defined as a _test file due to
+// use of the stubs in other packages.
+
 package kafkazk
 
 import (
@@ -11,31 +14,31 @@ var (
 	errNotExist = errors.New("znode doesn't exist")
 )
 
-// Mock mocks the Handler interface.
-type Mock struct {
-	data map[string]*MockZnode
+// Stub stubs the Handler interface.
+type Stub struct {
+	data map[string]*StubZnode
 }
 
-// MockZnode mocks a ZooKeeper znode.
-type MockZnode struct {
+// StubZnode stubs a ZooKeeper znode.
+type StubZnode struct {
 	value    []byte
 	version  int32
-	children map[string]*MockZnode
+	children map[string]*StubZnode
 }
 
-// NewZooKeeperMock returns a mock ZooKeeper.
-func NewZooKeeperMock() Handler {
-	return &Mock{
-		data: map[string]*MockZnode{},
+// NewZooKeeperStub returns a stub ZooKeeper.
+func NewZooKeeperStub() Handler {
+	return &Stub{
+		data: map[string]*StubZnode{},
 	}
 }
 
-// Many of these methods aren't complete mocks as they haven't been needed.
+// Many of these methods aren't complete stubs as they haven't been needed.
 
-// GetReassignments mocks GetReassignments.
-func (zk *Mock) GetReassignments() Reassignments {
+// GetReassignments stubs GetReassignments.
+func (zk *Stub) GetReassignments() Reassignments {
 	r := Reassignments{
-		"mock": map[int][]int{
+		"reassigning_topic": map[int][]int{
 			0: []int{1003, 1000, 1002},
 			1: []int{1005, 1010},
 		},
@@ -43,27 +46,27 @@ func (zk *Mock) GetReassignments() Reassignments {
 	return r
 }
 
-func (zk *Mock) GetUnderReplicated() ([]string, error) {
-	return []string{"reassigning_topic"}, nil
+func (zk *Stub) GetUnderReplicated() ([]string, error) {
+	return []string{"underreplicated_topic"}, nil
 }
 
-func (zk *Mock) GetPendingDeletion() ([]string, error) {
+func (zk *Stub) GetPendingDeletion() ([]string, error) {
 	return []string{"deleting_topic"}, nil
 }
 
-// Create mocks Create.
-func (zk *Mock) Create(p, d string) error {
+// Create stubs Create.
+func (zk *Stub) Create(p, d string) error {
 	return zk.Set(p, d)
 }
 
-// CreateSequential mocks CreateSequential.
-func (zk *Mock) CreateSequential(a, b string) error {
+// CreateSequential stubs CreateSequential.
+func (zk *Stub) CreateSequential(a, b string) error {
 	_, _ = a, b
 	return nil
 }
 
-// Exists mocks Exists.
-func (zk *Mock) Exists(p string) (bool, error) {
+// Exists stubs Exists.
+func (zk *Stub) Exists(p string) (bool, error) {
 	_, err := zk.Get(p)
 	if err == errNotExist {
 		return false, nil
@@ -72,15 +75,15 @@ func (zk *Mock) Exists(p string) (bool, error) {
 	return true, nil
 }
 
-// Set mocks Set.
-func (zk *Mock) Set(p, d string) error {
+// Set stubs Set.
+func (zk *Stub) Set(p, d string) error {
 	pathTrimmed := strings.Trim(p, "/")
 	paths := strings.Split(pathTrimmed, "/")
-	var current *MockZnode
+	var current *StubZnode
 
 	current = zk.data[paths[0]]
 	if current == nil {
-		current = &MockZnode{children: map[string]*MockZnode{}}
+		current = &StubZnode{children: map[string]*StubZnode{}}
 		zk.data[paths[0]] = current
 	}
 
@@ -88,7 +91,7 @@ func (zk *Mock) Set(p, d string) error {
 	for _, path = range paths[1:] {
 		next, exist := current.children[path]
 		if !exist {
-			next = &MockZnode{children: map[string]*MockZnode{}}
+			next = &StubZnode{children: map[string]*StubZnode{}}
 			current.children[path] = next
 		}
 		current = next
@@ -100,11 +103,11 @@ func (zk *Mock) Set(p, d string) error {
 	return nil
 }
 
-// Get mocks Get.
-func (zk *Mock) Get(p string) ([]byte, error) {
+// Get stubs Get.
+func (zk *Stub) Get(p string) ([]byte, error) {
 	pathTrimmed := strings.Trim(p, "/")
 	paths := strings.Split(pathTrimmed, "/")
-	var current *MockZnode
+	var current *StubZnode
 
 	if current = zk.data[paths[0]]; current == nil {
 		return nil, errNotExist
@@ -121,11 +124,11 @@ func (zk *Mock) Get(p string) ([]byte, error) {
 	return current.value, nil
 }
 
-// Delete mocks Delete.
-func (zk *Mock) Delete(p string) error {
+// Delete stubs Delete.
+func (zk *Stub) Delete(p string) error {
 	pathTrimmed := strings.Trim(p, "/")
 	paths := strings.Split(pathTrimmed, "/")
-	var current *MockZnode
+	var current *StubZnode
 
 	if current = zk.data[paths[0]]; current == nil {
 		return errNotExist
@@ -148,12 +151,12 @@ func (zk *Mock) Delete(p string) error {
 	return nil
 }
 
-// Children mocks children.
-func (zk *Mock) Children(p string) ([]string, error) {
+// Children stubs children.
+func (zk *Stub) Children(p string) ([]string, error) {
 	pathTrimmed := strings.Trim(p, "/")
 	paths := strings.Split(pathTrimmed, "/")
 	children := []string{}
-	var current *MockZnode
+	var current *StubZnode
 
 	if current = zk.data[paths[0]]; current == nil {
 		return nil, errNotExist
@@ -179,10 +182,10 @@ func (zk *Mock) Children(p string) ([]string, error) {
 	return nil, errNotExist
 }
 
-func (zk *Mock) NextInt(p string) (int32, error) {
+func (zk *Stub) NextInt(p string) (int32, error) {
 	pathTrimmed := strings.Trim(p, "/")
 	paths := strings.Split(pathTrimmed, "/")
-	var current *MockZnode
+	var current *StubZnode
 
 	if current = zk.data[paths[0]]; current == nil {
 		return 0, errNotExist
@@ -202,8 +205,8 @@ func (zk *Mock) NextInt(p string) (int32, error) {
 	return v, nil
 }
 
-// GetTopicState mocks GetTopicState.
-func (zk *Mock) GetTopicState(t string) (*TopicState, error) {
+// GetTopicState stubs GetTopicState.
+func (zk *Stub) GetTopicState(t string) (*TopicState, error) {
 	_ = t
 
 	ts := &TopicState{
@@ -219,8 +222,8 @@ func (zk *Mock) GetTopicState(t string) (*TopicState, error) {
 	return ts, nil
 }
 
-// GetTopicStateISR mocks GetTopicStateISR.
-func (zk *Mock) GetTopicStateISR(t string) (TopicStateISR, error) {
+// GetTopicStateISR stubs GetTopicStateISR.
+func (zk *Stub) GetTopicStateISR(t string) (TopicStateISR, error) {
 	_ = t
 
 	return TopicStateISR{
@@ -232,29 +235,29 @@ func (zk *Mock) GetTopicStateISR(t string) (TopicStateISR, error) {
 	}, nil
 }
 
-// Close mocks Close.
-func (zk *Mock) Close() {
+// Close stubs Close.
+func (zk *Stub) Close() {
 	return
 }
 
-// Ready mocks Ready.
-func (zk *Mock) Ready() bool {
+// Ready stubs Ready.
+func (zk *Stub) Ready() bool {
 	return true
 }
 
-// InitRawClient mocks InitRawClient.
-func (zk *Mock) InitRawClient() error {
+// InitRawClient stubs InitRawClient.
+func (zk *Stub) InitRawClient() error {
 	return nil
 }
 
-// UpdateKafkaConfig mocks UpdateKafkaConfig.
-func (zk *Mock) UpdateKafkaConfig(c KafkaConfig) ([]bool, error) {
+// UpdateKafkaConfig stubs UpdateKafkaConfig.
+func (zk *Stub) UpdateKafkaConfig(c KafkaConfig) ([]bool, error) {
 	_ = c
 	return []bool{}, nil
 }
 
-// GetTopics mocks GetTopics.
-func (zk *Mock) GetTopics(ts []*regexp.Regexp) ([]string, error) {
+// GetTopics stubs GetTopics.
+func (zk *Stub) GetTopics(ts []*regexp.Regexp) ([]string, error) {
 	t := []string{"test_topic", "test_topic2"}
 
 	match := map[string]bool{}
@@ -277,8 +280,8 @@ func (zk *Mock) GetTopics(ts []*regexp.Regexp) ([]string, error) {
 	return matched, nil
 }
 
-// GetTopicConfig mocks GetTopicConfig.
-func (zk *Mock) GetTopicConfig(t string) (*TopicConfig, error) {
+// GetTopicConfig stubs GetTopicConfig.
+func (zk *Stub) GetTopicConfig(t string) (*TopicConfig, error) {
 	return &TopicConfig{
 		Version: 1,
 		Config: map[string]string{
@@ -289,8 +292,8 @@ func (zk *Mock) GetTopicConfig(t string) (*TopicConfig, error) {
 	}, nil
 }
 
-// GetAllBrokerMeta mocks GetAllBrokerMeta.
-func (zk *Mock) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, []error) {
+// GetAllBrokerMeta stubs GetAllBrokerMeta.
+func (zk *Stub) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, []error) {
 	b := BrokerMetaMap{
 		1001: &BrokerMeta{Rack: "a"},
 		1002: &BrokerMeta{Rack: "b"},
@@ -311,8 +314,8 @@ func (zk *Mock) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, []error) {
 	return b, nil
 }
 
-// GetBrokerMetrics mocks GetBrokerMetrics.
-func (zk *Mock) GetBrokerMetrics() (BrokerMetricsMap, error) {
+// GetBrokerMetrics stubs GetBrokerMetrics.
+func (zk *Stub) GetBrokerMetrics() (BrokerMetricsMap, error) {
 	bm := BrokerMetricsMap{
 		1001: &BrokerMetrics{StorageFree: 2000.00},
 		1002: &BrokerMetrics{StorageFree: 4000.00},
@@ -325,8 +328,8 @@ func (zk *Mock) GetBrokerMetrics() (BrokerMetricsMap, error) {
 	return bm, nil
 }
 
-// GetAllPartitionMeta mocks GetAllPartitionMeta.
-func (zk *Mock) GetAllPartitionMeta() (PartitionMetaMap, error) {
+// GetAllPartitionMeta stubs GetAllPartitionMeta.
+func (zk *Stub) GetAllPartitionMeta() (PartitionMetaMap, error) {
 	pm := NewPartitionMetaMap()
 	pm["test_topic"] = map[int]*PartitionMeta{}
 
@@ -340,8 +343,8 @@ func (zk *Mock) GetAllPartitionMeta() (PartitionMetaMap, error) {
 	return pm, nil
 }
 
-// GetPartitionMap mocks GetPartitionMap.
-func (zk *Mock) GetPartitionMap(t string) (*PartitionMap, error) {
+// GetPartitionMap stubs GetPartitionMap.
+func (zk *Stub) GetPartitionMap(t string) (*PartitionMap, error) {
 	p := &PartitionMap{
 		Version: 1,
 		Partitions: PartitionList{
@@ -355,7 +358,7 @@ func (zk *Mock) GetPartitionMap(t string) (*PartitionMap, error) {
 	return p, nil
 }
 
-// MaxMetaAge mocks MaxMetaAge.
-func (zk *Mock) MaxMetaAge() (time.Duration, error) {
+// MaxMetaAge stubs MaxMetaAge.
+func (zk *Stub) MaxMetaAge() (time.Duration, error) {
 	return time.Since(time.Now()), nil
 }

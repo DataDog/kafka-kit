@@ -21,7 +21,7 @@ func TestAddReplica(t *testing.T) {
 	for _, typ := range types {
 		err := ttr.addReplica("test", "0", replicaType(typ), "1001")
 		if err != nil {
-			t.Errorf("Unexpected error: %s", err)
+			t.Fatal(err)
 		}
 	}
 
@@ -40,7 +40,7 @@ func TestAddReplica(t *testing.T) {
 }
 
 func TestFilter(t *testing.T) {
-	zk := &kafkazk.Mock{}
+	zk := &kafkazk.Stub{}
 	state, _ := zk.GetTopicState("test_topic")
 
 	topicStates := make(TopicStates)
@@ -50,7 +50,7 @@ func TestFilter(t *testing.T) {
 
 	// Our filter func. returns any topic that includes matchID as a replica.
 	fn := func(ts kafkazk.TopicState) bool {
-		// The mock partition state here is []int{1000,1001}.
+		// The stub partition state here is []int{1000,1001}.
 		for _, id := range ts.Partitions["0"] {
 			if id == matchID {
 				return true
@@ -77,7 +77,7 @@ func TestFilter(t *testing.T) {
 
 func TestGetTopicsWithThrottledBrokers(t *testing.T) {
 	rtf := &ReplicationThrottleConfigs{
-		zk: &kafkazk.Mock{},
+		zk: &kafkazk.Stub{},
 	}
 
 	// Minimally populate the ReplicationThrottleConfigs.

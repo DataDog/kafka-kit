@@ -59,11 +59,9 @@ type Config struct {
 // NewServer initializes a *Server.
 func NewServer(c Config) (*Server, error) {
 	switch {
-	case c.ZKTagsPrefix == "":
-		fallthrough
-	case c.ReadReqRate < 1:
-		fallthrough
-	case c.WriteReqRate < 1:
+	case c.ZKTagsPrefix == "",
+		c.ReadReqRate < 1,
+		c.WriteReqRate < 1:
 		return nil, errors.New("invalid configuration parameter(s)")
 	}
 
@@ -82,9 +80,6 @@ func NewServer(c Config) (*Server, error) {
 	}
 
 	th, _ := NewTagHandler(tcfg)
-	if c.test {
-		th.Store = newzkTagStorageMock()
-	}
 
 	return &Server{
 		HTTPListen:       c.HTTPListen,
@@ -263,11 +258,6 @@ func (s *Server) InitKafkaConsumer(ctx context.Context, wg *sync.WaitGroup, cfg 
 // a kafkazk.Handler. A background shutdown procedure is called when the
 // context is cancelled.
 func (s *Server) DialZK(ctx context.Context, wg *sync.WaitGroup, c *kafkazk.Config) error {
-	if s.test {
-		s.ZK = &kafkazk.Mock{}
-		return nil
-	}
-
 	wg.Add(1)
 
 	// Init.

@@ -6,7 +6,7 @@ import (
 )
 
 func TestConstraintsMatch(t *testing.T) {
-	bm := newMockBrokerMap()
+	bm := newStubBrokerMap()
 
 	ref := bm[1001]
 	delete(bm, 1001)
@@ -18,7 +18,7 @@ func TestConstraintsMatch(t *testing.T) {
 
 	b, err := constraintsMatch(ref, m)
 	if err != nil {
-		t.Errorf("Unexpected error: %s", err)
+		t.Fatal(err)
 	}
 
 	if b.ID != 1004 {
@@ -49,10 +49,10 @@ func TestConstraintsMatch(t *testing.T) {
 }
 
 func TestSubstitutionAffinities(t *testing.T) {
-	z := &Mock{}
+	z := &Stub{}
 	pm, _ := z.GetPartitionMap("test_topic")
 
-	bm := newMockBrokerMap()
+	bm := newStubBrokerMap()
 	bm[1001].Replace = true
 
 	// Should error because no
@@ -74,7 +74,7 @@ func TestSubstitutionAffinities(t *testing.T) {
 	bm[1004].New = true
 	sa, err := bm.SubstitutionAffinities(pm)
 	if err != nil {
-		t.Errorf("Unexpected error: %s", err)
+		t.Fatal(err)
 	}
 
 	if sa[1001].ID != 1004 {
@@ -97,7 +97,7 @@ func TestSubstitutionAffinities(t *testing.T) {
 func TestSubstitutionAffinitiesInferred(t *testing.T) {
 	pm, _ := PartitionMapFromString(testGetMapString2("test_topic"))
 
-	bm := newMockBrokerMap()
+	bm := newStubBrokerMap()
 	bm[1001] = &Broker{
 		ID:      1001,
 		Replace: true,
@@ -107,7 +107,7 @@ func TestSubstitutionAffinitiesInferred(t *testing.T) {
 	sort.Sort(pm.Partitions)
 	pm.Partitions[2].Replicas = []int{1003, 1001}
 
-	// Our mock data starts as follows:
+	// Our stub data starts as follows:
 
 	// 1001, Locality: missing, unknown
 	// 1002, Locality: "b"
@@ -159,7 +159,7 @@ func TestSubstitutionAffinitiesInferred(t *testing.T) {
 
 	sa, err := bm.SubstitutionAffinities(pm)
 	if err != nil {
-		t.Errorf("Unexpected error: %s", err)
+		t.Fatal(err)
 	}
 	if sa[1001].ID != 1007 {
 		t.Error("Expected substitution affinity 1001->1007")

@@ -226,7 +226,7 @@ func TestFilterTopics(t *testing.T) {
 	for i, tags := range tests {
 		filtered, err := th.FilterTopics(topics, tags)
 		if err != nil {
-			t.Errorf("Unexpected error: %s", err)
+			t.Fatal(err)
 		}
 
 		if !stringsEqual(filtered.Names(), expected[i]) {
@@ -268,7 +268,7 @@ func TestFilterBrokers(t *testing.T) {
 	for i, tags := range tests {
 		filtered, err := th.FilterBrokers(brokers, tags)
 		if err != nil {
-			t.Errorf("Unexpected error: %s", err)
+			t.Fatal(err)
 		}
 
 		if !intsEqual(filtered.IDs(), expected[i]) {
