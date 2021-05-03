@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/DataDog/kafka-kit/v3/registry/admin"
 	pb "github.com/DataDog/kafka-kit/v3/registry/protos"
@@ -64,10 +63,20 @@ func TestCreateTopic(t *testing.T) {
 			t.Errorf("Expected error '%s' for test %d, got '%s'", expectedErrors[i], i, err)
 		}
 	}
+
+	// Cleanup.
+	for _, topic := range []string{"new_topic", "exists"} {
+		ka.DeleteTopic(context.Background(), topic)
+	}
 }
 
 func TestCreateTaggedTopic(t *testing.T) {
 	s, err := testIntegrationServer()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ka, err := kafkaAdminClient()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,6 +87,10 @@ func TestCreateTaggedTopic(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Topics in this test have continued suffix integers in relation to the prior
+	// test due to latent handling of deletes in Kafka; it's possible that we try
+	// creating a topic here that was marked for deleting but it still exists,
+	// inducing flakiness.
 	tests := map[int]*pb.CreateTopicRequest{
 		// This should succeed.
 		0: &pb.CreateTopicRequest{
@@ -109,6 +122,11 @@ func TestCreateTaggedTopic(t *testing.T) {
 		if err != expectedErrors[i] {
 			t.Errorf("Expected error '%s' for test %d, got '%s'", expectedErrors[i], i, err)
 		}
+	}
+
+	// Cleanup.
+	for _, topic := range []string{"new_topic2"} {
+		ka.DeleteTopic(context.Background(), topic)
 	}
 }
 
@@ -157,9 +175,6 @@ func TestDeleteTopic(t *testing.T) {
 		if err != expectedErrors[i] {
 			t.Errorf("Expected error '%s' for test %d, got '%s'", expectedErrors[i], i, err)
 		}
-		// Kafka is slow to actually handle topic deletes. This is unfortunately
-		// needed for reliable tests.
-		time.Sleep(time.Second)
 	}
 }
 
