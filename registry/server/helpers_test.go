@@ -7,7 +7,6 @@ import (
 
 	"github.com/DataDog/kafka-kit/v3/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
-	"github.com/DataDog/kafka-kit/v3/registry/admin"
 )
 
 var (
@@ -59,8 +58,7 @@ func testIntegrationServer() (*Server, error) {
 	}
 
 	// Init KafkaAdmin.
-	adminConfig := admin.Config{
-		Type:             "kafka",
+	adminConfig := kafkaadmin.Config{
 		BootstrapServers: kafkaBootstrapServers,
 		SSLCALocation:    kafkaSSLCALocation,
 		SecurityProtocol: kafkaSecurityProtocol,

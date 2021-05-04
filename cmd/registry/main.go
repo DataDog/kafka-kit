@@ -12,7 +12,6 @@ import (
 
 	"github.com/DataDog/kafka-kit/v3/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
-	"github.com/DataDog/kafka-kit/v3/registry/admin"
 	"github.com/DataDog/kafka-kit/v3/registry/server"
 
 	"github.com/jamiealquiza/envy"
@@ -25,7 +24,7 @@ var version = "0.0.0"
 func main() {
 	serverConfig := server.Config{}
 	zkConfig := kafkazk.Config{}
-	adminConfig := admin.Config{Type: "kafka"}
+	adminConfig := kafkaadmin.Config{}
 
 	securityProtocols := make([]string, 0, len(kafkaadmin.SecurityProtocolSet))
 	for k := range kafkaadmin.SecurityProtocolSet {
