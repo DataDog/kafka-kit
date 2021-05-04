@@ -1,4 +1,3 @@
-// Package kafkaadmin wraps Kafka admin API calls.
 package kafkaadmin
 
 import (
@@ -18,6 +17,7 @@ var (
 
 type FactoryFunc func(conf *kafka.ConfigMap) (*kafka.AdminClient, error)
 
+// Client implements a KafkaAdmin.
 type Client struct {
 	c *kafka.AdminClient
 }
