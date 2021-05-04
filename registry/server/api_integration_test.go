@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/DataDog/kafka-kit/v3/registry/admin"
+	"github.com/DataDog/kafka-kit/v3/kafkaadmin"
 	pb "github.com/DataDog/kafka-kit/v3/registry/protos"
 )
 
@@ -23,7 +23,7 @@ func TestCreateTopic(t *testing.T) {
 	}
 
 	// Pre-create a topic.
-	topicConfig := admin.CreateTopicConfig{
+	topicConfig := kafkaadmin.CreateTopicConfig{
 		Name:              "exists",
 		Partitions:        1,
 		ReplicationFactor: 1,
@@ -142,7 +142,7 @@ func TestDeleteTopic(t *testing.T) {
 	}
 
 	// Pre-create a topic.
-	topicConfig := admin.CreateTopicConfig{
+	topicConfig := kafkaadmin.CreateTopicConfig{
 		Name:              "topic_for_delete",
 		Partitions:        1,
 		ReplicationFactor: 1,

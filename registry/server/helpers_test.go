@@ -76,7 +76,7 @@ func testIntegrationServer() (*Server, error) {
 	return s, nil
 }
 
-func kafkaAdminClient() (*kafkaadmin.Client, error) {
+func kafkaAdminClient() (kafkaadmin.KafkaAdmin, error) {
 	return kafkaadmin.NewClient(
 		kafkaadmin.Config{
 			BootstrapServers: kafkaBootstrapServers,

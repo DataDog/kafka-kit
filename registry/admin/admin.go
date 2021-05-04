@@ -2,12 +2,14 @@ package admin
 
 import (
 	"context"
+
+	"github.com/DataDog/kafka-kit/v3/kafkaadmin"
 )
 
 // Client is an admin client.
 type Client interface {
 	Close()
-	CreateTopic(context.Context, CreateTopicConfig) error
+	CreateTopic(context.Context, kafkaadmin.CreateTopicConfig) error
 	DeleteTopic(context.Context, string) error
 }
 

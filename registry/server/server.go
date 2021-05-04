@@ -34,7 +34,7 @@ type Server struct {
 	HTTPListen       string
 	GRPCListen       string
 	ZK               kafkazk.Handler
-	kafkaadmin       admin.Client
+	kafkaadmin       kafkaadmin.KafkaAdmin
 	Tags             *TagHandler
 	reqTimeout       time.Duration
 	readReqThrottle  RequestThrottle
@@ -201,7 +201,7 @@ func (s *Server) InitKafkaAdmin(ctx context.Context, wg *sync.WaitGroup, cfg adm
 			return err
 		}
 
-		s.kafkaadmin = *k
+		s.kafkaadmin = k
 		log.Printf("KafkaAdmin connected to bootstrap servers: %s\n", cfg.BootstrapServers)
 	case "zookeeper":
 
