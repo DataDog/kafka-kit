@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/DataDog/kafka-kit/v3/registry/admin"
-
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
@@ -18,6 +16,12 @@ var (
 	// SASLMechanismSet is the set of mechanisms supported for client to broker authentication
 	SASLMechanismSet = map[string]struct{}{"PLAIN": emtpy, "SCRAM-SHA-256": emtpy, "SCRAM-SHA-512": emtpy}
 )
+
+type KafkaAdmin interface {
+	Close()
+	CreateTopic(context.Context, CreateTopicConfig) error
+	DeleteTopic(context.Context, string) error
+}
 
 type FactoryFunc func(conf *kafka.ConfigMap) (*kafka.AdminClient, error)
 
@@ -39,6 +43,11 @@ type Config struct {
 // NewClient returns a new admin Client.
 func NewClient(cfg Config) (*Client, error) {
 	return newClient(cfg, kafka.NewAdminClient)
+}
+
+// Close closes the Client.
+func (c Client) Close() {
+	c.c.Close()
 }
 
 // NewClientWithFactory returns a new admin Client using a factory func for the kafkaAdminClient
@@ -102,38 +111,4 @@ func newClient(cfg Config, factory FactoryFunc) (*Client, error) {
 		err = fmt.Errorf("[librdkafka] %s", err)
 	}
 	return c, err
-}
-
-// Close closes the Client.
-func (c Client) Close() {
-	c.c.Close()
-}
-
-// CreateTopic creates a topic.
-func (c Client) CreateTopic(ctx context.Context, cfg admin.CreateTopicConfig) error {
-	spec := kafka.TopicSpecification{
-		Topic:             cfg.Name,
-		NumPartitions:     cfg.Partitions,
-		ReplicationFactor: cfg.ReplicationFactor,
-		ReplicaAssignment: cfg.ReplicaAssignment,
-		Config:            cfg.Config,
-	}
-
-	// ReplicaAssignment and ReplicationFactor are
-	// mutually exclusive.
-	if cfg.ReplicaAssignment != nil {
-		spec.ReplicationFactor = 0
-	}
-
-	topic := []kafka.TopicSpecification{spec}
-
-	_, err := c.c.CreateTopics(ctx, topic)
-
-	return err
-}
-
-// DeleteTopic deletes a topic.
-func (c Client) DeleteTopic(ctx context.Context, name string) error {
-	_, err := c.c.DeleteTopics(ctx, []string{name})
-	return err
 }
