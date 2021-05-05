@@ -7,8 +7,8 @@ import (
 	"regexp"
 	"sort"
 
+	"github.com/DataDog/kafka-kit/v3/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
-	"github.com/DataDog/kafka-kit/v3/registry/admin"
 	pb "github.com/DataDog/kafka-kit/v3/registry/protos"
 )
 
@@ -143,7 +143,7 @@ func (s *Server) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*
 
 	// If we're targeting a specific set of brokers by tag, build
 	// a replica assignment.
-	var assignment admin.ReplicaAssignment
+	var assignment kafkaadmin.ReplicaAssignment
 	if req.TargetBrokerTags != nil {
 		// Create a stub map with the provided request dimensions.
 		opts := kafkazk.Populate(
@@ -204,12 +204,12 @@ func (s *Server) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*
 	// Init the create request.
 	// XXX if a topic can't be created due to insufficient brokers,
 	// the command will fail at Kafka but not return an error here.
-	cfg := admin.CreateTopicConfig{
+	cfg := kafkaadmin.CreateTopicConfig{
 		Name:              req.Topic.Name,
 		Partitions:        int(req.Topic.Partitions),
 		ReplicationFactor: int(req.Topic.Replication),
 		Config:            req.Topic.Configs,
-		ReplicaAssignment: assignment,
+		ReplicaAssignment: kafkaadmin.ReplicaAssignment(assignment),
 	}
 
 	if err = s.kafkaadmin.CreateTopic(ctx, cfg); err != nil {
@@ -437,8 +437,8 @@ func (s *Server) fetchTopicSet(req *pb.TopicRequest) (TopicSet, error) {
 
 // PartitionMapToReplicaAssignment takes a *kafkazk.PartitionMap and
 // transforms it into an admin.ReplicaAssignment.
-func PartitionMapToReplicaAssignment(pm *kafkazk.PartitionMap) admin.ReplicaAssignment {
-	ra := make(admin.ReplicaAssignment, len(pm.Partitions))
+func PartitionMapToReplicaAssignment(pm *kafkazk.PartitionMap) kafkaadmin.ReplicaAssignment {
+	ra := make(kafkaadmin.ReplicaAssignment, len(pm.Partitions))
 
 	// Map partition replica sets from the PartitionMap
 	// to the ReplicaAssignment.

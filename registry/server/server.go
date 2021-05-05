@@ -15,7 +15,6 @@ import (
 
 	"github.com/DataDog/kafka-kit/v3/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
-	"github.com/DataDog/kafka-kit/v3/registry/admin"
 	pb "github.com/DataDog/kafka-kit/v3/registry/protos"
 
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
@@ -34,7 +33,7 @@ type Server struct {
 	HTTPListen       string
 	GRPCListen       string
 	ZK               kafkazk.Handler
-	kafkaadmin       admin.Client
+	kafkaadmin       kafkaadmin.KafkaAdmin
 	Tags             *TagHandler
 	reqTimeout       time.Duration
 	readReqThrottle  RequestThrottle
@@ -179,33 +178,29 @@ func (s *Server) RunHTTP(ctx context.Context, wg *sync.WaitGroup) error {
 // InitKafkaAdmin takes a Context, WaitGroup and an admin.Config and initializes
 // an admin.Client. A background shutdown procedure is called when the
 // context is cancelled.
-func (s *Server) InitKafkaAdmin(ctx context.Context, wg *sync.WaitGroup, cfg admin.Config) error {
+func (s *Server) InitKafkaAdmin(ctx context.Context, wg *sync.WaitGroup, cfg kafkaadmin.Config) error {
 	if s.test {
 		return nil
 	}
 
 	wg.Add(1)
 
-	switch cfg.Type {
-	case "kafka":
-		k, err := kafkaadmin.NewClient(
-			kafkaadmin.Config{
-				BootstrapServers: cfg.BootstrapServers,
-				SSLCALocation:    cfg.SSLCALocation,
-				SecurityProtocol: cfg.SecurityProtocol,
-				SASLMechanism:    cfg.SASLMechanism,
-				SASLUsername:     cfg.SASLUsername,
-				SASLPassword:     cfg.SASLPassword,
-			})
-		if err != nil {
-			return err
-		}
-
-		s.kafkaadmin = *k
-		log.Printf("KafkaAdmin connected to bootstrap servers: %s\n", cfg.BootstrapServers)
-	case "zookeeper":
-
+	k, err := kafkaadmin.NewClient(
+		kafkaadmin.Config{
+			BootstrapServers: cfg.BootstrapServers,
+			SSLCALocation:    cfg.SSLCALocation,
+			SecurityProtocol: cfg.SecurityProtocol,
+			SASLMechanism:    cfg.SASLMechanism,
+			SASLUsername:     cfg.SASLUsername,
+			SASLPassword:     cfg.SASLPassword,
+		})
+	if err != nil {
+		return err
 	}
+
+	s.kafkaadmin = k
+	log.Printf("KafkaAdmin connected to bootstrap servers: %s\n", cfg.BootstrapServers)
+
 	// Shutdown procedure.
 	go func() {
 		<-ctx.Done()
@@ -218,32 +213,30 @@ func (s *Server) InitKafkaAdmin(ctx context.Context, wg *sync.WaitGroup, cfg adm
 
 // InitKafkaConsumer takes a Context, WaitGroup and an admin.Config and initializes
 // a kafka.Consumer. A background shutdown procedure is called when the context is cancelled.
-func (s *Server) InitKafkaConsumer(ctx context.Context, wg *sync.WaitGroup, cfg admin.Config) error {
+func (s *Server) InitKafkaConsumer(ctx context.Context, wg *sync.WaitGroup, cfg kafkaadmin.Config) error {
 	if s.test {
 		return nil
 	}
 
 	wg.Add(1)
 
-	switch cfg.Type {
-	case "kafka":
-		k, err := kafkaadmin.NewConsumer(
-			kafkaadmin.Config{
-				BootstrapServers: cfg.BootstrapServers,
-				GroupId:          "registry",
-				SSLCALocation:    cfg.SSLCALocation,
-				SecurityProtocol: cfg.SecurityProtocol,
-				SASLMechanism:    cfg.SASLMechanism,
-				SASLUsername:     cfg.SASLUsername,
-				SASLPassword:     cfg.SASLPassword,
-			})
-		if err != nil {
-			return err
-		}
-
-		s.kafkaconsumer = k
-		log.Printf("KafkaConsumer connected to bootstrap servers: %s\n", cfg.BootstrapServers)
+	k, err := kafkaadmin.NewConsumer(
+		kafkaadmin.Config{
+			BootstrapServers: cfg.BootstrapServers,
+			GroupId:          "registry",
+			SSLCALocation:    cfg.SSLCALocation,
+			SecurityProtocol: cfg.SecurityProtocol,
+			SASLMechanism:    cfg.SASLMechanism,
+			SASLUsername:     cfg.SASLUsername,
+			SASLPassword:     cfg.SASLPassword,
+		})
+	if err != nil {
+		return err
 	}
+
+	s.kafkaconsumer = k
+	log.Printf("KafkaConsumer connected to bootstrap servers: %s\n", cfg.BootstrapServers)
+
 	// Shutdown procedure.
 	go func() {
 		<-ctx.Done()
