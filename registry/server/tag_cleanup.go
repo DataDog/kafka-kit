@@ -2,16 +2,34 @@ package server
 
 import (
 	"context"
-	regexp2 "regexp"
+	"regexp"
 	"strconv"
 	"time"
 )
 
 var tagMarkTimeKey = "tagMarkedForDeletionTSMin"
-var allowedTagStalenessMinutes = 60 // todo: pass this through via config
+var topicRegex = regexp.MustCompile(".*")
+
+type TagCleaner struct {
+	running bool
+}
+
+// RunTagCleanup is regularly checks for tags that are stale and need clean up.
+func (tc *TagCleaner) RunTagCleanup(s *Server, ctx context.Context, c Config) {
+	tc.running = true
+
+	// Interval timer.
+	t := time.NewTicker(time.Duration(c.TagCleanupFrequencyMinutes) * time.Second)
+	defer t.Stop()
+
+	for tc.running {
+		<-t.C
+		s.MarkForDeletion(ctx)
+		s.DeleteStaleTags(ctx)
+	}
+}
 
 // todo: should I handle errors, or just log?
-// todo: what calls this function? A timer? Should anything happen if it fails?
 // MarkForDeletion marks stored tags that have been stranded without an associated kafka resource.
 func(s *Server) MarkForDeletion(ctx context.Context) error {
 	markTimeMinutes := string(time.Now().Minute())
@@ -23,9 +41,7 @@ func(s *Server) MarkForDeletion(ctx context.Context) error {
 	}
 
 	// Get all topics from ZK
-	rgex, _ := regexp2.Compile(".*")
-	regexes := []*regexp2.Regexp{rgex}
-	topics, err := s.ZK.GetTopics(regexes)
+	topics, err := s.ZK.GetTopics([]*regexp.Regexp{topicRegex})
 	if err != nil {
 		// todo
 	}
@@ -55,7 +71,7 @@ func(s *Server) MarkForDeletion(ctx context.Context) error {
 }
 
 // DeleteStaleTags deletes any tags that have not had a kafka resource associated with them.
-func(s *Server) DeleteStaleTags(ctx context.Context) {
+func(s *Server) DeleteStaleTags(ctx context.Context, c Config) {
 	sweepTimeMinutes := time.Now().Minute()
 	allTags, _ := s.Tags.Store.GetAllTags()
 
@@ -66,7 +82,7 @@ func(s *Server) DeleteStaleTags(ctx context.Context) {
 			// todo
 		}
 
-		if sweepTimeMinutes - markTime < allowedTagStalenessMinutes {
+		if sweepTimeMinutes - markTime < c.TagAllowedStalenessMinutes {
 			s.Tags.Store.DeleteTags(kafkaObject, tags.Tags())
 		}
 	}
@@ -76,7 +92,7 @@ func(s *Server) DeleteStaleTags(ctx context.Context) {
 func TopicSetFromSlice(s []string) TopicSet {
 	var ts = TopicSet{}
 	for _, t := range s {
-		ts[t] = nil // TODO: I hope this works assigning nil...
+		ts[t] = nil
 	}
 	return ts
 }
