@@ -8,11 +8,11 @@ import (
 )
 
 var (
-	emtpy struct{}
+	empty struct{}
 	// SecurityProtocolSet is the set of protocols supported to communicate with brokers
-	SecurityProtocolSet = map[string]struct{}{"PLAINTEXT": emtpy, "SSL": emtpy, "SASL_PLAINTEXT": emtpy, "SASL_SSL": emtpy}
+	SecurityProtocolSet = map[string]struct{}{"PLAINTEXT": empty, "SSL": empty, "SASL_PLAINTEXT": empty, "SASL_SSL": empty}
 	// SASLMechanismSet is the set of mechanisms supported for client to broker authentication
-	SASLMechanismSet = map[string]struct{}{"PLAIN": emtpy, "SCRAM-SHA-256": emtpy, "SCRAM-SHA-512": emtpy}
+	SASLMechanismSet = map[string]struct{}{"PLAIN": empty, "SCRAM-SHA-256": empty, "SCRAM-SHA-512": empty}
 )
 
 type FactoryFunc func(conf *kafka.ConfigMap) (*kafka.AdminClient, error)
