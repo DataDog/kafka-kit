@@ -179,7 +179,7 @@ func (s *Server) RunHTTP(ctx context.Context, wg *sync.WaitGroup) error {
 }
 
 // runTagCleanup starts a background process deleting stale tags.
-func (s *Server) runTagCleanup(ctx context.Context, wg *sync.WaitGroup) error {
+func (s *Server) RunTagCleanup(ctx context.Context, wg *sync.WaitGroup, c Config) error {
 	wg.Add(1)
 	tc := TagCleaner{}
 
@@ -192,7 +192,7 @@ func (s *Server) runTagCleanup(ctx context.Context, wg *sync.WaitGroup) error {
 
 	// Background the tag cleanup mark & sweep
 	go func() {
-		tc.RunTagCleanup(s, ctx)
+		tc.RunTagCleanup(s, ctx, c)
 	}()
 
 	return nil

@@ -2,6 +2,8 @@ package server
 
 import (
 	"context"
+	"fmt"
+	"log"
 	"regexp"
 	"strconv"
 	"time"
@@ -24,15 +26,14 @@ func (tc *TagCleaner) RunTagCleanup(s *Server, ctx context.Context, c Config) {
 
 	for tc.running {
 		<-t.C
-		s.MarkForDeletion(ctx)
-		s.DeleteStaleTags(ctx)
+		s.MarkForDeletion()
+		s.DeleteStaleTags(ctx, c)
 	}
 }
 
-// todo: should I handle errors, or just log?
 // MarkForDeletion marks stored tags that have been stranded without an associated kafka resource.
-func(s *Server) MarkForDeletion(ctx context.Context) error {
-	markTimeMinutes := string(time.Now().Minute())
+func(s *Server) MarkForDeletion() error {
+	markTimeMinutes := fmt.Sprint(time.Now().Minute())
 
 	// Get all brokers from ZK.
 	brokers, errs := s.ZK.GetAllBrokerMeta(false)
@@ -42,12 +43,15 @@ func(s *Server) MarkForDeletion(ctx context.Context) error {
 
 	// Get all topics from ZK
 	topics, err := s.ZK.GetTopics([]*regexp.Regexp{topicRegex})
-	if err != nil {
-		// todo
-	}
 	topicSet := TopicSetFromSlice(topics)
+	if err != nil {
+		return ErrFetchingTopics
+	}
 
-	allTags, _ := s.Tags.Store.GetAllTags()
+	allTags, err := s.Tags.Store.GetAllTags()
+	if err != nil {
+		return err
+	}
 
 	// Add a marker tag with timestamp to any dangling tagset whose associated kafka resource no longer exists.
 	for kafkaObject, tagSet := range allTags {
@@ -55,7 +59,7 @@ func(s *Server) MarkForDeletion(ctx context.Context) error {
 		case "broker":
 			brokerId, err := strconv.Atoi(kafkaObject.ID)
 			if err != nil {
-				// todo
+				log.Println(fmt.Printf("Found non int broker ID %s in tag cleanup", kafkaObject.ID))
 			}
 			if _, exists := brokers[brokerId]; exists {
 				tagSet[tagMarkTimeKey] = markTimeMinutes
@@ -79,7 +83,7 @@ func(s *Server) DeleteStaleTags(ctx context.Context, c Config) {
 		markTag := tags[tagMarkTimeKey]
 		markTime, err := strconv.Atoi(markTag)
 		if err != nil {
-			// todo
+			log.Printf("Found non timestamp tag %s in stale tag marker\n", markTag)
 		}
 
 		if sweepTimeMinutes - markTime < c.TagAllowedStalenessMinutes {
