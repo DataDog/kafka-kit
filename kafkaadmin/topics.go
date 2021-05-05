@@ -27,8 +27,7 @@ func (c Client) CreateTopic(ctx context.Context, cfg CreateTopicConfig) error {
 		Config:            cfg.Config,
 	}
 
-	// ReplicaAssignment and ReplicationFactor are
-	// mutually exclusive.
+	// ReplicaAssignment and ReplicationFactor are mutually exclusive.
 	if cfg.ReplicaAssignment != nil {
 		spec.ReplicationFactor = 0
 	}

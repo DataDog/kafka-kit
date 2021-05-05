@@ -3,6 +3,7 @@ package kafkaadmin
 import (
 	"fmt"
 	"strings"
+	"context"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
@@ -98,5 +99,21 @@ func newClient(cfg Config, factory FactoryFunc) (*Client, error) {
 	if err != nil {
 		err = fmt.Errorf("[librdkafka] %s", err)
 	}
+
+	//md, err := k.GetMetadata(nil, true, 3000)
+	md, err := k.DescribeConfigs(context.Background(),
+	[]kafka.ConfigResource{kafka.ConfigResource{
+		Type: kafka.ResourceBroker,
+		Name: "1001",
+	}})
+	fmt.Println(err)
+
+	for _, m := range md {
+		fmt.Printf("XXX %s\n", m.Name)
+		for k, v := range m.Config {
+			fmt.Printf("\t%s: %+v\n", k, v)
+		}
+	}
+
 	return c, err
 }
