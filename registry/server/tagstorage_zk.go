@@ -167,7 +167,7 @@ func (t *ZKTagStorage) GetTags(o KafkaObject) (TagSet, error) {
 	return tags, nil
 }
 
-// GetAllTags returns all tags stored in the tagstore, grouped by kafka object.
+// GetAllTags returns all tags stored in the tagstore, keyed by the resource they correspond to.
 func (t *ZKTagStorage) GetAllTags() (map[KafkaObject]TagSet, error) {
 
 	tags := map[KafkaObject]TagSet{}

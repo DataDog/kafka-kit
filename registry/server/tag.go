@@ -45,6 +45,7 @@ type TagStorage interface {
 	SetTags(KafkaObject, TagSet) error
 	GetTags(KafkaObject) (TagSet, error)
 	DeleteTags(KafkaObject, Tags) error
+	GetAllTags() (map[KafkaObject]TagSet, error)
 }
 
 // NewTagHandler initializes a TagHandler.
