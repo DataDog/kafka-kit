@@ -74,17 +74,26 @@ func TestKafkaObjectComesBack(t *testing.T) {
 	bt := TagSet{"foo": "bar", TagMarkTimeKey: "12345"} // pretend this broker was marked for tag deletion previously
 	broker := KafkaObject{Type: "broker", ID: "1002"} // but this broker now exists in our stub, so the marker will be removed.
 
+	tt := TagSet{"bing": "baz", TagMarkTimeKey: "12345"} // same for a topic.
+	topic := KafkaObject{Type: "topic", ID: "test_topic"}
+
 	zk := kafkazk.NewZooKeeperStub()
 	th := testTagHandler()
 	s := Server{Tags: th, ZK: zk}
 
 	// WHEN
 	th.Store.SetTags(broker, bt)
+	th.Store.SetTags(topic, tt)
 	s.MarkForDeletion(time.Now)
 
 	// THEN
 	btags, _ := th.Store.GetTags(broker)
 	if _, exists := btags[TagMarkTimeKey]; exists {
 		t.Errorf("Expected mark for broker %s to be removed.", broker)
+	}
+
+	ttags, _ := th.Store.GetTags(topic)
+	if _, exists := ttags[TagMarkTimeKey]; exists {
+		t.Errorf("Expected mark for topic %s to be removed.", topic)
 	}
 }
