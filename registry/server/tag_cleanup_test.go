@@ -17,7 +17,7 @@ func TestMarkStaleTags(t *testing.T) {
 
 	// This broker is not in our zk stub
 	nbt := TagSet{"stale": "tag"}
-	noBroker := KafkaObject{Type: "broker", ID: "not found"}
+	noBroker := KafkaObject{Type: "broker", ID: "34"}
 
 	zk := kafkazk.NewZooKeeperStub()
 	th := testTagHandler()
