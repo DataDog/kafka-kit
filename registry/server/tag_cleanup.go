@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-var tagMarkTimeKey = "tagMarkedForDeletionTSMin"
+var TagMarkTimeKey = "tagMarkedForDeletionTSMin"
 var topicRegex = regexp.MustCompile(".*")
 
 type TagCleaner struct {
@@ -33,7 +33,7 @@ func (tc *TagCleaner) RunTagCleanup(s *Server, ctx context.Context, c Config) {
 
 // MarkForDeletion marks stored tags that have been stranded without an associated kafka resource.
 func(s *Server) MarkForDeletion() error {
-	markTimeMinutes := fmt.Sprint(time.Now().Minute())
+	markTimeMinutes := fmt.Sprint(time.Now().Unix())
 
 	// Get all brokers from ZK.
 	brokers, errs := s.ZK.GetAllBrokerMeta(false)
@@ -61,12 +61,12 @@ func(s *Server) MarkForDeletion() error {
 			if err != nil {
 				log.Println(fmt.Printf("Found non int broker ID %s in tag cleanup", kafkaObject.ID))
 			}
-			if _, exists := brokers[brokerId]; exists {
-				tagSet[tagMarkTimeKey] = markTimeMinutes
+			if _, exists := brokers[brokerId]; !exists {
+				tagSet[TagMarkTimeKey] = markTimeMinutes
 			}
 		case "topic":
-			if _, exists := topicSet[kafkaObject.ID]; exists {
-				tagSet[tagMarkTimeKey] = markTimeMinutes
+			if _, exists := topicSet[kafkaObject.ID]; !exists {
+				tagSet[TagMarkTimeKey] = markTimeMinutes
 			}
 		}
 	}
@@ -76,17 +76,17 @@ func(s *Server) MarkForDeletion() error {
 
 // DeleteStaleTags deletes any tags that have not had a kafka resource associated with them.
 func(s *Server) DeleteStaleTags(ctx context.Context, c Config) {
-	sweepTimeMinutes := time.Now().Minute()
+	sweepTimeMinutes := time.Now().Unix()
 	allTags, _ := s.Tags.Store.GetAllTags()
 
 	for kafkaObject, tags := range allTags {
-		markTag := tags[tagMarkTimeKey]
+		markTag := tags[TagMarkTimeKey]
 		markTime, err := strconv.Atoi(markTag)
 		if err != nil {
 			log.Printf("Found non timestamp tag %s in stale tag marker\n", markTag)
 		}
 
-		if sweepTimeMinutes - markTime < c.TagAllowedStalenessMinutes {
+		if sweepTimeMinutes - int64(markTime) < int64(c.TagAllowedStalenessMinutes * 60) {
 			s.Tags.Store.DeleteTags(kafkaObject, tags.Tags())
 		}
 	}
