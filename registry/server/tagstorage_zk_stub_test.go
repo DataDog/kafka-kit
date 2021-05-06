@@ -78,7 +78,8 @@ func (t *zkTagStorageStub) DeleteTags(o KafkaObject, tl Tags) error {
 		return ErrKafkaObjectDoesNotExist
 	}
 
-	for _, k := range tl {
+	tagSet, _ := tl.TagSet()
+	for k, _ := range tagSet {
 		delete(t.tags[o.Type][o.ID], k)
 	}
 
