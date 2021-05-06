@@ -44,7 +44,7 @@ type TagStorage interface {
 	FieldReserved(KafkaObject, string) bool
 	SetTags(KafkaObject, TagSet) error
 	GetTags(KafkaObject) (TagSet, error)
-	DeleteTags(KafkaObject, Tags) error
+	DeleteTags(KafkaObject, []string) error
 	GetAllTags() (map[KafkaObject]TagSet, error)
 }
 

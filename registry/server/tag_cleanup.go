@@ -91,7 +91,13 @@ func(s *Server) DeleteStaleTags(now func() time.Time, c Config) {
 		}
 
 		if sweepTime - int64(markTime) > int64(c.TagAllowedStalenessMinutes * 60) {
-			s.Tags.Store.DeleteTags(kafkaObject, tags.Tags())
+			keys := make([]string, len(tags))
+			i := 0
+			for k := range tags {
+				keys[i] = k
+				i++
+			}
+			s.Tags.Store.DeleteTags(kafkaObject, keys)
 		}
 	}
 }

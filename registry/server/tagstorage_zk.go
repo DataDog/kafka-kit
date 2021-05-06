@@ -223,14 +223,14 @@ func (t *ZKTagStorage) GetAllTagsForType(kafkaObjectType string) (map[KafkaObjec
 	return objectTags, nil
 }
 
-// DeleteTags deletes all tags in the Tags for the requested KafkaObject.
-func (t *ZKTagStorage) DeleteTags(o KafkaObject, ts Tags) error {
+// DeleteTags deletes all tags in the list of keys for the requested KafkaObject.
+func (t *ZKTagStorage) DeleteTags(o KafkaObject, keysToDelete []string) error {
 	// Sanity checks.
 	if !o.Complete() {
 		return ErrInvalidKafkaObjectType
 	}
 
-	if len(ts) == 0 {
+	if len(keysToDelete) == 0 {
 		return ErrNilTags
 	}
 
@@ -258,7 +258,7 @@ func (t *ZKTagStorage) DeleteTags(o KafkaObject, ts Tags) error {
 	}
 
 	// Delete listed tags.
-	for _, k := range ts {
+	for _, k := range keysToDelete {
 		delete(tags, k)
 	}
 
