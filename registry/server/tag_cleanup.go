@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-var TagMarkTimeKey = "tagMarkedForDeletionTSMin"
+var TagMarkTimeKey = "tagMarkedForDeletionTime"
 var topicRegex = regexp.MustCompile(".*")
 
 type TagCleaner struct {
@@ -63,10 +63,14 @@ func(s *Server) MarkForDeletion(now func() time.Time) error {
 			}
 			if _, exists := brokers[brokerId]; !exists {
 				tagSet[TagMarkTimeKey] = markTimeMinutes
+			} else {
+				delete(tagSet, TagMarkTimeKey)
 			}
 		case "topic":
 			if _, exists := topicSet[kafkaObject.ID]; !exists {
 				tagSet[TagMarkTimeKey] = markTimeMinutes
+			} else {
+				delete(tagSet, TagMarkTimeKey)
 			}
 		}
 	}

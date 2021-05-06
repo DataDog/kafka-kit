@@ -47,6 +47,7 @@ func TestMarkStaleTags(t *testing.T) {
 }
 
 func TestDeleteStaleTags(t *testing.T) {
+	//GIVEN
 	markTime := time.Date(2020, 1, 2, 3, 0, 0, 0, time.UTC)
 	sweepTime := markTime.Add(15 * time.Minute)
 
@@ -57,12 +58,33 @@ func TestDeleteStaleTags(t *testing.T) {
 	zk := kafkazk.NewZooKeeperStub()
 	s := Server{Tags: th, ZK: zk}
 
+	//WHEN
 	th.Store.SetTags(broker, bt)
-
 	s.DeleteStaleTags(func() time.Time { return sweepTime }, Config{TagAllowedStalenessMinutes: 10})
 
+	//THEN
 	btags, _ := th.Store.GetTags(broker)
 	if len(btags) > 0 {
 		t.Errorf("Expected marked tags for broker %s to be deleted.", broker)
+	}
+}
+
+func TestKafkaObjectComesBack(t *testing.T) {
+	// GIVEN
+	bt := TagSet{"foo": "bar", TagMarkTimeKey: "12345"} // pretend this broker was marked for tag deletion previously
+	broker := KafkaObject{Type: "broker", ID: "1002"} // but this broker now exists in our stub, so the marker will be removed.
+
+	zk := kafkazk.NewZooKeeperStub()
+	th := testTagHandler()
+	s := Server{Tags: th, ZK: zk}
+
+	// WHEN
+	th.Store.SetTags(broker, bt)
+	s.MarkForDeletion(time.Now)
+
+	// THEN
+	btags, _ := th.Store.GetTags(broker)
+	if _, exists := btags[TagMarkTimeKey]; exists {
+		t.Errorf("Expected mark for broker %s to be removed.", broker)
 	}
 }
