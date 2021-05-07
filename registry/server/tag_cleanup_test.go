@@ -69,6 +69,29 @@ func TestDeleteStaleTags(t *testing.T) {
 	}
 }
 
+func TestUnmarkedTagsAreSafe(t *testing.T) {
+	//GIVEN
+	markTime := time.Date(2020, 1, 2, 3, 0, 0, 0, time.UTC)
+	sweepTime := markTime.Add(15 * time.Minute)
+
+	bt := TagSet{"foo": "bar"}
+	broker := KafkaObject{Type: "broker", ID: "not found"}
+
+	th := testTagHandler()
+	zk := kafkazk.NewZooKeeperStub()
+	s := Server{Tags: th, ZK: zk}
+
+	//WHEN
+	th.Store.SetTags(broker, bt)
+	s.DeleteStaleTags(func() time.Time { return sweepTime }, Config{TagAllowedStalenessMinutes: 10})
+
+	//THEN
+	btags, _ := th.Store.GetTags(broker)
+	if len(btags) != 1 {
+		t.Errorf("Expected marked tags for broker %s to be safe.", broker)
+	}
+}
+
 func TestKafkaObjectComesBack(t *testing.T) {
 	// GIVEN
 	bt := TagSet{"foo": "bar", TagMarkTimeKey: "12345"} // pretend this broker was marked for tag deletion previously

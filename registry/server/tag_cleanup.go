@@ -85,8 +85,11 @@ func(s *Server) DeleteStaleTags(now func() time.Time, c Config) {
 	allTags, _ := s.Tags.Store.GetAllTags()
 
 	for kafkaObject, tags := range allTags {
-		markTag := tags[TagMarkTimeKey]
+		markTag, exists := tags[TagMarkTimeKey]
 		markTime, err := strconv.Atoi(markTag)
+		if !exists {
+			continue
+		}
 		if err != nil {
 			log.Printf("Found non timestamp tag %s in stale tag marker\n", markTag)
 		}
