@@ -26,7 +26,12 @@ func (tc *TagCleaner) RunTagCleanup(s *Server, ctx context.Context, c Config) {
 
 	for tc.running {
 		<-t.C
-		s.MarkForDeletion(time.Now)
+		err := s.MarkForDeletion(time.Now)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+
 		s.DeleteStaleTags(time.Now, c)
 	}
 }
@@ -73,7 +78,10 @@ func(s *Server) MarkForDeletion(now func() time.Time) error {
 				delete(tagSet, TagMarkTimeKey)
 			}
 		}
-		s.Tags.Store.SetTags(kafkaObject, tagSet) // Persist any changes
+		err := s.Tags.Store.SetTags(kafkaObject, tagSet) // Persist any changes
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -86,10 +94,11 @@ func(s *Server) DeleteStaleTags(now func() time.Time, c Config) {
 
 	for kafkaObject, tags := range allTags {
 		markTag, exists := tags[TagMarkTimeKey]
-		markTime, err := strconv.Atoi(markTag)
 		if !exists {
 			continue
 		}
+
+		markTime, err := strconv.Atoi(markTag)
 		if err != nil {
 			log.Printf("Found non timestamp tag %s in stale tag marker\n", markTag)
 		}
