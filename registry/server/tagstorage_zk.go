@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
@@ -206,8 +205,8 @@ func (t *ZKTagStorage) GetAllTagsForType(kafkaObjectType string) (map[KafkaObjec
 
 	objectTags := map[KafkaObject]TagSet{}
 
-	for objectId := range children {
-		object := KafkaObject{Type: kafkaObjectType, ID: strconv.Itoa(objectId)}
+	for _, objectId := range children {
+		object := KafkaObject{Type: kafkaObjectType, ID: objectId}
 		tags, err := t.GetTags(object)
 		if err != nil {
 			switch err.(type) {
