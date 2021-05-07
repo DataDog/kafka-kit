@@ -51,6 +51,8 @@ type Config struct {
 	ReadReqRate  int
 	WriteReqRate int
 	ZKTagsPrefix string
+	TagCleanupFrequencyMinutes int
+	TagAllowedStalenessMinutes int
 
 	test bool
 }
@@ -170,6 +172,26 @@ func (s *Server) RunHTTP(ctx context.Context, wg *sync.WaitGroup) error {
 		if err := srvr.ListenAndServe(); err != http.ErrServerClosed {
 			log.Println(err)
 		}
+	}()
+
+	return nil
+}
+
+// runTagCleanup starts a background process deleting stale tags.
+func (s *Server) RunTagCleanup(ctx context.Context, wg *sync.WaitGroup, c Config) error {
+	wg.Add(1)
+	tc := TagCleaner{}
+
+	// Shutdown procedure.
+	go func() {
+		<-ctx.Done()
+		tc.running = false
+		wg.Done()
+	}()
+
+	// Background the tag cleanup mark & sweep
+	go func() {
+		tc.RunTagCleanup(s, ctx, c)
 	}()
 
 	return nil

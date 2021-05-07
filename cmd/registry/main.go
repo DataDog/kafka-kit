@@ -49,6 +49,8 @@ func main() {
 	flag.StringVar(&adminConfig.SASLMechanism, "kafka-sasl-mechanism", "", fmt.Sprintf("SASL mechanism to use for authentication. Supported: %s", strings.Join(saslMechanims, ", ")))
 	flag.StringVar(&adminConfig.SASLUsername, "kafka-sasl-username", "", "SASL username for use with the PLAIN and SASL-SCRAM-* mechanisms")
 	flag.StringVar(&adminConfig.SASLPassword, "kafka-sasl-password", "", "SASL password for use with the PLAIN and SASL-SCRAM-* mechanisms")
+	flag.IntVar(&serverConfig.TagAllowedStalenessMinutes, "tag-allowed-staleness", 60, "Minutes before tags with no associated resource are deleted")
+	flag.IntVar(&serverConfig.TagCleanupFrequencyMinutes, "tag-cleanup-frequency", 20, "Minutes between runs of tag cleanup")
 
 	kafkaVersionString := flag.String("kafka-version", "v0.10.2", "Kafka release (Semantic Versioning)")
 
@@ -115,6 +117,11 @@ func main() {
 
 	// Start the HTTP listener.
 	if err := srvr.RunHTTP(ctx, wg); err != nil {
+		log.Fatal(err)
+	}
+
+	// Start the tag cleanup background thread
+	if err := srvr.RunTagCleanup(ctx, wg, serverConfig); err != nil {
 		log.Fatal(err)
 	}
 

@@ -65,7 +65,7 @@ func (t *zkTagStorageStub) GetTags(o KafkaObject) (TagSet, error) {
 }
 
 // DeleteTags stubs DeleteTags.
-func (t *zkTagStorageStub) DeleteTags(o KafkaObject, tl Tags) error {
+func (t *zkTagStorageStub) DeleteTags(o KafkaObject, keysToDelete []string) error {
 	if !o.Complete() {
 		return ErrInvalidKafkaObjectType
 	}
@@ -78,11 +78,25 @@ func (t *zkTagStorageStub) DeleteTags(o KafkaObject, tl Tags) error {
 		return ErrKafkaObjectDoesNotExist
 	}
 
-	for _, k := range tl {
+	for _, k := range keysToDelete {
 		delete(t.tags[o.Type][o.ID], k)
 	}
 
 	return nil
+}
+
+// GetAllTags stubs GetAllTags
+func (t *zkTagStorageStub) GetAllTags() (map[KafkaObject]TagSet, error) {
+	ts := map[KafkaObject]TagSet{}
+
+	// just flattens and returns all tag sets.
+	for objectType, objects := range t.tags {
+		for o, tags := range objects {
+			ts[KafkaObject{Type: objectType, ID: o}] = tags
+		}
+	}
+
+	return ts, nil
 }
 
 // FieldReserved stubs FieldReserved.

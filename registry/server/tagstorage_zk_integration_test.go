@@ -5,6 +5,7 @@ package server
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"sort"
 	"testing"
 
@@ -176,6 +177,43 @@ func TestGetTagsFailures(t *testing.T) {
 	_, err = store.GetTags(KafkaObject{Type: "broker", ID: "000"})
 	if err != ErrKafkaObjectDoesNotExist {
 		t.Error("Expected ErrKafkaObjectDoesNotExist error")
+	}
+}
+
+func TestGetAllTags(t *testing.T) {
+	testTagSets := map[int]TagSet{
+		0: TagSet{"key": "value", "key2": "value2"},
+		1: TagSet{"key": "value"},
+	}
+
+	testObjects := map[int]KafkaObject{
+		0: KafkaObject{Type: "broker", ID: "1002"},
+		1: KafkaObject{Type: "topic", ID: "test"},
+	}
+
+	expected := map[int]TagSet{
+		0: TagSet{"key": "value", "key2": "value2"},
+		1: TagSet{"key": "value"},
+	}
+
+	for k := range testTagSets {
+		// Set tags.
+		err := store.SetTags(testObjects[k], testTagSets[k])
+		if err != nil {
+			t.Errorf("[test %d] %s", k, err)
+		}
+	}
+
+	// Fetch tags, compare value.
+	tags, _ := store.GetAllTags()
+
+	for k := range testTagSets {
+		obj := testObjects[k]
+		expectedTags := expected[k]
+		if reflect.DeepEqual(tags[obj],expectedTags) {
+			t.Errorf("[test %d] Expected TagSet '%v', got '%v'",
+				k, expected[k], tags)
+		}
 	}
 }
 
