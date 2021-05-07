@@ -73,6 +73,7 @@ func(s *Server) MarkForDeletion(now func() time.Time) error {
 				delete(tagSet, TagMarkTimeKey)
 			}
 		}
+		s.Tags.Store.SetTags(kafkaObject, tagSet) // Persist any changes
 	}
 
 	return nil
