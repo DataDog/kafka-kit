@@ -1,0 +1,15 @@
+name: gofmt
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: gofmt
+      run: [ $(gofmt -l bla.go 2>&1 | wc -c) = "0" ]
