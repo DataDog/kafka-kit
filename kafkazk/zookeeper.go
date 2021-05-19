@@ -88,7 +88,10 @@ type PartitionState struct {
 }
 
 // Reassignments is a map of topic:partition:brokers.
-type Reassignments map[string]map[int][]int
+type Reassignments struct {
+	Topics    map[string]map[int][]int
+	CreatedAt int64
+}
 
 // reassignPartitions is used for unmarshalling
 // /admin/reassign_partitions data.
@@ -306,8 +309,6 @@ func (z *ZKHandler) NextInt(p string) (int32, error) {
 // GetReassignments looks up any ongoing topic reassignments and
 // returns the data as a Reassignments.
 func (z *ZKHandler) GetReassignments() Reassignments {
-	reassigns := Reassignments{}
-
 	var path string
 	if z.Prefix != "" {
 		path = fmt.Sprintf("/%s/admin/reassign_partitions", z.Prefix)
@@ -316,13 +317,15 @@ func (z *ZKHandler) GetReassignments() Reassignments {
 	}
 
 	// Get reassignment config.
-	data, _, err := z.Get(path)
+	data, s, err := z.Get(path)
 	if err != nil {
-		return reassigns
+		return Reassignments{}
 	}
 
 	rec := &reassignPartitions{}
 	json.Unmarshal(data, rec)
+
+	reassigns := make(map[string]map[int][]int)
 
 	// Map reassignment config to a
 	// Reassignments.
@@ -333,7 +336,10 @@ func (z *ZKHandler) GetReassignments() Reassignments {
 		reassigns[cfg.Topic][cfg.Partition] = cfg.Replicas
 	}
 
-	return reassigns
+	return Reassignments{
+		reassigns,
+		s.Ctime,
+	}
 }
 
 // GetPendingDeletion returns any topics pending deletion.
@@ -731,8 +737,8 @@ func (z *ZKHandler) GetPartitionMap(t string) (*PartitionMap, error) {
 	// {"version":1,"partitions":{"14":[1039,1044,1041,1071]}}.
 	// The latter will be in ts if we're undergoing a partition move, so
 	// but we need to overwrite it with what's intended (the former).
-	if re[t] != nil {
-		for p, replicas := range re[t] {
+	if re.Topics[t] != nil {
+		for p, replicas := range re.Topics[t] {
 			pn := strconv.Itoa(p)
 			ts.Partitions[pn] = replicas
 		}

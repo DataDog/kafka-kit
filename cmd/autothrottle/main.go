@@ -192,7 +192,7 @@ func main() {
 		// Get topics undergoing reassignment.
 		reassignments = zk.GetReassignments() // XXX This needs to return an error.
 		topicsReplicatingNow = newSet()
-		for t := range reassignments {
+		for t := range reassignments.Topics {
 			topicsReplicatingNow.add(t)
 		}
 

@@ -62,7 +62,7 @@ func getReassigningBrokers(r kafkazk.Reassignments, zk kafkazk.Handler) (reassig
 	}
 
 	// Get topic data for each topic undergoing a reassignment.
-	for t := range r {
+	for t := range r.Topics {
 		topic := topic(t)
 		lb.throttledReplicas[topic] = make(throttled)
 		lb.throttledReplicas[topic]["leaders"] = []string{}
@@ -80,7 +80,7 @@ func getReassigningBrokers(r kafkazk.Reassignments, zk kafkazk.Handler) (reassig
 		// added topicThrottledReplicas.addReplica method.
 		for p := range tstate {
 			partn, _ := strconv.Atoi(p)
-			if reassigning, exists := r[t][partn]; exists {
+			if reassigning, exists := r.Topics[t][partn]; exists {
 				// Source brokers.
 				leader := tstate[p].Leader
 				// In offline partitions, the leader value is set to -1. Skip.

@@ -159,7 +159,7 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 
 	// Append topic stats to event.
 	var topics []string
-	for t := range params.reassignments {
+	for t := range params.reassignments.Topics {
 		topics = append(topics, t)
 	}
 	b.WriteString(fmt.Sprintf("Topics currently undergoing replication: %v", topics))

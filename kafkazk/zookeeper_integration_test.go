@@ -366,17 +366,19 @@ func TestGetUnderReplicated(t *testing.T) {
 }
 
 func TestGetReassignments(t *testing.T) {
-	re := zki.GetReassignments()
+	response := zki.GetReassignments()
+	reassignments := response.Topics
+	createdAt := response.CreatedAt
 
-	if len(re) != 1 {
-		t.Errorf("Expected 1 reassignment, got %d", len(re))
+	if len(reassignments) != 1 {
+		t.Errorf("Expected 1 reassignment, got %d", len(reassignments))
 	}
 
-	if _, exist := re["topic0"]; !exist {
+	if _, exist := reassignments["topic0"]; !exist {
 		t.Error("Expected 'topic0' in reassignments")
 	}
 
-	replicas, exist := re["topic0"][0]
+	replicas, exist := reassignments["topic0"][0]
 	if !exist {
 		t.Error("Expected topic0 partition 0 in reassignments")
 	}
@@ -388,6 +390,11 @@ func TestGetReassignments(t *testing.T) {
 		if r != expected[i] {
 			t.Errorf("Expected replica '%d', got '%d'", expected[i], r)
 		}
+	}
+
+	secondsSinceCreation := time.Since(time.Unix(createdAt/1000, 0)).Seconds()
+	if secondsSinceCreation < 0 || secondsSinceCreation > 10 {
+		t.Error("Expected creation to be recent")
 	}
 }
 

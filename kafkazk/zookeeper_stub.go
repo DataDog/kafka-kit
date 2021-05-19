@@ -40,11 +40,15 @@ func NewZooKeeperStub() Handler {
 // GetReassignments stubs GetReassignments.
 func (zk *Stub) GetReassignments() Reassignments {
 	r := Reassignments{
-		"reassigning_topic": map[int][]int{
-			0: []int{1003, 1000, 1002},
-			1: []int{1005, 1010},
+		map[string]map[int][]int{
+			"reassigning_topic": map[int][]int{
+				0: []int{1003, 1000, 1002},
+				1: []int{1005, 1010},
+			},
 		},
+		0,
 	}
+
 	return r
 }
 

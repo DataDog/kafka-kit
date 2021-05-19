@@ -99,7 +99,7 @@ func (s *Server) ReassigningTopics(ctx context.Context, _ *pb.Empty) (*pb.TopicR
 	reassigning := s.ZK.GetReassignments()
 	var names []string
 
-	for t := range reassigning {
+	for t := range reassigning.Topics {
 		names = append(names, t)
 	}
 
