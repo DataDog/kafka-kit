@@ -74,7 +74,7 @@ func TestSetTags(t *testing.T) {
 		tpath := fmt.Sprintf("/%s/%s/%s",
 			zkprefix, testObjects[k].Type, testObjects[k].ID)
 
-		result, err := store.ZK.Get(tpath)
+		result, _, err := store.ZK.Get(tpath)
 		if err != nil {
 			t.Errorf("[test %d] %s", k, err)
 		}

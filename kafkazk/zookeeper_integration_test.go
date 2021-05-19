@@ -270,7 +270,7 @@ func TestCreateSetGetDelete(t *testing.T) {
 		t.Error(err)
 	}
 
-	v, err := zki.Get("/test")
+	v, _, err := zki.Get("/test")
 	if err != nil {
 		t.Error(err)
 	}
@@ -284,7 +284,7 @@ func TestCreateSetGetDelete(t *testing.T) {
 		t.Error(err)
 	}
 
-	_, err = zki.Get("/test")
+	_, _, err = zki.Get("/test")
 	switch err.(type) {
 	case ErrNoNode:
 		break

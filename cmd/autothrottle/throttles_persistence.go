@@ -17,7 +17,7 @@ var (
 func fetchThrottleOverride(zk kafkazk.Handler, p string) (*ThrottleOverrideConfig, error) {
 	c := &ThrottleOverrideConfig{}
 
-	override, err := zk.Get(p)
+	override, _, err := zk.Get(p)
 	if err != nil {
 		switch err.(type) {
 		case kafkazk.ErrNoNode:
@@ -98,7 +98,7 @@ func fetchBrokerOverrides(zk kafkazk.Handler, p string) (BrokerOverrides, error)
 		c := &ThrottleOverrideConfig{}
 		brokerZnode := fmt.Sprintf("%s/%d", p, id)
 
-		override, err := zk.Get(brokerZnode)
+		override, _, err := zk.Get(brokerZnode)
 		if err != nil {
 			return overrides, fmt.Errorf("error getting throttle override: %s", err)
 		}

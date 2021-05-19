@@ -47,7 +47,7 @@ type Handler interface {
 	Create(string, string) error
 	CreateSequential(string, string) error
 	Set(string, string) error
-	Get(string) ([]byte, error)
+	Get(string) ([]byte, *zkclient.Stat, error)
 	Delete(string) error
 	Children(string) ([]string, error)
 	NextInt(string) (int32, error)
@@ -192,19 +192,19 @@ func (z *ZKHandler) Close() {
 }
 
 // Get returns the data from path p.
-func (z *ZKHandler) Get(p string) ([]byte, error) {
-	r, _, e := z.client.Get(p)
+func (z *ZKHandler) Get(p string) ([]byte, *zkclient.Stat, error) {
+	r, s, e := z.client.Get(p)
 
 	if e != nil {
 		switch e {
 		case zkclient.ErrNoNode:
-			return nil, ErrNoNode{s: fmt.Sprintf("[%s] %s", p, e.Error())}
+			return nil, nil, ErrNoNode{s: fmt.Sprintf("[%s] %s", p, e.Error())}
 		default:
-			return nil, fmt.Errorf("[%s] %s", p, e.Error())
+			return nil, nil, fmt.Errorf("[%s] %s", p, e.Error())
 		}
 	}
 
-	return r, nil
+	return r, s, nil
 }
 
 // Set sets the data at path p.
@@ -316,7 +316,7 @@ func (z *ZKHandler) GetReassignments() Reassignments {
 	}
 
 	// Get reassignment config.
-	data, err := z.Get(path)
+	data, _, err := z.Get(path)
 	if err != nil {
 		return reassigns
 	}
@@ -409,7 +409,7 @@ func (z *ZKHandler) GetTopicConfig(t string) (*TopicConfig, error) {
 	}
 
 	// Get topic config.
-	data, err := z.Get(path)
+	data, _, err := z.Get(path)
 	if err != nil {
 		return nil, err
 	}
@@ -452,7 +452,7 @@ func (z *ZKHandler) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, []error) 
 
 		// Fetch & unmarshal the data for each broker.
 		bpath := fmt.Sprintf("%s/%s", path, b)
-		data, err := z.Get(bpath)
+		data, _, err := z.Get(bpath)
 		// XXX do something else.
 		if err != nil {
 			continue
@@ -501,7 +501,7 @@ func (z *ZKHandler) getBrokerMetrics() (BrokerMetricsMap, error) {
 	}
 
 	// Fetch the metrics object.
-	data, err := z.Get(path)
+	data, _, err := z.Get(path)
 	if err != nil {
 		return nil, fmt.Errorf("Error fetching broker metrics: %s", err.Error())
 	}
@@ -530,7 +530,7 @@ func (z *ZKHandler) GetAllPartitionMeta() (PartitionMetaMap, error) {
 	}
 
 	// Fetch the metrics object.
-	data, err := z.Get(path)
+	data, _, err := z.Get(path)
 	if err != nil {
 		return nil, fmt.Errorf("Error fetching partition meta: %s", err.Error())
 	}
@@ -616,7 +616,7 @@ func (z *ZKHandler) GetTopicState(t string) (*TopicState, error) {
 
 	// Fetch topic data from z.
 	ts := &TopicState{}
-	data, err := z.Get(path)
+	data, _, err := z.Get(path)
 	if err != nil {
 		return nil, err
 	}
@@ -694,7 +694,7 @@ func (z *ZKHandler) GetTopicStateISR(t string) (TopicStateISR, error) {
 	// Get partition data.
 	for _, p := range partitions {
 		ppath := fmt.Sprintf("%s/%s/state", path, p)
-		data, err := z.Get(ppath)
+		data, _, err := z.Get(ppath)
 		if err != nil {
 			return nil, err
 		}
@@ -786,7 +786,7 @@ func (z *ZKHandler) UpdateKafkaConfig(c KafkaConfig) ([]bool, error) {
 
 	var config KafkaConfigData
 
-	data, err := z.Get(path)
+	data, _, err := z.Get(path)
 	if err != nil {
 		// The path may be missing if the broker/topic has never had a
 		// configuration applied. This has only been observed for newly added

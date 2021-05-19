@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	zkclient "github.com/go-zookeeper/zk"
 )
 
 var (
@@ -67,7 +69,7 @@ func (zk *Stub) CreateSequential(a, b string) error {
 
 // Exists stubs Exists.
 func (zk *Stub) Exists(p string) (bool, error) {
-	_, err := zk.Get(p)
+	_, _, err := zk.Get(p)
 	if err == errNotExist {
 		return false, nil
 	}
@@ -104,24 +106,24 @@ func (zk *Stub) Set(p, d string) error {
 }
 
 // Get stubs Get.
-func (zk *Stub) Get(p string) ([]byte, error) {
+func (zk *Stub) Get(p string) ([]byte, *zkclient.Stat, error) {
 	pathTrimmed := strings.Trim(p, "/")
 	paths := strings.Split(pathTrimmed, "/")
 	var current *StubZnode
 
 	if current = zk.data[paths[0]]; current == nil {
-		return nil, errNotExist
+		return nil, nil, errNotExist
 	}
 
 	for _, path := range paths[1:] {
 		next := current.children[path]
 		if next == nil {
-			return nil, errNotExist
+			return nil, nil, errNotExist
 		}
 		current = next
 	}
 
-	return current.value, nil
+	return current.value, nil, nil
 }
 
 // Delete stubs Delete.

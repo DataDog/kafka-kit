@@ -96,7 +96,7 @@ func (t *ZKTagStorage) SetTags(o KafkaObject, ts TagSet) error {
 	znode := fmt.Sprintf("/%s/%s/%s", t.Prefix, o.Type, o.ID)
 
 	// Fetch current tags.
-	data, err := t.ZK.Get(znode)
+	data, _, err := t.ZK.Get(znode)
 	if err != nil {
 		switch err.(type) {
 		// The znode doesn't exist; create it.
@@ -143,7 +143,7 @@ func (t *ZKTagStorage) GetTags(o KafkaObject) (TagSet, error) {
 	znode := fmt.Sprintf("/%s/%s/%s", t.Prefix, o.Type, o.ID)
 
 	// Fetch tags.
-	data, err := t.ZK.Get(znode)
+	data, _, err := t.ZK.Get(znode)
 	if err != nil {
 		switch err.(type) {
 		// The object doesn't exist.
@@ -236,7 +236,7 @@ func (t *ZKTagStorage) DeleteTags(o KafkaObject, keysToDelete []string) error {
 	znode := fmt.Sprintf("/%s/%s/%s", t.Prefix, o.Type, o.ID)
 
 	// Fetch tags.
-	data, err := t.ZK.Get(znode)
+	data, _, err := t.ZK.Get(znode)
 	if err != nil {
 		switch err.(type) {
 		// The object doesn't exist.

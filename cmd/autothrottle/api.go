@@ -52,7 +52,7 @@ func initAPI(c *APIConfig, zk kafkazk.Handler) {
 	// If it is, update it to the json format.
 	// TODO(jamie): we can probably remove this by now.
 	if exists {
-		r, _ := zk.Get(overrideRateZnodePath)
+		r, _, _ := zk.Get(overrideRateZnodePath)
 		if rate, err := strconv.Atoi(string(r)); err == nil {
 			// Populate the updated config.
 			err := storeThrottleOverride(zk, overrideRateZnodePath, ThrottleOverrideConfig{Rate: rate})
