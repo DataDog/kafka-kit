@@ -12,4 +12,4 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: gofmt
-      run: [ $(gofmt -l bla.go 2>&1 | wc -c) = "0" ]
+      run: $([ $(find . -name "*.go" | xargs gofmt -l 2>&1 | wc -c) = "0" ])
