@@ -1,4 +1,4 @@
-[![run tests](https://github.com/DataDog/kafka-kit/actions/workflows/test.yaml/badge.svg)](https://github.com/DataDog/kafka-kit/actions/workflows/test.yaml)
+[![testing](https://github.com/DataDog/kafka-kit/actions/workflows/testing.yaml/badge.svg)](https://github.com/DataDog/kafka-kit/actions/workflows/testing.yaml)
 
 # Kafka topic management tools
 
