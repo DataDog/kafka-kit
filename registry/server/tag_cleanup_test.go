@@ -95,7 +95,7 @@ func TestUnmarkedTagsAreSafe(t *testing.T) {
 func TestKafkaObjectComesBack(t *testing.T) {
 	// GIVEN
 	bt := TagSet{"foo": "bar", TagMarkTimeKey: "12345"} // pretend this broker was marked for tag deletion previously
-	broker := KafkaObject{Type: "broker", ID: "1002"} // but this broker now exists in our stub, so the marker will be removed.
+	broker := KafkaObject{Type: "broker", ID: "1002"}   // but this broker now exists in our stub, so the marker will be removed.
 
 	tt := TagSet{"bing": "baz", TagMarkTimeKey: "12345"} // same for a topic.
 	topic := KafkaObject{Type: "topic", ID: "test_topic"}

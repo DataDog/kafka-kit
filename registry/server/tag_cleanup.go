@@ -37,7 +37,7 @@ func (tc *TagCleaner) RunTagCleanup(s *Server, ctx context.Context, c Config) {
 }
 
 // MarkForDeletion marks stored tags that have been stranded without an associated kafka resource.
-func(s *Server) MarkForDeletion(now func() time.Time) error {
+func (s *Server) MarkForDeletion(now func() time.Time) error {
 	markTimeMinutes := fmt.Sprint(now().Unix())
 
 	// Get all brokers from ZK.
@@ -88,7 +88,7 @@ func(s *Server) MarkForDeletion(now func() time.Time) error {
 }
 
 // DeleteStaleTags deletes any tags that have not had a kafka resource associated with them.
-func(s *Server) DeleteStaleTags(now func() time.Time, c Config) {
+func (s *Server) DeleteStaleTags(now func() time.Time, c Config) {
 	sweepTime := now().Unix()
 	allTags, _ := s.Tags.Store.GetAllTags()
 
@@ -103,7 +103,7 @@ func(s *Server) DeleteStaleTags(now func() time.Time, c Config) {
 			log.Printf("Found non timestamp tag %s in stale tag marker\n", markTag)
 		}
 
-		if sweepTime - int64(markTime) > int64(c.TagAllowedStalenessMinutes * 60) {
+		if sweepTime-int64(markTime) > int64(c.TagAllowedStalenessMinutes*60) {
 			keys := make([]string, len(tags))
 			i := 0
 			for k := range tags {

@@ -46,11 +46,11 @@ type Server struct {
 
 // Config holds Server configurations.
 type Config struct {
-	HTTPListen   string
-	GRPCListen   string
-	ReadReqRate  int
-	WriteReqRate int
-	ZKTagsPrefix string
+	HTTPListen                 string
+	GRPCListen                 string
+	ReadReqRate                int
+	WriteReqRate               int
+	ZKTagsPrefix               string
 	TagCleanupFrequencyMinutes int
 	TagAllowedStalenessMinutes int
 

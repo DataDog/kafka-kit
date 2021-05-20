@@ -210,7 +210,7 @@ func TestGetAllTags(t *testing.T) {
 	for k := range testTagSets {
 		obj := testObjects[k]
 		expectedTags := expected[k]
-		if reflect.DeepEqual(tags[obj],expectedTags) {
+		if reflect.DeepEqual(tags[obj], expectedTags) {
 			t.Errorf("[test %d] Expected TagSet '%v', got '%v'",
 				k, expected[k], tags)
 		}
