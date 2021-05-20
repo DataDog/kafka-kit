@@ -1,5 +1,3 @@
-name: run tests
-
 on:
   push:
     branches: [master]
@@ -7,9 +5,9 @@ on:
     branches: [master]
 
 jobs:
-  test:
+  gofmt:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: run tests
-      run: docker-compose run --rm --name registry_test registry go test -v --tags=integration ./...
+    - name: gofmt
+      run: $([ $(find . -name "*.go" | xargs gofmt -l 2>&1 | wc -c) = "0" ])
