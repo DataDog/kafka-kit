@@ -16,3 +16,6 @@ integration-test: build-container
 
 clean:
 	docker-compose down
+
+generate-code:
+	bin/generate-code

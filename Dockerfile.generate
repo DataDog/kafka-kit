@@ -1,0 +1,35 @@
+from ubuntu:16.04
+
+ENV GO111MODULE=on
+
+# Install pre-reqs.
+RUN apt-get update >/dev/null
+RUN apt-get install -y unzip curl git pkg-config software-properties-common apt-transport-https ca-certificates >/dev/null
+
+WORKDIR /root
+
+# Install Go.
+RUN curl -sOL https://golang.org/dl/go1.15.3.linux-amd64.tar.gz
+RUN tar -C /usr/local -xzf go1.15.3.linux-amd64.tar.gz
+ENV PATH=$PATH:/usr/local/go/bin:/go/bin
+ENV GOPATH=/go
+
+# Init repo.
+WORKDIR /go/src/github.com/DataDog/kafka-kit
+COPY go.mod go.mod
+RUN go mod download
+
+# Install protoc, grpc-gateway.
+RUN go get github.com/golang/protobuf/protoc-gen-go
+RUN go install github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
+RUN curl -sOL https://github.com/protocolbuffers/protobuf/releases/download/v3.13.0/protoc-3.13.0-linux-x86_64.zip
+RUN unzip protoc-3.13.0-linux-x86_64.zip -d protoc
+RUN mv protoc/bin/* /usr/local/bin/
+RUN mv protoc/include/* /usr/local/include/
+RUN rm -rf protoc*
+
+# Copy src.
+COPY registry registry
+
+# Build.
+RUN protoc -I registry -I $GOPATH/pkg/mod/$(awk '/grpc-gateway/ {printf "%s@%s", $1, $2}' go.mod)/third_party/googleapis protos/registry.proto --go_out=plugins=grpc:$GOPATH/src --grpc-gateway_out=logtostderr=true:$GOPATH/src
