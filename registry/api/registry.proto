@@ -107,6 +107,15 @@ service Registry {
     };
   }
 
+  // Reassignment returns a ReassignmentResponse with the topics field
+  // populated with a topic to partition to array of replicas map and the
+  // created_at field populated with the creation time of the reassignment.
+  rpc Reassignment (Empty) returns (ReassignmentResponse) {
+    option (google.api.http) = {
+      get: "/v1/reassignment"
+    };
+  }
+
   // UnderReplicatedTopics returns a TopicResponse with the names field populated
   // with topic names of all under replicated topics.
   rpc UnderReplicatedTopics (Empty) returns (TopicResponse) {
@@ -186,6 +195,21 @@ service Registry {
 
 message TagResponse {
   string message = 1;
+}
+
+message ReassignmentResponse {
+  repeated TopicReassignment topics = 1;
+  int64 created_at = 2;
+}
+
+message TopicReassignment {
+  string name = 1;
+  repeated PartitionReassignment partitions = 2;
+}
+
+message PartitionReassignment {
+  uint32 partition_index = 1;
+  repeated uint32 replicas = 2;
 }
 
 /**********

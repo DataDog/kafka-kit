@@ -71,6 +71,10 @@ type RegistryClient interface {
 	// ReassigningTopics returns a TopicResponse with the names field populated
 	// with topic names of all topics undergoing a reassignment.
 	ReassigningTopics(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*TopicResponse, error)
+	// Reassignment returns a ReassignmentResponse with the topics field
+	// populated with a topic to partition to array of replicas map and the
+	// created_at field populated with the creation time of the reassignment.
+	Reassignment(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ReassignmentResponse, error)
 	// UnderReplicatedTopics returns a TopicResponse with the names field populated
 	// with topic names of all under replicated topics.
 	UnderReplicatedTopics(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*TopicResponse, error)
@@ -183,6 +187,15 @@ func (c *registryClient) DeleteTopic(ctx context.Context, in *TopicRequest, opts
 func (c *registryClient) ReassigningTopics(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*TopicResponse, error) {
 	out := new(TopicResponse)
 	err := c.cc.Invoke(ctx, "/api.Registry/ReassigningTopics", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *registryClient) Reassignment(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ReassignmentResponse, error) {
+	out := new(ReassignmentResponse)
+	err := c.cc.Invoke(ctx, "/api.Registry/Reassignment", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -319,6 +332,10 @@ type RegistryServer interface {
 	// ReassigningTopics returns a TopicResponse with the names field populated
 	// with topic names of all topics undergoing a reassignment.
 	ReassigningTopics(context.Context, *Empty) (*TopicResponse, error)
+	// Reassignment returns a ReassignmentResponse with the topics field
+	// populated with a topic to partition to array of replicas map and the
+	// created_at field populated with the creation time of the reassignment.
+	Reassignment(context.Context, *Empty) (*ReassignmentResponse, error)
 	// UnderReplicatedTopics returns a TopicResponse with the names field populated
 	// with topic names of all under replicated topics.
 	UnderReplicatedTopics(context.Context, *Empty) (*TopicResponse, error)
@@ -385,6 +402,9 @@ func (UnimplementedRegistryServer) DeleteTopic(context.Context, *TopicRequest) (
 }
 func (UnimplementedRegistryServer) ReassigningTopics(context.Context, *Empty) (*TopicResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReassigningTopics not implemented")
+}
+func (UnimplementedRegistryServer) Reassignment(context.Context, *Empty) (*ReassignmentResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Reassignment not implemented")
 }
 func (UnimplementedRegistryServer) UnderReplicatedTopics(context.Context, *Empty) (*TopicResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UnderReplicatedTopics not implemented")
@@ -563,6 +583,24 @@ func _Registry_ReassigningTopics_Handler(srv interface{}, ctx context.Context, d
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RegistryServer).ReassigningTopics(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Registry_Reassignment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RegistryServer).Reassignment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/api.Registry/Reassignment",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RegistryServer).Reassignment(ctx, req.(*Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -746,6 +784,10 @@ var _Registry_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ReassigningTopics",
 			Handler:    _Registry_ReassigningTopics_Handler,
+		},
+		{
+			MethodName: "Reassignment",
+			Handler:    _Registry_Reassignment_Handler,
 		},
 		{
 			MethodName: "UnderReplicatedTopics",
