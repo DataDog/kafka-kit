@@ -19,7 +19,8 @@ type FactoryFunc func(conf *kafka.ConfigMap) (*kafka.AdminClient, error)
 
 // Client implements a KafkaAdmin.
 type Client struct {
-	c *kafka.AdminClient
+	c      *kafka.AdminClient
+	Prefix string
 }
 
 // Config holds Client configuration parameters.

@@ -2,6 +2,7 @@ package kafkaadmin
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
@@ -44,4 +45,33 @@ func (c Client) CreateTopic(ctx context.Context, cfg CreateTopicConfig) error {
 func (c Client) DeleteTopic(ctx context.Context, name string) error {
 	_, err := c.c.DeleteTopics(ctx, []string{name})
 	return err
+}
+
+/*Get all topics, query kafka directrly rather than zk
+in: none
+
+out: []string of all topic names
+	 error
+*/
+func (c Client) GetTopics() ([]string, error) {
+	var path string
+	const TIMEOUT = 10000
+
+	if c.Prefix != "" {
+		path = fmt.Sprintf("/%s/brokers/topics", c.Prefix)
+	} else {
+		path = "/brokers/topics"
+	}
+
+	ret, er := c.c.GetMetadata(&path, true, TIMEOUT)
+	if er != nil {
+		return nil, er
+	}
+
+	topicsList := []string{}
+	for item := range ret.Topics {
+		topicsList = append(topicsList, item)
+	}
+
+	return topicsList, nil
 }
