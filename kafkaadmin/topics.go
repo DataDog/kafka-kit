@@ -3,6 +3,7 @@ package kafkaadmin
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
@@ -74,4 +75,50 @@ func (c Client) GetTopics() ([]string, error) {
 	}
 
 	return topicsList, nil
+}
+
+//TopicState struct
+type TopicState struct {
+	Partitions map[string][]int32 `json:"partitions"`
+}
+
+/* GetTopicState, query kafka directly rather than zk
+in: (t string) -  a topic name
+
+out:
+	*TopicStateF - return Partitions map
+	 error
+*/
+func (c Client) GetTopicState(t string) (*TopicState, error) {
+	var path string //
+	const TIMEOUT = 10000
+
+	if c.Prefix != "" {
+		path = fmt.Sprintf("/%s/brokers/topics/%s", c.Prefix, t)
+	} else {
+		path = fmt.Sprintf("/brokers/topics/%s", t)
+	}
+
+	ret, er := c.c.GetMetadata(&path, true, TIMEOUT)
+	if er != nil {
+		return nil, er
+	}
+
+	if ret.Topics[t].Topic != "" {
+
+		topics := ret.Topics[t]
+		temp := make(map[string][]int32)
+
+		for _, item := range topics.Partitions {
+			id := strconv.Itoa(int(item.ID))
+			temp[id] = item.Replicas
+		}
+		tsf := &TopicState{Partitions: temp}
+
+		return tsf, nil
+	}
+
+	err := fmt.Errorf("Topic %s No Found in: "+path, t)
+
+	return nil, err
 }

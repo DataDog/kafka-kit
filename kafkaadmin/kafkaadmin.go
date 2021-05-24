@@ -13,6 +13,7 @@ type KafkaAdmin interface {
 	CreateTopic(context.Context, CreateTopicConfig) error
 	DeleteTopic(context.Context, string) error
 	GetTopics() ([]string, error)
+	GetTopicState(string) (*TopicState, error)
 }
 
 // NewClient returns a KafkaAdmin.
