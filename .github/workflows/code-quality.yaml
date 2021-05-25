@@ -2,7 +2,7 @@ name: code quality
 
 on:
   push:
-    branches: [master]
+    branches: [master, jamie/gh-actions]
   pull_request:
     branches: [master]
 
@@ -15,3 +15,9 @@ jobs:
       run: |
         changes=$(find . -name "*.go" | xargs gofmt -l 2>&1)
         if [[ -n ${changes} ]]; then echo "Improperly formatted files:"; echo ${changes}; exit 1; fi
+  vet:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: vet
+      run: go vet ./...
