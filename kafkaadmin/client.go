@@ -32,6 +32,7 @@ type Config struct {
 	SASLMechanism    string
 	SASLUsername     string
 	SASLPassword     string
+	Prefix           string
 }
 
 // Close closes the Client.

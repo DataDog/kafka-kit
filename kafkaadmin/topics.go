@@ -79,7 +79,7 @@ func (c Client) GetTopics() ([]string, error) {
 
 //TopicState struct
 type TopicState struct {
-	Partitions map[string][]int32 `json:"partitions"`
+	Partitions map[string][]int `json:"partitions"`
 }
 
 /* GetTopicState, query kafka directly rather than zk
@@ -105,14 +105,18 @@ func (c Client) GetTopicState(t string) (*TopicState, error) {
 	}
 
 	if ret.Topics[t].Topic != "" {
-
 		topics := ret.Topics[t]
-		temp := make(map[string][]int32)
+		temp := make(map[string][]int)
 
 		for _, item := range topics.Partitions {
+			var partition []int
+			for _, ite := range item.Replicas {
+				partition = append(partition, int(ite))
+			}
 			id := strconv.Itoa(int(item.ID))
-			temp[id] = item.Replicas
+			temp[id] = partition
 		}
+
 		tsf := &TopicState{Partitions: temp}
 
 		return tsf, nil
