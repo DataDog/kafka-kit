@@ -67,9 +67,10 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - "ssl-store:/etc/kafka/config"
   registry:
+    command: "/go/bin/registry"
     build:
       context: .
-      dockerfile: Dockerfile.registry
+      dockerfile: Dockerfile
     ports:
       - "8080:8080"
       - "8090:8090"
