@@ -43,8 +43,3 @@ COPY registry registry
 # Build.
 RUN protoc -I registry -I $GOPATH/pkg/mod/$(awk '/grpc-gateway/ {printf "%s@%s", $1, $2}' go.mod)/third_party/googleapis protos/registry.proto --go_out=plugins=grpc:$GOPATH/src --grpc-gateway_out=logtostderr=true:$GOPATH/src
 RUN go install ./cmd/registry
-
-# Runtime.
-EXPOSE 8090/tcp
-EXPOSE 8080/tcp
-CMD ["/go/bin/registry"]
