@@ -12,7 +12,10 @@ func TestRequestThrottle(t *testing.T) {
 		Rate:     2,
 	})
 
-	ctx, _ := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	// Capture and discard to avoid vet warns.
+	_ = cancel
+
 	expected := []error{nil, nil, nil, ErrRequestThrottleTimeout}
 
 	// Should time out by the 3rd request.
@@ -25,7 +28,9 @@ func TestRequestThrottle(t *testing.T) {
 
 	// 3rd, 4th request will be rate limited, but should
 	// complete before the context expires.
-	ctx, _ = context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel = context.WithTimeout(context.Background(), 2*time.Second)
+	_ = cancel
+
 	expected = []error{nil, nil, nil, nil}
 	for i := 0; i < 4; i++ {
 		err := rt.Request(ctx)

@@ -37,9 +37,13 @@ type TopicSet map[string]*pb.Topic
 // topics found in ZooKeeper are matched. Matched topics are then filtered
 // by all tags specified, if specified, in the *pb.TopicRequest tag field.
 func (s *Server) GetTopics(ctx context.Context, req *pb.TopicRequest) (*pb.TopicResponse, error) {
-	ctx, err := s.ValidateRequest(ctx, req, readRequest)
+	ctx, cancel, err := s.ValidateRequest(ctx, req, readRequest)
 	if err != nil {
 		return nil, err
+	}
+
+	if cancel != nil {
+		defer cancel()
 	}
 
 	// Get topics.
@@ -59,9 +63,13 @@ func (s *Server) GetTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topic
 // topics found in ZooKeeper are matched. Matched topics are then filtered
 // by all tags specified, if specified, in the *pb.TopicRequest tag field.
 func (s *Server) ListTopics(ctx context.Context, req *pb.TopicRequest) (*pb.TopicResponse, error) {
-	ctx, err := s.ValidateRequest(ctx, req, readRequest)
+	ctx, cancel, err := s.ValidateRequest(ctx, req, readRequest)
 	if err != nil {
 		return nil, err
+	}
+
+	if cancel != nil {
+		defer cancel()
 	}
 
 	// Get topics.
@@ -79,9 +87,13 @@ func (s *Server) ListTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topi
 // ReassigningTopics returns a *pb.TopicResponse holding the names of all
 // topics currently undergoing reassignment.
 func (s *Server) ReassigningTopics(ctx context.Context, _ *pb.Empty) (*pb.TopicResponse, error) {
-	ctx, err := s.ValidateRequest(ctx, nil, readRequest)
+	ctx, cancel, err := s.ValidateRequest(ctx, nil, readRequest)
 	if err != nil {
 		return nil, err
+	}
+
+	if cancel != nil {
+		defer cancel()
 	}
 
 	reassigning := s.ZK.GetReassignments()
@@ -97,9 +109,13 @@ func (s *Server) ReassigningTopics(ctx context.Context, _ *pb.Empty) (*pb.TopicR
 // UnderReplicatedTopics returns a *pb.TopicResponse holding the names of all
 // under replicated topics.
 func (s *Server) UnderReplicatedTopics(ctx context.Context, _ *pb.Empty) (*pb.TopicResponse, error) {
-	ctx, err := s.ValidateRequest(ctx, nil, readRequest)
+	ctx, cancel, err := s.ValidateRequest(ctx, nil, readRequest)
 	if err != nil {
 		return nil, err
+	}
+
+	if cancel != nil {
+		defer cancel()
 	}
 
 	reassigning, err := s.ZK.GetUnderReplicated()
@@ -116,9 +132,13 @@ func (s *Server) UnderReplicatedTopics(ctx context.Context, _ *pb.Empty) (*pb.To
 func (s *Server) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*pb.Empty, error) {
 	empty := &pb.Empty{}
 
-	ctx, err := s.ValidateRequest(ctx, req, writeRequest)
+	ctx, cancel, err := s.ValidateRequest(ctx, req, writeRequest)
 	if err != nil {
 		return empty, err
+	}
+
+	if cancel != nil {
+		defer cancel()
 	}
 
 	if req.Topic == nil {
@@ -231,9 +251,13 @@ func (s *Server) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*
 func (s *Server) DeleteTopic(ctx context.Context, req *pb.TopicRequest) (*pb.Empty, error) {
 	empty := &pb.Empty{}
 
-	ctx, err := s.ValidateRequest(ctx, req, writeRequest)
+	ctx, cancel, err := s.ValidateRequest(ctx, req, writeRequest)
 	if err != nil {
 		return empty, err
+	}
+
+	if cancel != nil {
+		defer cancel()
 	}
 
 	if req.Name == "" {
@@ -259,9 +283,13 @@ func (s *Server) DeleteTopic(ctx context.Context, req *pb.TopicRequest) (*pb.Emp
 // the requested topic. The topic is specified in the TopicRequest.Name
 // field.
 func (s *Server) TopicMappings(ctx context.Context, req *pb.TopicRequest) (*pb.BrokerResponse, error) {
-	ctx, err := s.ValidateRequest(ctx, req, readRequest)
+	ctx, cancel, err := s.ValidateRequest(ctx, req, readRequest)
 	if err != nil {
 		return nil, err
+	}
+
+	if cancel != nil {
+		defer cancel()
 	}
 
 	if req.Name == "" {
@@ -302,9 +330,13 @@ func (s *Server) TopicMappings(ctx context.Context, req *pb.TopicRequest) (*pb.B
 // TagTopic sets custom tags for the specified topic. Any previously existing
 // tags that were not specified in the request remain unmodified.
 func (s *Server) TagTopic(ctx context.Context, req *pb.TopicRequest) (*pb.TagResponse, error) {
-	ctx, err := s.ValidateRequest(ctx, req, writeRequest)
+	ctx, cancel, err := s.ValidateRequest(ctx, req, writeRequest)
 	if err != nil {
 		return nil, err
+	}
+
+	if cancel != nil {
+		defer cancel()
 	}
 
 	if req.Name == "" {
@@ -347,9 +379,13 @@ func (s *Server) TagTopic(ctx context.Context, req *pb.TopicRequest) (*pb.TagRes
 
 // DeleteTopicTag deletes custom tags for the specified topic.
 func (s *Server) DeleteTopicTags(ctx context.Context, req *pb.TopicRequest) (*pb.TagResponse, error) {
-	ctx, err := s.ValidateRequest(ctx, req, writeRequest)
+	ctx, cancel, err := s.ValidateRequest(ctx, req, writeRequest)
 	if err != nil {
 		return nil, err
+	}
+
+	if cancel != nil {
+		defer cancel()
 	}
 
 	if req.Name == "" {
