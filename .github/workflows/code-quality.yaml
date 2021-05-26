@@ -12,4 +12,12 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: gofmt
-      run: $([ $(find . -name "*.go" | xargs gofmt -l 2>&1 | wc -c) = "0" ])
+      run: |
+        changes=$(find . -name "*.go" | xargs gofmt -l 2>&1)
+        if [[ -n ${changes} ]]; then echo "Improperly formatted files:"; echo ${changes}; exit 1; fi
+  vet:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: vet
+      run: go vet ./...
