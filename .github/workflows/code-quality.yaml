@@ -2,7 +2,7 @@ name: code quality
 
 on:
   push:
-    branches: [master, jamie/gh-actions]
+    branches: [master]
   pull_request:
     branches: [master]
 
