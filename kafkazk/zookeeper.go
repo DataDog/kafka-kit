@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"time"
 
-	zkclient "github.com/samuel/go-zookeeper/zk"
+	zkclient "github.com/go-zookeeper/zk"
 )
 
 var (
@@ -175,7 +175,7 @@ func NewHandler(c *Config) (Handler, error) {
 
 // Ready returns true if the client is in either state
 // StateConnected or StateHasSession.
-// See https://godoc.org/github.com/samuel/go-zookeeper/zk#State.
+// See https://godoc.org/github.com/go-zookeeper/zk#State.
 func (z *ZKHandler) Ready() bool {
 	switch z.client.State() {
 	case 100, 101:

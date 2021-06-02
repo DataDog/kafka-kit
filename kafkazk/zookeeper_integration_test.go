@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	zkclient "github.com/samuel/go-zookeeper/zk"
+	zkclient "github.com/go-zookeeper/zk"
 )
 
 var (
