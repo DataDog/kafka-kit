@@ -15,9 +15,9 @@ import (
 
 	"github.com/DataDog/kafka-kit/v3/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
-	pb "github.com/DataDog/kafka-kit/v3/registry/protos"
+	pb "github.com/DataDog/kafka-kit/v3/registry/api"
 
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
@@ -30,6 +30,7 @@ const (
 
 // Server implements the registry APIs.
 type Server struct {
+	pb.UnimplementedRegistryServer
 	HTTPListen       string
 	GRPCListen       string
 	ZK               kafkazk.Handler
