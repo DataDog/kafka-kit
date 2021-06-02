@@ -1,10 +1,9 @@
-from ubuntu:16.04
-
-ENV GO111MODULE=on
+from ubuntu:21.04
 
 # Install pre-reqs.
-RUN apt-get update >/dev/null
-RUN apt-get install -y unzip curl git pkg-config software-properties-common apt-transport-https ca-certificates >/dev/null
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt update >/dev/null
+RUN apt install -y build-essential unzip curl git pkg-config software-properties-common apt-transport-https ca-certificates >/dev/null
 
 WORKDIR /root
 
@@ -27,6 +26,8 @@ RUN go mod download
 # Install protoc, grpc-gateway.
 RUN go get github.com/golang/protobuf/protoc-gen-go
 RUN go install github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
+#RUN curl -sOL https://github.com/protocolbuffers/protobuf/releases/download/v3.17.1/protoc-3.17.1-linux-x86_64.zip
+#RUN unzip protoc-3.17.1-linux-x86_64.zip -d protoc
 RUN curl -sOL https://github.com/protocolbuffers/protobuf/releases/download/v3.13.0/protoc-3.13.0-linux-x86_64.zip
 RUN unzip protoc-3.13.0-linux-x86_64.zip -d protoc
 RUN mv protoc/bin/* /usr/local/bin/
