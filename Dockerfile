@@ -14,8 +14,8 @@ ENV PATH=$PATH:/usr/local/go/bin:/go/bin
 ENV GOPATH=/go
 
 # Install librdkafka
-RUN curl -sL https://packages.confluent.io/deb/5.3/archive.key | apt-key add - 2>/dev/null
-RUN add-apt-repository "deb [arch=amd64] https://packages.confluent.io/deb/5.3 stable main"
+RUN curl -sL https://packages.confluent.io/deb/6.1/archive.key | apt-key add - 2>/dev/null
+RUN add-apt-repository "deb [arch=amd64] https://packages.confluent.io/deb/6.1 stable main"
 RUN apt-get update && apt-get install -y librdkafka1 librdkafka-dev >/dev/null
 
 # Init repo.
