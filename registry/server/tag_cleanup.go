@@ -21,7 +21,7 @@ func (tc *TagCleaner) RunTagCleanup(s *Server, ctx context.Context, c Config) {
 	tc.running = true
 
 	// Interval timer.
-	t := time.NewTicker(time.Duration(c.TagCleanupFrequencyMinutes) * time.Second)
+	t := time.NewTicker(time.Duration(c.TagCleanupFrequencyMinutes) * time.Minute)
 	defer t.Stop()
 
 	for tc.running {
