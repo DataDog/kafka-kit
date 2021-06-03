@@ -4,7 +4,7 @@ import (
 	"sort"
 	"testing"
 
-	pb "github.com/DataDog/kafka-kit/v3/registry/protos"
+	pb "github.com/DataDog/kafka-kit/v3/registry/api"
 )
 
 func TestTagSetFromObject(t *testing.T) {

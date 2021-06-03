@@ -4,9 +4,10 @@ the `make generate-code` command.
 */
 
 syntax = "proto3";
+option go_package = "github.com/DataDog/kafka-kit/registry/api";
+package api;
+
 import "google/api/annotations.proto";
-option go_package = "github.com/DataDog/kafka-kit/registry/protos";
-package registry;
 
 service Registry {
   // GetBrokers returns a BrokerResponse with the brokers field populated
