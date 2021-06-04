@@ -41,9 +41,9 @@ func TestMatchAll(t *testing.T) {
 	}
 
 	tSets := map[int]TagSet{
-		1: TagSet{"k1": "v1"},
-		2: TagSet{"k1": "v1", "k2": "v2"},
-		3: TagSet{"k1": "v1", "k2": "v2", "unrelated": "v3"},
+		1: {"k1": "v1"},
+		2: {"k1": "v1", "k2": "v2"},
+		3: {"k1": "v1", "k2": "v2", "unrelated": "v3"},
 	}
 
 	tests := map[int]bool{
@@ -62,17 +62,17 @@ func TestMatchAll(t *testing.T) {
 
 func TestEqual(t *testing.T) {
 	tests := map[int][2]TagSet{
-		0: [2]TagSet{
-			TagSet{},
-			TagSet{},
+		0: {
+			{},
+			{},
 		},
-		1: [2]TagSet{
-			TagSet{"key": "value"},
-			TagSet{"key": "value"},
+		1: {
+			{"key": "value"},
+			{"key": "value"},
 		},
-		2: [2]TagSet{
-			TagSet{"key": "value"},
-			TagSet{"key": "value", "key2": "value2"},
+		2: {
+			{"key": "value"},
+			{"key": "value", "key2": "value2"},
 		},
 	}
 
@@ -212,15 +212,15 @@ func TestFilterTopics(t *testing.T) {
 	}
 
 	expected := map[int][]string{
-		0: []string{"test_topic1", "test_topic2", "test_topic3"},
-		1: []string{"test_topic1", "test_topic2"},
-		2: []string{"test_topic2"},
+		0: {"test_topic1", "test_topic2", "test_topic3"},
+		1: {"test_topic1", "test_topic2"},
+		2: {"test_topic2"},
 	}
 
 	tests := []Tags{
-		Tags{},
-		Tags{"partitions:32"},
-		Tags{"partitions:32", "replication:2"},
+		{},
+		{"partitions:32"},
+		{"partitions:32", "replication:2"},
 	}
 
 	for i, tags := range tests {
@@ -254,15 +254,15 @@ func TestFilterBrokers(t *testing.T) {
 	}
 
 	expected := map[int][]uint32{
-		0: []uint32{1001, 1002, 1003},
-		1: []uint32{1001, 1003},
-		2: []uint32{1003},
+		0: {1001, 1002, 1003},
+		1: {1001, 1003},
+		2: {1003},
 	}
 
 	tests := []Tags{
-		Tags{},
-		Tags{"rack:rack1"},
-		Tags{"rack:rack1", "id:1003"},
+		{},
+		{"rack:rack1"},
+		{"rack:rack1", "id:1003"},
 	}
 
 	for i, tags := range tests {
@@ -281,24 +281,24 @@ func TestReservedFields(t *testing.T) {
 	rs := GetReservedFields()
 
 	topicExpected := map[string]struct{}{
-		"tags":        struct{}{},
-		"name":        struct{}{},
-		"partitions":  struct{}{},
-		"replication": struct{}{},
-		"configs":     struct{}{},
+		"tags":        {},
+		"name":        {},
+		"partitions":  {},
+		"replication": {},
+		"configs":     {},
 	}
 
 	brokerExpected := map[string]struct{}{
-		"id":                          struct{}{},
-		"rack":                        struct{}{},
-		"jmxport":                     struct{}{},
-		"timestamp":                   struct{}{},
-		"tags":                        struct{}{},
-		"listenersecurityprotocolmap": struct{}{},
-		"endpoints":                   struct{}{},
-		"host":                        struct{}{},
-		"port":                        struct{}{},
-		"version":                     struct{}{},
+		"id":                          {},
+		"rack":                        {},
+		"jmxport":                     {},
+		"timestamp":                   {},
+		"tags":                        {},
+		"listenersecurityprotocolmap": {},
+		"endpoints":                   {},
+		"host":                        {},
+		"port":                        {},
+		"version":                     {},
 	}
 
 	for i, expected := range []map[string]struct{}{topicExpected, brokerExpected} {

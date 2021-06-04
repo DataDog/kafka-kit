@@ -10,7 +10,7 @@ import (
 func TestMergeBrokerLists(t *testing.T) {
 	var dst = []*kafkametrics.Broker{
 		// This broker should exist in the src and be updated.
-		&kafkametrics.Broker{
+		{
 			ID:           1000,
 			Host:         "i-abc0",
 			InstanceType: "type0",
@@ -18,7 +18,7 @@ func TestMergeBrokerLists(t *testing.T) {
 			NetRX:        0.00,
 		},
 		// This broker only exists in dst and should go untouched.
-		&kafkametrics.Broker{
+		{
 			ID:           1001,
 			Host:         "i-abc1",
 			InstanceType: "type0",
@@ -28,7 +28,7 @@ func TestMergeBrokerLists(t *testing.T) {
 	}
 
 	var src = []*kafkametrics.Broker{
-		&kafkametrics.Broker{
+		{
 			ID:           1000,
 			Host:         "i-abc0",
 			InstanceType: "type0",
@@ -36,7 +36,7 @@ func TestMergeBrokerLists(t *testing.T) {
 			NetRX:        30.00,
 		},
 		// This broker doesn't exist in dst and should be added.
-		&kafkametrics.Broker{
+		{
 			ID:           1002,
 			Host:         "i-abc2",
 			InstanceType: "type0",
@@ -48,21 +48,21 @@ func TestMergeBrokerLists(t *testing.T) {
 	merged := mergeBrokerLists(dst, src)
 
 	var expected = []*kafkametrics.Broker{
-		&kafkametrics.Broker{
+		{
 			ID:           1000,
 			Host:         "i-abc0",
 			InstanceType: "type0",
 			NetTX:        40.50,
 			NetRX:        30.00,
 		},
-		&kafkametrics.Broker{
+		{
 			ID:           1001,
 			Host:         "i-abc1",
 			InstanceType: "type0",
 			NetTX:        60.00,
 			NetRX:        40.00,
 		},
-		&kafkametrics.Broker{
+		{
 			ID:           1002,
 			Host:         "i-abc2",
 			InstanceType: "type0",

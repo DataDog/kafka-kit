@@ -23,19 +23,19 @@ func TestParseRateParam(t *testing.T) {
 	}
 
 	expected := []response{
-		response{
+		{
 			rate: 0,
 			err:  errRateParamUnspecified,
 		},
-		response{
+		{
 			rate: 0,
 			err:  errRateParamIsZero,
 		},
-		response{
+		{
 			rate: 0,
 			err:  errRateParamNotInt,
 		},
-		response{
+		{
 			rate: 100,
 			err:  nil,
 		},
@@ -75,15 +75,15 @@ func TestParseAutoRemoveParam(t *testing.T) {
 	}
 
 	expected := []response{
-		response{
+		{
 			autoRemove: false,
 			err:        errAutoRemoveNotBool,
 		},
-		response{
+		{
 			autoRemove: true,
 			err:        nil,
 		},
-		response{
+		{
 			autoRemove: false,
 			err:        nil,
 		},

@@ -39,8 +39,8 @@ func NewZooKeeperStub() Handler {
 func (zk *Stub) GetReassignments() Reassignments {
 	r := Reassignments{
 		"reassigning_topic": map[int][]int{
-			0: []int{1003, 1000, 1002},
-			1: []int{1005, 1010},
+			0: {1003, 1000, 1002},
+			1: {1005, 1010},
 		},
 	}
 	return r
@@ -211,11 +211,11 @@ func (zk *Stub) GetTopicState(t string) (*TopicState, error) {
 
 	ts := &TopicState{
 		Partitions: map[string][]int{
-			"0": []int{1000, 1001},
-			"1": []int{1002, 1003},
-			"2": []int{1004, 1005},
-			"3": []int{1006, 1007},
-			"4": []int{1008, 1009},
+			"0": {1000, 1001},
+			"1": {1002, 1003},
+			"2": {1004, 1005},
+			"3": {1006, 1007},
+			"4": {1008, 1009},
 		},
 	}
 

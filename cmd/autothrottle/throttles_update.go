@@ -452,8 +452,8 @@ func removeTopicThrottles(params *ReplicationThrottleConfigs) error {
 			Type: "topic",
 			Name: topic,
 			Configs: []kafkazk.KafkaConfigKV{
-				kafkazk.KafkaConfigKV{"leader.replication.throttled.replicas", ""},
-				kafkazk.KafkaConfigKV{"follower.replication.throttled.replicas", ""},
+				{"leader.replication.throttled.replicas", ""},
+				{"follower.replication.throttled.replicas", ""},
 			},
 		}
 
@@ -482,8 +482,8 @@ func removeBrokerThrottlesByID(params *ReplicationThrottleConfigs, ids map[int]s
 			Type: "broker",
 			Name: strconv.Itoa(b),
 			Configs: []kafkazk.KafkaConfigKV{
-				kafkazk.KafkaConfigKV{"leader.replication.throttled.rate", ""},
-				kafkazk.KafkaConfigKV{"follower.replication.throttled.rate", ""},
+				{"leader.replication.throttled.rate", ""},
+				{"follower.replication.throttled.rate", ""},
 			},
 		}
 

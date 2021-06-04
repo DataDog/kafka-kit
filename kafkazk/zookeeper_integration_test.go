@@ -146,10 +146,10 @@ func TestSetup(t *testing.T) {
 
 		// Create partition meta.
 		partitionMeta[topic] = map[int]*PartitionMeta{
-			0: &PartitionMeta{Size: 1000.00},
-			1: &PartitionMeta{Size: 2000.00},
-			2: &PartitionMeta{Size: 3000.00},
-			3: &PartitionMeta{Size: 4000.00},
+			0: {Size: 1000.00},
+			1: {Size: 2000.00},
+			2: {Size: 3000.00},
+			3: {Size: 4000.00},
 		}
 
 		// Create topic configs, states.
@@ -710,10 +710,10 @@ func TestGetTopicState(t *testing.T) {
 	}
 
 	expected := map[string][]int{
-		"0": []int{1001, 1002},
-		"1": []int{1002, 1001},
-		"2": []int{1003, 1004},
-		"3": []int{1004, 1003},
+		"0": {1001, 1002},
+		"1": {1002, 1001},
+		"2": {1003, 1004},
+		"3": {1004, 1003},
 	}
 
 	for p, rs := range ts.Partitions {
@@ -745,10 +745,10 @@ func TestGetTopicStateISR(t *testing.T) {
 	}
 
 	expected := map[string][]int{
-		"0": []int{1001, 1002},
-		"1": []int{1002, 1001},
-		"2": []int{1003, 1004},
-		"3": []int{1004, 1003},
+		"0": {1001, 1002},
+		"1": {1002, 1001},
+		"2": {1003, 1004},
+		"3": {1004, 1003},
 	}
 
 	for p := range ts {
@@ -795,8 +795,8 @@ func TestUpdateKafkaConfigBroker(t *testing.T) {
 		Type: "broker",
 		Name: "1001",
 		Configs: []KafkaConfigKV{
-			KafkaConfigKV{"leader.replication.throttled.rate", "100000"},
-			KafkaConfigKV{"follower.replication.throttled.rate", "100000"},
+			{"leader.replication.throttled.rate", "100000"},
+			{"follower.replication.throttled.rate", "100000"},
 		},
 	}
 
@@ -845,8 +845,8 @@ func TestUpdateKafkaConfigTopic(t *testing.T) {
 		Type: "topic",
 		Name: "topic0",
 		Configs: []KafkaConfigKV{
-			KafkaConfigKV{"leader.replication.throttled.replicas", "1003,1004"},
-			KafkaConfigKV{"follower.replication.throttled.replicas", "1003,1004"},
+			{"leader.replication.throttled.replicas", "1003,1004"},
+			{"follower.replication.throttled.replicas", "1003,1004"},
 		},
 	}
 

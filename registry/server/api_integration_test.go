@@ -35,19 +35,19 @@ func TestCreateTopic(t *testing.T) {
 
 	tests := map[int]*pb.CreateTopicRequest{
 		// This should succeed.
-		0: &pb.CreateTopicRequest{
+		0: {
 			Topic: &pb.Topic{Name: "new_topic", Partitions: 1, Replication: 1},
 		},
 		// This should fail because we're trying to create an existing topic.
-		1: &pb.CreateTopicRequest{
+		1: {
 			Topic: &pb.Topic{Name: "exists", Partitions: 1, Replication: 1},
 		},
 		// This should fail; incomplete request params.
-		2: &pb.CreateTopicRequest{
+		2: {
 			Topic: &pb.Topic{Name: "", Partitions: 1, Replication: 1},
 		},
 		// This should fail; incomplete request params.
-		3: &pb.CreateTopicRequest{},
+		3: {},
 	}
 
 	expectedErrors := map[int]error{
@@ -93,19 +93,19 @@ func TestCreateTaggedTopic(t *testing.T) {
 	// inducing flakiness.
 	tests := map[int]*pb.CreateTopicRequest{
 		// This should succeed.
-		0: &pb.CreateTopicRequest{
+		0: {
 			Topic:            &pb.Topic{Name: "new_topic2", Partitions: 1, Replication: 1},
 			TargetBrokerTags: []string{"key:value"},
 		},
 		// This should fail because we're attempting to map the topic to a tag
 		// that isn't present on any brokers.
-		1: &pb.CreateTopicRequest{
+		1: {
 			Topic:            &pb.Topic{Name: "new_topic3", Partitions: 1, Replication: 1},
 			TargetBrokerTags: []string{"key:doesnt_exist"},
 		},
 		// This should fail because we're trying to create more replicas than we
 		// have available brokers for.
-		2: &pb.CreateTopicRequest{
+		2: {
 			Topic:            &pb.Topic{Name: "many_partitions", Partitions: 24, Replication: 3},
 			TargetBrokerTags: []string{"key:value"},
 		},
@@ -153,13 +153,13 @@ func TestDeleteTopic(t *testing.T) {
 	}
 
 	tests := map[int]*pb.TopicRequest{
-		0: &pb.TopicRequest{
+		0: {
 			Name: "topic_for_delete",
 		},
-		1: &pb.TopicRequest{
+		1: {
 			Name: "doest_exit",
 		},
-		2: &pb.TopicRequest{
+		2: {
 			Name: "",
 		},
 	}

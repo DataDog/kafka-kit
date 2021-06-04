@@ -229,10 +229,10 @@ func TestSubStorageAll(t *testing.T) {
 	pmm := NewPartitionMetaMap()
 
 	pmm["test_topic"] = map[int]*PartitionMeta{
-		0: &PartitionMeta{Size: 30},
-		1: &PartitionMeta{Size: 35},
-		2: &PartitionMeta{Size: 60},
-		3: &PartitionMeta{Size: 45},
+		0: {Size: 30},
+		1: {Size: 35},
+		2: {Size: 60},
+		3: {Size: 45},
 	}
 
 	allBrokers := func(b *Broker) bool { return true }
@@ -262,10 +262,10 @@ func TestSubStorageReplacements(t *testing.T) {
 	pmm := NewPartitionMetaMap()
 
 	pmm["test_topic"] = map[int]*PartitionMeta{
-		0: &PartitionMeta{Size: 30},
-		1: &PartitionMeta{Size: 35},
-		2: &PartitionMeta{Size: 60},
-		3: &PartitionMeta{Size: 45},
+		0: {Size: 30},
+		1: {Size: 35},
+		2: {Size: 60},
+		3: {Size: 45},
 	}
 
 	bm[1003].Replace = true

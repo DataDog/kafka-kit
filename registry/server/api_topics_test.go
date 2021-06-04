@@ -11,15 +11,15 @@ func TestGetTopics(t *testing.T) {
 	s := testServer()
 
 	tests := map[int]*pb.TopicRequest{
-		0: &pb.TopicRequest{},
-		1: &pb.TopicRequest{Name: "test_topic"},
-		2: &pb.TopicRequest{Tag: []string{"partitions:5"}},
+		0: {},
+		1: {Name: "test_topic"},
+		2: {Tag: []string{"partitions:5"}},
 	}
 
 	expected := map[int][]string{
-		0: []string{"test_topic", "test_topic2"},
-		1: []string{"test_topic"},
-		2: []string{"test_topic", "test_topic2"},
+		0: {"test_topic", "test_topic2"},
+		1: {"test_topic"},
+		2: {"test_topic", "test_topic2"},
 	}
 
 	for i, req := range tests {
@@ -54,15 +54,15 @@ func TestListTopics(t *testing.T) {
 	s := testServer()
 
 	tests := map[int]*pb.TopicRequest{
-		0: &pb.TopicRequest{},
-		1: &pb.TopicRequest{Name: "test_topic"},
-		2: &pb.TopicRequest{Tag: []string{"partitions:5"}},
+		0: {},
+		1: {Name: "test_topic"},
+		2: {Tag: []string{"partitions:5"}},
 	}
 
 	expected := map[int][]string{
-		0: []string{"test_topic", "test_topic2"},
-		1: []string{"test_topic"},
-		2: []string{"test_topic", "test_topic2"},
+		0: {"test_topic", "test_topic2"},
+		1: {"test_topic"},
+		2: {"test_topic", "test_topic2"},
 	}
 
 	for i, req := range tests {
@@ -126,15 +126,15 @@ func TestCustomTagTopicFilter(t *testing.T) {
 	)
 
 	tests := map[int]*pb.TopicRequest{
-		0: &pb.TopicRequest{Tag: []string{"customtag:customvalue"}},
-		1: &pb.TopicRequest{Tag: []string{"customtag2:customvalue2"}},
-		2: &pb.TopicRequest{Tag: []string{"nomatches:forthistag"}},
+		0: {Tag: []string{"customtag:customvalue"}},
+		1: {Tag: []string{"customtag2:customvalue2"}},
+		2: {Tag: []string{"nomatches:forthistag"}},
 	}
 
 	expected := map[int][]string{
-		0: []string{"test_topic", "test_topic2"},
-		1: []string{"test_topic2"},
-		2: []string{},
+		0: {"test_topic", "test_topic2"},
+		1: {"test_topic2"},
+		2: {},
 	}
 
 	for i, req := range tests {
@@ -159,11 +159,11 @@ func TestTagTopic(t *testing.T) {
 	s := testServer()
 
 	tests := map[int]*pb.TopicRequest{
-		0: &pb.TopicRequest{Name: "test_topic", Tag: []string{"k:v"}},
-		1: &pb.TopicRequest{Tag: []string{"k:v"}},
-		2: &pb.TopicRequest{Name: "test_topic", Tag: []string{}},
-		3: &pb.TopicRequest{Name: "test_topic"},
-		4: &pb.TopicRequest{Name: "test_topic20", Tag: []string{"k:v"}},
+		0: {Name: "test_topic", Tag: []string{"k:v"}},
+		1: {Tag: []string{"k:v"}},
+		2: {Name: "test_topic", Tag: []string{}},
+		3: {Name: "test_topic"},
+		4: {Name: "test_topic20", Tag: []string{"k:v"}},
 	}
 
 	expected := map[int]error{
@@ -225,10 +225,10 @@ func TestDeleteTopicTagsFailures(t *testing.T) {
 	s := testServer()
 
 	testRequests := map[int]*pb.TopicRequest{
-		0: &pb.TopicRequest{Tag: []string{"key"}},
-		1: &pb.TopicRequest{Name: "test_topic"},
-		2: &pb.TopicRequest{Name: "test_topic", Tag: []string{}},
-		3: &pb.TopicRequest{Name: "test_topic20", Tag: []string{"key"}},
+		0: {Tag: []string{"key"}},
+		1: {Name: "test_topic"},
+		2: {Name: "test_topic", Tag: []string{}},
+		3: {Name: "test_topic20", Tag: []string{"key"}},
 	}
 
 	expected := map[int]error{
@@ -250,11 +250,11 @@ func TestTopicMappings(t *testing.T) {
 	s := testServer()
 
 	tests := map[int]*pb.TopicRequest{
-		0: &pb.TopicRequest{Name: "test_topic"},
+		0: {Name: "test_topic"},
 	}
 
 	expected := map[int][]uint32{
-		0: []uint32{1001, 1002, 1003, 1004},
+		0: {1001, 1002, 1003, 1004},
 	}
 
 	for i, req := range tests {
