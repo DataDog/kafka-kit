@@ -160,7 +160,7 @@ func TestGetTags(t *testing.T) {
 		}
 
 		if !tags.Equal(expected[k]) {
-			t.Errorf("[test %d] Expected TagSet '%v', got '%v'",
+			t.Errorf("[test %d] Expected TagSet '%+v', got '%+v'",
 				k, expected[k], tags)
 		}
 	}
@@ -207,12 +207,12 @@ func TestGetAllTags(t *testing.T) {
 	// Fetch tags, compare value.
 	tags, _ := store.GetAllTags()
 
-	for k := range testTagSets {
-		obj := testObjects[k]
-		expectedTags := expected[k]
-		if reflect.DeepEqual(tags[obj], expectedTags) {
-			t.Errorf("[test %d] Expected TagSet '%v', got '%v'",
-				k, expected[k], tags)
+	for k, obj := range testObjects {
+		got := tags[obj]
+		expected := expected[k]
+		t.Logf("%+v", got)
+		if !reflect.DeepEqual(got, expected) {
+			t.Errorf("[test %d] Expected TagSet '%+v', got '%+v'", k, expected, got)
 		}
 	}
 }
@@ -258,7 +258,7 @@ func TestDeleteTags(t *testing.T) {
 		}
 
 		if !tags.Equal(expected[k]) {
-			t.Errorf("[test %d] Expected TagSet '%v', got '%v'",
+			t.Errorf("[test %d] Expected TagSet '%+v', got '%+v'",
 				k, expected[k], tags)
 		}
 	}

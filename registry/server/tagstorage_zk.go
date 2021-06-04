@@ -171,18 +171,26 @@ func (t *ZKTagStorage) GetAllTags() (map[KafkaObject]TagSet, error) {
 
 	tags := map[KafkaObject]TagSet{}
 
+	// Get all broker tags.
 	brokerTags, err := t.GetAllTagsForType("broker")
-	if err != nil {
+	// Don't return if the parent broker tag znode doesn't exist; this just
+	// means no tags were ever set.
+	if err != nil && err != ErrKafkaObjectDoesNotExist {
 		return nil, err
 	}
+
 	for broker, brokerTags := range brokerTags {
 		tags[broker] = brokerTags
 	}
 
+	// Get all topic tags.
 	topicTags, err := t.GetAllTagsForType("topic")
-	if err != nil {
+	// Don't return if the parent topic tag znode doesn't exist; this just
+	// means no tags were ever set.
+	if err != nil && err != ErrKafkaObjectDoesNotExist {
 		return nil, err
 	}
+
 	for topic, topicTags := range topicTags {
 		tags[topic] = topicTags
 	}
@@ -192,7 +200,7 @@ func (t *ZKTagStorage) GetAllTags() (map[KafkaObject]TagSet, error) {
 
 // GetAllTagsForType gets all the tags for objects of the given type. A convenience method that makes getting every tag a little easier.
 func (t *ZKTagStorage) GetAllTagsForType(kafkaObjectType string) (map[KafkaObject]TagSet, error) {
-	zNode := fmt.Sprintf("/%s/%s/", t.Prefix, kafkaObjectType)
+	zNode := fmt.Sprintf("/%s/%s", t.Prefix, kafkaObjectType)
 	children, err := t.ZK.Children(zNode)
 	if err != nil {
 		switch err.(type) {
