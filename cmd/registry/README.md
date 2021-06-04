@@ -68,7 +68,7 @@ $ registry --zk-addr zk-test-0.service.consul:2181 --zk-prefix kafka --bootstrap
 
 # API Examples
 
-See the Registry [proto](https://github.com/DataDog/kafka-kit/blob/master/registry/protos/registry.proto) definition for further details. The API is designed gRPC-first and provides HTTP using [grpc-gateway](https://github.com/grpc-ecosystem/grpc-gateway); the mappings are described in the proto file.
+See the Registry [proto](https://github.com/DataDog/kafka-kit/blob/master/registry/api/registry.proto) definition for further details. The API is designed gRPC-first and provides HTTP using [grpc-gateway](https://github.com/grpc-ecosystem/grpc-gateway); the mappings are described in the proto file.
 
 ## List Topics
 Lists topic names.
