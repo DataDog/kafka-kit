@@ -47,7 +47,7 @@ func stubSeries() []dd.Series {
 		scope := fmt.Sprintf("host%d,broker_id:100%d,instance-type:stub", i, i)
 		s := dd.Series{
 			Scope:  &scope,
-			Points: []dd.DataPoint{dd.DataPoint{&f1, &f2}},
+			Points: []dd.DataPoint{{&f1, &f2}},
 		}
 		ss = append(ss, s)
 	}

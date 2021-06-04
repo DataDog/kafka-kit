@@ -49,13 +49,13 @@ func TestSetup(t *testing.T) {
 
 func TestSetTags(t *testing.T) {
 	testTagSets := map[int]TagSet{
-		0: TagSet{"key": "value", "key2": "value2"},
-		1: TagSet{"key": "value"},
+		0: {"key": "value", "key2": "value2"},
+		1: {"key": "value"},
 	}
 
 	testObjects := map[int]KafkaObject{
-		0: KafkaObject{Type: "broker", ID: "1002"},
-		1: KafkaObject{Type: "topic", ID: "test"},
+		0: {Type: "broker", ID: "1002"},
+		1: {Type: "topic", ID: "test"},
 	}
 
 	expected := map[int]string{
@@ -132,18 +132,18 @@ func TestTagSetFailures(t *testing.T) {
 
 func TestGetTags(t *testing.T) {
 	testTagSets := map[int]TagSet{
-		0: TagSet{"key": "value", "key2": "value2"},
-		1: TagSet{"key": "value"},
+		0: {"key": "value", "key2": "value2"},
+		1: {"key": "value"},
 	}
 
 	testObjects := map[int]KafkaObject{
-		0: KafkaObject{Type: "broker", ID: "1002"},
-		1: KafkaObject{Type: "topic", ID: "test"},
+		0: {Type: "broker", ID: "1002"},
+		1: {Type: "topic", ID: "test"},
 	}
 
 	expected := map[int]TagSet{
-		0: TagSet{"key": "value", "key2": "value2"},
-		1: TagSet{"key": "value"},
+		0: {"key": "value", "key2": "value2"},
+		1: {"key": "value"},
 	}
 
 	for k := range testTagSets {
@@ -182,18 +182,18 @@ func TestGetTagsFailures(t *testing.T) {
 
 func TestGetAllTags(t *testing.T) {
 	testTagSets := map[int]TagSet{
-		0: TagSet{"key": "value", "key2": "value2"},
-		1: TagSet{"key": "value"},
+		0: {"key": "value", "key2": "value2"},
+		1: {"key": "value"},
 	}
 
 	testObjects := map[int]KafkaObject{
-		0: KafkaObject{Type: "broker", ID: "1002"},
-		1: KafkaObject{Type: "topic", ID: "test"},
+		0: {Type: "broker", ID: "1002"},
+		1: {Type: "topic", ID: "test"},
 	}
 
 	expected := map[int]TagSet{
-		0: TagSet{"key": "value", "key2": "value2"},
-		1: TagSet{"key": "value"},
+		0: {"key": "value", "key2": "value2"},
+		1: {"key": "value"},
 	}
 
 	for k := range testTagSets {
@@ -219,23 +219,23 @@ func TestGetAllTags(t *testing.T) {
 
 func TestDeleteTags(t *testing.T) {
 	testTagSets := map[int]TagSet{
-		0: TagSet{"key": "value", "key2": "value2", "key3": "value3"},
-		1: TagSet{"key": "value"},
+		0: {"key": "value", "key2": "value2", "key3": "value3"},
+		1: {"key": "value"},
 	}
 
 	testObjects := map[int]KafkaObject{
-		0: KafkaObject{Type: "broker", ID: "1002"},
-		1: KafkaObject{Type: "topic", ID: "test"},
+		0: {Type: "broker", ID: "1002"},
+		1: {Type: "topic", ID: "test"},
 	}
 
 	testTagDeletes := map[int]Tags{
-		0: Tags{"key", "key2"},
-		1: Tags{"key2"},
+		0: {"key", "key2"},
+		1: {"key2"},
 	}
 
 	expected := map[int]TagSet{
-		0: TagSet{"key3": "value3"},
-		1: TagSet{"key": "value"},
+		0: {"key3": "value3"},
+		1: {"key": "value"},
 	}
 
 	for k := range testTagSets {

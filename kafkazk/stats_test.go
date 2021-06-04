@@ -12,11 +12,11 @@ func TestDegreeDistribution(t *testing.T) {
 	dd := pm.DegreeDistribution()
 
 	expected := map[int][]int{
-		1001: []int{1002, 1003, 1004},
-		1002: []int{1001, 1003, 1004},
-		1003: []int{1001, 1004, 1002},
-		1004: []int{1001, 1002, 1003, 1005},
-		1005: []int{1004},
+		1001: {1002, 1003, 1004},
+		1002: {1001, 1003, 1004},
+		1003: {1001, 1004, 1002},
+		1004: {1001, 1002, 1003, 1005},
+		1005: {1004},
 	}
 
 	// Check that expected relationships exist.
@@ -83,8 +83,8 @@ func TestBrokerMapStorageDiff(t *testing.T) {
 	diff := bm1.StorageDiff(bm2)
 
 	expected := map[int][2]float64{
-		1001: [2]float64{100.00, 100.00},
-		1002: [2]float64{-100, -50.00},
+		1001: {100.00, 100.00},
+		1002: {-100, -50.00},
 	}
 
 	for bid, v := range expected {
@@ -175,9 +175,9 @@ func TestAboveMean(t *testing.T) {
 
 	// With HMean.
 	tests := map[float64][]int{
-		0.20: []int{1003, 1004, 1005, 1006, 1007},
-		0.60: []int{1004, 1005, 1006, 1007},
-		0.80: []int{},
+		0.20: {1003, 1004, 1005, 1006, 1007},
+		0.60: {1004, 1005, 1006, 1007},
+		0.80: {},
 	}
 
 	for d, expected := range tests {
@@ -188,8 +188,8 @@ func TestAboveMean(t *testing.T) {
 
 	// With Mean.
 	tests = map[float64][]int{
-		0.20: []int{1004, 1005, 1006, 1007},
-		0.60: []int{},
+		0.20: {1004, 1005, 1006, 1007},
+		0.60: {},
 	}
 
 	for d, expected := range tests {
@@ -204,8 +204,8 @@ func TestBelowMean(t *testing.T) {
 
 	// With HMean.
 	tests := map[float64][]int{
-		0.10: []int{1001, 1002},
-		0.20: []int{1001},
+		0.10: {1001, 1002},
+		0.20: {1001},
 	}
 
 	for d, expected := range tests {
@@ -216,9 +216,9 @@ func TestBelowMean(t *testing.T) {
 
 	// With Mean
 	tests = map[float64][]int{
-		0.10: []int{1001, 1002},
-		0.20: []int{1001, 1002},
-		0.60: []int{1001},
+		0.10: {1001, 1002},
+		0.20: {1001, 1002},
+		0.60: {1001},
 	}
 
 	for d, expected := range tests {

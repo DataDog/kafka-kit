@@ -11,15 +11,15 @@ func TestGetBrokers(t *testing.T) {
 	s := testServer()
 
 	tests := map[int]*pb.BrokerRequest{
-		0: &pb.BrokerRequest{},
-		1: &pb.BrokerRequest{Id: 1002},
-		2: &pb.BrokerRequest{Tag: []string{"rack:a"}},
+		0: {},
+		1: {Id: 1002},
+		2: {Tag: []string{"rack:a"}},
 	}
 
 	expected := map[int]idList{
-		0: idList{1001, 1002, 1003, 1004, 1005, 1007},
-		1: idList{1002},
-		2: idList{1001, 1004},
+		0: {1001, 1002, 1003, 1004, 1005, 1007},
+		1: {1002},
+		2: {1001, 1004},
 	}
 
 	for i, req := range tests {
@@ -44,15 +44,15 @@ func TestListBrokers(t *testing.T) {
 	s := testServer()
 
 	tests := map[int]*pb.BrokerRequest{
-		0: &pb.BrokerRequest{},
-		1: &pb.BrokerRequest{Id: 1002},
-		2: &pb.BrokerRequest{Tag: []string{"rack:a"}},
+		0: {},
+		1: {Id: 1002},
+		2: {Tag: []string{"rack:a"}},
 	}
 
 	expected := map[int]idList{
-		0: idList{1001, 1002, 1003, 1004, 1005, 1007},
-		1: idList{1002},
-		2: idList{1001, 1004},
+		0: {1001, 1002, 1003, 1004, 1005, 1007},
+		1: {1002},
+		2: {1001, 1004},
 	}
 
 	for i, req := range tests {
@@ -77,15 +77,15 @@ func TestUnmappedBrokers(t *testing.T) {
 	s := testServer()
 
 	tests := map[int]*pb.UnmappedBrokersRequest{
-		0: &pb.UnmappedBrokersRequest{},
-		1: &pb.UnmappedBrokersRequest{Exclude: []string{"test_topic"}},
-		2: &pb.UnmappedBrokersRequest{Exclude: []string{"test_topic", "test_topic2"}},
+		0: {},
+		1: {Exclude: []string{"test_topic"}},
+		2: {Exclude: []string{"test_topic", "test_topic2"}},
 	}
 
 	expected := map[int]idList{
-		0: idList{1005, 1007},
-		1: idList{1005, 1007},
-		2: idList{1001, 1002, 1003, 1004, 1005, 1007},
+		0: {1005, 1007},
+		1: {1005, 1007},
+		2: {1001, 1002, 1003, 1004, 1005, 1007},
 	}
 
 	for i, req := range tests {
@@ -123,15 +123,15 @@ func TestCustomTagBrokerFilter(t *testing.T) {
 	)
 
 	tests := map[int]*pb.BrokerRequest{
-		0: &pb.BrokerRequest{Tag: []string{"customtag:customvalue"}},
-		1: &pb.BrokerRequest{Tag: []string{"customtag2:customvalue2"}},
-		2: &pb.BrokerRequest{Tag: []string{"nomatches:forthistag"}},
+		0: {Tag: []string{"customtag:customvalue"}},
+		1: {Tag: []string{"customtag2:customvalue2"}},
+		2: {Tag: []string{"nomatches:forthistag"}},
 	}
 
 	expected := map[int]idList{
-		0: idList{1001, 1002},
-		1: idList{1002},
-		2: idList{},
+		0: {1001, 1002},
+		1: {1002},
+		2: {},
 	}
 
 	for i, req := range tests {
@@ -156,11 +156,11 @@ func TestTagBroker(t *testing.T) {
 	s := testServer()
 
 	tests := map[int]*pb.BrokerRequest{
-		0: &pb.BrokerRequest{Id: 1001, Tag: []string{"k:v"}},
-		1: &pb.BrokerRequest{Tag: []string{"k:v"}},
-		2: &pb.BrokerRequest{Id: 1001, Tag: []string{}},
-		3: &pb.BrokerRequest{Id: 1001},
-		4: &pb.BrokerRequest{Id: 1020, Tag: []string{"k:v"}},
+		0: {Id: 1001, Tag: []string{"k:v"}},
+		1: {Tag: []string{"k:v"}},
+		2: {Id: 1001, Tag: []string{}},
+		3: {Id: 1001},
+		4: {Id: 1020, Tag: []string{"k:v"}},
 	}
 
 	expected := map[int]error{
@@ -222,10 +222,10 @@ func TestDeleteBrokerTagsFailures(t *testing.T) {
 	s := testServer()
 
 	testRequests := map[int]*pb.BrokerRequest{
-		0: &pb.BrokerRequest{Tag: []string{"key"}},
-		1: &pb.BrokerRequest{Id: 1001},
-		2: &pb.BrokerRequest{Id: 1001, Tag: []string{}},
-		3: &pb.BrokerRequest{Id: 1020, Tag: []string{"key"}},
+		0: {Tag: []string{"key"}},
+		1: {Id: 1001},
+		2: {Id: 1001, Tag: []string{}},
+		3: {Id: 1020, Tag: []string{"key"}},
 	}
 
 	expected := map[int]error{
@@ -247,11 +247,11 @@ func TestBrokerMappings(t *testing.T) {
 	s := testServer()
 
 	tests := map[int]*pb.BrokerRequest{
-		0: &pb.BrokerRequest{Id: 1002},
+		0: {Id: 1002},
 	}
 
 	expected := map[int][]string{
-		0: []string{"test_topic", "test_topic2"},
+		0: {"test_topic", "test_topic2"},
 	}
 
 	for i, req := range tests {

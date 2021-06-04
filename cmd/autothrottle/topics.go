@@ -31,8 +31,8 @@ type replicaType string
 type brokerIDs []string
 
 var acceptedReplicaTypes = map[replicaType]struct{}{
-	"leaders":   struct{}{},
-	"followers": struct{}{},
+	"leaders":   {},
+	"followers": {},
 }
 
 // addReplica takes a topic, partition number, role (leader, follower), and

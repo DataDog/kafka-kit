@@ -13,7 +13,7 @@ jobs:
     - uses: actions/checkout@v2
     - name: gofmt
       run: |
-        changes=$(find . -name "*.go" | xargs gofmt -l 2>&1)
+        changes=$(find . -name "*.go" | xargs gofmt -s -l 2>&1)
         if [[ -n ${changes} ]]; then echo "Improperly formatted files:"; echo ${changes}; exit 1; fi
   vet:
     runs-on: ubuntu-latest

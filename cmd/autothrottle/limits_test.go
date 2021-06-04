@@ -58,10 +58,10 @@ func TestReplicationHeadroom(t *testing.T) {
 
 	// [current utilization, current throttle, expected headroom]
 	expected := [][3]float64{
-		[3]float64{70, 0, 24},
-		[3]float64{80, 70, 72},
-		[3]float64{110, 70, 40},
-		[3]float64{200, 70, 10},
+		{70, 0, 24},
+		{80, 70, 72},
+		{110, 70, 40},
+		{200, 70, 10},
 	}
 
 	for n, params := range expected {
@@ -76,10 +76,10 @@ func TestReplicationHeadroom(t *testing.T) {
 
 	// [current utilization, current throttle, expected headroom]
 	expected = [][3]float64{
-		[3]float64{70, 0, 18},
-		[3]float64{80, 70, 54},
-		[3]float64{110, 70, 30},
-		[3]float64{200, 70, 10},
+		{70, 0, 18},
+		{80, 70, 54},
+		{110, 70, 30},
+		{200, 70, 10},
 	}
 
 	for n, params := range expected {

@@ -22,8 +22,8 @@ var (
 	// validKafkaConfigTypes is used as a set
 	// to define valid configuration type names.
 	validKafkaConfigTypes = map[string]struct{}{
-		"broker": struct{}{},
-		"topic":  struct{}{},
+		"broker": {},
+		"topic":  {},
 	}
 	// Misc.
 	allTopicsRegexp = regexp.MustCompile(".*")

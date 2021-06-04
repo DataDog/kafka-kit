@@ -3,6 +3,7 @@ module github.com/DataDog/kafka-kit/v3
 go 1.13
 
 require (
+	github.com/Masterminds/semver v1.5.0
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/confluentinc/confluent-kafka-go v1.7.0
 	github.com/go-zookeeper/zk v1.0.2
@@ -10,7 +11,6 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway v1.9.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.4.0
 	github.com/jamiealquiza/envy v1.1.0
-	github.com/masterminds/semver v1.5.0
 	github.com/spf13/cobra v1.1.3
 	github.com/stretchr/objx v0.3.0 // indirect
 	github.com/stretchr/testify v1.7.0

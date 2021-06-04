@@ -375,10 +375,10 @@ func TestUseStats(t *testing.T) {
 	s := pm.UseStats().List()
 
 	expected := map[int][2]int{
-		1001: [2]int{1, 2},
-		1002: [2]int{1, 2},
-		1003: [2]int{1, 1},
-		1004: [2]int{1, 1},
+		1001: {1, 2},
+		1002: {1, 2},
+		1003: {1, 1},
+		1004: {1, 1},
 	}
 
 	for _, b := range s {

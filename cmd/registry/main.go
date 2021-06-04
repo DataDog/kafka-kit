@@ -14,8 +14,8 @@ import (
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
 	"github.com/DataDog/kafka-kit/v3/registry/server"
 
+	"github.com/Masterminds/semver"
 	"github.com/jamiealquiza/envy"
-	"github.com/masterminds/semver"
 )
 
 // This can be set with -ldflags "-X main.version=x.x.x"
