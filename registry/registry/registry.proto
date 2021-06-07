@@ -4,8 +4,8 @@ the `make generate-code` command.
 */
 
 syntax = "proto3";
-option go_package = "github.com/DataDog/kafka-kit/registry/api";
-package api;
+option go_package = "github.com/DataDog/kafka-kit/registry/registry";
+package registry;
 
 import "google/api/annotations.proto";
 

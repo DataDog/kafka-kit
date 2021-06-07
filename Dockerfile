@@ -54,7 +54,7 @@ RUN protoc -I ./registry -I $GOPATH/pkg/mod/$(awk '/googleapis/ {printf "%s@%s",
     --grpc-gateway_opt logtostderr=true \
     --grpc-gateway_opt paths=source_relative \
     --grpc-gateway_opt generate_unbound_methods=true \
-    registry/api/registry.proto
+    registry/registry/registry.proto
 
 # Build
 RUN go install ./cmd/registry
