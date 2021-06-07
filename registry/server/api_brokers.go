@@ -9,7 +9,7 @@ import (
 	"strconv"
 
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
-	pb "github.com/DataDog/kafka-kit/v3/registry/api"
+	pb "github.com/DataDog/kafka-kit/v3/registry/registry"
 )
 
 var (

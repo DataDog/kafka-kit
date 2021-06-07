@@ -29,5 +29,5 @@ integration-test: build-image
 # Generate proto code outputs.
 generate-code: build-image
 	docker create --name kafka-kit kafka-kit >/dev/null; \
-	docker cp kafka-kit:/go/src/github.com/DataDog/kafka-kit/registry/api/. ${CURDIR}/registry/api; \
+	docker cp kafka-kit:/go/src/github.com/DataDog/kafka-kit/registry/registry/. ${CURDIR}/registry/registry; \
 	docker rm kafka-kit >/dev/null

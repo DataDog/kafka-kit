@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	pb "github.com/DataDog/kafka-kit/v3/registry/api"
+	pb "github.com/DataDog/kafka-kit/v3/registry/registry"
 )
 
 func TestGetTopics(t *testing.T) {
