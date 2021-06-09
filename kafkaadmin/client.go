@@ -15,12 +15,14 @@ var (
 	SASLMechanismSet = map[string]struct{}{"PLAIN": empty, "SCRAM-SHA-256": empty, "SCRAM-SHA-512": empty}
 )
 
+//TimeoutMs to queries metadata.
+const FetchMetadaTimeoutMs = 1000 //int(time.Millisecond)
+
 type FactoryFunc func(conf *kafka.ConfigMap) (*kafka.AdminClient, error)
 
 // Client implements a KafkaAdmin.
 type Client struct {
-	c      *kafka.AdminClient
-	Prefix string
+	c *kafka.AdminClient
 }
 
 // Config holds Client configuration parameters.
@@ -32,7 +34,6 @@ type Config struct {
 	SASLMechanism    string
 	SASLUsername     string
 	SASLPassword     string
-	Prefix           string
 }
 
 // Close closes the Client.

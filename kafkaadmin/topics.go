@@ -2,8 +2,7 @@ package kafkaadmin
 
 import (
 	"context"
-	"fmt"
-	"strconv"
+	"regexp"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
@@ -48,81 +47,79 @@ func (c Client) DeleteTopic(ctx context.Context, name string) error {
 	return err
 }
 
-/*Get all topics, query kafka directrly rather than zk
-in: none
-
-out: []string of all topic names
-	 error
-*/
-func (c Client) GetTopics() ([]string, error) {
-	var path string
-	const TIMEOUT = 10000
-
-	if c.Prefix != "" {
-		path = fmt.Sprintf("/%s/brokers/topics", c.Prefix)
-	} else {
-		path = "/brokers/topics"
-	}
-
-	ret, er := c.c.GetMetadata(&path, true, TIMEOUT)
+//GetTopics takes a []*regexp.Regexp and returns a []string of all topic
+//names that match any of the provided regex, and query kafka directrly rather than zk
+func (c Client) GetTopics(ts []*regexp.Regexp) ([]string, error) {
+	ret, er := c.c.GetMetadata(nil, true, FetchMetadaTimeoutMs)
 	if er != nil {
 		return nil, er
 	}
 
 	topicsList := []string{}
-	for item := range ret.Topics {
-		topicsList = append(topicsList, item)
-	}
+	for topic := range ret.Topics {
+		if ts[0].MatchString(topic) {
+			topicsList = append(topicsList, topic)
+		}
 
+	}
 	return topicsList, nil
 }
 
 //TopicState struct
 type TopicState struct {
-	Partitions map[string][]int `json:"partitions"`
+	Partitions map[int32][]int32
 }
 
-/* GetTopicState, query kafka directly rather than zk
-in: (t string) -  a topic name
-
-out:
-	*TopicStateF - return Partitions map
-	 error
-*/
+// GetTopicState takes a topic name. If the topic exists,
+//the topic state is returned as a *TopicState, this query kafka directly rather than zk
 func (c Client) GetTopicState(t string) (*TopicState, error) {
-	var path string //
-	const TIMEOUT = 10000
-
-	if c.Prefix != "" {
-		path = fmt.Sprintf("/%s/brokers/topics/%s", c.Prefix, t)
-	} else {
-		path = fmt.Sprintf("/brokers/topics/%s", t)
-	}
-
-	ret, er := c.c.GetMetadata(&path, true, TIMEOUT)
+	ret, er := c.c.GetMetadata(&t, false, FetchMetadaTimeoutMs)
 	if er != nil {
 		return nil, er
 	}
 
-	if ret.Topics[t].Topic != "" {
-		topics := ret.Topics[t]
-		temp := make(map[string][]int)
-
-		for _, item := range topics.Partitions {
-			var partition []int
-			for _, ite := range item.Replicas {
-				partition = append(partition, int(ite))
-			}
-			id := strconv.Itoa(int(item.ID))
-			temp[id] = partition
-		}
-
-		tsf := &TopicState{Partitions: temp}
-
-		return tsf, nil
+	if ret.Topics[t].Error.String() != "Success" {
+		return nil, ret.Topics[t].Error
 	}
 
-	err := fmt.Errorf("Topic %s No Found in: "+path, t)
+	Replicas := make(map[int32][]int32)
+	for _, item := range ret.Topics[t].Partitions {
+		Replicas[item.ID] = item.Replicas
+	}
+	tsf := &TopicState{Partitions: Replicas}
 
-	return nil, err
+	return tsf, nil
+}
+
+type TopicConfig struct {
+	Version int
+	Config  map[string]string
+}
+
+func (c Client) GetTopicConfig(t string) (*TopicConfig, error) {
+
+	ret, er := c.c.DescribeConfigs(context.Background(),
+		[]kafka.ConfigResource{
+			{Type: kafka.ResourceTopic,
+				Name:   t,
+				Config: nil}})
+
+	if er != nil {
+		return nil, er
+	}
+
+	if ret[0].Error.String() != "Success" {
+		return nil, ret[0].Error
+	}
+
+	configs := make(map[string]string)
+	for id, v := range ret[0].Config {
+		configs[id] = v.Value
+	}
+
+	config := &TopicConfig{
+		Version: 1,
+		Config:  configs,
+	}
+	return config, nil
 }

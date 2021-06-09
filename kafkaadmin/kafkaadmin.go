@@ -3,6 +3,7 @@ package kafkaadmin
 
 import (
 	"context"
+	"regexp"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
@@ -12,8 +13,9 @@ type KafkaAdmin interface {
 	Close()
 	CreateTopic(context.Context, CreateTopicConfig) error
 	DeleteTopic(context.Context, string) error
-	GetTopics() ([]string, error)
+	GetTopics([]*regexp.Regexp) ([]string, error)
 	GetTopicState(string) (*TopicState, error)
+	GetTopicConfig(t string) (*TopicConfig, error)
 }
 
 // NewClient returns a KafkaAdmin.
