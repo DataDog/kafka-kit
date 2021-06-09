@@ -96,6 +96,8 @@ type TopicConfig struct {
 	Config  map[string]string
 }
 
+// GetTopicConfig takes a topic name. If the topic exists, the topic config
+// is returned as a *TopicConfig,  this query kafka directly rather than zk.
 func (c Client) GetTopicConfig(t string) (*TopicConfig, error) {
 
 	ret, er := c.c.DescribeConfigs(context.Background(),
