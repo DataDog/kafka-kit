@@ -74,13 +74,16 @@ func (s *Server) MarkForDeletion(now func() time.Time) error {
 				log.Printf("found non int broker ID %s in tag cleanup\n", kafkaObject.ID)
 				continue
 			}
-			_, exists = brokers[brokerId]
+			_, objectExists = brokers[brokerId]
 		case "topic":
-			_, exists = topicSet[kafkaObject.ID]
+			_, objectExists = topicSet[kafkaObject.ID]
 		}
 
-		// If the object doesn't exist, mark it.
-		if !exists {
+		// Check if the object has already been marked.
+		_, marked := tagSet[TagMarkTimeKey]
+
+		// If the object doesn't exist and hasn't already been marked, do so.
+		if !objectExists && !marked {
 			tagSet[TagMarkTimeKey] = markTimeMinutes
 			if err := s.Tags.Store.SetTags(kafkaObject, tagSet); err != nil {
 				log.Printf("failed to update TagSet for %s %s: %s", kafkaObject.Type, kafkaObject.ID, err)
@@ -88,9 +91,12 @@ func (s *Server) MarkForDeletion(now func() time.Time) error {
 			continue
 		}
 
-		// Otherwise, the object exists and we should remove the marker.
-		if err := s.Tags.Store.DeleteTags(kafkaObject, []string{TagMarkTimeKey}); err != nil {
-			log.Printf("failed to remove TagMarkTimeKey tag for %s %s: %s\n", kafkaObject.Type, kafkaObject.ID, err)
+		// Otherwise, the object exists and we should remove the marker if it were
+		// previously set.
+		if marked {
+			if err := s.Tags.Store.DeleteTags(kafkaObject, []string{TagMarkTimeKey}); err != nil {
+				log.Printf("failed to remove TagMarkTimeKey tag for %s %s: %s\n", kafkaObject.Type, kafkaObject.ID, err)
+			}
 		}
 	}
 
