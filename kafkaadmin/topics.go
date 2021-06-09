@@ -82,11 +82,11 @@ func (c Client) GetTopicState(t string) (*TopicState, error) {
 		return nil, ret.Topics[t].Error
 	}
 
-	Replicas := make(map[int32][]int32)
+	partitions := make(map[int32][]int32)
 	for _, item := range ret.Topics[t].Partitions {
-		Replicas[item.ID] = item.Replicas
+		partitions[item.ID] = item.Replicas
 	}
-	tsf := &TopicState{Partitions: Replicas}
+	tsf := &TopicState{Partitions: partitions}
 
 	return tsf, nil
 }
