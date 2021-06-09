@@ -116,12 +116,8 @@ func (s *Server) DeleteStaleTags(now func() time.Time, c Config) {
 			// This object has tags being deleted; add it to the set.
 			deletedObjects[kafkaObject] = struct{}{}
 
-			keys := make([]string, len(tags))
-			i := 0
-			for k := range tags {
-				keys[i] = k
-				i++
-			}
+			keys := tags.Keys()
+
 			s.Tags.Store.DeleteTags(kafkaObject, keys)
 		}
 	}
