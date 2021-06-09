@@ -78,6 +78,12 @@ func (s *Server) MarkForDeletion(now func() time.Time) error {
 				delete(tagSet, TagMarkTimeKey)
 			}
 		}
+
+		// Avoid creating empty tag sets.
+		if len(tagSet) == 0 {
+			continue
+		}
+
 		err := s.Tags.Store.SetTags(kafkaObject, tagSet) // Persist any changes
 		if err != nil {
 			return err
@@ -92,6 +98,9 @@ func (s *Server) DeleteStaleTags(now func() time.Time, c Config) {
 	sweepTime := now().Unix()
 	allTags, _ := s.Tags.Store.GetAllTags()
 
+	// Track kafkaObjects that have tags being deleted.
+	var deletedObjects = make(map[KafkaObject]struct{})
+
 	for kafkaObject, tags := range allTags {
 		markTag, exists := tags[TagMarkTimeKey]
 		if !exists {
@@ -104,6 +113,9 @@ func (s *Server) DeleteStaleTags(now func() time.Time, c Config) {
 		}
 
 		if sweepTime-int64(markTime) > int64(c.TagAllowedStalenessMinutes*60) {
+			// This object has tags being deleted; add it to the set.
+			deletedObjects[kafkaObject] = struct{}{}
+
 			keys := make([]string, len(tags))
 			i := 0
 			for k := range tags {
@@ -112,6 +124,11 @@ func (s *Server) DeleteStaleTags(now func() time.Time, c Config) {
 			}
 			s.Tags.Store.DeleteTags(kafkaObject, keys)
 		}
+	}
+
+	// Log names of resources that have had tags deleted.
+	for object := range deletedObjects {
+		log.Printf("deleted tags for non-existent object %s:%s\n", object.Type, object.ID)
 	}
 }
 
