@@ -63,7 +63,6 @@ func (s *Server) MarkForDeletion(now func() time.Time) error {
 	// Add a marker tag with timestamp to any dangling tagset whose associated kafka
 	// resource no longer exists.
 	for kafkaObject, tagSet := range allTags {
-		var removeTagMarkTimeKey bool
 		var objectExists bool
 
 		// Check whether the object currently exists.
