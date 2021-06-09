@@ -85,7 +85,7 @@ func (s *Server) MarkForDeletion(now func() time.Time) error {
 		if !objectExists && !marked {
 			tagSet[TagMarkTimeKey] = markTimeMinutes
 			if err := s.Tags.Store.SetTags(kafkaObject, tagSet); err != nil {
-				log.Printf("failed to update TagSet for %s %s: %s", kafkaObject.Type, kafkaObject.ID, err)
+				log.Printf("failed to update TagSet for %s %s: %s\n", kafkaObject.Type, kafkaObject.ID, err)
 			}
 			continue
 		}
