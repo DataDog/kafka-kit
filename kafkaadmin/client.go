@@ -16,7 +16,7 @@ var (
 )
 
 //TimeoutMs to queries metadata.
-const FetchMetadaTimeoutMs = 1000 //int(time.Millisecond)
+const FetchMetadataTimeoutMs = 1000
 
 type FactoryFunc func(conf *kafka.ConfigMap) (*kafka.AdminClient, error)
 

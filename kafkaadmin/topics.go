@@ -47,81 +47,79 @@ func (c Client) DeleteTopic(ctx context.Context, name string) error {
 	return err
 }
 
-//GetTopics takes a []*regexp.Regexp and returns a []string of all topic
-//names that match any of the provided regex, and query kafka directrly rather than zk
+// GetTopics takes a []*regexp.Regexp and returns a []string of all topic names
+// that match any of the provided regex.
 func (c Client) GetTopics(ts []*regexp.Regexp) ([]string, error) {
-	ret, er := c.c.GetMetadata(nil, true, FetchMetadaTimeoutMs)
-	if er != nil {
-		return nil, er
+	metadata, err := c.c.GetMetadata(nil, true, FetchMetadataTimeoutMs)
+	if err != nil {
+		return nil, err
 	}
 
+	//Get all topics that match all provided topic regexps.
+	//Add matches to a slice
 	topicsList := []string{}
-	for topic := range ret.Topics {
-		if ts[0].MatchString(topic) {
-			topicsList = append(topicsList, topic)
+	for id := range ts {
+		for _, topic := range metadata.Topics {
+			if ts[id].MatchString(topic.Topic) {
+				topicsList = append(topicsList, topic.Topic)
+			}
 		}
 
 	}
+
 	return topicsList, nil
 }
 
-//TopicState struct
+// TopicState represents the partition distribution of a single topic
 type TopicState struct {
 	Partitions map[int32][]int32
 }
 
-// GetTopicState takes a topic name. If the topic exists,
-//the topic state is returned as a *TopicState, this query kafka directly rather than zk
+// GetTopicState takes a topic name. If the topic exists, the topic state is returned as *TopicState.
 func (c Client) GetTopicState(t string) (*TopicState, error) {
-	ret, er := c.c.GetMetadata(&t, false, FetchMetadaTimeoutMs)
-	if er != nil {
-		return nil, er
+	metadata, err := c.c.GetMetadata(&t, false, FetchMetadataTimeoutMs)
+	if err != nil {
+		return nil, err
 	}
 
-	if ret.Topics[t].Error.String() != "Success" {
-		return nil, ret.Topics[t].Error
+	if metadata.Topics[t].Error.String() != "Success" {
+		return nil, metadata.Topics[t].Error
 	}
 
 	partitions := make(map[int32][]int32)
-	for _, item := range ret.Topics[t].Partitions {
+	for _, item := range metadata.Topics[t].Partitions {
 		partitions[item.ID] = item.Replicas
 	}
-	tsf := &TopicState{Partitions: partitions}
 
-	return tsf, nil
+	return &TopicState{Partitions: partitions}, nil
 }
 
+// TopicConfig represents the configuration of a single topic
 type TopicConfig struct {
-	Version int
-	Config  map[string]string
+	Config map[string]string
 }
 
-// GetTopicConfig takes a topic name. If the topic exists, the topic config
-// is returned as a *TopicConfig,  this query kafka directly rather than zk.
+// GetTopicConfig takes a topic name. If the topic exists, the topic config is returned as a *TopicConfig.
 func (c Client) GetTopicConfig(t string) (*TopicConfig, error) {
 
-	ret, er := c.c.DescribeConfigs(context.Background(),
+	configResult, err := c.c.DescribeConfigs(context.Background(),
 		[]kafka.ConfigResource{
 			{Type: kafka.ResourceTopic,
 				Name:   t,
 				Config: nil}})
 
-	if er != nil {
-		return nil, er
+	if err != nil {
+		return nil, err
 	}
 
-	if ret[0].Error.String() != "Success" {
-		return nil, ret[0].Error
+	if configResult[0].Error.String() != "Success" {
+		return nil, configResult[0].Error
 	}
 
 	configs := make(map[string]string)
-	for id, v := range ret[0].Config {
+	for id, v := range configResult[0].Config {
 		configs[id] = v.Value
 	}
 
-	config := &TopicConfig{
-		Version: 1,
-		Config:  configs,
-	}
-	return config, nil
+	return &TopicConfig{Config: configs}, nil
 }
