@@ -280,6 +280,17 @@ func (t TagSet) Tags() Tags {
 	return ts
 }
 
+// Keys returns a []string of all tag keys for a TagSet.
+func (t TagSet) Keys() []string {
+	var keys []string
+
+	for k := range t {
+		keys = append(keys, k)
+	}
+
+	return keys
+}
+
 // TagSet takes a Tags and returns a TagSet and error for any
 // malformed tags. Tags are expected to be formatted as a
 // comma delimited "key:value,key2:value2" string.

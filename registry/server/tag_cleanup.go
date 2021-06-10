@@ -36,7 +36,8 @@ func (tc *TagCleaner) RunTagCleanup(s *Server, ctx context.Context, c Config) {
 	}
 }
 
-// MarkForDeletion marks stored tags that have been stranded without an associated kafka resource.
+// MarkForDeletion marks stored tags that have been stranded without an associated
+// kafka resource.
 func (s *Server) MarkForDeletion(now func() time.Time) error {
 	markTimeMinutes := fmt.Sprint(now().Unix())
 
@@ -53,34 +54,48 @@ func (s *Server) MarkForDeletion(now func() time.Time) error {
 		return ErrFetchingTopics
 	}
 
+	// Get all tag sets.
 	allTags, err := s.Tags.Store.GetAllTags()
 	if err != nil {
 		return err
 	}
 
-	// Add a marker tag with timestamp to any dangling tagset whose associated kafka resource no longer exists.
+	// Add a marker tag with timestamp to any dangling tagset whose associated kafka
+	// resource no longer exists.
 	for kafkaObject, tagSet := range allTags {
+		var objectExists bool
+
+		// Check whether the object currently exists.
 		switch kafkaObject.Type {
 		case "broker":
 			brokerId, err := strconv.Atoi(kafkaObject.ID)
 			if err != nil {
-				log.Println(fmt.Printf("Found non int broker ID %s in tag cleanup", kafkaObject.ID))
+				log.Printf("found non int broker ID %s in tag cleanup\n", kafkaObject.ID)
+				continue
 			}
-			if _, exists := brokers[brokerId]; !exists {
-				tagSet[TagMarkTimeKey] = markTimeMinutes
-			} else {
-				delete(tagSet, TagMarkTimeKey)
-			}
+			_, objectExists = brokers[brokerId]
 		case "topic":
-			if _, exists := topicSet[kafkaObject.ID]; !exists {
-				tagSet[TagMarkTimeKey] = markTimeMinutes
-			} else {
-				delete(tagSet, TagMarkTimeKey)
-			}
+			_, objectExists = topicSet[kafkaObject.ID]
 		}
-		err := s.Tags.Store.SetTags(kafkaObject, tagSet) // Persist any changes
-		if err != nil {
-			return err
+
+		// Check if the object has already been marked.
+		_, marked := tagSet[TagMarkTimeKey]
+
+		// If the object doesn't exist and hasn't already been marked, do so.
+		if !objectExists && !marked {
+			tagSet[TagMarkTimeKey] = markTimeMinutes
+			if err := s.Tags.Store.SetTags(kafkaObject, tagSet); err != nil {
+				log.Printf("failed to update TagSet for %s %s: %s\n", kafkaObject.Type, kafkaObject.ID, err)
+			}
+			continue
+		}
+
+		// Otherwise, the object exists and we should remove the marker if it were
+		// previously set.
+		if marked {
+			if err := s.Tags.Store.DeleteTags(kafkaObject, []string{TagMarkTimeKey}); err != nil {
+				log.Printf("failed to remove TagMarkTimeKey tag for %s %s: %s\n", kafkaObject.Type, kafkaObject.ID, err)
+			}
 		}
 	}
 
@@ -100,17 +115,14 @@ func (s *Server) DeleteStaleTags(now func() time.Time, c Config) {
 
 		markTime, err := strconv.Atoi(markTag)
 		if err != nil {
-			log.Printf("Found non timestamp tag %s in stale tag marker\n", markTag)
+			log.Printf("found non timestamp tag %s in stale tag marker\n", markTag)
 		}
 
 		if sweepTime-int64(markTime) > int64(c.TagAllowedStalenessMinutes*60) {
-			keys := make([]string, len(tags))
-			i := 0
-			for k := range tags {
-				keys[i] = k
-				i++
-			}
+			keys := tags.Keys()
 			s.Tags.Store.DeleteTags(kafkaObject, keys)
+
+			log.Printf("deleted tags for non-existent %s %s\n", kafkaObject.Type, kafkaObject.ID)
 		}
 	}
 }
