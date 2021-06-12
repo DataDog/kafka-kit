@@ -82,7 +82,7 @@ func (c Client) GetTopicState(t string) (*TopicState, error) {
 		return nil, err
 	}
 
-	if metadata.Topics[t].Error.String() != "Success" {
+	if metadata.Topics[t].Error.Code() != kafka.ErrNoError {
 		return nil, metadata.Topics[t].Error
 	}
 
@@ -112,7 +112,7 @@ func (c Client) GetTopicConfig(t string) (*TopicConfig, error) {
 		return nil, err
 	}
 
-	if configResult[0].Error.String() != "Success" {
+	if configResult[0].Error.Code() != kafka.ErrNoError {
 		return nil, configResult[0].Error
 	}
 
