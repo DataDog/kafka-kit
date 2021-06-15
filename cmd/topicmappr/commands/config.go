@@ -109,7 +109,6 @@ func initZooKeeper(cmd *cobra.Command) (kafkazk.Handler, error) {
 
 	if !zk.Ready() {
 		return nil, fmt.Errorf("Failed to connect to ZooKeeper %s within %s", zkAddr, timeout)
-		os.Exit(1)
 	}
 
 	return zk, nil

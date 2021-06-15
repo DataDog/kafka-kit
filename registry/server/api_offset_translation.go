@@ -8,7 +8,7 @@ import (
 	"log"
 	"time"
 
-	pb "github.com/DataDog/kafka-kit/v3/registry/protos"
+	pb "github.com/DataDog/kafka-kit/v3/registry/api"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
@@ -38,9 +38,13 @@ type Checkpoint struct {
 
 // TranslateOffsets translates the last committed remote consumer group's offset into the corresponding local offsets.
 func (s *Server) TranslateOffsets(ctx context.Context, req *pb.TranslateOffsetRequest) (*pb.TranslateOffsetResponse, error) {
-	ctx, err := s.ValidateRequest(ctx, req, readRequest)
+	ctx, cancel, err := s.ValidateRequest(ctx, req, readRequest)
 	if err != nil {
 		return nil, err
+	}
+
+	if cancel != nil {
+		defer cancel()
 	}
 
 	if req.RemoteClusterAlias == "" {

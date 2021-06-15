@@ -46,7 +46,9 @@ func testIntegrationServer() (*Server, error) {
 	})
 
 	wg := &sync.WaitGroup{}
-	ctx, _ := context.WithTimeout(context.Background(), time.Second*3)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	// Capture and discard to avoid vet warns.
+	_ = cancel
 
 	// Init kafakzk.
 	zkCfg := &kafkazk.Config{

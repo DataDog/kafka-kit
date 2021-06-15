@@ -15,9 +15,9 @@ import (
 
 	"github.com/DataDog/kafka-kit/v3/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
-	pb "github.com/DataDog/kafka-kit/v3/registry/protos"
+	pb "github.com/DataDog/kafka-kit/v3/registry/api"
 
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
@@ -30,6 +30,7 @@ const (
 
 // Server implements the registry APIs.
 type Server struct {
+	pb.UnimplementedRegistryServer
 	HTTPListen       string
 	GRPCListen       string
 	ZK               kafkazk.Handler
@@ -316,13 +317,13 @@ func (s *Server) DialZK(ctx context.Context, wg *sync.WaitGroup, c *kafkazk.Conf
 // throttler. If the incoming context did not have a deadline set, the server
 // a derived context is created with the server default timeout. The child
 // context and error are returned.
-func (s *Server) ValidateRequest(ctx context.Context, req interface{}, kind int) (context.Context, error) {
+func (s *Server) ValidateRequest(ctx context.Context, req interface{}, kind int) (context.Context, context.CancelFunc, error) {
 	// Check if this context has already been seen. If so, it's likely that
 	// one gRPC call is internally calling another and visiting ValidateRequest
 	// multiple times. In this case, we don't need to do further rate limiting,
 	// logging, and other steps.
 	if _, seen := ctx.Value("reqID").(uint64); seen {
-		return ctx, nil
+		return ctx, nil, nil
 	}
 
 	reqID := atomic.AddUint64(&s.reqID, 1)
@@ -331,12 +332,13 @@ func (s *Server) ValidateRequest(ctx context.Context, req interface{}, kind int)
 	s.LogRequest(ctx, fmt.Sprintf("%v", req), reqID)
 
 	var cCtx context.Context
+	var cancel context.CancelFunc
 
 	// Check if the incoming context has a deadline set.
 	if _, ok := ctx.Deadline(); ok {
 		cCtx = ctx
 	} else {
-		cCtx, _ = context.WithTimeout(ctx, s.reqTimeout)
+		cCtx, cancel = context.WithTimeout(ctx, s.reqTimeout)
 	}
 
 	cCtx = context.WithValue(cCtx, "reqID", reqID)
@@ -345,6 +347,7 @@ func (s *Server) ValidateRequest(ctx context.Context, req interface{}, kind int)
 	defer func() {
 		if err != nil {
 			log.Printf("[request %d] timed out", reqID)
+			cancel()
 		}
 	}()
 
@@ -352,15 +355,15 @@ func (s *Server) ValidateRequest(ctx context.Context, req interface{}, kind int)
 	switch kind {
 	case 0:
 		if err = s.readReqThrottle.Request(cCtx); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	case 1:
 		if err = s.writeReqThrottle.Request(cCtx); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
-	return cCtx, nil
+	return cCtx, cancel, nil
 }
 
 // LogRequest takes a request context and input parameters as a string
