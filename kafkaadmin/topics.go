@@ -55,8 +55,8 @@ func (c Client) GetTopics(ts []*regexp.Regexp) ([]string, error) {
 		return nil, err
 	}
 
-	//Get all topics that match all provided topic regexps.
-	//Add matches to a slice
+	// Get all topics that match all provided topic regexps.
+	// Add matches to a slice
 	topicsList := []string{}
 	for id := range ts {
 		for _, topic := range metadata.Topics {

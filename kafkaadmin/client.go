@@ -15,7 +15,7 @@ var (
 	SASLMechanismSet = map[string]struct{}{"PLAIN": empty, "SCRAM-SHA-256": empty, "SCRAM-SHA-512": empty}
 )
 
-//TimeoutMs to queries metadata.
+// FetchMetadataTimeoutMs is the timeout in ms to query metadata.
 const FetchMetadataTimeoutMs = 1000
 
 type FactoryFunc func(conf *kafka.ConfigMap) (*kafka.AdminClient, error)
