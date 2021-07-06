@@ -23,10 +23,17 @@ type BrokerMeta struct {
 
 // Copy returns a copy of a BrokerMetaMap.
 func (bmm BrokerMetaMap) Copy() BrokerMetaMap {
-	return BrokerMetaMap{}
+	var c = BrokerMetaMap{}
+
+	for id, b := range bmm {
+		copy := b.Copy()
+		c[id] = &copy
+	}
+
+	return c
 }
 
-// Copy returns a copy of a BrokerMeta
+// Copy returns a copy of a BrokerMeta.
 func (bm BrokerMeta) Copy() BrokerMeta {
 	return BrokerMeta{
 		StorageFree:                 bm.StorageFree,
