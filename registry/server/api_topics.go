@@ -452,6 +452,16 @@ func (s *Server) fetchTopicSet(params fetchTopicSetParams) (TopicSet, error) {
 
 	matched := TopicSet{}
 
+	// Certain state-based topic requests will need broker info.
+	var liveBrokers []uint32
+	if params.spanning {
+		brokers, err := s.fetchBrokerSet(nil)
+		if err != nil {
+			return nil, ErrFetchingTopics
+		}
+		liveBrokers = brokers.IDs()
+	}
+
 	// Populate all topic with state/config data.
 	for _, t := range topics {
 		// Get the topic state.
@@ -467,6 +477,18 @@ func (s *Server) fetchTopicSet(params fetchTopicSetParams) (TopicSet, error) {
 				c.Config = map[string]string{}
 			default:
 				return nil, err
+			}
+		}
+
+		// If we're filtering for "spanning" topics, now is a good time to check
+		// since the full topic state is visible here.
+		if params.spanning {
+			// A simple check as to whether a topic satisfies the spanning property
+			// is to request the set of brokers hosting its partitions; if the len
+			// is not equal to the number of brokers in the cluster, it cannot be
+			// considered spanning.
+			if len(st.Brokers()) != len(liveBrokers) {
+				continue
 			}
 		}
 
