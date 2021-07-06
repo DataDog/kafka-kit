@@ -487,7 +487,7 @@ func (s *Server) fetchTopicSet(params fetchTopicSetParams) (TopicSet, error) {
 			// is to request the set of brokers hosting its partitions; if the len
 			// is not equal to the number of brokers in the cluster, it cannot be
 			// considered spanning.
-			if len(st.Brokers()) != len(liveBrokers) {
+			if len(st.Brokers()) < len(liveBrokers) {
 				continue
 			}
 		}
