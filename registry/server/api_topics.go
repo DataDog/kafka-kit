@@ -432,7 +432,7 @@ func (s *Server) fetchTopicSet(req *pb.TopicRequest) (TopicSet, error) {
 		topicRegex = append(topicRegex, tregex)
 	}
 
-	// Fetch topics from ZK.
+	// Fetch all topics from ZK.
 	topics, errs := s.ZK.GetTopics(topicRegex)
 	if errs != nil {
 		return nil, ErrFetchingTopics
@@ -440,12 +440,16 @@ func (s *Server) fetchTopicSet(req *pb.TopicRequest) (TopicSet, error) {
 
 	matched := TopicSet{}
 
-	// Populate all topics.
+	// Populate all topic with state/config data.
 	for _, t := range topics {
+		// Get the topic state.
 		st, _ := s.ZK.GetTopicState(t)
+		// Get the topic configurations.
 		c, err := s.ZK.GetTopicConfig(t)
 		if err != nil {
 			switch err.(type) {
+			// ErrNoNode cases for a topic that exists just means that there hasn't been
+			// non-default config specified for the topic.
 			case kafkazk.ErrNoNode:
 				c = &kafkazk.TopicConfig{}
 				c.Config = map[string]string{}
@@ -453,6 +457,8 @@ func (s *Server) fetchTopicSet(req *pb.TopicRequest) (TopicSet, error) {
 				return nil, err
 			}
 		}
+
+		// Add the topic to the TopicSet.
 		matched[t] = &pb.Topic{
 			Name:       t,
 			Partitions: uint32(len(st.Partitions)),
@@ -463,6 +469,7 @@ func (s *Server) fetchTopicSet(req *pb.TopicRequest) (TopicSet, error) {
 		}
 	}
 
+	// Returned filtered results by tag.
 	filtered, err := s.Tags.FilterTopics(matched, req.Tag)
 	if err != nil {
 		return nil, err
