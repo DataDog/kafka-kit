@@ -35,10 +35,9 @@ func (bmm BrokerMetaMap) Copy() BrokerMetaMap {
 
 // Copy returns a copy of a BrokerMeta.
 func (bm BrokerMeta) Copy() BrokerMeta {
-	return BrokerMeta{
+	copy := BrokerMeta{
 		StorageFree:                 bm.StorageFree,
 		MetricsIncomplete:           bm.MetricsIncomplete,
-		ListenerSecurityProtocolMap: bm.ListenerSecurityProtocolMap,
 		Endpoints:                   bm.Endpoints,
 		Rack:                        bm.Rack,
 		JMXPort:                     bm.JMXPort,
@@ -47,4 +46,10 @@ func (bm BrokerMeta) Copy() BrokerMeta {
 		Port:                        bm.Port,
 		Version:                     bm.Version,
 	}
+
+  for k, v := range bm.ListenerSecurityProtocolMap {
+    copy.ListenerSecurityProtocolMap[k] = v
+  }
+
+  return copy
 }
