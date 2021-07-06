@@ -483,15 +483,8 @@ func BrokerMapFromPartitionMap(pm *PartitionMap, bm BrokerMetaMap, force bool) B
 func (b BrokerMap) Copy() BrokerMap {
 	c := BrokerMap{}
 	for id, br := range b {
-		c[id] = &Broker{
-			ID:          br.ID,
-			Locality:    br.Locality,
-			Used:        br.Used,
-			StorageFree: br.StorageFree,
-			Replace:     br.Replace,
-			Missing:     br.Missing,
-			New:         br.New,
-		}
+		copy := br.Copy()
+		c[id] = &copy
 	}
 
 	return c
