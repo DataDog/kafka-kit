@@ -16,6 +16,7 @@ var (
 
 // Stub stubs the Handler interface.
 type Stub struct {
+	bmm  BrokerMetaMap
 	data map[string]*StubZnode
 }
 
@@ -29,6 +30,14 @@ type StubZnode struct {
 // NewZooKeeperStub returns a stub ZooKeeper.
 func NewZooKeeperStub() Handler {
 	return &Stub{
+		bmm: BrokerMetaMap{
+			1001: &BrokerMeta{Rack: "a"},
+			1002: &BrokerMeta{Rack: "b"},
+			1003: &BrokerMeta{Rack: ""},
+			1004: &BrokerMeta{Rack: "a"},
+			1005: &BrokerMeta{Rack: "b"},
+			1007: &BrokerMeta{Rack: ""},
+		},
 		data: map[string]*StubZnode{},
 	}
 }
@@ -294,14 +303,7 @@ func (zk *Stub) GetTopicConfig(t string) (*TopicConfig, error) {
 
 // GetAllBrokerMeta stubs GetAllBrokerMeta.
 func (zk *Stub) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, []error) {
-	b := BrokerMetaMap{
-		1001: &BrokerMeta{Rack: "a"},
-		1002: &BrokerMeta{Rack: "b"},
-		1003: &BrokerMeta{Rack: ""},
-		1004: &BrokerMeta{Rack: "a"},
-		1005: &BrokerMeta{Rack: "b"},
-		1007: &BrokerMeta{Rack: ""},
-	}
+	b := zk.bmm.Copy()
 
 	if withMetrics {
 		m, _ := zk.GetBrokerMetrics()

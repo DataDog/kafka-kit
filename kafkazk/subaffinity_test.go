@@ -49,7 +49,7 @@ func TestConstraintsMatch(t *testing.T) {
 }
 
 func TestSubstitutionAffinities(t *testing.T) {
-	z := &Stub{}
+	z := NewZooKeeperStub()
 	pm, _ := z.GetPartitionMap("test_topic")
 
 	bm := newStubBrokerMap()

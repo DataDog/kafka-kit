@@ -106,7 +106,7 @@ func testGetMapString5(n string) string {
 }
 
 func TestSize(t *testing.T) {
-	z := &Stub{}
+	z := NewZooKeeperStub()
 
 	pm, _ := z.GetPartitionMap("test_topic")
 	pmm, _ := z.GetAllPartitionMeta()
@@ -136,7 +136,7 @@ func TestSize(t *testing.T) {
 }
 
 func TestSortBySize(t *testing.T) {
-	z := &Stub{}
+	z := NewZooKeeperStub()
 
 	partitionMap, _ := z.GetPartitionMap("test_topic")
 	partitionMetaMap, _ := z.GetAllPartitionMeta()
@@ -261,7 +261,7 @@ func TestPartitionMapCopy(t *testing.T) {
 
 func TestPartitionMapFromString(t *testing.T) {
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
-	zk := &Stub{}
+	zk := NewZooKeeperStub()
 	pm2, _ := zk.GetPartitionMap("test_topic")
 
 	// We expect equality here.
@@ -271,7 +271,7 @@ func TestPartitionMapFromString(t *testing.T) {
 }
 
 func TestPartitionMapFromZK(t *testing.T) {
-	zk := &Stub{}
+	zk := NewZooKeeperStub()
 
 	r := []*regexp.Regexp{}
 	r = append(r, regexp.MustCompile("/^null$/"))
@@ -399,7 +399,7 @@ func TestRebuildByCount(t *testing.T) {
 	forceRebuild := true
 	withMetrics := false
 
-	zk := &Stub{}
+	zk := NewZooKeeperStub()
 	bm, _ := zk.GetAllBrokerMeta(withMetrics)
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 	pmm := NewPartitionMetaMap()
@@ -481,7 +481,7 @@ func TestRebuildByCountSA(t *testing.T) {
 	forceRebuild := true
 	withMetrics := false
 
-	zk := &Stub{}
+	zk := NewZooKeeperStub()
 	bm, _ := zk.GetAllBrokerMeta(withMetrics)
 	// Simulate that we've lost broker 1002.
 	delete(bm, 1002)
@@ -536,7 +536,7 @@ func TestRebuildByStorageDistribution(t *testing.T) {
 	forceRebuild := true
 	withMetrics := true
 
-	zk := &Stub{}
+	zk := NewZooKeeperStub()
 	bm, _ := zk.GetAllBrokerMeta(withMetrics)
 	pm, _ := PartitionMapFromString(testGetMapString4("test_topic"))
 	pmm, _ := zk.GetAllPartitionMeta()
@@ -592,7 +592,7 @@ func TestRebuildByStorageStorage(t *testing.T) {
 	forceRebuild := true
 	withMetrics := true
 
-	zk := &Stub{}
+	zk := NewZooKeeperStub()
 	bm, _ := zk.GetAllBrokerMeta(withMetrics)
 	pm, _ := PartitionMapFromString(testGetMapString4("test_topic"))
 	pmm, _ := zk.GetAllPartitionMeta()
