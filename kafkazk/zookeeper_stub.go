@@ -28,7 +28,7 @@ type StubZnode struct {
 }
 
 // NewZooKeeperStub returns a stub ZooKeeper.
-func NewZooKeeperStub() Handler {
+func NewZooKeeperStub() *Stub {
 	return &Stub{
 		bmm: BrokerMetaMap{
 			1001: &BrokerMeta{Rack: "a"},
