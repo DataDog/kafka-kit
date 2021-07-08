@@ -50,6 +50,14 @@ func (zk *Stub) RemoveBrokers(ids []int) {
 	}
 }
 
+// AddBrokers takes a map of broker ID to BrokerMeta and adds it to the Stub
+// BrokerMetaMap.
+func (zk *Stub) AddBrokers(b map[int]BrokerMeta) {
+	for id, meta := range b {
+		zk.bmm[id] = &meta
+	}
+}
+
 // Many of these methods aren't complete stubs as they haven't been needed.
 
 // GetReassignments stubs GetReassignments.
