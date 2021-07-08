@@ -50,7 +50,7 @@ func (s *Server) GetTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topic
 	fetchParams := fetchTopicSetParams{
 		name:     req.Name,
 		tags:     req.Tag,
-		spanning: false,
+		spanning: req.Spanning,
 	}
 
 	topics, err := s.fetchTopicSet(fetchParams)
@@ -82,7 +82,7 @@ func (s *Server) ListTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topi
 	fetchParams := fetchTopicSetParams{
 		name:     req.Name,
 		tags:     req.Tag,
-		spanning: false,
+		spanning: req.Spanning,
 	}
 
 	topics, err := s.fetchTopicSet(fetchParams)
@@ -455,7 +455,7 @@ func (s *Server) fetchTopicSet(params fetchTopicSetParams) (TopicSet, error) {
 	// Certain state-based topic requests will need broker info.
 	var liveBrokers []uint32
 	if params.spanning {
-		brokers, err := s.fetchBrokerSet(nil)
+		brokers, err := s.fetchBrokerSet(&pb.BrokerRequest{})
 		if err != nil {
 			return nil, ErrFetchingTopics
 		}
