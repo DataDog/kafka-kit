@@ -42,6 +42,14 @@ func NewZooKeeperStub() *Stub {
 	}
 }
 
+// RemoveBrokers removes the specified IDs from the BrokerMetaMap. This can be
+// used in testing to simulate brokers leaving the cluster.
+func (zk *Stub) RemoveBrokers(ids []int) {
+	for _, id := range ids {
+		delete(zk.bmm, id)
+	}
+}
+
 // Many of these methods aren't complete stubs as they haven't been needed.
 
 // GetReassignments stubs GetReassignments.
