@@ -26,8 +26,8 @@ func (bmm BrokerMetaMap) Copy() BrokerMetaMap {
 	var c = BrokerMetaMap{}
 
 	for id, b := range bmm {
-		copy := b.Copy()
-		c[id] = &copy
+		cp := b.Copy()
+		c[id] = &cp
 	}
 
 	return c
@@ -35,24 +35,23 @@ func (bmm BrokerMetaMap) Copy() BrokerMetaMap {
 
 // Copy returns a copy of a BrokerMeta.
 func (bm BrokerMeta) Copy() BrokerMeta {
-	copy := BrokerMeta{
-		StorageFree:       bm.StorageFree,
-		MetricsIncomplete: bm.MetricsIncomplete,
-		Rack:              bm.Rack,
-		JMXPort:           bm.JMXPort,
-		Host:              bm.Host,
-		Timestamp:         bm.Timestamp,
-		Port:              bm.Port,
-		Version:           bm.Version,
+	cp := BrokerMeta{
+		StorageFree:                 bm.StorageFree,
+		MetricsIncomplete:           bm.MetricsIncomplete,
+		ListenerSecurityProtocolMap: map[string]string{},
+		Rack:                        bm.Rack,
+		JMXPort:                     bm.JMXPort,
+		Host:                        bm.Host,
+		Timestamp:                   bm.Timestamp,
+		Port:                        bm.Port,
+		Version:                     bm.Version,
 	}
 
 	for k, v := range bm.ListenerSecurityProtocolMap {
-		copy.ListenerSecurityProtocolMap[k] = v
+		cp.ListenerSecurityProtocolMap[k] = v
 	}
 
-	for _, e := range bm.Endpoints {
-		copy.Endpoints = append(copy.Endpoints, e)
-	}
+	cp.Endpoints = append(cp.Endpoints, bm.Endpoints...)
 
-	return copy
+	return cp
 }
