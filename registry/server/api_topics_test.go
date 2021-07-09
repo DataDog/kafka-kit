@@ -73,7 +73,9 @@ func TestListTopics(t *testing.T) {
 		4: {},
 	}
 
-	for i, req := range tests {
+	// Order matters.
+	for i := 0; i < len(tests); i++ {
+		req := tests[i]
 		if i == 3 {
 			// we need to add a bunch of unused brokers to underlying Kafka/ZK stub
 			// to ensure that test cases 3 and 4 fail to return the same results as

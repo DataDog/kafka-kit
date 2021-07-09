@@ -462,7 +462,7 @@ func (s *Server) fetchTopicSet(params fetchTopicSetParams) (TopicSet, error) {
 		liveBrokers = brokers.IDs()
 	}
 
-	// Populate all topic with state/config data.
+	// Populate all topics with state/config data.
 	for _, t := range topics {
 		// Get the topic state.
 		st, _ := s.ZK.GetTopicState(t)
