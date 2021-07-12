@@ -8,6 +8,9 @@ func TestBrokers(t *testing.T) {
 	zk := NewZooKeeperStub()
 
 	state, _ := zk.GetTopicState("")
+	// Inject duplicates to ensure the broker list is truly deduplicated.
+	state.Partitions["5"] = []int{1000, 1001}
+
 	expected := []int{1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009}
 	brokers := state.Brokers()
 
