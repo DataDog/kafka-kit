@@ -57,4 +57,17 @@ func TestBrokerMetaCopy(t *testing.T) {
 		t.Logf("Want:\n%+v\n", orig)
 		t.Fail()
 	}
+
+	// Test that the complex types are actually copies and not pointing to the
+	// same memory.
+
+	orig.ListenerSecurityProtocolMap["fake"] = "fake2"
+	orig.Endpoints[0] = "127.0.0.1"
+
+	switch {
+	case
+		cp.ListenerSecurityProtocolMap["fake"] != "fake",
+		cp.Endpoints[0] != "localhost:9092":
+		t.Errorf("The copy shares memory with the original")
+	}
 }
