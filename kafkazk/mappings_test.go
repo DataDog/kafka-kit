@@ -58,7 +58,7 @@ func TestMappings(t *testing.T) {
 func TestLargestPartitions(t *testing.T) {
 	var topic = "test_topic"
 	pm, _ := PartitionMapFromString(testGetMapString4(topic))
-	zk := &Stub{}
+	zk := NewZooKeeperStub()
 	pmm, _ := zk.GetAllPartitionMeta()
 	mappings := pm.Mappings()
 

@@ -121,7 +121,7 @@ func TestSortPseudoShuffle(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
-	zk := &Stub{}
+	zk := NewZooKeeperStub()
 	bmm, _ := zk.GetAllBrokerMeta(false)
 	bm := newStubBrokerMap()
 	// 1001 isn't in the list, should
@@ -209,7 +209,7 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestUpdateIncludeExisting(t *testing.T) {
-	zk := &Stub{}
+	zk := NewZooKeeperStub()
 	bmm, _ := zk.GetAllBrokerMeta(false)
 	bm := newStubBrokerMap()
 
@@ -342,7 +342,7 @@ func TestListFilter(t *testing.T) {
 }
 
 func TestBrokerMapFromPartitionMap(t *testing.T) {
-	zk := &Stub{}
+	zk := NewZooKeeperStub()
 	bmm, _ := zk.GetAllBrokerMeta(false)
 	pm, _ := PartitionMapFromString(testGetMapString("test_topic"))
 	forceRebuild := false

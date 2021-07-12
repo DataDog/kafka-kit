@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/DataDog/kafka-kit/v3/kafkazk"
 	pb "github.com/DataDog/kafka-kit/v3/registry/registry"
 )
 
@@ -55,17 +56,42 @@ func TestListTopics(t *testing.T) {
 
 	tests := map[int]*pb.TopicRequest{
 		0: {},
-		1: {Name: "test_topic"},
-		2: {Tag: []string{"partitions:5"}},
+		1: {Spanning: true, Name: "test_topic"},
+		2: {Spanning: true, Tag: []string{"partitions:5"}},
+		// These should now fail; it's the same test as the last two cases, but
+		// the increase in brokers should cause these topics to fail to satisfy
+		// the spanning property.
+		3: {Spanning: true, Tag: []string{"partitions:5"}},
+		4: {Spanning: true, Tag: []string{"partitions:5"}},
 	}
 
 	expected := map[int][]string{
 		0: {"test_topic", "test_topic2"},
 		1: {"test_topic"},
 		2: {"test_topic", "test_topic2"},
+		3: {},
+		4: {},
 	}
 
-	for i, req := range tests {
+	// Order matters.
+	for i := 0; i < len(tests); i++ {
+		req := tests[i]
+		if i == 3 {
+			// we need to add a bunch of unused brokers to underlying Kafka/ZK stub
+			// to ensure that test cases 3 and 4 fail to return the same results as
+			// 1 and 2.
+			brokers := map[int]kafkazk.BrokerMeta{
+				1008: {},
+				1009: {},
+				1010: {},
+				1011: {},
+				1012: {},
+				1013: {},
+			}
+
+			s.ZK.(*kafkazk.Stub).AddBrokers(brokers)
+		}
+
 		resp, err := s.ListTopics(context.Background(), req)
 		if err != nil {
 			t.Fatal(err)

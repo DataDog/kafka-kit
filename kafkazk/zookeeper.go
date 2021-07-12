@@ -68,12 +68,6 @@ type Handler interface {
 	GetPartitionMap(string) (*PartitionMap, error)
 }
 
-// TopicState is used for unmarshing ZooKeeper json data from a topic:
-// e.g. /brokers/topics/some-topic
-type TopicState struct {
-	Partitions map[string][]int `json:"partitions"`
-}
-
 // TopicStateISR is a map of partition numbers to PartitionState.
 type TopicStateISR map[string]PartitionState
 

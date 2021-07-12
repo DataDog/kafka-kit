@@ -228,6 +228,7 @@ message Broker {
 message TopicRequest {
   repeated string tag = 1;
   string name = 2;
+  bool spanning = 3;
 }
 
 message CreateTopicRequest {

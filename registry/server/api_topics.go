@@ -26,7 +26,7 @@ var (
 	// ErrInsufficientBrokers error.
 	ErrInsufficientBrokers = errors.New("insufficient number of brokers")
 	// Misc.
-	tregex = regexp.MustCompile(".*")
+	allTopicsRegex = regexp.MustCompile(".*")
 )
 
 // TopicSet is a mapping of topic name to *pb.Topic.
@@ -47,7 +47,13 @@ func (s *Server) GetTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topic
 	}
 
 	// Get topics.
-	topics, err := s.fetchTopicSet(req)
+	fetchParams := fetchTopicSetParams{
+		name:     req.Name,
+		tags:     req.Tag,
+		spanning: req.Spanning,
+	}
+
+	topics, err := s.fetchTopicSet(fetchParams)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +79,13 @@ func (s *Server) ListTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topi
 	}
 
 	// Get topics.
-	topics, err := s.fetchTopicSet(req)
+	fetchParams := fetchTopicSetParams{
+		name:     req.Name,
+		tags:     req.Tag,
+		spanning: req.Spanning,
+	}
+
+	topics, err := s.fetchTopicSet(fetchParams)
 	if err != nil {
 		return nil, err
 	}
@@ -421,18 +433,18 @@ func (s *Server) DeleteTopicTags(ctx context.Context, req *pb.TopicRequest) (*pb
 }
 
 // fetchTopicSet fetches metadata for all topics.
-func (s *Server) fetchTopicSet(req *pb.TopicRequest) (TopicSet, error) {
-	topicRegex := []*regexp.Regexp{}
+func (s *Server) fetchTopicSet(params fetchTopicSetParams) (TopicSet, error) {
+	var topicRegex = []*regexp.Regexp{}
 
 	// Check if a specific topic is being fetched.
-	if req.Name != "" {
-		r := regexp.MustCompile(fmt.Sprintf("^%s$", req.Name))
+	if params.name != "" {
+		r := regexp.MustCompile(fmt.Sprintf("^%s$", params.name))
 		topicRegex = append(topicRegex, r)
 	} else {
-		topicRegex = append(topicRegex, tregex)
+		topicRegex = []*regexp.Regexp{allTopicsRegex}
 	}
 
-	// Fetch topics from ZK.
+	// Fetch all topics from ZK.
 	topics, errs := s.ZK.GetTopics(topicRegex)
 	if errs != nil {
 		return nil, ErrFetchingTopics
@@ -440,12 +452,26 @@ func (s *Server) fetchTopicSet(req *pb.TopicRequest) (TopicSet, error) {
 
 	matched := TopicSet{}
 
-	// Populate all topics.
+	// Certain state-based topic requests will need broker info.
+	var liveBrokers []uint32
+	if params.spanning {
+		brokers, err := s.fetchBrokerSet(&pb.BrokerRequest{})
+		if err != nil {
+			return nil, ErrFetchingTopics
+		}
+		liveBrokers = brokers.IDs()
+	}
+
+	// Populate all topics with state/config data.
 	for _, t := range topics {
+		// Get the topic state.
 		st, _ := s.ZK.GetTopicState(t)
+		// Get the topic configurations.
 		c, err := s.ZK.GetTopicConfig(t)
 		if err != nil {
 			switch err.(type) {
+			// ErrNoNode cases for a topic that exists just means that there hasn't been
+			// non-default config specified for the topic.
 			case kafkazk.ErrNoNode:
 				c = &kafkazk.TopicConfig{}
 				c.Config = map[string]string{}
@@ -453,6 +479,20 @@ func (s *Server) fetchTopicSet(req *pb.TopicRequest) (TopicSet, error) {
 				return nil, err
 			}
 		}
+
+		// If we're filtering for "spanning" topics, now is a good time to check
+		// since the full topic state is visible here.
+		if params.spanning {
+			// A simple check as to whether a topic satisfies the spanning property
+			// is to request the set of brokers hosting its partitions; if the len
+			// is not equal to the number of brokers in the cluster, it cannot be
+			// considered spanning.
+			if len(st.Brokers()) < len(liveBrokers) {
+				continue
+			}
+		}
+
+		// Add the topic to the TopicSet.
 		matched[t] = &pb.Topic{
 			Name:       t,
 			Partitions: uint32(len(st.Partitions)),
@@ -463,12 +503,25 @@ func (s *Server) fetchTopicSet(req *pb.TopicRequest) (TopicSet, error) {
 		}
 	}
 
-	filtered, err := s.Tags.FilterTopics(matched, req.Tag)
+	// Returned filtered results by tag.
+	filtered, err := s.Tags.FilterTopics(matched, params.tags)
 	if err != nil {
 		return nil, err
 	}
 
 	return filtered, nil
+}
+
+type fetchTopicSetParams struct {
+	// If name is specified, only the metadata for this topic is returned.
+	name string
+	// Tags are used to filter the topics returned in the TopicSet. Matched topics
+	// are those that have *all* key/value pairs specified.
+	tags []string
+	// Spanning is used to filter topics that satisfy the "spanning" property. A
+	// topic is considered spanning if it has at least one partition on every broker
+	// in the cluster.
+	spanning bool
 }
 
 // PartitionMapToReplicaAssignment takes a *kafkazk.PartitionMap and

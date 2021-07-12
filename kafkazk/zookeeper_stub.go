@@ -16,6 +16,7 @@ var (
 
 // Stub stubs the Handler interface.
 type Stub struct {
+	bmm  BrokerMetaMap
 	data map[string]*StubZnode
 }
 
@@ -27,9 +28,33 @@ type StubZnode struct {
 }
 
 // NewZooKeeperStub returns a stub ZooKeeper.
-func NewZooKeeperStub() Handler {
+func NewZooKeeperStub() *Stub {
 	return &Stub{
+		bmm: BrokerMetaMap{
+			1001: &BrokerMeta{Rack: "a"},
+			1002: &BrokerMeta{Rack: "b"},
+			1003: &BrokerMeta{Rack: ""},
+			1004: &BrokerMeta{Rack: "a"},
+			1005: &BrokerMeta{Rack: "b"},
+			1007: &BrokerMeta{Rack: ""},
+		},
 		data: map[string]*StubZnode{},
+	}
+}
+
+// RemoveBrokers removes the specified IDs from the BrokerMetaMap. This can be
+// used in testing to simulate brokers leaving the cluster.
+func (zk *Stub) RemoveBrokers(ids []int) {
+	for _, id := range ids {
+		delete(zk.bmm, id)
+	}
+}
+
+// AddBrokers takes a map of broker ID to BrokerMeta and adds it to the Stub
+// BrokerMetaMap.
+func (zk *Stub) AddBrokers(b map[int]BrokerMeta) {
+	for id, meta := range b {
+		zk.bmm[id] = &meta
 	}
 }
 
@@ -294,14 +319,7 @@ func (zk *Stub) GetTopicConfig(t string) (*TopicConfig, error) {
 
 // GetAllBrokerMeta stubs GetAllBrokerMeta.
 func (zk *Stub) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, []error) {
-	b := BrokerMetaMap{
-		1001: &BrokerMeta{Rack: "a"},
-		1002: &BrokerMeta{Rack: "b"},
-		1003: &BrokerMeta{Rack: ""},
-		1004: &BrokerMeta{Rack: "a"},
-		1005: &BrokerMeta{Rack: "b"},
-		1007: &BrokerMeta{Rack: ""},
-	}
+	b := zk.bmm.Copy()
 
 	if withMetrics {
 		m, _ := zk.GetBrokerMetrics()
