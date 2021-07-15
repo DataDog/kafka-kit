@@ -37,6 +37,7 @@ func main() {
 	}
 
 	v := flag.Bool("version", false, "version")
+	profiling := flag.Bool("enable-profiling", false, "Enable Datadog continuous profiling")
 	flag.StringVar(&serverConfig.HTTPListen, "http-listen", "localhost:8080", "Server HTTP listen address")
 	flag.StringVar(&serverConfig.GRPCListen, "grpc-listen", "localhost:8090", "Server gRPC listen address")
 	flag.IntVar(&serverConfig.ReadReqRate, "read-rate-limit", 5, "Read request rate limit (reqs/s)")
@@ -70,18 +71,25 @@ func main() {
 	}
 
 	// Start profiling if enabled.
-	traceAgentURL := os.Getenv("TRACE_AGENT_URL")
+	if *profiling {
+		// Optional trace agent URL override.
+		traceAgentURL := "localhost:8126"
+		if e := os.Getenv("TRACE_AGENT_URL"); e != "" {
+			traceAgentURL = e
+		}
 
-	if err = profiler.Start(
-		profiler.WithService("kafka-registry"),
-		profiler.WithAgentAddr(traceAgentURL),
-		profiler.WithProfileTypes(
-			profiler.CPUProfile,
-			profiler.HeapProfile,
-		),
-	); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		err = profiler.Start(
+			profiler.WithService("kafka-registry"),
+			profiler.WithAgentAddr(traceAgentURL),
+			profiler.WithProfileTypes(
+				profiler.CPUProfile,
+				profiler.HeapProfile,
+			),
+		)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 	}
 
 	defer profiler.Stop()
