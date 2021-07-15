@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/Masterminds/semver v1.5.0
+	github.com/Microsoft/go-winio v0.5.0 // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/confluentinc/confluent-kafka-go v1.7.0
 	github.com/go-zookeeper/zk v1.0.2
@@ -21,4 +22,5 @@ require (
 	google.golang.org/grpc v1.38.0
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.0.0
 	google.golang.org/protobuf v1.26.0
+	gopkg.in/DataDog/dd-trace-go.v1 v1.31.1 // indirect
 )

@@ -16,6 +16,7 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/jamiealquiza/envy"
+	"gopkg.in/DataDog/dd-trace-go.v1/profiler"
 )
 
 // This can be set with -ldflags "-X main.version=x.x.x"
@@ -67,6 +68,23 @@ func main() {
 		fmt.Printf("Invalid SemVer: %s\n", *kafkaVersionString)
 		os.Exit(1)
 	}
+
+	// Start profiling if enabled.
+	traceAgentURL := os.Getenv("TRACE_AGENT_URL")
+
+	if err = profiler.Start(
+		profiler.WithService("kafka-registry"),
+		profiler.WithAgentAddr(traceAgentURL),
+		profiler.WithProfileTypes(
+			profiler.CPUProfile,
+			profiler.HeapProfile,
+		),
+	); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	defer profiler.Stop()
 
 	if adminConfig.SecurityProtocol != "" {
 		adminConfig.SecurityProtocol = strings.ToUpper(adminConfig.SecurityProtocol)
