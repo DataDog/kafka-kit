@@ -90,9 +90,9 @@ func main() {
 			fmt.Println(err)
 			os.Exit(1)
 		}
-	}
 
-	defer profiler.Stop()
+		defer profiler.Stop()
+	}
 
 	if adminConfig.SecurityProtocol != "" {
 		adminConfig.SecurityProtocol = strings.ToUpper(adminConfig.SecurityProtocol)
