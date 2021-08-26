@@ -229,6 +229,7 @@ message TopicRequest {
   repeated string tag = 1;
   string name = 2;
   bool spanning = 3;
+  bool with_replicas = 4;
 }
 
 message CreateTopicRequest {
@@ -249,6 +250,13 @@ message Topic {
   uint32 partitions = 6;
   uint32 replication = 7;
   map<string, string> configs = 8;
+
+  repeated Partition partition_list = 9;
+}
+
+message Partition {
+  uint32 id = 1;
+  repeated uint32 replicas = 2;
 }
 
 /***************
