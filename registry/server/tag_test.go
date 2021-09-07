@@ -281,12 +281,12 @@ func TestReservedFields(t *testing.T) {
 	rs := GetReservedFields()
 
 	topicExpected := map[string]struct{}{
-		"tags":          {},
-		"name":          {},
-		"partitions":    {},
-		"replication":   {},
-		"configs":       {},
-		"partitionlist": {},
+		"tags":        {},
+		"name":        {},
+		"partitions":  {},
+		"replication": {},
+		"configs":     {},
+		"replicas":    {},
 	}
 
 	brokerExpected := map[string]struct{}{

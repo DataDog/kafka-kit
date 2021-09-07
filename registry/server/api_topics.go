@@ -495,7 +495,7 @@ func (s *Server) fetchTopicSet(params fetchTopicSetParams) (TopicSet, error) {
 			}
 		}
 
-		partitionList := []*pb.Partition{}
+		replicaMap := make(map[uint32]*pb.Replicas)
 		if params.withReplicas {
 			for id, iReplicas := range st.Partitions {
 				replicas := []uint32{}
@@ -504,10 +504,9 @@ func (s *Server) fetchTopicSet(params fetchTopicSetParams) (TopicSet, error) {
 				}
 				// assuming that the data in zookeeper will be well-formated, ignoring error
 				parsedId, _ := strconv.ParseUint(id, 10, 32)
-				partitionList = append(partitionList, &pb.Partition{
-					Id:       uint32(parsedId),
-					Replicas: replicas,
-				})
+				replicaMap[uint32(parsedId)] = &pb.Replicas{
+					Ids: replicas,
+				}
 			}
 		}
 
@@ -520,7 +519,7 @@ func (s *Server) fetchTopicSet(params fetchTopicSetParams) (TopicSet, error) {
 			Replication: uint32(len(st.Partitions["0"])),
 			Configs:     c.Config,
 
-			PartitionList: partitionList,
+			Replicas: replicaMap,
 		}
 	}
 

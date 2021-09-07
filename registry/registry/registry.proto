@@ -251,12 +251,11 @@ message Topic {
   uint32 replication = 7;
   map<string, string> configs = 8;
 
-  repeated Partition partition_list = 9;
+  map<uint32, Replicas> replicas = 9;
 }
 
-message Partition {
-  uint32 id = 1;
-  repeated uint32 replicas = 2;
+message Replicas {
+  repeated uint32 ids = 2;
 }
 
 /***************
