@@ -286,6 +286,7 @@ func TestReservedFields(t *testing.T) {
 		"partitions":  {},
 		"replication": {},
 		"configs":     {},
+		"replicas":    {},
 	}
 
 	brokerExpected := map[string]struct{}{

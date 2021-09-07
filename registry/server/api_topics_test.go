@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
 	pb "github.com/DataDog/kafka-kit/v3/registry/registry"
 )
@@ -15,12 +17,25 @@ func TestGetTopics(t *testing.T) {
 		0: {},
 		1: {Name: "test_topic"},
 		2: {Tag: []string{"partitions:5"}},
+		3: {WithReplicas: true},
 	}
 
-	expected := map[int][]string{
+	// pb.TopicResponse{Topics: topics}
+	expectedNames := map[int][]string{
 		0: {"test_topic", "test_topic2"},
 		1: {"test_topic"},
 		2: {"test_topic", "test_topic2"},
+		3: {"test_topic", "test_topic2"},
+	}
+
+	expectedReplicas := map[int]map[uint32]pb.Replicas{
+		3: {
+			0: {Ids: []uint32{1000, 1001}},
+			1: {Ids: []uint32{1002, 1003}},
+			2: {Ids: []uint32{1004, 1005}},
+			3: {Ids: []uint32{1006, 1007}},
+			4: {Ids: []uint32{1008, 1009}},
+		},
 	}
 
 	for i, req := range tests {
@@ -35,8 +50,8 @@ func TestGetTopics(t *testing.T) {
 
 		topics := TopicSet(resp.Topics).Names()
 
-		if !stringsEqual(expected[i], topics) {
-			t.Errorf("Expected Topic list %s, got %s", expected[i], topics)
+		if !stringsEqual(expectedNames[i], topics) {
+			t.Errorf("Expected Topic list %s, got %s", expectedNames[i], topics)
 		}
 
 		for _, topic := range resp.Topics {
@@ -46,6 +61,14 @@ func TestGetTopics(t *testing.T) {
 			}
 			if v != "172800000" {
 				t.Errorf("Expected config value '172800000', got '%s'", v)
+			}
+		}
+		if exp, ok := expectedReplicas[i]; ok {
+			full := resp.Topics
+			for _, topic := range topics {
+				for partition, replicas := range full[topic].Replicas {
+					assert.ElementsMatch(t, replicas.Ids, exp[partition].Ids, "Unexpected partitions")
+				}
 			}
 		}
 	}

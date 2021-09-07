@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strconv"
 
 	"github.com/DataDog/kafka-kit/v3/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
@@ -48,9 +49,10 @@ func (s *Server) GetTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topic
 
 	// Get topics.
 	fetchParams := fetchTopicSetParams{
-		name:     req.Name,
-		tags:     req.Tag,
-		spanning: req.Spanning,
+		name:         req.Name,
+		tags:         req.Tag,
+		spanning:     req.Spanning,
+		withReplicas: req.WithReplicas,
 	}
 
 	topics, err := s.fetchTopicSet(fetchParams)
@@ -80,9 +82,10 @@ func (s *Server) ListTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topi
 
 	// Get topics.
 	fetchParams := fetchTopicSetParams{
-		name:     req.Name,
-		tags:     req.Tag,
-		spanning: req.Spanning,
+		name:         req.Name,
+		tags:         req.Tag,
+		spanning:     req.Spanning,
+		withReplicas: req.WithReplicas,
 	}
 
 	topics, err := s.fetchTopicSet(fetchParams)
@@ -492,6 +495,21 @@ func (s *Server) fetchTopicSet(params fetchTopicSetParams) (TopicSet, error) {
 			}
 		}
 
+		replicaMap := make(map[uint32]*pb.Replicas)
+		if params.withReplicas {
+			for id, iReplicas := range st.Partitions {
+				replicas := []uint32{}
+				for _, r := range iReplicas {
+					replicas = append(replicas, uint32(r))
+				}
+				// assuming that the data in zookeeper will be well-formated, ignoring error
+				parsedId, _ := strconv.ParseUint(id, 10, 32)
+				replicaMap[uint32(parsedId)] = &pb.Replicas{
+					Ids: replicas,
+				}
+			}
+		}
+
 		// Add the topic to the TopicSet.
 		matched[t] = &pb.Topic{
 			Name:       t,
@@ -500,6 +518,8 @@ func (s *Server) fetchTopicSet(params fetchTopicSetParams) (TopicSet, error) {
 			// first partition len.
 			Replication: uint32(len(st.Partitions["0"])),
 			Configs:     c.Config,
+
+			Replicas: replicaMap,
 		}
 	}
 
@@ -522,6 +542,8 @@ type fetchTopicSetParams struct {
 	// topic is considered spanning if it has at least one partition on every broker
 	// in the cluster.
 	spanning bool
+	// If withReplicas is true, the list of partitions with replicas is populated.
+	withReplicas bool
 }
 
 // PartitionMapToReplicaAssignment takes a *kafkazk.PartitionMap and
