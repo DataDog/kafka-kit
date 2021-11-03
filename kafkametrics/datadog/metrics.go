@@ -99,7 +99,7 @@ func (h *ddHandler) brokerMetricsFromList(l []*kafkametrics.Broker) (kafkametric
 	brokers := kafkametrics.BrokerMetrics{}
 	errs = populateFromTagMap(brokers, h.tagCache, tags, h.brokerIDTag)
 	if errs != nil {
-		errs = append(errors, errs...)
+		errors = append(errors, errs...)
 	}
 
 	return brokers, errors
