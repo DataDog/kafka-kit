@@ -28,20 +28,23 @@ type Config struct {
 	NetworkRXQuery string
 	// BrokerIDTag is the host tag name for Kafka broker IDs.
 	BrokerIDTag string
+	// InstanceTypeTag is the tag name for the kafka broker's instance type.
+	InstanceTypeTag string
 	// MetricsWindow specifies the window size of timeseries data to evaluate
 	// in seconds. All values for the window are averaged.
 	MetricsWindow int
 }
 
 type ddHandler struct {
-	c             *dd.Client
-	netTXQuery    string
-	netRXQuery    string
-	brokerIDTag   string
-	metricsWindow int
-	tagCache      map[string][]string
-	keysRegex     *regexp.Regexp
-	redactionSub  []byte
+	c               *dd.Client
+	netTXQuery      string
+	netRXQuery      string
+	brokerIDTag     string
+	instanceTypeTag string
+	metricsWindow   int
+	tagCache        map[string][]string
+	keysRegex       *regexp.Regexp
+	redactionSub    []byte
 }
 
 // NewHandler takes a *Config and returns a Handler, along with any credential
@@ -55,13 +58,14 @@ func NewHandler(c *Config) (kafkametrics.Handler, error) {
 	keysRegex := regexp.MustCompile(fmt.Sprintf("%s|%s", c.APIKey, c.AppKey))
 
 	h := &ddHandler{
-		netTXQuery:    fmt.Sprintf("%s.rollup(avg, %d)", c.NetworkTXQuery, c.MetricsWindow),
-		netRXQuery:    fmt.Sprintf("%s.rollup(avg, %d)", c.NetworkRXQuery, c.MetricsWindow),
-		metricsWindow: c.MetricsWindow,
-		brokerIDTag:   c.BrokerIDTag,
-		tagCache:      make(map[string][]string),
-		keysRegex:     keysRegex,
-		redactionSub:  []byte("xxx"),
+		netTXQuery:      fmt.Sprintf("%s.rollup(avg, %d)", c.NetworkTXQuery, c.MetricsWindow),
+		netRXQuery:      fmt.Sprintf("%s.rollup(avg, %d)", c.NetworkRXQuery, c.MetricsWindow),
+		metricsWindow:   c.MetricsWindow,
+		brokerIDTag:     c.BrokerIDTag,
+		instanceTypeTag: c.InstanceTypeTag,
+		tagCache:        make(map[string][]string),
+		keysRegex:       keysRegex,
+		redactionSub:    []byte("xxx"),
 	}
 
 	client := dd.NewClient(c.APIKey, c.AppKey)
