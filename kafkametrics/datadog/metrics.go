@@ -97,7 +97,7 @@ func (h *ddHandler) brokerMetricsFromList(l []*kafkametrics.Broker) (kafkametric
 	}
 
 	brokers := kafkametrics.BrokerMetrics{}
-	errs = populateFromTagMap(brokers, h.tagCache, tags, h.brokerIDTag)
+	errs = populateFromTagMap(brokers, h.tagCache, tags, h.brokerIDTag, h.instanceTypeTag)
 	if errs != nil {
 		errors = append(errors, errs...)
 	}
@@ -142,7 +142,13 @@ func (h *ddHandler) getHostTagMap(l []*kafkametrics.Broker) (map[*kafkametrics.B
 // to []string unparsed host tag key:value pairs, and a broker ID tag key
 // populates the kafkametrics.BrokerMetrics with tags of interest.
 // An error describing any missing tags is returned.
-func populateFromTagMap(bm kafkametrics.BrokerMetrics, c map[string][]string, t map[*kafkametrics.Broker][]string, btag string) []error {
+func populateFromTagMap(
+	bm kafkametrics.BrokerMetrics,
+	c map[string][]string,
+	t map[*kafkametrics.Broker][]string,
+	btag string,
+	instanceTypeTag string,
+) []error {
 	var missingTags bytes.Buffer
 
 	for b, ht := range t {
@@ -162,7 +168,7 @@ func populateFromTagMap(bm kafkametrics.BrokerMetrics, c map[string][]string, t 
 		}
 
 		// Get instance type.
-		it = valFromTags(ht, "instance-type")
+		it = valFromTags(ht, instanceTypeTag)
 		if it != "" {
 			// Cache this broker's tags. In case additional tags are populated
 			// in the future, we should only cache brokers that have successfully

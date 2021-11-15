@@ -107,7 +107,7 @@ func TestPopulateFromTagMap(t *testing.T) {
 
 	// Test with complete input.
 	tagMap := stubTagMap()
-	err := populateFromTagMap(b, map[string][]string{}, tagMap, "broker_id")
+	err := populateFromTagMap(b, map[string][]string{}, tagMap, "broker_id", "instance-type")
 	if err != nil {
 		t.Errorf("Unexpected error: %s\n", err)
 	}
@@ -128,7 +128,7 @@ func TestPopulateFromTagMap(t *testing.T) {
 
 	// Test with incomplete input.
 	tagMap[rndBroker] = tagMap[rndBroker][1:]
-	err = populateFromTagMap(b, map[string][]string{}, tagMap, "broker_id")
+	err = populateFromTagMap(b, map[string][]string{}, tagMap, "broker_id", "instance-type")
 	if err == nil {
 		t.Errorf("Expected error, got nil")
 	}
