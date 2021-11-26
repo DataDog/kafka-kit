@@ -131,19 +131,20 @@ func rebuild(cmd *cobra.Command, _ []string) {
 	// Fetch broker metadata.
 	var withMetrics bool
 	if cmd.Flag("placement").Value.String() == "storage" {
-		checkMetaAge(cmd, zk)
+		maxMetadataAge, _ := cmd.Flags().GetInt("metrics-age")
+		checkMetaAge(zk, maxMetadataAge)
 		withMetrics = true
 	}
 
 	var brokerMeta kafkazk.BrokerMetaMap
 	if m, _ := cmd.Flags().GetBool("use-meta"); m {
-		brokerMeta = getBrokerMeta(cmd, zk, withMetrics)
+		brokerMeta = getBrokerMeta(zk, withMetrics)
 	}
 
 	// Fetch partition metadata.
 	var partitionMeta kafkazk.PartitionMetaMap
 	if cmd.Flag("placement").Value.String() == "storage" {
-		partitionMeta = getPartitionMeta(cmd, zk)
+		partitionMeta = getPartitionMeta(zk)
 	}
 
 	// Build a partition map either from literal map text input or by fetching the
@@ -168,7 +169,7 @@ func rebuild(cmd *cobra.Command, _ []string) {
 	// Check if any referenced brokers are marked as having
 	// missing/partial metrics data.
 	if m, _ := cmd.Flags().GetBool("use-meta"); m {
-		ensureBrokerMetrics(cmd, brokers, brokerMeta)
+		ensureBrokerMetrics(brokers, brokerMeta)
 	}
 
 	// Create substitution affinities.

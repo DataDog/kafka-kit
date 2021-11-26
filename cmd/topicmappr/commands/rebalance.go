@@ -53,10 +53,12 @@ func rebalance(cmd *cobra.Command, _ []string) {
 
 	defer zk.Close()
 
+	maxMetadataAge, _ := cmd.Flags().GetInt("metrics-age")
+
 	// Get broker and partition metadata.
-	checkMetaAge(cmd, zk)
-	brokerMeta := getBrokerMeta(cmd, zk, true)
-	partitionMeta := getPartitionMeta(cmd, zk)
+	checkMetaAge(zk, maxMetadataAge)
+	brokerMeta := getBrokerMeta(zk, true)
+	partitionMeta := getPartitionMeta(zk)
 
 	// Get the current partition map.
 	partitionMapIn, err := kafkazk.PartitionMapFromZK(Config.topics, zk)
@@ -174,7 +176,7 @@ func validateBrokersForRebalance(cmd *cobra.Command, brokers kafkazk.BrokerMap, 
 	}
 
 	// Check if any referenced brokers are marked as having missing/partial metrics data.
-	ensureBrokerMetrics(cmd, brokers, bm)
+	ensureBrokerMetrics(brokers, bm)
 
 	switch {
 	case c.Missing > 0, c.OldMissing > 0, c.Replace > 0:
