@@ -44,7 +44,10 @@ func getPartitionMap(cmd *cobra.Command, zk kafkazk.Handler) (*kafkazk.Partition
 		}
 
 		// Exclude any topics that are pending deletion.
-		pd := stripPendingDeletes(pm, zk)
+		pd, err := stripPendingDeletes(pm, zk)
+		if err != nil {
+			fmt.Println("Error fetching topics pending deletion")
+		}
 
 		// Exclude topics explicitly listed.
 		et := removeTopics(pm, Config.topicsExclude)

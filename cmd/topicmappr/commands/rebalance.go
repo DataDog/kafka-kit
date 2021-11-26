@@ -56,12 +56,24 @@ func rebalance(cmd *cobra.Command, _ []string) {
 
 	defer zk.Close()
 
-	maxMetadataAge, _ := cmd.Flags().GetInt("metrics-age")
-
 	// Get broker and partition metadata.
-	checkMetaAge(zk, maxMetadataAge)
-	brokerMeta := getBrokerMeta(zk, true)
-	partitionMeta := getPartitionMeta(zk)
+	maxMetadataAge, _ := cmd.Flags().GetInt("metrics-age")
+	if err := checkMetaAge(zk, maxMetadataAge); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	brokerMeta, errs := getBrokerMeta(zk, true)
+	if errs != nil && brokerMeta == nil {
+		for _, e := range errs {
+			fmt.Println(e)
+		}
+		os.Exit(1)
+	}
+	partitionMeta, err := getPartitionMeta(zk)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 
 	// Get the current partition map.
 	partitionMapIn, err := kafkazk.PartitionMapFromZK(Config.topics, zk)
@@ -71,7 +83,10 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	}
 
 	// Exclude any topics that are pending deletion.
-	pending := stripPendingDeletes(partitionMapIn, zk)
+	pending, err := stripPendingDeletes(partitionMapIn, zk)
+	if err != nil {
+		fmt.Println("Error fetching topics pending deletion")
+	}
 
 	// Exclude any explicit exclusions.
 	excluded := removeTopics(partitionMapIn, Config.topicsExclude)
@@ -150,7 +165,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	printMapChanges(partitionMapIn, partitionMapOut)
 
 	// Print broker assignment statistics.
-	errs := printBrokerAssignmentStats(cmd, partitionMapIn, partitionMapOut, brokersIn, brokersOut)
+	errs = printBrokerAssignmentStats(cmd, partitionMapIn, partitionMapOut, brokersIn, brokersOut)
 
 	// Handle errors that are possible to be overridden by the user (aka 'WARN'
 	// in topicmappr console output).
@@ -179,7 +194,12 @@ func validateBrokersForRebalance(cmd *cobra.Command, brokers kafkazk.BrokerMap, 
 	}
 
 	// Check if any referenced brokers are marked as having missing/partial metrics data.
-	ensureBrokerMetrics(brokers, bm)
+	if errs := ensureBrokerMetrics(brokers, bm); len(errs) > 0 {
+		for _, e := range errs {
+			fmt.Println(e)
+		}
+		os.Exit(1)
+	}
 
 	switch {
 	case c.Missing > 0, c.OldMissing > 0, c.Replace > 0:

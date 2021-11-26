@@ -2,7 +2,6 @@ package commands
 
 import (
 	"fmt"
-	"os"
 	"regexp"
 	"time"
 
@@ -11,80 +10,55 @@ import (
 
 // checkMetaAge checks the age of the stored partition and broker storage
 // metrics data against the tolerated metrics age parameter.
-func checkMetaAge(zk kafkazk.Handler, maxAge int) {
+func checkMetaAge(zk kafkazk.Handler, maxAge int) error {
 	age, err := zk.MaxMetaAge()
 	if err != nil {
-		fmt.Printf("Error fetching metrics metadata: %s\n", err)
-		os.Exit(1)
+		return fmt.Errorf("Error fetching metrics metadata: %s\n", err)
 	}
 
 	if age > time.Duration(maxAge)*time.Minute {
-		fmt.Printf("Metrics metadata is older than allowed: %s\n", age)
-		os.Exit(1)
+		return fmt.Errorf("Metrics metadata is older than allowed: %s\n", age)
 	}
+	return nil
 }
 
 // getBrokerMeta returns a map of brokers and broker metadata for those
 // registered in ZooKeeper. Optionally, metrics metadata persisted in ZooKeeper
 // (via an external mechanism*) can be merged into the metadata.
-func getBrokerMeta(zk kafkazk.Handler, m bool) kafkazk.BrokerMetaMap {
-	brokerMeta, errs := zk.GetAllBrokerMeta(m)
-	// If no data is returned, report and exit. Otherwise, it's possible that
-	// complete data for a few brokers wasn't returned. We check in subsequent
-	// steps as to whether any brokers that matter are missing metrics.
-	if errs != nil && brokerMeta == nil {
-		for _, e := range errs {
-			fmt.Println(e)
-		}
-		os.Exit(1)
-	}
-
-	return brokerMeta
+func getBrokerMeta(zk kafkazk.Handler, m bool) (kafkazk.BrokerMetaMap, []error) {
+	return zk.GetAllBrokerMeta(m)
 }
 
 // ensureBrokerMetrics takes a map of reference brokers and a map of discovered
 // broker metadata. Any non-missing brokers in the broker map must be present
 // in the broker metadata map and have a non-true MetricsIncomplete value.
-func ensureBrokerMetrics(bm kafkazk.BrokerMap, bmm kafkazk.BrokerMetaMap) {
-	var e bool
+func ensureBrokerMetrics(bm kafkazk.BrokerMap, bmm kafkazk.BrokerMetaMap) []error {
+	errs := []error{}
 	for id, b := range bm {
 		// Missing brokers won't be found in the brokerMeta.
 		if !b.Missing && id != kafkazk.StubBrokerID && bmm[id].MetricsIncomplete {
-			e = true
-			fmt.Printf("Metrics not found for broker %d\n", id)
+			errs = append(errs, fmt.Errorf("Metrics not found for broker %d\n", id))
 		}
 	}
-
-	if e {
-		os.Exit(1)
-	}
+	return errs
 }
 
 // getPartitionMeta returns a map of topic, partition metadata persisted in
 // ZooKeeper (via an external mechanism*). This is primarily partition size
 // metrics data used for the storage placement strategy.
-func getPartitionMeta(zk kafkazk.Handler) kafkazk.PartitionMetaMap {
-	partitionMeta, err := zk.GetAllPartitionMeta()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	return partitionMeta
+func getPartitionMeta(zk kafkazk.Handler) (kafkazk.PartitionMetaMap, error) {
+	return zk.GetAllPartitionMeta()
 }
 
 // stripPendingDeletes takes a partition map and zk handler. It looks up any
 // topics in a pending delete state and removes them from the provided partition
 // map, returning a list of topics removed.
-func stripPendingDeletes(pm *kafkazk.PartitionMap, zk kafkazk.Handler) []string {
+func stripPendingDeletes(pm *kafkazk.PartitionMap, zk kafkazk.Handler) ([]string, error) {
 	// Get pending deletions.
 	pd, err := zk.GetPendingDeletion()
-	if err != nil {
-		fmt.Println("Error fetching topics pending deletion")
-	}
 
 	if len(pd) == 0 {
-		return []string{}
+		return []string{}, err
 	}
 
 	// Convert to a series of literal regex.
@@ -95,7 +69,7 @@ func stripPendingDeletes(pm *kafkazk.PartitionMap, zk kafkazk.Handler) []string 
 	}
 
 	// Update the PartitionMap and return a list of removed topic names.
-	return removeTopics(pm, re)
+	return removeTopics(pm, re), err
 }
 
 // removeTopics takes a PartitionMap and []*regexp.Regexp of topic name patters.
