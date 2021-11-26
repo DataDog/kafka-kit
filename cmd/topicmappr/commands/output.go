@@ -23,7 +23,6 @@ func (e errors) Swap(i, j int)      { e[i], e[j] = e[j], e[i] }
 // referenced in the map.
 func printTopics(pm *kafkazk.PartitionMap) {
 	topics := pm.Topics()
-	sort.Strings(topics)
 
 	fmt.Printf("\nTopics:\n")
 	for _, t := range topics {
