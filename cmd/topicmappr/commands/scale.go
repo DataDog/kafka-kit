@@ -42,7 +42,10 @@ func scale(cmd *cobra.Command, _ []string) {
 	bootstrap(cmd)
 
 	// ZooKeeper init.
-	zk, err := initZooKeeper(cmd)
+	zkAddr := cmd.Parent().Flag("zk-addr").Value.String()
+	kafkaPrefix := cmd.Parent().Flag("zk-prefix").Value.String()
+	metricsPrefix := cmd.Flag("zk-metrics-prefix").Value.String()
+	zk, err := initZooKeeper(zkAddr, kafkaPrefix, metricsPrefix)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

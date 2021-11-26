@@ -88,23 +88,21 @@ func topicRegex(s string) []*regexp.Regexp {
 //    topic discovery` via ZooKeeper.
 //  - that the --placement flag was set to 'storage', which expects
 //    metrics metadata to be stored in ZooKeeper.
-func initZooKeeper(cmd *cobra.Command) (kafkazk.Handler, error) {
+func initZooKeeper(zkAddr, kafkaPrefix, metricsPrefix string) (kafkazk.Handler, error) {
 	// Suppress underlying ZK client noise.
 	log.SetOutput(ioutil.Discard)
 
-	zkAddr := cmd.Parent().Flag("zk-addr").Value.String()
-	timeout := 250 * time.Millisecond
-
 	zk, err := kafkazk.NewHandler(&kafkazk.Config{
 		Connect:       zkAddr,
-		Prefix:        cmd.Parent().Flag("zk-prefix").Value.String(),
-		MetricsPrefix: cmd.Flag("zk-metrics-prefix").Value.String(),
+		Prefix:        kafkaPrefix,
+		MetricsPrefix: metricsPrefix,
 	})
 
 	if err != nil {
 		return nil, fmt.Errorf("Error connecting to ZooKeeper: %s", err)
 	}
 
+	timeout := 250 * time.Millisecond
 	time.Sleep(timeout)
 
 	if !zk.Ready() {
