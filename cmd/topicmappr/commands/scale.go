@@ -174,7 +174,9 @@ func scale(cmd *cobra.Command, _ []string) {
 	partitionMapIn, partitionMapOut = skipReassignmentNoOps(partitionMapIn, partitionMapOut)
 
 	// Write maps.
-	writeMaps(cmd, partitionMapOut, nil)
+	outPath := cmd.Flag("out-path").Value.String()
+	outFile := cmd.Flag("out-file").Value.String()
+	writeMaps(outPath, outFile, partitionMapOut, nil)
 }
 
 func validateBrokersForScale(cmd *cobra.Command, brokers kafkazk.BrokerMap, bm kafkazk.BrokerMetaMap) []int {

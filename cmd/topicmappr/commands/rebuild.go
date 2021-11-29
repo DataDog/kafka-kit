@@ -248,5 +248,7 @@ func rebuild(cmd *cobra.Command, _ []string) {
 		originalMap, partitionMapOut = skipReassignmentNoOps(originalMap, partitionMapOut)
 	}
 
-	writeMaps(cmd, partitionMapOut, phasedMap)
+	outPath := cmd.Flag("out-path").Value.String()
+	outFile := cmd.Flag("out-file").Value.String()
+	writeMaps(outPath, outFile, partitionMapOut, phasedMap)
 }

@@ -200,7 +200,7 @@ func skipReassignmentNoOps(pm1, pm2 *kafkazk.PartitionMap) (*kafkazk.PartitionMa
 }
 
 // writeMaps takes a PartitionMap and writes out files.
-func writeMaps(cmd *cobra.Command, pm *kafkazk.PartitionMap, phasedPM *kafkazk.PartitionMap) {
+func writeMaps(outPath, outFile string, pm *kafkazk.PartitionMap, phasedPM *kafkazk.PartitionMap) {
 	if len(pm.Partitions) == 0 {
 		fmt.Println("\nNo partition reassignments, skipping map generation")
 		return
@@ -212,9 +212,6 @@ func writeMaps(cmd *cobra.Command, pm *kafkazk.PartitionMap, phasedPM *kafkazk.P
 		phaseSuffix[0] = "-phase1"
 		phaseSuffix[1] = "-phase2"
 	}
-
-	outPath := cmd.Flag("out-path").Value.String()
-	outFile := cmd.Flag("out-file").Value.String()
 
 	// Break map up by topic.
 	tm := map[string]*kafkazk.PartitionMap{}
