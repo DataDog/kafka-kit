@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"sort"
 
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
@@ -38,8 +39,46 @@ func init() {
 	scaleCmd.MarkFlagRequired("topics")
 }
 
+type scaleParams struct {
+	brokers                []int
+	localityScoped         bool
+	maxMetadataAge         int
+	optimizeLeadership     bool
+	partitionLimit         int
+	partitionSizeThreshold int
+	tolerance              float64
+	topics                 []*regexp.Regexp
+	topicsExclude          []*regexp.Regexp
+	verbose                bool
+}
+
+func scaleParamsFromCmd(cmd *cobra.Command) (params scaleParams) {
+	brokers, _ := cmd.Flags().GetString("brokers")
+	params.brokers = brokerStringToSlice(brokers)
+	localityScoped, _ := cmd.Flags().GetBool("locality-scoped")
+	params.localityScoped = localityScoped
+	maxMetadataAge, _ := cmd.Flags().GetInt("metrics-age")
+	params.maxMetadataAge = maxMetadataAge
+	optimizeLeadership, _ := cmd.Flags().GetBool("optimize-leadership")
+	params.optimizeLeadership = optimizeLeadership
+	partitionLimit, _ := cmd.Flags().GetInt("partition-limit")
+	params.partitionLimit = partitionLimit
+	partitionSizeThreshold, _ := cmd.Flags().GetInt("partition-size-threshold")
+	params.partitionSizeThreshold = partitionSizeThreshold
+	tolerance, _ := cmd.Flags().GetFloat64("tolerance")
+	params.tolerance = tolerance
+	topics, _ := cmd.Flags().GetString("topics")
+	params.topics = topicRegex(topics)
+	topicsExclude, _ := cmd.Flags().GetString("topics-exclude")
+	params.topicsExclude = topicRegex(topicsExclude)
+	verbose, _ := cmd.Flags().GetBool("verbose")
+	params.verbose = verbose
+	return params
+}
+
 func scale(cmd *cobra.Command, _ []string) {
 	bootstrap(cmd)
+	params := scaleParamsFromCmd(cmd)
 
 	// ZooKeeper init.
 	zkAddr := cmd.Parent().Flag("zk-addr").Value.String()
@@ -54,8 +93,7 @@ func scale(cmd *cobra.Command, _ []string) {
 	defer zk.Close()
 
 	// Get broker and partition metadata.
-	maxMetadataAge, _ := cmd.Flags().GetInt("metrics-age")
-	if err := checkMetaAge(zk, maxMetadataAge); err != nil {
+	if err := checkMetaAge(zk, params.maxMetadataAge); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
@@ -99,31 +137,25 @@ func scale(cmd *cobra.Command, _ []string) {
 
 	// Validate all broker params, get a copy of the
 	// broker IDs targeted for partition offloading.
-	offloadTargets := validateBrokersForScale(cmd, brokersIn, brokerMeta)
+	offloadTargets := validateBrokersForScale(brokersIn, brokerMeta)
 
 	// Sort offloadTargets by storage free ascending.
 	sort.Sort(offloadTargetsBySize{t: offloadTargets, bm: brokersIn})
 
-	partitionLimit, _ := cmd.Flags().GetInt("partition-limit")
-	partitionSizeThreshold, _ := cmd.Flags().GetInt("partition-size-threshold")
-	tolerance, _ := cmd.Flags().GetFloat64("tolerance")
-	localityScoped, _ := cmd.Flags().GetBool("locality-scoped")
-	verbose, _ := cmd.Flags().GetBool("verbose")
-
 	// Generate reassignmentBundles for a scale up.
-	params := computeReassignmentBundlesParams{
+	reassignmentBundlesParams := computeReassignmentBundlesParams{
 		offloadTargets:         offloadTargets,
-		tolerance:              tolerance,
+		tolerance:              params.tolerance,
 		partitionMap:           partitionMapIn,
 		partitionMeta:          partitionMeta,
 		brokerMap:              brokersIn,
-		partitionLimit:         partitionLimit,
-		partitionSizeThreshold: partitionSizeThreshold,
-		localityScoped:         localityScoped,
-		verbose:                verbose,
+		partitionLimit:         params.partitionLimit,
+		partitionSizeThreshold: params.partitionSizeThreshold,
+		localityScoped:         params.localityScoped,
+		verbose:                params.verbose,
 	}
 
-	results := computeReassignmentBundles(params)
+	results := computeReassignmentBundles(reassignmentBundlesParams)
 
 	// Merge all results into a slice.
 	resultsByRange := []reassignmentBundle{}
@@ -151,7 +183,7 @@ func scale(cmd *cobra.Command, _ []string) {
 	printReassignmentParams(cmd, resultsByRange, brokersIn, m.tolerance)
 
 	// Optimize leaders.
-	if t, _ := cmd.Flags().GetBool("optimize-leadership"); t {
+	if params.optimizeLeadership {
 		partitionMapOut.OptimizeLeaderFollower()
 	}
 
@@ -179,7 +211,7 @@ func scale(cmd *cobra.Command, _ []string) {
 	writeMaps(outPath, outFile, partitionMapOut, nil)
 }
 
-func validateBrokersForScale(cmd *cobra.Command, brokers kafkazk.BrokerMap, bm kafkazk.BrokerMetaMap) []int {
+func validateBrokersForScale(brokers kafkazk.BrokerMap, bm kafkazk.BrokerMetaMap) []int {
 	// No broker changes are permitted in rebalance other than new broker additions.
 	fmt.Println("\nValidating broker list:")
 
