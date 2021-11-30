@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"regexp"
 	"sort"
 
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
@@ -41,8 +42,52 @@ func init() {
 	rebalanceCmd.MarkFlagRequired("topics")
 }
 
+type rebalanceParams struct {
+	brokers                []int
+	localityScoped         bool
+	maxMetadataAge         int
+	optimizeLeadership     bool
+	partitionLimit         int
+	partitionSizeThreshold int
+	storageThreshold       float64
+	storageThresholdGB     float64
+	tolerance              float64
+	topics                 []*regexp.Regexp
+	topicsExclude          []*regexp.Regexp
+	verbose                bool
+}
+
+func rebalanceParamsFromCmd(cmd *cobra.Command) (params rebalanceParams) {
+	brokers, _ := cmd.Flags().GetString("brokers")
+	params.brokers = brokerStringToSlice(brokers)
+	localityScoped, _ := cmd.Flags().GetBool("locality-scoped")
+	params.localityScoped = localityScoped
+	maxMetadataAge, _ := cmd.Flags().GetInt("metrics-age")
+	params.maxMetadataAge = maxMetadataAge
+	optimizeLeadership, _ := cmd.Flags().GetBool("optimize-leadership")
+	params.optimizeLeadership = optimizeLeadership
+	partitionLimit, _ := cmd.Flags().GetInt("partition-limit")
+	params.partitionLimit = partitionLimit
+	partitionSizeThreshold, _ := cmd.Flags().GetInt("partition-size-threshold")
+	params.partitionSizeThreshold = partitionSizeThreshold
+	storageThreshold, _ := cmd.Flags().GetFloat64("storage-threshold")
+	params.storageThreshold = storageThreshold
+	storageThresholdGB, _ := cmd.Flags().GetFloat64("storage-threshold-gb")
+	params.storageThresholdGB = storageThresholdGB
+	tolerance, _ := cmd.Flags().GetFloat64("tolerance")
+	params.tolerance = tolerance
+	topics, _ := cmd.Flags().GetString("topics")
+	params.topics = topicRegex(topics)
+	topicsExclude, _ := cmd.Flags().GetString("topics-exclude")
+	params.topicsExclude = topicRegex(topicsExclude)
+	verbose, _ := cmd.Flags().GetBool("verbose")
+	params.verbose = verbose
+	return params
+}
+
 func rebalance(cmd *cobra.Command, _ []string) {
 	bootstrap(cmd)
+	params := rebalanceParamsFromCmd(cmd)
 
 	// ZooKeeper init.
 	zkAddr := cmd.Parent().Flag("zk-addr").Value.String()
@@ -57,8 +102,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	defer zk.Close()
 
 	// Get broker and partition metadata.
-	maxMetadataAge, _ := cmd.Flags().GetInt("metrics-age")
-	if err := checkMetaAge(zk, maxMetadataAge); err != nil {
+	if err := checkMetaAge(zk, params.maxMetadataAge); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
@@ -102,31 +146,25 @@ func rebalance(cmd *cobra.Command, _ []string) {
 
 	// Validate all broker params, get a copy of the broker IDs targeted for
 	// partition offloading.
-	offloadTargets := validateBrokersForRebalance(cmd, brokersIn, brokerMeta)
+	offloadTargets := validateBrokersForRebalance(params, brokersIn, brokerMeta)
 
 	// Sort offloadTargets by storage free ascending.
 	sort.Sort(offloadTargetsBySize{t: offloadTargets, bm: brokersIn})
 
-	partitionLimit, _ := cmd.Flags().GetInt("partition-limit")
-	partitionSizeThreshold, _ := cmd.Flags().GetInt("partition-size-threshold")
-	tolerance, _ := cmd.Flags().GetFloat64("tolerance")
-	localityScoped, _ := cmd.Flags().GetBool("locality-scoped")
-	verbose, _ := cmd.Flags().GetBool("verbose")
-
-	params := computeReassignmentBundlesParams{
+	reassignmentBundlesParams := computeReassignmentBundlesParams{
 		offloadTargets:         offloadTargets,
-		tolerance:              tolerance,
+		tolerance:              params.tolerance,
 		partitionMap:           partitionMapIn,
 		partitionMeta:          partitionMeta,
 		brokerMap:              brokersIn,
-		partitionLimit:         partitionLimit,
-		partitionSizeThreshold: partitionSizeThreshold,
-		localityScoped:         localityScoped,
-		verbose:                verbose,
+		partitionLimit:         params.partitionLimit,
+		partitionSizeThreshold: params.partitionSizeThreshold,
+		localityScoped:         params.localityScoped,
+		verbose:                params.verbose,
 	}
 
 	// Generate reassignmentBundles for a rebalance.
-	results := computeReassignmentBundles(params)
+	results := computeReassignmentBundles(reassignmentBundlesParams)
 
 	// Merge all results into a slice.
 	resultsByRange := []reassignmentBundle{}
@@ -154,7 +192,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	printReassignmentParams(cmd, resultsByRange, brokersIn, m.tolerance)
 
 	// Optimize leaders.
-	if t, _ := cmd.Flags().GetBool("optimize-leadership"); t {
+	if params.optimizeLeadership {
 		partitionMapOut.OptimizeLeaderFollower()
 	}
 
@@ -180,7 +218,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	writeMaps(outPath, outFile, partitionMapOut, nil)
 }
 
-func validateBrokersForRebalance(cmd *cobra.Command, brokers kafkazk.BrokerMap, bm kafkazk.BrokerMetaMap) []int {
+func validateBrokersForRebalance(params rebalanceParams, brokers kafkazk.BrokerMap, bm kafkazk.BrokerMetaMap) []int {
 	// No broker changes are permitted in rebalance other than new broker additions.
 	fmt.Println("\nValidating broker list:")
 
@@ -215,9 +253,6 @@ func validateBrokersForRebalance(cmd *cobra.Command, brokers kafkazk.BrokerMap, 
 		fmt.Printf("%sOK\n", indent)
 	}
 
-	st, _ := cmd.Flags().GetFloat64("storage-threshold")
-	stg, _ := cmd.Flags().GetFloat64("storage-threshold-gb")
-
 	var selectorMethod bytes.Buffer
 	selectorMethod.WriteString("Brokers targeted for partition offloading ")
 
@@ -226,12 +261,12 @@ func validateBrokersForRebalance(cmd *cobra.Command, brokers kafkazk.BrokerMap, 
 	// Switch on the target selection method. If a storage threshold in gigabytes
 	// is specified, prefer this. Otherwise, use the percentage below mean threshold.
 	switch {
-	case stg > 0.00:
-		selectorMethod.WriteString(fmt.Sprintf("(< %.2fGB storage free)", stg))
+	case params.storageThresholdGB > 0.00:
+		selectorMethod.WriteString(fmt.Sprintf("(< %.2fGB storage free)", params.storageThresholdGB))
 
 		// Get all non-new brokers with a StorageFree below the storage threshold in GB.
 		f := func(b *kafkazk.Broker) bool {
-			if !b.New && b.StorageFree < stg*div {
+			if !b.New && b.StorageFree < params.storageThresholdGB*div {
 				return true
 			}
 			return false
@@ -244,11 +279,11 @@ func validateBrokersForRebalance(cmd *cobra.Command, brokers kafkazk.BrokerMap, 
 
 		sort.Ints(offloadTargets)
 	default:
-		selectorMethod.WriteString(fmt.Sprintf("(>= %.2f%% threshold below hmean)", st*100))
+		selectorMethod.WriteString(fmt.Sprintf("(>= %.2f%% threshold below hmean)", params.storageThreshold*100))
 
 		// Find brokers where the storage free is t % below the harmonic mean.
 		// Specifying 0 targets all non-new brokers.
-		switch st {
+		switch params.storageThreshold {
 		case 0.00:
 			f := func(b *kafkazk.Broker) bool { return !b.New }
 
@@ -259,7 +294,7 @@ func validateBrokersForRebalance(cmd *cobra.Command, brokers kafkazk.BrokerMap, 
 
 			sort.Ints(offloadTargets)
 		default:
-			offloadTargets = brokers.BelowMean(st, brokers.HMean)
+			offloadTargets = brokers.BelowMean(params.storageThreshold, brokers.HMean)
 		}
 	}
 
