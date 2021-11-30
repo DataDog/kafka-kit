@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"os"
+	"regexp"
 
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
 
@@ -51,45 +52,104 @@ func init() {
 	rebuildCmd.MarkFlagRequired("brokers")
 }
 
-func rebuild(cmd *cobra.Command, _ []string) {
-	// Sanity check params.
-	t, _ := cmd.Flags().GetString("topics")
-	ms, _ := cmd.Flags().GetString("map-string")
-	p := cmd.Flag("placement").Value.String()
-	o := cmd.Flag("optimize").Value.String()
-	fr, _ := cmd.Flags().GetBool("force-rebuild")
-	sa, _ := cmd.Flags().GetBool("sub-affinity")
-	m, _ := cmd.Flags().GetBool("use-meta")
+type rebuildParams struct {
+	brokers             []int
+	forceRebuild        bool
+	mapString           string
+	maxMetadataAge      int
+	minRackIds          int
+	optimize            string
+	optimizeLeadership  bool
+	partitionSizeFactor float64
+	phasedReassignment  bool
+	placement           string
+	replication         int
+	skipNoOps           bool
+	subAffinity         bool
+	topics              []*regexp.Regexp
+	topicsExclude       []*regexp.Regexp
+	useMetadata         bool
+	leaderEvacTopics    []*regexp.Regexp
+	leaderEvacBrokers   []int
+}
 
+func rebuildParamsFromCmd(cmd *cobra.Command) (c rebuildParams) {
+	brokers, _ := cmd.Flags().GetString("brokers")
+	c.brokers = brokerStringToSlice(brokers)
+	forceRebuild, _ := cmd.Flags().GetBool("force-rebuild")
+	c.forceRebuild = forceRebuild
+	mapString, _ := cmd.Flags().GetString("map-string")
+	c.mapString = mapString
+	maxMetadataAge, _ := cmd.Flags().GetInt("metrics-age")
+	c.maxMetadataAge = maxMetadataAge
+	minRackIds, _ := cmd.Flags().GetInt("min-rack-ids")
+	c.minRackIds = minRackIds
+	optimize, _ := cmd.Flags().GetString("optimize")
+	c.optimize = optimize
+	optimizeLeadership, _ := cmd.Flags().GetBool("optimize-leadership")
+	c.optimizeLeadership = optimizeLeadership
+	partitionSizeFactor, _ := cmd.Flags().GetFloat64("partition-size-factor")
+	c.partitionSizeFactor = partitionSizeFactor
+	phasedReassignment, _ := cmd.Flags().GetBool("phased-reassignment")
+	c.phasedReassignment = phasedReassignment
+	placement, _ := cmd.Flags().GetString("placement")
+	c.placement = placement
+	replication, _ := cmd.Flags().GetInt("replication")
+	c.replication = replication
+	skipNoOps, _ := cmd.Flags().GetBool("skip-no-ops")
+	c.skipNoOps = skipNoOps
+	subAffinity, _ := cmd.Flags().GetBool("sub-affinity")
+	c.subAffinity = subAffinity
+	topics, _ := cmd.Flags().GetString("topics")
+	c.topics = topicRegex(topics)
+	topicsExclude, _ := cmd.Flags().GetString("topics-exclude")
+	c.topicsExclude = topicRegex(topicsExclude)
+	useMetadata, _ := cmd.Flags().GetBool("use-meta")
+	c.useMetadata = useMetadata
 	let, _ := cmd.Flags().GetString("leader-evac-topics")
+	if let != "" {
+		c.leaderEvacTopics = topicRegex(let)
+	}
 	leb, _ := cmd.Flags().GetString("leader-evac-brokers")
+	if leb != "" {
+		c.leaderEvacBrokers = brokerStringToSlice(leb)
+	}
+	return c
+}
 
+func (c rebuildParams) validate() error {
 	switch {
-	case ms == "" && t == "":
-		fmt.Println("\n[ERROR] must specify either --topics or --map-string")
-		defaultsAndExit()
-	case p != "count" && p != "storage":
-		fmt.Println("\n[ERROR] --placement must be either 'count' or 'storage'")
-		defaultsAndExit()
-	case o != "distribution" && o != "storage":
-		fmt.Println("\n[ERROR] --optimize must be either 'distribution' or 'storage'")
-		defaultsAndExit()
-	case !m && p == "storage":
-		fmt.Println("\n[ERROR] --placement=storage requires --use-meta=true")
-		defaultsAndExit()
-	case fr && sa:
-		fmt.Println("\n[INFO] --force-rebuild disables --sub-affinity")
-	case (leb != "" || let != "") && (leb == "" || let == ""):
-		fmt.Println("\n[ERROR] --leader-evac-topics and --leader-evac-brokers must both be specified for leadership evacuation.")
+	case c.mapString == "" && len(c.topics) == 0:
+		return fmt.Errorf("\n[ERROR] must specify either --topics or --map-string")
+	case c.placement != "count" && c.placement != "storage":
+		return fmt.Errorf("\n[ERROR] --placement must be either 'count' or 'storage'")
+	case c.optimize != "distribution" && c.optimize != "storage":
+		return fmt.Errorf("\n[ERROR] --optimize must be either 'distribution' or 'storage'")
+	case !c.useMetadata && c.placement == "storage":
+		return fmt.Errorf("\n[ERROR] --placement=storage requires --use-meta=true")
+	case c.forceRebuild && c.subAffinity:
+		return fmt.Errorf("\n[INFO] --force-rebuild disables --sub-affinity")
+	case (len(c.leaderEvacBrokers) != 0 || len(c.leaderEvacTopics) != 0) && (len(c.leaderEvacBrokers) == 0 || len(c.leaderEvacTopics) == 0):
+		return fmt.Errorf("\n[ERROR] --leader-evac-topics and --leader-evac-brokers must both be specified for leadership evacuation.")
+	}
+	return nil
+}
+
+func rebuild(cmd *cobra.Command, _ []string) {
+	bootstrap(cmd)
+	params := rebuildParamsFromCmd(cmd)
+	err := params.validate()
+	if err != nil {
+		fmt.Println(err)
 		defaultsAndExit()
 	}
-
-	bootstrap(cmd)
+	if params.forceRebuild && params.subAffinity {
+		fmt.Println("\n[INFO] --force-rebuild disables --sub-affinity")
+	}
 
 	// ZooKeeper init.
 	var zk kafkazk.Handler
-	if m || len(Config.topics) > 0 || p == "storage" {
-		var err error
+	if params.useMetadata || len(params.topics) > 0 || params.placement == "storage" {
 		zkAddr := cmd.Parent().Flag("zk-addr").Value.String()
 		kafkaPrefix := cmd.Parent().Flag("zk-prefix").Value.String()
 		metricsPrefix := cmd.Flag("zk-metrics-prefix").Value.String()
@@ -103,18 +163,12 @@ func rebuild(cmd *cobra.Command, _ []string) {
 
 	// In addition to the global topic regex, we have leader-evac topic regex as well.
 	var evacTopics []string
-	var err error
-	if let != "" {
-		evacTopics, err = zk.GetTopics(topicRegex(let))
+	if len(params.leaderEvacTopics) != 0 {
+		evacTopics, err = zk.GetTopics(params.leaderEvacTopics)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
-	}
-
-	var evacBrokers []int
-	if leb != "" {
-		evacBrokers = brokerStringToSlice(leb)
 	}
 
 	// General flow:
@@ -133,9 +187,8 @@ func rebuild(cmd *cobra.Command, _ []string) {
 
 	// Fetch broker metadata.
 	var withMetrics bool
-	if cmd.Flag("placement").Value.String() == "storage" {
-		maxMetadataAge, _ := cmd.Flags().GetInt("metrics-age")
-		if err := checkMetaAge(zk, maxMetadataAge); err != nil {
+	if params.placement == "storage" {
+		if err := checkMetaAge(zk, params.maxMetadataAge); err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
@@ -144,7 +197,7 @@ func rebuild(cmd *cobra.Command, _ []string) {
 
 	var brokerMeta kafkazk.BrokerMetaMap
 	var errs []error
-	if m, _ := cmd.Flags().GetBool("use-meta"); m {
+	if params.useMetadata {
 		if brokerMeta, errs = getBrokerMeta(zk, withMetrics); errs != nil && brokerMeta == nil {
 			for _, e := range errs {
 				fmt.Println(e)
@@ -155,7 +208,7 @@ func rebuild(cmd *cobra.Command, _ []string) {
 
 	// Fetch partition metadata.
 	var partitionMeta kafkazk.PartitionMetaMap
-	if cmd.Flag("placement").Value.String() == "storage" {
+	if params.placement == "storage" {
 		if partitionMeta, err = getPartitionMeta(zk); err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -164,7 +217,7 @@ func rebuild(cmd *cobra.Command, _ []string) {
 
 	// Build a partition map either from literal map text input or by fetching the
 	// map data from ZooKeeper. Store a copy of the original.
-	partitionMapIn, pending, excluded := getPartitionMap(cmd, zk)
+	partitionMapIn, pending, excluded := getPartitionMap(params, zk)
 	originalMap := partitionMapIn.Copy()
 
 	// Get a list of affected topics.
@@ -174,7 +227,7 @@ func rebuild(cmd *cobra.Command, _ []string) {
 	// exclusion.
 	printExcludedTopics(pending, excluded)
 
-	brokers, bs := getBrokers(cmd, partitionMapIn, brokerMeta)
+	brokers, bs := getBrokers(params, partitionMapIn, brokerMeta)
 	brokersOrig := brokers.Copy()
 
 	if bs.Changes() {
@@ -183,7 +236,7 @@ func rebuild(cmd *cobra.Command, _ []string) {
 
 	// Check if any referenced brokers are marked as having
 	// missing/partial metrics data.
-	if m, _ := cmd.Flags().GetBool("use-meta"); m {
+	if params.useMetadata {
 		if errs := ensureBrokerMetrics(brokers, brokerMeta); len(errs) > 0 {
 			for _, e := range errs {
 				fmt.Println(e)
@@ -193,24 +246,24 @@ func rebuild(cmd *cobra.Command, _ []string) {
 	}
 
 	// Create substitution affinities.
-	affinities := getSubAffinities(cmd, brokers, brokersOrig, partitionMapIn)
+	affinities := getSubAffinities(params, brokers, brokersOrig, partitionMapIn)
 
 	if affinities != nil {
 		fmt.Printf("%s-\n", indent)
 	}
 
 	// Print changes, actions.
-	printChangesActions(cmd, bs)
+	printChangesActions(params, bs)
 
 	// Apply any replication factor settings.
-	updateReplicationFactor(cmd, partitionMapIn)
+	updateReplicationFactor(params, partitionMapIn)
 
 	// Build a new map using the provided list of brokers. This is OK to run even
 	// when a no-op is intended.
-	partitionMapOut, errs := buildMap(cmd, partitionMapIn, partitionMeta, brokers, affinities)
+	partitionMapOut, errs := buildMap(params, partitionMapIn, partitionMeta, brokers, affinities)
 
 	// Optimize leaders.
-	if t, _ := cmd.Flags().GetBool("optimize-leadership"); t {
+	if params.optimizeLeadership {
 		partitionMapOut.OptimizeLeaderFollower()
 	}
 
@@ -228,11 +281,11 @@ func rebuild(cmd *cobra.Command, _ []string) {
 
 	// Generate phased map if enabled.
 	var phasedMap *kafkazk.PartitionMap
-	if phased, _ := cmd.Flags().GetBool("phased-reassignment"); phased {
+	if params.phasedReassignment {
 		phasedMap = phasedReassignment(originalMap, partitionMapOut)
 	}
 
-	partitionMapOut = evacuateLeadership(*partitionMapOut, evacBrokers, evacTopics)
+	partitionMapOut = evacuateLeadership(*partitionMapOut, params.leaderEvacBrokers, evacTopics)
 
 	// Print map change results.
 	printMapChanges(originalMap, partitionMapOut)
@@ -244,7 +297,7 @@ func rebuild(cmd *cobra.Command, _ []string) {
 	handleOverridableErrs(cmd, errs)
 
 	// Skip no-ops if configured.
-	if sno, _ := cmd.Flags().GetBool("skip-no-ops"); sno {
+	if params.skipNoOps {
 		originalMap, partitionMapOut = skipReassignmentNoOps(originalMap, partitionMapOut)
 	}
 

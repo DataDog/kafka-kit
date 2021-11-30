@@ -5,8 +5,6 @@ import (
 	"os"
 
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
-
-	"github.com/spf13/cobra"
 )
 
 // *References to metrics metadata persisted in ZooKeeper, see:
@@ -20,14 +18,13 @@ import (
 // via the --topics flag. Two []string are returned; topics excluded due to
 // pending deletion and topics explicitly excluded (via the --topics-exclude
 // flag), respectively.
-func getPartitionMap(cmd *cobra.Command, zk kafkazk.Handler) (*kafkazk.PartitionMap, []string, []string) {
-	ms := cmd.Flag("map-string").Value.String()
+func getPartitionMap(params rebuildParams, zk kafkazk.Handler) (*kafkazk.PartitionMap, []string, []string) {
 
 	switch {
 	// The map was provided as text.
-	case ms != "":
+	case params.mapString != "":
 		// Get a deserialized map.
-		pm, err := kafkazk.PartitionMapFromString(ms)
+		pm, err := kafkazk.PartitionMapFromString(params.mapString)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -60,12 +57,10 @@ func getPartitionMap(cmd *cobra.Command, zk kafkazk.Handler) (*kafkazk.Partition
 
 // getSubAffinities, if enabled via --sub-affinity, takes reference broker maps
 // and a partition map and attempts to return a complete SubstitutionAffinities.
-func getSubAffinities(cmd *cobra.Command, bm kafkazk.BrokerMap, bmo kafkazk.BrokerMap, pm *kafkazk.PartitionMap) kafkazk.SubstitutionAffinities {
+func getSubAffinities(params rebuildParams, bm kafkazk.BrokerMap, bmo kafkazk.BrokerMap, pm *kafkazk.PartitionMap) kafkazk.SubstitutionAffinities {
 	var affinities kafkazk.SubstitutionAffinities
-	sa, _ := cmd.Flags().GetBool("sub-affinity")
-	fr, _ := cmd.Flags().GetBool("force-rebuild")
 
-	if sa && !fr {
+	if params.subAffinity && !params.forceRebuild {
 		var err error
 		affinities, err = bm.SubstitutionAffinities(pm)
 		if err != nil {
@@ -97,13 +92,12 @@ func getSubAffinities(cmd *cobra.Command, bm kafkazk.BrokerMap, bmo kafkazk.Brok
 //   brokers were discovered or newly provided (i.e. specified in the --brokers flag but
 //   not previously holding any partitions for any partitions of the referenced topics
 //   being rebuilt by topicmappr)
-func getBrokers(cmd *cobra.Command, pm *kafkazk.PartitionMap, bm kafkazk.BrokerMetaMap) (kafkazk.BrokerMap, *kafkazk.BrokerStatus) {
+func getBrokers(params rebuildParams, pm *kafkazk.PartitionMap, bm kafkazk.BrokerMetaMap) (kafkazk.BrokerMap, *kafkazk.BrokerStatus) {
 	fmt.Printf("\nBroker change summary:\n")
 
 	// Get a broker map of the brokers in the current partition map.
 	// If meta data isn't being looked up, brokerMeta will be empty.
-	fr, _ := cmd.Flags().GetBool("force-rebuild")
-	brokers := kafkazk.BrokerMapFromPartitionMap(pm, bm, fr)
+	brokers := kafkazk.BrokerMapFromPartitionMap(pm, bm, params.forceRebuild)
 
 	// Update the currentBrokers list with the provided broker list.
 	bs, msgs := brokers.Update(Config.brokers, bm)
@@ -116,11 +110,8 @@ func getBrokers(cmd *cobra.Command, pm *kafkazk.PartitionMap, bm kafkazk.BrokerM
 
 // printChangesActions takes a BrokerStatus and prints out information output
 // describing changes in broker counts and liveness.
-func printChangesActions(cmd *cobra.Command, bs *kafkazk.BrokerStatus) {
+func printChangesActions(params rebuildParams, bs *kafkazk.BrokerStatus) {
 	change := bs.New - bs.Replace
-	r, _ := cmd.Flags().GetInt("replication")
-	fr, _ := cmd.Flags().GetBool("force-rebuild")
-	ol, _ := cmd.Flags().GetBool("optimize-leadership")
 
 	// Print broker change summary.
 	fmt.Printf("%sReplacing %d, added %d, missing %d, total count changed by %d\n",
@@ -141,15 +132,15 @@ func printChangesActions(cmd *cobra.Command, bs *kafkazk.BrokerStatus) {
 		actions <- fmt.Sprintf("Shrinking topic by %d broker(s)", -change)
 	}
 
-	if fr {
+	if params.forceRebuild {
 		actions <- fmt.Sprintf("Force rebuilding map")
 	}
 
-	if r > 0 {
-		actions <- fmt.Sprintf("Setting replication factor to %d", r)
+	if params.replication > 0 {
+		actions <- fmt.Sprintf("Setting replication factor to %d", params.replication)
 	}
 
-	if ol {
+	if params.optimizeLeadership {
 		actions <- fmt.Sprintf("Optimizing leader/follower ratios")
 	}
 
@@ -170,33 +161,27 @@ func printChangesActions(cmd *cobra.Command, bs *kafkazk.BrokerStatus) {
 
 // updateReplicationFactor takes a PartitionMap and normalizes the replica set
 // length to an optionally provided value.
-func updateReplicationFactor(cmd *cobra.Command, pm *kafkazk.PartitionMap) {
-	r, _ := cmd.Flags().GetInt("replication")
+func updateReplicationFactor(params rebuildParams, pm *kafkazk.PartitionMap) {
 	// If the replication factor is changed, the partition map input needs to have
 	// stub brokers appended (r factor increase) or existing brokers removed
 	// (r factor decrease).
-	if r > 0 {
-		pm.SetReplication(r)
+	if params.replication > 0 {
+		pm.SetReplication(params.replication)
 	}
 }
 
 // buildMap takes an input PartitionMap, rebuild parameters, and all partition/broker
 // metadata structures required to generate the output PartitionMap. A []string of
 // warnings / advisories is returned if any are encountered.
-func buildMap(cmd *cobra.Command, pm *kafkazk.PartitionMap, pmm kafkazk.PartitionMetaMap, bm kafkazk.BrokerMap, af kafkazk.SubstitutionAffinities) (*kafkazk.PartitionMap, errors) {
-	placement := cmd.Flag("placement").Value.String()
-	psf, _ := cmd.Flags().GetFloat64("partition-size-factor")
-	mrrid, _ := cmd.Flags().GetInt("min-rack-ids")
-
+func buildMap(params rebuildParams, pm *kafkazk.PartitionMap, pmm kafkazk.PartitionMetaMap, bm kafkazk.BrokerMap, af kafkazk.SubstitutionAffinities) (*kafkazk.PartitionMap, errors) {
 	rebuildParams := kafkazk.RebuildParams{
 		PMM:              pmm,
 		BM:               bm,
-		Strategy:         placement,
-		Optimization:     cmd.Flag("optimize").Value.String(),
-		PartnSzFactor:    psf,
-		MinUniqueRackIDs: mrrid,
+		Strategy:         params.placement,
+		Optimization:     params.optimize,
+		PartnSzFactor:    params.partitionSizeFactor,
+		MinUniqueRackIDs: params.minRackIds,
 	}
-
 	if af != nil {
 		rebuildParams.Affinities = af
 	}
@@ -214,12 +199,12 @@ func buildMap(cmd *cobra.Command, pm *kafkazk.PartitionMap, pmm kafkazk.Partitio
 	//   can be readded to the broker's StorageFree value. The amount to be readded,
 	//   the size of the partition, is referenced from the PartitionMetaMap.
 
-	if fr, _ := cmd.Flags().GetBool("force-rebuild"); fr {
+	if params.forceRebuild {
 		// Get a stripped map that we'll call rebuild on.
 		partitionMapInStripped := pm.Strip()
 		// If the storage placement strategy is being used,
 		// update the broker StorageFree values.
-		if placement == "storage" {
+		if params.placement == "storage" {
 			err := rebuildParams.BM.SubStorage(pm, pmm, kafkazk.AllBrokersFn)
 			if err != nil {
 				fmt.Println(err)
@@ -232,7 +217,7 @@ func buildMap(cmd *cobra.Command, pm *kafkazk.PartitionMap, pmm kafkazk.Partitio
 	}
 
 	// Update the StorageFree only on brokers marked for replacement.
-	if placement == "storage" {
+	if params.placement == "storage" {
 		err := rebuildParams.BM.SubStorage(pm, pmm, kafkazk.ReplacedBrokersFn)
 		if err != nil {
 			fmt.Println(err)
