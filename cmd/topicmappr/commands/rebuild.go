@@ -292,7 +292,10 @@ func rebuild(cmd *cobra.Command, _ []string) {
 	printMapChanges(originalMap, partitionMapOut)
 
 	// Print broker assignment statistics.
-	printBrokerAssignmentStats(cmd, originalMap, partitionMapOut, brokersOrig, brokers)
+	errs = append(
+		errs,
+		printBrokerAssignmentStats(originalMap, partitionMapOut, brokersOrig, brokers, params.placement == "storage", params.partitionSizeFactor)...,
+	)
 
 	// Print error/warnings.
 	handleOverridableErrs(cmd, errs)

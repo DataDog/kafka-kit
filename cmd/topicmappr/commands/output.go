@@ -6,7 +6,6 @@ import (
 	"math"
 	"os"
 	"sort"
-	"strings"
 
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
 
@@ -80,7 +79,7 @@ func printMapChanges(pm1, pm2 *kafkazk.PartitionMap) {
 // printBrokerAssignmentStats prints before and after broker usage stats,
 // such as leadership counts, total partitions owned, degree distribution,
 // and changes in storage usage.
-func printBrokerAssignmentStats(cmd *cobra.Command, pm1, pm2 *kafkazk.PartitionMap, bm1, bm2 kafkazk.BrokerMap) errors {
+func printBrokerAssignmentStats(pm1, pm2 *kafkazk.PartitionMap, bm1, bm2 kafkazk.BrokerMap, storageBased bool, partitionSizeFactor float64) errors {
 	var errs errors
 
 	fmt.Println("\nBroker distribution:")
@@ -100,17 +99,10 @@ func printBrokerAssignmentStats(cmd *cobra.Command, pm1, pm2 *kafkazk.PartitionM
 	}
 
 	// If we're using the storage placement strategy, write anticipated storage changes.
-	psf, _ := cmd.Flags().GetFloat64("partition-size-factor")
-
-	switch {
-	case
-		cmd.Name() == "scale",
-		cmd.Name() == "rebalance",
-		cmd.Flag("placement").Value.String() == "storage":
-
+	if storageBased {
 		fmt.Println("\nStorage free change estimations:")
-		if psf != 1.0 && cmd.Name() != "rebalance" {
-			fmt.Printf("%sPartition size factor of %.2f applied\n", indent, psf)
+		if partitionSizeFactor != 1.0 {
+			fmt.Printf("%sPartition size factor of %.2f applied\n", indent, partitionSizeFactor)
 		}
 
 		// Get filtered BrokerMaps. For the 'before' broker statistics, we want
@@ -130,9 +122,7 @@ func printBrokerAssignmentStats(cmd *cobra.Command, pm1, pm2 *kafkazk.PartitionM
 		fmt.Printf("%srange: %.2fGB -> %.2fGB\n", indent, r1/div, r2/div)
 		if r2 > r1 {
 			// Range increases are acceptable and common in scale up operations.
-			if cmd.Name() != "scale" {
-				errs = append(errs, fmt.Errorf("broker free storage range increased"))
-			}
+			errs = append(errs, fmt.Errorf("broker free storage range increased"))
 		}
 
 		// Range spread before/after.
@@ -265,15 +255,12 @@ func writeMaps(outPath, outFile string, pm *kafkazk.PartitionMap, phasedPM *kafk
 	}
 }
 
-func printReassignmentParams(cmd *cobra.Command, results []reassignmentBundle, brokers kafkazk.BrokerMap, tol float64) {
-	subCmd := cmd.Name()
+func printReassignmentParams(params reassignParams, results []reassignmentBundle, brokers kafkazk.BrokerMap, tol float64) {
+	fmt.Printf("\nReassignment parameters:\n")
 
-	fmt.Printf("\n%s parameters:\n", strings.Title(subCmd))
-
-	pst, _ := cmd.Flags().GetInt("partition-size-threshold")
 	mean, hMean := brokers.Mean(), brokers.HMean()
 
-	fmt.Printf("%sIgnoring partitions smaller than %dMB\n", indent, pst)
+	fmt.Printf("%sIgnoring partitions smaller than %dMB\n", indent, params.partitionSizeThreshold)
 	fmt.Printf("%sFree storage mean, harmonic mean: %.2fGB, %.2fGB\n",
 		indent, mean/div, hMean/div)
 
@@ -283,11 +270,9 @@ func printReassignmentParams(cmd *cobra.Command, results []reassignmentBundle, b
 	fmt.Printf("%s%sSources limited to <= %.2fGB\n", indent, indent, mean*(1+tol)/div)
 	fmt.Printf("%s%sDestinations limited to >= %.2fGB\n", indent, indent, mean*(1-tol)/div)
 
-	verbose, _ := cmd.Flags().GetBool("verbose")
-
 	// Print the top 10 rebalance results in verbose.
-	if verbose {
-		fmt.Printf("%s-\nTop 10 %s map results\n", indent, subCmd)
+	if params.verbose {
+		fmt.Printf("%s-\nTop 10 reassignment map results\n", indent)
 		for i, r := range results {
 			fmt.Printf("%stolerance: %.2f -> range: %.2fGB, std. deviation: %.2fGB\n",
 				indent, r.tolerance, r.storageRange/div, r.stdDev/div)

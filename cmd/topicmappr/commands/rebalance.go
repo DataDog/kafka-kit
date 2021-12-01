@@ -1,13 +1,8 @@
 package commands
 
 import (
-	"bytes"
 	"fmt"
 	"os"
-	"regexp"
-	"sort"
-
-	"github.com/DataDog/kafka-kit/v3/kafkazk"
 
 	"github.com/spf13/cobra"
 )
@@ -42,52 +37,10 @@ func init() {
 	rebalanceCmd.MarkFlagRequired("topics")
 }
 
-type rebalanceParams struct {
-	brokers                []int
-	localityScoped         bool
-	maxMetadataAge         int
-	optimizeLeadership     bool
-	partitionLimit         int
-	partitionSizeThreshold int
-	storageThreshold       float64
-	storageThresholdGB     float64
-	tolerance              float64
-	topics                 []*regexp.Regexp
-	topicsExclude          []*regexp.Regexp
-	verbose                bool
-}
-
-func rebalanceParamsFromCmd(cmd *cobra.Command) (params rebalanceParams) {
-	brokers, _ := cmd.Flags().GetString("brokers")
-	params.brokers = brokerStringToSlice(brokers)
-	localityScoped, _ := cmd.Flags().GetBool("locality-scoped")
-	params.localityScoped = localityScoped
-	maxMetadataAge, _ := cmd.Flags().GetInt("metrics-age")
-	params.maxMetadataAge = maxMetadataAge
-	optimizeLeadership, _ := cmd.Flags().GetBool("optimize-leadership")
-	params.optimizeLeadership = optimizeLeadership
-	partitionLimit, _ := cmd.Flags().GetInt("partition-limit")
-	params.partitionLimit = partitionLimit
-	partitionSizeThreshold, _ := cmd.Flags().GetInt("partition-size-threshold")
-	params.partitionSizeThreshold = partitionSizeThreshold
-	storageThreshold, _ := cmd.Flags().GetFloat64("storage-threshold")
-	params.storageThreshold = storageThreshold
-	storageThresholdGB, _ := cmd.Flags().GetFloat64("storage-threshold-gb")
-	params.storageThresholdGB = storageThresholdGB
-	tolerance, _ := cmd.Flags().GetFloat64("tolerance")
-	params.tolerance = tolerance
-	topics, _ := cmd.Flags().GetString("topics")
-	params.topics = topicRegex(topics)
-	topicsExclude, _ := cmd.Flags().GetString("topics-exclude")
-	params.topicsExclude = topicRegex(topicsExclude)
-	verbose, _ := cmd.Flags().GetBool("verbose")
-	params.verbose = verbose
-	return params
-}
-
 func rebalance(cmd *cobra.Command, _ []string) {
 	sanitizeInput(cmd)
-	params := rebalanceParamsFromCmd(cmd)
+	params := reassignParamsFromCmd(cmd)
+	params.requireNewBrokers = false
 
 	// ZooKeeper init.
 	zkAddr := cmd.Parent().Flag("zk-addr").Value.String()
@@ -101,214 +54,14 @@ func rebalance(cmd *cobra.Command, _ []string) {
 
 	defer zk.Close()
 
-	// Get broker and partition metadata.
-	if err := checkMetaAge(zk, params.maxMetadataAge); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-	brokerMeta, errs := getBrokerMeta(zk, true)
-	if errs != nil && brokerMeta == nil {
-		for _, e := range errs {
-			fmt.Println(e)
-		}
-		os.Exit(1)
-	}
-	partitionMeta, err := getPartitionMeta(zk)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	// Get the current partition map.
-	partitionMapIn, err := kafkazk.PartitionMapFromZK(params.topics, zk)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	// Exclude any topics that are pending deletion.
-	pending, err := stripPendingDeletes(partitionMapIn, zk)
-	if err != nil {
-		fmt.Println("Error fetching topics pending deletion")
-	}
-
-	// Exclude any explicit exclusions.
-	excluded := removeTopics(partitionMapIn, params.topicsExclude)
-
-	// Print topics matched to input params.
-	printTopics(partitionMapIn)
-
-	// Print if any topics were excluded due to pending deletion.
-	printExcludedTopics(pending, excluded)
-
-	// Get a broker map.
-	brokersIn := kafkazk.BrokerMapFromPartitionMap(partitionMapIn, brokerMeta, false)
-
-	// Validate all broker params, get a copy of the broker IDs targeted for
-	// partition offloading.
-	offloadTargets := validateBrokersForRebalance(params, brokersIn, brokerMeta)
-
-	// Sort offloadTargets by storage free ascending.
-	sort.Sort(offloadTargetsBySize{t: offloadTargets, bm: brokersIn})
-
-	reassignmentBundlesParams := computeReassignmentBundlesParams{
-		offloadTargets:         offloadTargets,
-		tolerance:              params.tolerance,
-		partitionMap:           partitionMapIn,
-		partitionMeta:          partitionMeta,
-		brokerMap:              brokersIn,
-		partitionLimit:         params.partitionLimit,
-		partitionSizeThreshold: params.partitionSizeThreshold,
-		localityScoped:         params.localityScoped,
-		verbose:                params.verbose,
-	}
-
-	// Generate reassignmentBundles for a rebalance.
-	results := computeReassignmentBundles(reassignmentBundlesParams)
-
-	// Merge all results into a slice.
-	resultsByRange := []reassignmentBundle{}
-	for r := range results {
-		resultsByRange = append(resultsByRange, r)
-	}
-
-	// Sort the rebalance results by range ascending.
-	sort.Slice(resultsByRange, func(i, j int) bool {
-		switch {
-		case resultsByRange[i].storageRange < resultsByRange[j].storageRange:
-			return true
-		case resultsByRange[i].storageRange > resultsByRange[j].storageRange:
-			return false
-		}
-
-		return resultsByRange[i].stdDev < resultsByRange[j].stdDev
-	})
-
-	// Chose the results with the lowest range.
-	m := resultsByRange[0]
-	partitionMapOut, brokersOut, relos := m.partitionMap, m.brokers, m.relocations
-
-	// Print parameters used for rebalance decisions.
-	printReassignmentParams(cmd, resultsByRange, brokersIn, m.tolerance)
-
-	// Optimize leaders.
-	if params.optimizeLeadership {
-		partitionMapOut.OptimizeLeaderFollower()
-	}
-
-	// Print planned relocations.
-	printPlannedRelocations(offloadTargets, relos, partitionMeta)
-
-	// Print map change results.
-	printMapChanges(partitionMapIn, partitionMapOut)
-
-	// Print broker assignment statistics.
-	errs = printBrokerAssignmentStats(cmd, partitionMapIn, partitionMapOut, brokersIn, brokersOut)
+	partitionMap, errs := reassign(params, zk)
 
 	// Handle errors that are possible to be overridden by the user (aka 'WARN'
 	// in topicmappr console output).
 	handleOverridableErrs(cmd, errs)
 
-	// Ignore no-ops; rebalances will naturally have a high percentage of these.
-	partitionMapIn, partitionMapOut = skipReassignmentNoOps(partitionMapIn, partitionMapOut)
-
 	// Write maps.
 	outPath := cmd.Flag("out-path").Value.String()
 	outFile := cmd.Flag("out-file").Value.String()
-	writeMaps(outPath, outFile, partitionMapOut, nil)
-}
-
-func validateBrokersForRebalance(params rebalanceParams, brokers kafkazk.BrokerMap, bm kafkazk.BrokerMetaMap) []int {
-	// No broker changes are permitted in rebalance other than new broker additions.
-	fmt.Println("\nValidating broker list:")
-
-	// Update the current BrokerList with
-	// the provided broker list.
-	c, msgs := brokers.Update(params.brokers, bm)
-	for m := range msgs {
-		fmt.Printf("%s%s\n", indent, m)
-	}
-
-	if c.Changes() {
-		fmt.Printf("%s-\n", indent)
-	}
-
-	// Check if any referenced brokers are marked as having missing/partial metrics data.
-	if errs := ensureBrokerMetrics(brokers, bm); len(errs) > 0 {
-		for _, e := range errs {
-			fmt.Println(e)
-		}
-		os.Exit(1)
-	}
-
-	switch {
-	case c.Missing > 0, c.OldMissing > 0, c.Replace > 0:
-		fmt.Printf("%s[ERROR] rebalance only allows broker additions\n", indent)
-		os.Exit(1)
-	case c.New > 0:
-		fmt.Printf("%s%d additional brokers added\n", indent, c.New)
-		fmt.Printf("%s-\n", indent)
-		fallthrough
-	default:
-		fmt.Printf("%sOK\n", indent)
-	}
-
-	var selectorMethod bytes.Buffer
-	selectorMethod.WriteString("Brokers targeted for partition offloading ")
-
-	var offloadTargets []int
-
-	// Switch on the target selection method. If a storage threshold in gigabytes
-	// is specified, prefer this. Otherwise, use the percentage below mean threshold.
-	switch {
-	case params.storageThresholdGB > 0.00:
-		selectorMethod.WriteString(fmt.Sprintf("(< %.2fGB storage free)", params.storageThresholdGB))
-
-		// Get all non-new brokers with a StorageFree below the storage threshold in GB.
-		f := func(b *kafkazk.Broker) bool {
-			if !b.New && b.StorageFree < params.storageThresholdGB*div {
-				return true
-			}
-			return false
-		}
-
-		matches := brokers.Filter(f)
-		for _, b := range matches {
-			offloadTargets = append(offloadTargets, b.ID)
-		}
-
-		sort.Ints(offloadTargets)
-	default:
-		selectorMethod.WriteString(fmt.Sprintf("(>= %.2f%% threshold below hmean)", params.storageThreshold*100))
-
-		// Find brokers where the storage free is t % below the harmonic mean.
-		// Specifying 0 targets all non-new brokers.
-		switch params.storageThreshold {
-		case 0.00:
-			f := func(b *kafkazk.Broker) bool { return !b.New }
-
-			matches := brokers.Filter(f)
-			for _, b := range matches {
-				offloadTargets = append(offloadTargets, b.ID)
-			}
-
-			sort.Ints(offloadTargets)
-		default:
-			offloadTargets = brokers.BelowMean(params.storageThreshold, brokers.HMean)
-		}
-	}
-
-	fmt.Printf("\n%s:\n", selectorMethod.String())
-
-	// Exit if no target brokers were found.
-	if len(offloadTargets) == 0 {
-		fmt.Printf("%s[none]\n", indent)
-		os.Exit(0)
-	} else {
-		for _, id := range offloadTargets {
-			fmt.Printf("%s%d\n", indent, id)
-		}
-	}
-
-	return offloadTargets
+	writeMaps(outPath, outFile, partitionMap, nil)
 }

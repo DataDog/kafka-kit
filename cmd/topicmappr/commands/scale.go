@@ -3,10 +3,6 @@ package commands
 import (
 	"fmt"
 	"os"
-	"regexp"
-	"sort"
-
-	"github.com/DataDog/kafka-kit/v3/kafkazk"
 
 	"github.com/spf13/cobra"
 )
@@ -39,46 +35,10 @@ func init() {
 	scaleCmd.MarkFlagRequired("topics")
 }
 
-type scaleParams struct {
-	brokers                []int
-	localityScoped         bool
-	maxMetadataAge         int
-	optimizeLeadership     bool
-	partitionLimit         int
-	partitionSizeThreshold int
-	tolerance              float64
-	topics                 []*regexp.Regexp
-	topicsExclude          []*regexp.Regexp
-	verbose                bool
-}
-
-func scaleParamsFromCmd(cmd *cobra.Command) (params scaleParams) {
-	brokers, _ := cmd.Flags().GetString("brokers")
-	params.brokers = brokerStringToSlice(brokers)
-	localityScoped, _ := cmd.Flags().GetBool("locality-scoped")
-	params.localityScoped = localityScoped
-	maxMetadataAge, _ := cmd.Flags().GetInt("metrics-age")
-	params.maxMetadataAge = maxMetadataAge
-	optimizeLeadership, _ := cmd.Flags().GetBool("optimize-leadership")
-	params.optimizeLeadership = optimizeLeadership
-	partitionLimit, _ := cmd.Flags().GetInt("partition-limit")
-	params.partitionLimit = partitionLimit
-	partitionSizeThreshold, _ := cmd.Flags().GetInt("partition-size-threshold")
-	params.partitionSizeThreshold = partitionSizeThreshold
-	tolerance, _ := cmd.Flags().GetFloat64("tolerance")
-	params.tolerance = tolerance
-	topics, _ := cmd.Flags().GetString("topics")
-	params.topics = topicRegex(topics)
-	topicsExclude, _ := cmd.Flags().GetString("topics-exclude")
-	params.topicsExclude = topicRegex(topicsExclude)
-	verbose, _ := cmd.Flags().GetBool("verbose")
-	params.verbose = verbose
-	return params
-}
-
 func scale(cmd *cobra.Command, _ []string) {
 	sanitizeInput(cmd)
-	params := scaleParamsFromCmd(cmd)
+	params := reassignParamsFromCmd(cmd)
+	params.requireNewBrokers = true
 
 	// ZooKeeper init.
 	zkAddr := cmd.Parent().Flag("zk-addr").Value.String()
@@ -92,184 +52,13 @@ func scale(cmd *cobra.Command, _ []string) {
 
 	defer zk.Close()
 
-	// Get broker and partition metadata.
-	if err := checkMetaAge(zk, params.maxMetadataAge); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-	brokerMeta, errs := getBrokerMeta(zk, true)
-	if errs != nil && brokerMeta == nil {
-		for _, e := range errs {
-			fmt.Println(e)
-		}
-		os.Exit(1)
-	}
-	partitionMeta, err := getPartitionMeta(zk)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+	partitionMap, _ := reassign(params, zk)
 
-	// Get the current partition map.
-	partitionMapIn, err := kafkazk.PartitionMapFromZK(params.topics, zk)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+	// TODO intentionally not handling the one error that can be returned here
+	// right now, but would be better to distinguish errors
+	// handleOverridableErrs(cmd, errs)
 
-	// Exclude any topics that are pending deletion.
-	pending, err := stripPendingDeletes(partitionMapIn, zk)
-	if err != nil {
-		fmt.Println("Error fetching topics pending deletion")
-	}
-
-	// Exclude any explicit exclusions.
-	excluded := removeTopics(partitionMapIn, params.topicsExclude)
-
-	// Print topics matched to input params.
-	printTopics(partitionMapIn)
-
-	// Print if any topics were excluded due to pending deletion.
-	printExcludedTopics(pending, excluded)
-
-	// Get a broker map.
-	brokersIn := kafkazk.BrokerMapFromPartitionMap(partitionMapIn, brokerMeta, false)
-
-	// Validate all broker params, get a copy of the
-	// broker IDs targeted for partition offloading.
-	offloadTargets := validateBrokersForScale(params, brokersIn, brokerMeta)
-
-	// Sort offloadTargets by storage free ascending.
-	sort.Sort(offloadTargetsBySize{t: offloadTargets, bm: brokersIn})
-
-	// Generate reassignmentBundles for a scale up.
-	reassignmentBundlesParams := computeReassignmentBundlesParams{
-		offloadTargets:         offloadTargets,
-		tolerance:              params.tolerance,
-		partitionMap:           partitionMapIn,
-		partitionMeta:          partitionMeta,
-		brokerMap:              brokersIn,
-		partitionLimit:         params.partitionLimit,
-		partitionSizeThreshold: params.partitionSizeThreshold,
-		localityScoped:         params.localityScoped,
-		verbose:                params.verbose,
-	}
-
-	results := computeReassignmentBundles(reassignmentBundlesParams)
-
-	// Merge all results into a slice.
-	resultsByRange := []reassignmentBundle{}
-	for r := range results {
-		resultsByRange = append(resultsByRange, r)
-	}
-
-	// Sort the scale results by range ascending.
-	sort.Slice(resultsByRange, func(i, j int) bool {
-		switch {
-		case resultsByRange[i].storageRange < resultsByRange[j].storageRange:
-			return true
-		case resultsByRange[i].storageRange > resultsByRange[j].storageRange:
-			return false
-		}
-
-		return resultsByRange[i].stdDev < resultsByRange[j].stdDev
-	})
-
-	// Chose the results with the lowest range.
-	m := resultsByRange[0]
-	partitionMapOut, brokersOut, relos := m.partitionMap, m.brokers, m.relocations
-
-	// Print parameters used for scale decisions.
-	printReassignmentParams(cmd, resultsByRange, brokersIn, m.tolerance)
-
-	// Optimize leaders.
-	if params.optimizeLeadership {
-		partitionMapOut.OptimizeLeaderFollower()
-	}
-
-	// Print planned relocations.
-	printPlannedRelocations(offloadTargets, relos, partitionMeta)
-
-	// Print map change results.
-	printMapChanges(partitionMapIn, partitionMapOut)
-
-	// Print broker assignment statistics.
-	errs = printBrokerAssignmentStats(cmd, partitionMapIn, partitionMapOut, brokersIn, brokersOut)
-
-	// Handle errors that are possible
-	// to be overridden by the user (aka
-	// 'WARN' in topicmappr console output).
-	handleOverridableErrs(cmd, errs)
-
-	// Ignore no-ops; scales will naturally have
-	// a high percentage of these.
-	partitionMapIn, partitionMapOut = skipReassignmentNoOps(partitionMapIn, partitionMapOut)
-
-	// Write maps.
 	outPath := cmd.Flag("out-path").Value.String()
 	outFile := cmd.Flag("out-file").Value.String()
-	writeMaps(outPath, outFile, partitionMapOut, nil)
-}
-
-func validateBrokersForScale(params scaleParams, brokers kafkazk.BrokerMap, bm kafkazk.BrokerMetaMap) []int {
-	// No broker changes are permitted in rebalance other than new broker additions.
-	fmt.Println("\nValidating broker list:")
-
-	// Update the current BrokerList with
-	// the provided broker list.
-	c, msgs := brokers.Update(params.brokers, bm)
-	for m := range msgs {
-		fmt.Printf("%s%s\n", indent, m)
-	}
-
-	if c.Changes() {
-		fmt.Printf("%s-\n", indent)
-	}
-
-	// Check if any referenced brokers are marked as having missing/partial metrics data.
-	if errs := ensureBrokerMetrics(brokers, bm); len(errs) > 0 {
-		for _, e := range errs {
-			fmt.Println(e)
-		}
-		os.Exit(1)
-	}
-
-	switch {
-	case c.Missing > 0, c.OldMissing > 0, c.Replace > 0:
-		fmt.Printf("%s[ERROR] scale only allows broker additions\n", indent)
-		os.Exit(1)
-	case c.New > 0:
-		fmt.Printf("%s%d additional brokers added\n", indent, c.New)
-		fmt.Printf("%s-\n", indent)
-		fmt.Printf("%sOK\n", indent)
-	default:
-		fmt.Printf("%s[ERROR] scale requires additional brokers\n", indent)
-		os.Exit(1)
-	}
-
-	var offloadTargets []int
-
-	// Offload targets are all non-new brokers.
-	f := func(b *kafkazk.Broker) bool { return !b.New }
-
-	matches := brokers.Filter(f)
-	for _, b := range matches {
-		offloadTargets = append(offloadTargets, b.ID)
-	}
-
-	sort.Ints(offloadTargets)
-
-	fmt.Println("\nBrokers targeted for partition offloading:")
-
-	// Exit if we've hit insufficient broker counts.
-	if len(offloadTargets) == 0 {
-		fmt.Printf("%s[none]\n", indent)
-		os.Exit(0)
-	} else {
-		for _, id := range offloadTargets {
-			fmt.Printf("%s%d\n", indent, id)
-		}
-	}
-
-	return offloadTargets
+	writeMaps(outPath, outFile, partitionMap, nil)
 }
