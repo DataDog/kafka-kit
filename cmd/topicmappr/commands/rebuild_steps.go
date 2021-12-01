@@ -30,11 +30,11 @@ func getPartitionMap(params rebuildParams, zk kafkazk.Handler) (*kafkazk.Partiti
 			os.Exit(1)
 		}
 		// Exclude topics explicitly listed.
-		et := removeTopics(pm, Config.topicsExclude)
+		et := removeTopics(pm, params.topicsExclude)
 		return pm, []string{}, et
 	// The map needs to be fetched via ZooKeeper metadata for all specified topics.
-	case len(Config.topics) > 0:
-		pm, err := kafkazk.PartitionMapFromZK(Config.topics, zk)
+	case len(params.topics) > 0:
+		pm, err := kafkazk.PartitionMapFromZK(params.topics, zk)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -47,7 +47,7 @@ func getPartitionMap(params rebuildParams, zk kafkazk.Handler) (*kafkazk.Partiti
 		}
 
 		// Exclude topics explicitly listed.
-		et := removeTopics(pm, Config.topicsExclude)
+		et := removeTopics(pm, params.topicsExclude)
 
 		return pm, pd, et
 	}
@@ -100,7 +100,7 @@ func getBrokers(params rebuildParams, pm *kafkazk.PartitionMap, bm kafkazk.Broke
 	brokers := kafkazk.BrokerMapFromPartitionMap(pm, bm, params.forceRebuild)
 
 	// Update the currentBrokers list with the provided broker list.
-	bs, msgs := brokers.Update(Config.brokers, bm)
+	bs, msgs := brokers.Update(params.brokers, bm)
 	for m := range msgs {
 		fmt.Printf("%s%s\n", indent, m)
 	}

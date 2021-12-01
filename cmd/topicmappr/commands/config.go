@@ -23,32 +23,13 @@ const (
 var (
 	// Characters allowed in Kafka topic names
 	topicNormalChar = regexp.MustCompile(`[a-zA-Z0-9_\\-]`)
-
-	// Config holds global configs.
-	Config struct {
-		topics        []*regexp.Regexp
-		topicsExclude []*regexp.Regexp
-		brokers       []int
-	}
 )
 
-func bootstrap(cmd *cobra.Command) {
-	b, _ := cmd.Flags().GetString("brokers")
-	Config.brokers = brokerStringToSlice(b)
-
+func sanitizeInput(cmd *cobra.Command) {
 	// Append trailing slash if not included.
 	op := cmd.Flag("out-path").Value.String()
 	if op != "" && !strings.HasSuffix(op, "/") {
 		cmd.Flags().Set("out-path", op+"/")
-	}
-
-	// Populate topic include / exclude regex.
-	if include, _ := cmd.Flags().GetString("topics"); include != "" {
-		Config.topics = topicRegex(include)
-	}
-
-	if exclude, _ := cmd.Flags().GetString("topics-exclude"); exclude != "" {
-		Config.topicsExclude = topicRegex(exclude)
 	}
 }
 

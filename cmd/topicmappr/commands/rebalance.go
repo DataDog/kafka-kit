@@ -86,7 +86,7 @@ func rebalanceParamsFromCmd(cmd *cobra.Command) (params rebalanceParams) {
 }
 
 func rebalance(cmd *cobra.Command, _ []string) {
-	bootstrap(cmd)
+	sanitizeInput(cmd)
 	params := rebalanceParamsFromCmd(cmd)
 
 	// ZooKeeper init.
@@ -120,7 +120,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	}
 
 	// Get the current partition map.
-	partitionMapIn, err := kafkazk.PartitionMapFromZK(Config.topics, zk)
+	partitionMapIn, err := kafkazk.PartitionMapFromZK(params.topics, zk)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -133,7 +133,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	}
 
 	// Exclude any explicit exclusions.
-	excluded := removeTopics(partitionMapIn, Config.topicsExclude)
+	excluded := removeTopics(partitionMapIn, params.topicsExclude)
 
 	// Print topics matched to input params.
 	printTopics(partitionMapIn)
@@ -224,7 +224,7 @@ func validateBrokersForRebalance(params rebalanceParams, brokers kafkazk.BrokerM
 
 	// Update the current BrokerList with
 	// the provided broker list.
-	c, msgs := brokers.Update(Config.brokers, bm)
+	c, msgs := brokers.Update(params.brokers, bm)
 	for m := range msgs {
 		fmt.Printf("%s%s\n", indent, m)
 	}

@@ -136,8 +136,9 @@ func (c rebuildParams) validate() error {
 }
 
 func rebuild(cmd *cobra.Command, _ []string) {
-	bootstrap(cmd)
+	sanitizeInput(cmd)
 	params := rebuildParamsFromCmd(cmd)
+
 	err := params.validate()
 	if err != nil {
 		fmt.Println(err)

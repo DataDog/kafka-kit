@@ -77,7 +77,7 @@ func scaleParamsFromCmd(cmd *cobra.Command) (params scaleParams) {
 }
 
 func scale(cmd *cobra.Command, _ []string) {
-	bootstrap(cmd)
+	sanitizeInput(cmd)
 	params := scaleParamsFromCmd(cmd)
 
 	// ZooKeeper init.
@@ -111,7 +111,7 @@ func scale(cmd *cobra.Command, _ []string) {
 	}
 
 	// Get the current partition map.
-	partitionMapIn, err := kafkazk.PartitionMapFromZK(Config.topics, zk)
+	partitionMapIn, err := kafkazk.PartitionMapFromZK(params.topics, zk)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -124,7 +124,7 @@ func scale(cmd *cobra.Command, _ []string) {
 	}
 
 	// Exclude any explicit exclusions.
-	excluded := removeTopics(partitionMapIn, Config.topicsExclude)
+	excluded := removeTopics(partitionMapIn, params.topicsExclude)
 
 	// Print topics matched to input params.
 	printTopics(partitionMapIn)
@@ -137,7 +137,7 @@ func scale(cmd *cobra.Command, _ []string) {
 
 	// Validate all broker params, get a copy of the
 	// broker IDs targeted for partition offloading.
-	offloadTargets := validateBrokersForScale(brokersIn, brokerMeta)
+	offloadTargets := validateBrokersForScale(params, brokersIn, brokerMeta)
 
 	// Sort offloadTargets by storage free ascending.
 	sort.Sort(offloadTargetsBySize{t: offloadTargets, bm: brokersIn})
@@ -211,13 +211,13 @@ func scale(cmd *cobra.Command, _ []string) {
 	writeMaps(outPath, outFile, partitionMapOut, nil)
 }
 
-func validateBrokersForScale(brokers kafkazk.BrokerMap, bm kafkazk.BrokerMetaMap) []int {
+func validateBrokersForScale(params scaleParams, brokers kafkazk.BrokerMap, bm kafkazk.BrokerMetaMap) []int {
 	// No broker changes are permitted in rebalance other than new broker additions.
 	fmt.Println("\nValidating broker list:")
 
 	// Update the current BrokerList with
 	// the provided broker list.
-	c, msgs := brokers.Update(Config.brokers, bm)
+	c, msgs := brokers.Update(params.brokers, bm)
 	for m := range msgs {
 		fmt.Printf("%s%s\n", indent, m)
 	}
