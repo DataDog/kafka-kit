@@ -52,7 +52,7 @@ func scale(cmd *cobra.Command, _ []string) {
 
 	defer zk.Close()
 
-	partitionMap, _ := reassign(params, zk)
+	partitionMaps, _ := reassign(params, zk)
 
 	// TODO intentionally not handling the one error that can be returned here
 	// right now, but would be better to distinguish errors
@@ -60,5 +60,5 @@ func scale(cmd *cobra.Command, _ []string) {
 
 	outPath := cmd.Flag("out-path").Value.String()
 	outFile := cmd.Flag("out-file").Value.String()
-	writeMaps(outPath, outFile, partitionMap, nil)
+	writeMaps(outPath, outFile, partitionMaps)
 }

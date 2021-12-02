@@ -54,7 +54,7 @@ func rebalance(cmd *cobra.Command, _ []string) {
 
 	defer zk.Close()
 
-	partitionMap, errs := reassign(params, zk)
+	partitionMaps, errs := reassign(params, zk)
 
 	// Handle errors that are possible to be overridden by the user (aka 'WARN'
 	// in topicmappr console output).
@@ -63,5 +63,5 @@ func rebalance(cmd *cobra.Command, _ []string) {
 	// Write maps.
 	outPath := cmd.Flag("out-path").Value.String()
 	outFile := cmd.Flag("out-file").Value.String()
-	writeMaps(outPath, outFile, partitionMap, nil)
+	writeMaps(outPath, outFile, partitionMaps)
 }

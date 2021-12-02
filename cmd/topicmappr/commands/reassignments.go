@@ -76,7 +76,7 @@ func reassignParamsFromCmd(cmd *cobra.Command) (params reassignParams) {
 	return params
 }
 
-func reassign(params reassignParams, zk kafkazk.Handler) (*kafkazk.PartitionMap, []error) {
+func reassign(params reassignParams, zk kafkazk.Handler) ([]*kafkazk.PartitionMap, []error) {
 	// Get broker and partition metadata.
 	if err := checkMetaAge(zk, params.maxMetadataAge); err != nil {
 		fmt.Println(err)
@@ -186,7 +186,7 @@ func reassign(params reassignParams, zk kafkazk.Handler) (*kafkazk.PartitionMap,
 	// Ignore no-ops; rebalances will naturally have a high percentage of these.
 	partitionMapIn, partitionMapOut = skipReassignmentNoOps(partitionMapIn, partitionMapOut)
 
-	return partitionMapOut, errs
+	return []*kafkazk.PartitionMap{partitionMapOut}, errs
 
 }
 

@@ -190,34 +190,29 @@ func skipReassignmentNoOps(pm1, pm2 *kafkazk.PartitionMap) (*kafkazk.PartitionMa
 }
 
 // writeMaps takes a PartitionMap and writes out files.
-func writeMaps(outPath, outFile string, pm *kafkazk.PartitionMap, phasedPM *kafkazk.PartitionMap) {
-	if len(pm.Partitions) == 0 {
+func writeMaps(outPath, outFile string, pms []*kafkazk.PartitionMap) {
+	if len(pms) == 0 || len(pms[0].Partitions) == 0 {
 		fmt.Println("\nNo partition reassignments, skipping map generation")
 		return
 	}
 
-	// If we've been provided a phased output map.
-	var phaseSuffix [2]string
-	if phasedPM != nil {
-		phaseSuffix[0] = "-phase1"
-		phaseSuffix[1] = "-phase2"
+	phasedMaps := len(pms) > 1
+	suffix := func(i int) string {
+		if phasedMaps {
+			return fmt.Sprintf("-phase%d", i)
+		}
+		return ""
 	}
 
 	// Break map up by topic.
 	tm := map[string]*kafkazk.PartitionMap{}
 
-	outputMaps := []*kafkazk.PartitionMap{phasedPM, pm}
-
 	// For each map type, create per-topic maps.
-	for i, m := range outputMaps {
-		// We may not have a phasedPM.
-		if m == nil {
-			continue
-		}
+	for i, m := range pms {
 		// Populate each partition in the parent map keyed
 		// by topic name and possible phase suffix.
 		for _, p := range m.Partitions {
-			mapName := fmt.Sprintf("%s%s", p.Topic, phaseSuffix[i])
+			mapName := fmt.Sprintf("%s%s", p.Topic, suffix(i))
 			if tm[mapName] == nil {
 				tm[mapName] = kafkazk.NewPartitionMap()
 			}
@@ -229,12 +224,8 @@ func writeMaps(outPath, outFile string, pm *kafkazk.PartitionMap, phasedPM *kafk
 
 	// Write global map if set.
 	if outFile != "" {
-		for i, m := range outputMaps {
-			if m == nil {
-				continue
-			}
-
-			fullPath := fmt.Sprintf("%s%s%s", outPath, outFile, phaseSuffix[i])
+		for i, m := range pms {
+			fullPath := fmt.Sprintf("%s%s%s", outPath, outFile, suffix(i))
 			err := kafkazk.WriteMap(m, fullPath)
 			if err != nil {
 				fmt.Printf("%s%s", indent, err)

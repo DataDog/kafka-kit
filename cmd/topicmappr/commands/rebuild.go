@@ -307,5 +307,5 @@ func rebuild(cmd *cobra.Command, _ []string) {
 
 	outPath := cmd.Flag("out-path").Value.String()
 	outFile := cmd.Flag("out-file").Value.String()
-	writeMaps(outPath, outFile, partitionMapOut, phasedMap)
+	writeMaps(outPath, outFile, []*kafkazk.PartitionMap{phasedMap, partitionMapOut})
 }
