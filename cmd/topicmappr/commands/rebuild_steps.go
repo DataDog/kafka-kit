@@ -7,6 +7,152 @@ import (
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
 )
 
+func runRebuild(params rebuildParams, zk kafkazk.Handler) ([]*kafkazk.PartitionMap, []error) {
+	// General flow:
+	// 1) A PartitionMap is formed (either unmarshaled from the literal
+	//   map input via --rebuild-map or generated from ZooKeeper Metadata
+	//   for topics matching --topics).
+	// 2) A BrokerMap is formed from brokers found in the PartitionMap
+	//   along with any new brokers provided via the --brokers param.
+	// 3) The PartitionMap and BrokerMap are fed to a rebuild
+	//   function. Missing brokers, brokers marked for replacement,
+	//   and all other placements are performed, returning a new
+	//   PartitionMap.
+	// 4) Differences between the original and new PartitionMap
+	//   are detected and reported.
+	// 5) The new PartitionMap is split by topic. Map(s) are written.
+
+	// In addition to the global topic regex, we have leader-evac topic regex as well.
+	var evacTopics []string
+	var err error
+	if len(params.leaderEvacTopics) != 0 {
+		evacTopics, err = zk.GetTopics(params.leaderEvacTopics)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	}
+
+	// Fetch broker metadata.
+	var withMetrics bool
+	if params.placement == "storage" {
+		if err := checkMetaAge(zk, params.maxMetadataAge); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		withMetrics = true
+	}
+
+	var brokerMeta kafkazk.BrokerMetaMap
+	var errs []error
+	if params.useMetadata {
+		if brokerMeta, errs = getBrokerMeta(zk, withMetrics); errs != nil && brokerMeta == nil {
+			for _, e := range errs {
+				fmt.Println(e)
+			}
+			os.Exit(1)
+		}
+	}
+
+	// Fetch partition metadata.
+	var partitionMeta kafkazk.PartitionMetaMap
+	if params.placement == "storage" {
+		if partitionMeta, err = getPartitionMeta(zk); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	}
+
+	// Build a partition map either from literal map text input or by fetching the
+	// map data from ZooKeeper. Store a copy of the original.
+	partitionMapIn, pending, excluded := getPartitionMap(params, zk)
+	originalMap := partitionMapIn.Copy()
+
+	// Get a list of affected topics.
+	printTopics(partitionMapIn)
+
+	// Print if any topics were excluded due to pending deletion or explicit
+	// exclusion.
+	printExcludedTopics(pending, excluded)
+
+	brokers, bs := getBrokers(params, partitionMapIn, brokerMeta)
+	brokersOrig := brokers.Copy()
+
+	if bs.Changes() {
+		fmt.Printf("%s-\n", indent)
+	}
+
+	// Check if any referenced brokers are marked as having
+	// missing/partial metrics data.
+	if params.useMetadata {
+		if errs := ensureBrokerMetrics(brokers, brokerMeta); len(errs) > 0 {
+			for _, e := range errs {
+				fmt.Println(e)
+			}
+			os.Exit(1)
+		}
+	}
+
+	// Create substitution affinities.
+	affinities := getSubAffinities(params, brokers, brokersOrig, partitionMapIn)
+
+	if affinities != nil {
+		fmt.Printf("%s-\n", indent)
+	}
+
+	// Print changes, actions.
+	printChangesActions(params, bs)
+
+	// Apply any replication factor settings.
+	updateReplicationFactor(params, partitionMapIn)
+
+	// Build a new map using the provided list of brokers. This is OK to run even
+	// when a no-op is intended.
+	partitionMapOut, errs := buildMap(params, partitionMapIn, partitionMeta, brokers, affinities)
+
+	// Optimize leaders.
+	if params.optimizeLeadership {
+		partitionMapOut.OptimizeLeaderFollower()
+	}
+
+	// Count missing brokers as a warning.
+	if bs.Missing > 0 {
+		errs = append(errs, fmt.Errorf("%d provided brokers not found in ZooKeeper", bs.Missing))
+	}
+
+	// Count missing rack info as warning
+	if bs.RackMissing > 0 {
+		errs = append(
+			errs, fmt.Errorf("%d provided broker(s) do(es) not have a rack.id defined", bs.RackMissing),
+		)
+	}
+
+	outputMaps := []*kafkazk.PartitionMap{}
+	// Generate phased map if enabled.
+	if params.phasedReassignment {
+		outputMaps = append(outputMaps, phasedReassignment(originalMap, partitionMapOut))
+	}
+
+	partitionMapOut = evacuateLeadership(*partitionMapOut, params.leaderEvacBrokers, evacTopics)
+
+	// Print map change results.
+	printMapChanges(originalMap, partitionMapOut)
+
+	// Print broker assignment statistics.
+	errs = append(
+		errs,
+		printBrokerAssignmentStats(originalMap, partitionMapOut, brokersOrig, brokers, params.placement == "storage", params.partitionSizeFactor)...,
+	)
+
+	// Skip no-ops if configured.
+	if params.skipNoOps {
+		originalMap, partitionMapOut = skipReassignmentNoOps(originalMap, partitionMapOut)
+	}
+	outputMaps = append(outputMaps, partitionMapOut)
+
+	return outputMaps, errs
+}
+
 // *References to metrics metadata persisted in ZooKeeper, see:
 // https://github.com/DataDog/kafka-kit/tree/master/cmd/metricsfetcher#data-structures)
 
