@@ -217,8 +217,7 @@ func buildMap(cmd *cobra.Command, pm *kafkazk.PartitionMap, pmm kafkazk.Partitio
 		// If the storage placement strategy is being used,
 		// update the broker StorageFree values.
 		if placement == "storage" {
-			allBrokers := func(b *kafkazk.Broker) bool { return true }
-			err := rebuildParams.BM.SubStorage(pm, pmm, allBrokers)
+			err := rebuildParams.BM.SubStorage(pm, pmm, kafkazk.AllBrokersFn)
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(1)
@@ -231,8 +230,7 @@ func buildMap(cmd *cobra.Command, pm *kafkazk.PartitionMap, pmm kafkazk.Partitio
 
 	// Update the StorageFree only on brokers marked for replacement.
 	if placement == "storage" {
-		replacedBrokers := func(b *kafkazk.Broker) bool { return b.Replace }
-		err := rebuildParams.BM.SubStorage(pm, pmm, replacedBrokers)
+		err := rebuildParams.BM.SubStorage(pm, pmm, kafkazk.ReplacedBrokersFn)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)

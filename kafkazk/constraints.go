@@ -125,14 +125,7 @@ func (c *Constraints) Add(b *Broker) {
 func (c *Constraints) MergeConstraints(bl BrokerList) {
 	// Don't merge in attributes
 	// from nodes that will be removed.
-	var f BrokerFilterFn = func(b *Broker) bool {
-		if b.Replace {
-			return false
-		}
-		return true
-	}
-
-	for _, b := range bl.Filter(f) {
+	for _, b := range bl.Filter(NotReplacedBrokersFn) {
 		if b.Locality != "" {
 			c.locality[b.Locality] = true
 		}

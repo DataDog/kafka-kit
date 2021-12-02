@@ -270,8 +270,7 @@ func TestSubStorageReplacements(t *testing.T) {
 
 	bm[1003].Replace = true
 
-	replacedBrokers := func(b *Broker) bool { return b.Replace }
-	err := bm.SubStorage(pm, pmm, replacedBrokers)
+	err := bm.SubStorage(pm, pmm, ReplacedBrokersFn)
 	if err != nil {
 		t.Fatal(err)
 	}

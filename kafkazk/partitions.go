@@ -267,6 +267,24 @@ func (pm *PartitionMap) Rebuild(params RebuildParams) (*PartitionMap, []error) {
 	return newMap, errs
 }
 
+// BrokersIn returns a BrokerFilterFn that filters for brokers in the
+// PartitionMap
+func (pm PartitionMap) BrokersIn() BrokerFilterFn {
+	mappedIDs := map[int]struct{}{}
+	for _, partn := range pm.Partitions {
+		for _, id := range partn.Replicas {
+			mappedIDs[id] = struct{}{}
+		}
+	}
+
+	return func(b *Broker) bool {
+		if _, exist := mappedIDs[b.ID]; exist {
+			return true
+		}
+		return false
+	}
+}
+
 // placeByPosition builds a PartitionMap by doing placements for all
 // partitions, one broker index at a time. For instance, if all partitions
 // required a broker set length of 3 (aka a replication factor of 3), we'd
@@ -279,14 +297,7 @@ func placeByPosition(params RebuildParams) (*PartitionMap, []error) {
 
 	// We need a filtered list for usage sorting and exclusion
 	// of nodes marked for removal.
-	f := func(b *Broker) bool {
-		if b.Replace {
-			return false
-		}
-		return true
-	}
-
-	bl := params.BM.Filter(f).List()
+	bl := params.BM.Filter(NotReplacedBrokersFn).List()
 
 	var errs []error
 	var pass int
@@ -421,14 +432,7 @@ func placeByPartition(params RebuildParams) (*PartitionMap, []error) {
 
 	// We need a filtered list for usage sorting and exclusion
 	// of nodes marked for removal.
-	f := func(b *Broker) bool {
-		if b.Replace {
-			return false
-		}
-		return true
-	}
-
-	bl := params.BM.Filter(f).List()
+	bl := params.BM.Filter(NotReplacedBrokersFn).List()
 
 	var errs []error
 

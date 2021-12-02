@@ -160,6 +160,8 @@ type BrokerFilterFn func(*Broker) bool
 
 // AllBrokersFn returns all brokers.
 var AllBrokersFn BrokerFilterFn = func(b *Broker) bool { return true }
+var NotReplacedBrokersFn = func(b *Broker) bool { return !b.Replace }
+var ReplacedBrokersFn = func(b *Broker) bool { return b.Replace }
 
 // SortPseudoShuffle takes a BrokerList and performs a sort by count.
 // For each sequence of brokers with equal counts, the sub-slice is
@@ -343,7 +345,7 @@ func (b BrokerMap) Update(bl []int, bm BrokerMetaMap) (*BrokerStatus, <-chan str
 // SubStorageAll takes a PartitionMap, PartitionMetaMap, and a function. For all
 // brokers that return true as an input to function f, the size of all partitions
 // held is added back to the broker StorageFree value.
-func (b BrokerMap) SubStorage(pm *PartitionMap, pmm PartitionMetaMap, f func(*Broker) bool) error {
+func (b BrokerMap) SubStorage(pm *PartitionMap, pmm PartitionMetaMap, f BrokerFilterFn) error {
 	// Get the size of each partition.
 	for _, partn := range pm.Partitions {
 		size, err := pmm.Size(partn)

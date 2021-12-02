@@ -124,31 +124,7 @@ func printBrokerAssignmentStats(cmd *cobra.Command, pm1, pm2 *kafkazk.PartitionM
 		// input and wasn't marked for replacement (generally, users are doing storage placements
 		// particularly to balance out the storage of the input broker list).
 
-		// Filter function for brokers where the Replaced field is false.
-		nonReplaced := func(b *kafkazk.Broker) bool {
-			if b.Replace {
-				return false
-			}
-			return true
-		}
-
-		// Get all IDs in PartitionMap.
-		mappedIDs := map[int]struct{}{}
-		for _, partn := range pm1.Partitions {
-			for _, id := range partn.Replicas {
-				mappedIDs[id] = struct{}{}
-			}
-		}
-
-		// Filter function for brokers that are in the partition map.
-		mapped := func(b *kafkazk.Broker) bool {
-			if _, exist := mappedIDs[b.ID]; exist {
-				return true
-			}
-			return false
-		}
-
-		mb1, mb2 := bm1.Filter(mapped), bm2.Filter(nonReplaced)
+		mb1, mb2 := bm1.Filter(pm1.BrokersIn()), bm2.Filter(kafkazk.NotReplacedBrokersFn)
 
 		// Range before/after.
 		r1, r2 := mb1.StorageRange(), mb2.StorageRange()
