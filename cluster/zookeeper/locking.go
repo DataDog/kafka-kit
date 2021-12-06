@@ -12,13 +12,22 @@ func (z ZooKeeperLock) Lock() error {
 	lockPath := fmt.Sprintf("%s/lock-", z.Path)
 	node, e := z.c.CreateProtectedEphemeralSequential(lockPath, nil, zk.WorldACL(31))
 
+	// Get our claim ID.
 	thisID, err := idFromZnode(node)
 	if err != nil {
 		return err
 	}
 
-	fmt.Println(thisID)
-	fmt.Println(z.LockIDs())
+	// Get all IDs.
+	claimIDs, err := z.LockIDs()
+	if err != nil {
+		return err
+	}
+
+	// Check if we have the first claim.
+	if thisID == claimIDs[0] {
+		// We have the lock.
+	}
 
 	return e
 }
