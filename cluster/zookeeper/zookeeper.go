@@ -1,3 +1,4 @@
+// package zookeeper implements a ZooKeeper based Lock.
 package zookeeper
 
 import (
@@ -8,16 +9,19 @@ import (
 	"github.com/go-zookeeper/zk"
 )
 
+// ZooKeeperLock implements a Lock.
 type ZooKeeperLock struct {
 	c    *zk.Conn
 	Path string
 }
 
+// ZooKeeperLockConfig holds ZooKeeperLock configurations.
 type ZooKeeperLockConfig struct {
 	Address string
 	Path    string
 }
 
+// NewZooKeeperLock returns a ZooKeeperLock.
 func NewZooKeeperLock(c ZooKeeperLockConfig) (ZooKeeperLock, error) {
 	var zkl = ZooKeeperLock{Path: c.Path}
 	var err error
@@ -30,6 +34,7 @@ func NewZooKeeperLock(c ZooKeeperLockConfig) (ZooKeeperLock, error) {
 	return zkl, zkl.init()
 }
 
+// init performs any bootstrapping steps required for a ZooKeeperLock.
 func (z ZooKeeperLock) init() error {
 	// Get an incremental path ending at the destination locking path. If for
 	// example we're provided "/path/to/locks", we want the following:
@@ -47,10 +52,12 @@ func (z ZooKeeperLock) init() error {
 	return nil
 }
 
+// Lock claims a lock.
 func (z ZooKeeperLock) Lock() {
 	return
 }
 
+// Unlock releases a lock.
 func (z ZooKeeperLock) Unlock() {
 	return
 }
