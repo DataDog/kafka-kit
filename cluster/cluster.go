@@ -7,6 +7,6 @@ type Lock interface {
 	// Lock() and Unlock() are simple, coarse grain locks based on a pre-defined
 	// lock path. The lock path is an implementation detail that isn't negotiated
 	// through this interface.
-	Lock()
-	Unlock()
+	Lock() error
+	Unlock() error
 }

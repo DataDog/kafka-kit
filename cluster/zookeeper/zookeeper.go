@@ -3,6 +3,7 @@ package zookeeper
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,13 +24,17 @@ type ZooKeeperLockConfig struct {
 
 // NewZooKeeperLock returns a ZooKeeperLock.
 func NewZooKeeperLock(c ZooKeeperLockConfig) (ZooKeeperLock, error) {
-	var zkl = ZooKeeperLock{Path: c.Path}
+	var zkl = ZooKeeperLock{}
 	var err error
 
+	// Dial zk.
 	zkl.c, _, err = zk.Connect([]string{c.Address}, 10*time.Second, zk.WithLogInfo(false))
 	if err != nil {
 		return zkl, err
 	}
+
+	// Sanitize the path.
+	zkl.Path = fmt.Sprintf("/%s", strings.Trim(c.Path, "/"))
 
 	return zkl, zkl.init()
 }
@@ -44,7 +49,10 @@ func (z ZooKeeperLock) init() error {
 	// Create each node.
 	for i := range nodes {
 		nodePath := fmt.Sprintf("/%s", strings.Join(nodes[:i+1], "/"))
-		if _, e := z.c.Create(nodePath, nil, 0, zk.WorldACL(31)); e != nil {
+		_, e := z.c.Create(nodePath, nil, 0, zk.WorldACL(31))
+		// Ignore ErrNodeExists errors; we're ensuring a pre-defined path exists
+		// at every init.
+		if e != nil && e != zk.ErrNodeExists {
 			return e
 		}
 	}
@@ -52,12 +60,15 @@ func (z ZooKeeperLock) init() error {
 	return nil
 }
 
-// Lock claims a lock.
-func (z ZooKeeperLock) Lock() {
-	return
-}
+// idFromZnode returns the ZooKeeper sequential ID from a full znode name.
+func idFromZnode(s string) (int, error) {
+	parts := strings.Split(s, "-")
+	ida := parts[len(parts)-1]
 
-// Unlock releases a lock.
-func (z ZooKeeperLock) Unlock() {
-	return
+	id, err := strconv.Atoi(ida)
+	if err != nil {
+		return 0, ErrInvalidSeqNode
+	}
+
+	return id, nil
 }
