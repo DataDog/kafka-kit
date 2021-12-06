@@ -9,8 +9,14 @@ import (
 
 // Lock claims a lock.
 func (z ZooKeeperLock) Lock() error {
+	z.mu.Lock()
+	defer z.mu.Unlock()
+
 	lockPath := fmt.Sprintf("%s/lock-", z.Path)
-	node, e := z.c.CreateProtectedEphemeralSequential(lockPath, nil, zk.WorldACL(31))
+	node, err := z.c.CreateProtectedEphemeralSequential(lockPath, nil, zk.WorldACL(31))
+  if err != nil {
+    return err
+  }
 
 	// Get our claim ID.
 	thisID, err := idFromZnode(node)
@@ -27,9 +33,11 @@ func (z ZooKeeperLock) Lock() error {
 	// Check if we have the first claim.
 	if thisID == claimIDs[0] {
 		// We have the lock.
+		z.lockID = thisID
+		return nil
 	}
 
-	return e
+	return ErrLockingFailed
 }
 
 // Unlock releases a lock.

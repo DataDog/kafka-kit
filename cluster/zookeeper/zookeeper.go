@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-zookeeper/zk"
@@ -14,6 +15,12 @@ import (
 type ZooKeeperLock struct {
 	c    *zk.Conn
 	Path string
+
+  // The mutex can't be embedded because ZooKeeperLock also has Lock() / Unlock()
+  // methods.
+	mu sync.Mutex
+	// When a lock is successfully claimed, we store it in the lockID field.
+	lockID int
 }
 
 // ZooKeeperLockConfig holds ZooKeeperLock configurations.
