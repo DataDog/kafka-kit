@@ -19,8 +19,8 @@ type ZooKeeperLock struct {
 	// The mutex can't be embedded because ZooKeeperLock also has Lock() / Unlock()
 	// methods.
 	mu sync.Mutex
-	// When a lock is successfully claimed, we store it in the lockID field.
-	lockID int
+	// When a lock is successfully claimed, we store znode name.
+	lockZnode string
 }
 
 // ZooKeeperLockConfig holds ZooKeeperLock configurations.
