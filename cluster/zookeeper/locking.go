@@ -1,6 +1,7 @@
 package zookeeper
 
 import (
+	"context"
 	"fmt"
 	"sort"
 
@@ -8,15 +9,15 @@ import (
 )
 
 // Lock claims a lock.
-func (z ZooKeeperLock) Lock() error {
+func (z ZooKeeperLock) Lock(ctx context.Context) error {
 	z.mu.Lock()
 	defer z.mu.Unlock()
 
 	lockPath := fmt.Sprintf("%s/lock-", z.Path)
 	node, err := z.c.CreateProtectedEphemeralSequential(lockPath, nil, zk.WorldACL(31))
-  if err != nil {
-    return err
-  }
+	if err != nil {
+		return err
+	}
 
 	// Get our claim ID.
 	thisID, err := idFromZnode(node)
@@ -41,7 +42,7 @@ func (z ZooKeeperLock) Lock() error {
 }
 
 // Unlock releases a lock.
-func (z ZooKeeperLock) Unlock() error {
+func (z ZooKeeperLock) Unlock(ctx context.Context) error {
 	return nil
 }
 

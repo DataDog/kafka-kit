@@ -16,8 +16,8 @@ type ZooKeeperLock struct {
 	c    *zk.Conn
 	Path string
 
-  // The mutex can't be embedded because ZooKeeperLock also has Lock() / Unlock()
-  // methods.
+	// The mutex can't be embedded because ZooKeeperLock also has Lock() / Unlock()
+	// methods.
 	mu sync.Mutex
 	// When a lock is successfully claimed, we store it in the lockID field.
 	lockID int
