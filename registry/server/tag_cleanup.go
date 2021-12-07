@@ -26,6 +26,10 @@ func (tc *TagCleaner) RunTagCleanup(s *Server, ctx context.Context, c Config) {
 
 	for tc.running {
 		<-t.C
+
+		s.Locking.Lock(ctx)
+		defer s.Locking.Unlock(ctx)
+
 		err := s.MarkForDeletion(time.Now)
 		if err != nil {
 			log.Println(err)

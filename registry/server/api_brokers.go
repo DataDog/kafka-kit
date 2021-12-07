@@ -281,6 +281,9 @@ func (s *Server) TagBroker(ctx context.Context, req *pb.BrokerRequest) (*pb.TagR
 		defer cancel()
 	}
 
+	s.Locking.Lock(ctx)
+	defer s.Locking.Unlock(ctx)
+
 	if req.Id == 0 {
 		return nil, ErrBrokerIDEmpty
 	}
@@ -315,6 +318,9 @@ func (s *Server) DeleteBrokerTags(ctx context.Context, req *pb.BrokerRequest) (*
 	if cancel != nil {
 		defer cancel()
 	}
+
+	s.Locking.Lock(ctx)
+	defer s.Locking.Unlock(ctx)
 
 	if req.Id == 0 {
 		return nil, ErrBrokerIDEmpty

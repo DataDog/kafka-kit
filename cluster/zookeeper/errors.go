@@ -21,7 +21,7 @@ type ErrLockingFailed struct {
 
 // Error returns an error string.
 func (err ErrLockingFailed) Error() string {
-	return fmt.Sprint("attempt to acquire lock failed :%s", err.message)
+	return fmt.Sprintf("attempt to acquire lock failed: %s", err.message)
 }
 
 // ErrUnlockingFailed is a general failure.
@@ -31,5 +31,5 @@ type ErrUnlockingFailed struct {
 
 // Error returns an error string.
 func (err ErrUnlockingFailed) Error() string {
-	return fmt.Sprint("attempt to release lock failed :%s", err.message)
+	return fmt.Sprintf("attempt to release lock failed: %s", err.message)
 }
