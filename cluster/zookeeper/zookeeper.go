@@ -19,7 +19,7 @@ type ZooKeeperLock struct {
 	// The mutex can't be embedded because ZooKeeperLock also has Lock() / Unlock()
 	// methods.
 	mu sync.Mutex
-	// When a lock is successfully claimed, we store znode name.
+	// When a lock is successfully claimed, we store the full znode path.
 	lockZnode string
 }
 
@@ -30,8 +30,8 @@ type ZooKeeperLockConfig struct {
 }
 
 // NewZooKeeperLock returns a ZooKeeperLock.
-func NewZooKeeperLock(c ZooKeeperLockConfig) (ZooKeeperLock, error) {
-	var zkl = ZooKeeperLock{}
+func NewZooKeeperLock(c ZooKeeperLockConfig) (*ZooKeeperLock, error) {
+	var zkl = &ZooKeeperLock{}
 	var err error
 
 	// Dial zk.
@@ -47,7 +47,7 @@ func NewZooKeeperLock(c ZooKeeperLockConfig) (ZooKeeperLock, error) {
 }
 
 // init performs any bootstrapping steps required for a ZooKeeperLock.
-func (z ZooKeeperLock) init() error {
+func (z *ZooKeeperLock) init() error {
 	// Get an incremental path ending at the destination locking path. If for
 	// example we're provided "/path/to/locks", we want the following:
 	// ["/path", "/path/to", "/path/to/locks"].

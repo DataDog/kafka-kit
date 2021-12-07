@@ -3,12 +3,14 @@ package zookeeper
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/go-zookeeper/zk"
 )
 
-// Lock claims a lock.
-func (z ZooKeeperLock) Lock(ctx context.Context) error {
+// Lock attemps to acquire a lock. If the lock cannot be acquired by the context
+// deadline, the lock attempt times out.
+func (z *ZooKeeperLock) Lock(ctx context.Context) error {
 	// Lock locally as a cheap way to avoid overhead in the distributed locking
 	// backend.
 	z.mu.Lock()
@@ -27,7 +29,14 @@ func (z ZooKeeperLock) Lock(ctx context.Context) error {
 		return ErrLockingFailed{message: err.Error()}
 	}
 
+	var interval int
 	for {
+		// Prevent thrashing.
+		interval++
+		if interval%5 == 0 {
+			time.Sleep(50 * time.Millisecond)
+		}
+
 		// Get all current locks.
 		locks, err := z.locks()
 		if err != nil {
@@ -38,7 +47,7 @@ func (z ZooKeeperLock) Lock(ctx context.Context) error {
 		firstClaim, _ := locks.First()
 		if thisID == firstClaim {
 			// We have the lock.
-			z.lockZnode, _ = locks.LockPath(thisID)
+			z.lockZnode, err = locks.LockPath(thisID)
 			return nil
 		}
 
@@ -49,10 +58,7 @@ func (z ZooKeeperLock) Lock(ctx context.Context) error {
 			return ErrLockingFailed{message: err.Error()}
 		}
 
-		lockAheadPath, err := locks.LockPath(lockAhead)
-		if err != nil {
-			return ErrLockingFailed{message: err.Error()}
-		}
+		lockAheadPath, _ := locks.LockPath(lockAhead)
 
 		// Get a ZooKeeper watch on the lock we're waiting on.
 		_, _, blockingLockReleased, err := z.c.GetW(lockAheadPath)
@@ -61,8 +67,10 @@ func (z ZooKeeperLock) Lock(ctx context.Context) error {
 		select {
 		// We've timed out.
 		case <-ctx.Done():
+			// XXX it's critical that we clean up the attempted lock.
+			z.deleteLockZnode(node)
 			return ErrLockingTimedOut
-			// Else see if we can get the claim.
+		// Else see if we can get the claim.
 		case <-blockingLockReleased:
 			continue
 		}
@@ -72,24 +80,32 @@ func (z ZooKeeperLock) Lock(ctx context.Context) error {
 }
 
 // Unlock releases a lock.
-func (z ZooKeeperLock) Unlock(ctx context.Context) error {
+func (z *ZooKeeperLock) Unlock(ctx context.Context) error {
 	z.mu.Lock()
 	defer z.mu.Unlock()
 
-	// We have to get the znode first; the current version is required for
-	// the delete request.
-	_, s, err := z.c.Get(z.lockZnode)
-	if err != nil {
-		return ErrUnlockingFailed{message: err.Error()}
-	}
-
-	// Issue the delete.
-	err = z.c.Delete(z.lockZnode, s.Version)
-	if err != nil {
+	if err := z.deleteLockZnode(z.lockZnode); err != nil {
 		return ErrUnlockingFailed{message: err.Error()}
 	}
 
 	z.lockZnode = ""
+
+	return nil
+}
+
+func (z *ZooKeeperLock) deleteLockZnode(p string) error {
+	// We have to get the znode first; the current version is required for
+	// the delete request.
+	_, s, err := z.c.Get(p)
+	if err != nil {
+		return err
+	}
+
+	// Issue the delete.
+	err = z.c.Delete(p, s.Version)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

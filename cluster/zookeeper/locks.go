@@ -14,7 +14,7 @@ type LockEntries struct {
 }
 
 // locks returns a LockEntries of all current locks.
-func (z ZooKeeperLock) locks() (LockEntries, error) {
+func (z *ZooKeeperLock) locks() (LockEntries, error) {
 	var locks = LockEntries{
 		m: map[int]string{},
 		l: []int{},
@@ -30,7 +30,7 @@ func (z ZooKeeperLock) locks() (LockEntries, error) {
 			continue
 		}
 		// Append the znode to the map.
-		locks.m[id] = n
+		locks.m[id] = fmt.Sprintf("%s/%s", z.Path, n)
 		// Append the ID to the list.
 		locks.l = append(locks.l, id)
 	}
