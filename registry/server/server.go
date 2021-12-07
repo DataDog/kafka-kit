@@ -13,6 +13,8 @@ import (
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 
+	"github.com/DataDog/kafka-kit/v3/cluster"
+	zklocking "github.com/DataDog/kafka-kit/v3/cluster/zookeeper"
 	"github.com/DataDog/kafka-kit/v3/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
 	pb "github.com/DataDog/kafka-kit/v3/registry/registry"
@@ -31,6 +33,7 @@ const (
 // Server implements the registry APIs.
 type Server struct {
 	pb.UnimplementedRegistryServer
+	locking          cluster.Lock
 	HTTPListen       string
 	GRPCListen       string
 	ZK               kafkazk.Handler
@@ -266,6 +269,23 @@ func (s *Server) InitKafkaConsumer(ctx context.Context, wg *sync.WaitGroup, cfg 
 		s.kafkaconsumer.Close()
 		wg.Done()
 	}()
+
+	return nil
+}
+
+// EnablingLocking uses distributed locking for write operations.
+func (s *Server) EnablingLocking(c *kafkazk.Config) error {
+	cfg := zklocking.ZooKeeperLockConfig{
+		Address: c.Connect,
+		Path:    "/registry/locks",
+	}
+
+	zkl, err := zklocking.NewZooKeeperLock(cfg)
+	if err != nil {
+		return fmt.Errorf("failed to initialize ZooKeeper locking backend")
+	}
+
+	s.locking = zkl
 
 	return nil
 }
