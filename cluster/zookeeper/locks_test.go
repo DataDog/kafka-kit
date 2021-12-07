@@ -67,3 +67,22 @@ func TestLockPath(t *testing.T) {
 		assert.Equal(t, znode, expectedZnode, "incorrect znode")
 	}
 }
+
+func TestLockAhead(t *testing.T) {
+	c := &mockZooKeeperClient{
+		znodeNameTemplate: "_c_979cb11f40bb3dbc6908edeaac8f2de1-lock-00000000",
+		locks: []string{
+			"_c_979cb11f40bb3dbc6908edeaac8f2de1-lock-000000001",
+			"_c_979cb11f40bb3dbc6908edeaac8f2de1-lock-000000002",
+		},
+	}
+
+	lock := newMockZooKeeperLockWithClient(c)
+
+	locks, err := lock.locks()
+	assert.Nil(t, err)
+
+	ahead, err := locks.LockAhead(2)
+	assert.Nil(t, err)
+	assert.Equal(t, ahead, 1, "incorrect ID")
+}
