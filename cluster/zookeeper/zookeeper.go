@@ -56,6 +56,16 @@ func NewZooKeeperLock(c ZooKeeperLockConfig) (*ZooKeeperLock, error) {
 	return zkl, zkl.init()
 }
 
+// NewZooKeeperLock takes a ZooKeeperLockConfig and ZooKeeperClient and returns
+// a ZooKeeperLock. Any initialization (such as path creation) should be performed
+// outside of this initializer.
+func NewZooKeeperLockWithClient(cfg ZooKeeperLockConfig, zkc ZooKeeperClient) (*ZooKeeperLock, error) {
+	return &ZooKeeperLock{
+		c:    zkc,
+		Path: fmt.Sprintf("/%s", strings.Trim(cfg.Path, "/")),
+	}, nil
+}
+
 // init performs any bootstrapping steps required for a ZooKeeperLock.
 func (z *ZooKeeperLock) init() error {
 	// Get an incremental path ending at the destination locking path. If for
