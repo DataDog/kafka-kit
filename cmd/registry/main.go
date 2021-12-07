@@ -38,6 +38,7 @@ func main() {
 
 	v := flag.Bool("version", false, "version")
 	profiling := flag.Bool("enable-profiling", false, "Enable Datadog continuous profiling")
+	locking := flag.Bool("enable-locking", false, "Enable distributed locking for write operations")
 	flag.StringVar(&serverConfig.HTTPListen, "http-listen", "localhost:8080", "Server HTTP listen address")
 	flag.StringVar(&serverConfig.GRPCListen, "grpc-listen", "localhost:8090", "Server gRPC listen address")
 	flag.IntVar(&serverConfig.ReadReqRate, "read-rate-limit", 5, "Read request rate limit (reqs/s)")
@@ -124,6 +125,13 @@ func main() {
 	// Dial ZooKeeper.
 	if err := srvr.DialZK(ctx, wg, &zkConfig); err != nil {
 		log.Fatal(err)
+	}
+
+	// Enable locking.
+	if *locking {
+		if err := srvr.EnablingLocking(&zkConfig); err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	// Init an admin Client.

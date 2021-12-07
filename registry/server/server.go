@@ -285,6 +285,7 @@ func (s *Server) EnablingLocking(c *kafkazk.Config) error {
 		return fmt.Errorf("failed to initialize ZooKeeper locking backend")
 	}
 
+	log.Printf("Using ZooKeeper based distributed locking")
 	s.locking = zkl
 
 	return nil
