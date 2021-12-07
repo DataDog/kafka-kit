@@ -13,7 +13,7 @@ import (
 
 // ZooKeeperLock implements a Lock.
 type ZooKeeperLock struct {
-	c    *zk.Conn
+	c    ZooKeeperClient
 	Path string
 
 	// The mutex can't be embedded because ZooKeeperLock also has Lock() / Unlock()
@@ -21,6 +21,16 @@ type ZooKeeperLock struct {
 	mu sync.Mutex
 	// When a lock is successfully claimed, we store the full znode path.
 	lockZnode string
+}
+
+// ZooKeeperClient interface.
+type ZooKeeperClient interface {
+	Children(string) ([]string, *zk.Stat, error)
+	Create(string, []byte, int32, []zk.ACL) (string, error)
+	CreateProtectedEphemeralSequential(string, []byte, []zk.ACL) (string, error)
+	Delete(string, int32) error
+	Get(string) ([]byte, *zk.Stat, error)
+	GetW(string) ([]byte, *zk.Stat, <-chan zk.Event, error)
 }
 
 // ZooKeeperLockConfig holds ZooKeeperLock configurations.
