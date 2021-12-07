@@ -33,7 +33,7 @@ const (
 // Server implements the registry APIs.
 type Server struct {
 	pb.UnimplementedRegistryServer
-	locking          cluster.Lock
+	Locking          cluster.Lock
 	HTTPListen       string
 	GRPCListen       string
 	ZK               kafkazk.Handler
@@ -286,7 +286,7 @@ func (s *Server) EnablingLocking(c *kafkazk.Config) error {
 	}
 
 	log.Printf("Using ZooKeeper based distributed locking")
-	s.locking = zkl
+	s.Locking = zkl
 
 	return nil
 }
