@@ -1,7 +1,5 @@
 package zookeeper
 
-package zookeeper
-
 import (
 	"testing"
 
