@@ -15,17 +15,17 @@ func TestIdFromZnode(t *testing.T) {
 	}
 
 	tests := map[int]test{
-		1: test{
+		1: {
 			input:  "/locks/locks/_c_979cb11f40bb3dbc6908edeaac8f2de1-lock-000000001",
 			result: 1,
 			err:    nil,
 		},
-		2: test{
+		2: {
 			input:  "/locks/locks/_c_979cb11f40bb3dbc6908edeaac8f2de1-lock-000000002",
 			result: 2,
 			err:    nil,
 		},
-		3: test{
+		3: {
 			input:  "/locks/locks/_c_979cb11f40bb3dbc6908edeaac8f2de1-lo",
 			result: 0,
 			err:    ErrInvalidSeqNode,
