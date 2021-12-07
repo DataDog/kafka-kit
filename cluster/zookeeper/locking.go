@@ -3,21 +3,14 @@ package zookeeper
 import (
 	"context"
 	"fmt"
-	"sort"
 
 	"github.com/go-zookeeper/zk"
 )
 
-// LockEntries is a container of locks.
-type LockEntries struct {
-	// Map of lock ID integer to the full znode path.
-	m map[int]string
-	// List of IDs ascending.
-	l []int
-}
-
 // Lock claims a lock.
 func (z ZooKeeperLock) Lock(ctx context.Context) error {
+	// Lock locally as a cheap way to avoid overhead in the distributed locking
+	// backend.
 	z.mu.Lock()
 	defer z.mu.Unlock()
 
@@ -61,6 +54,7 @@ func (z ZooKeeperLock) Lock(ctx context.Context) error {
 			return ErrLockingFailed{message: err.Error()}
 		}
 
+		// Get a ZooKeeper watch on the lock we're waiting on.
 		_, _, blockingLockReleased, err := z.c.GetW(lockAheadPath)
 
 		// Race the watch event against the context timeout.
@@ -79,64 +73,23 @@ func (z ZooKeeperLock) Lock(ctx context.Context) error {
 
 // Unlock releases a lock.
 func (z ZooKeeperLock) Unlock(ctx context.Context) error {
+	z.mu.Lock()
+	defer z.mu.Unlock()
+
+	// We have to get the znode first; the current version is required for
+	// the delete request.
+	_, s, err := z.c.Get(z.lockZnode)
+	if err != nil {
+		return ErrUnlockingFailed{message: err.Error()}
+	}
+
+	// Issue the delete.
+	err = z.c.Delete(z.lockZnode, s.Version)
+	if err != nil {
+		return ErrUnlockingFailed{message: err.Error()}
+	}
+
+	z.lockZnode = ""
+
 	return nil
-}
-
-// locks returns a LockEntries of all current locks.
-func (z ZooKeeperLock) locks() (LockEntries, error) {
-	var locks = LockEntries{
-		m: map[int]string{},
-		l: []int{},
-	}
-
-	// Get all nodes in the lock path.
-	nodes, _, e := z.c.Children(z.Path)
-	// Get the int IDs for all locks.
-	for _, n := range nodes {
-		id, err := idFromZnode(n)
-		// Ignore junk entries.
-		if err == ErrInvalidSeqNode {
-			continue
-		}
-		// Append the znode to the map.
-		locks.m[id] = n
-		// Append the ID to the list.
-		locks.l = append(locks.l, id)
-	}
-
-	sort.Ints(locks.l)
-
-	return locks, e
-}
-
-// IDs returns all held lock IDs ascending.
-func (le LockEntries) IDs() []int {
-	return le.l
-}
-
-// First returns the ID with the lowest value.
-func (le LockEntries) First() (int, error) {
-	if len(le.IDs()) == 0 {
-		return 0, fmt.Errorf("no active locks")
-	}
-
-	return le.IDs()[0], nil
-}
-
-func (le LockEntries) LockPath(id int) (string, error) {
-	if path, exists := le.m[id]; exists {
-		return path, nil
-	}
-	return "", fmt.Errorf("lock ID doesn't exist")
-}
-
-// LockAhead returns the lock ahead of the ID provided.
-func (le LockEntries) LockAhead(id int) (int, error) {
-	for i, next := range le.l {
-		if next == id && i >= 0 {
-			return le.l[i-1], nil
-		}
-	}
-
-	return 0, fmt.Errorf("unable to determine which lock to enqueue behind")
 }
