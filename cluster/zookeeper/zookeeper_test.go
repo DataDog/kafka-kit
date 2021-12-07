@@ -46,8 +46,7 @@ func (m *mockZooKeeperClient) CreateProtectedEphemeralSequential(s string, b []b
 	// Mimic the sequential znode naming scheme. If s == "/locks/lock-", we want
 	// "/locks/_c_979cb11f40bb3dbc6908edeaac8f2de1-lock-000000001"
 	parts := strings.Split(s, "/")
-	fakeZnode := fmt.Sprintf("/%s%s%d", parts[1], m.znodeNameTemplate, atomic.AddInt32(&m.nextID, 1))
-
+	fakeZnode := fmt.Sprintf("/%s/%s%d", parts[1], m.znodeNameTemplate, atomic.AddInt32(&m.nextID, 1))
 	// Store the fake lock name.
 	m.locks = append(m.locks, fakeZnode)
 
