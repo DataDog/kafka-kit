@@ -10,7 +10,8 @@ import (
 
 func TestLock(t *testing.T) {
 	lock := newMockZooKeeperLock()
-	ctx, _ := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cf := context.WithTimeout(context.Background(), 1*time.Second)
+	_ = cf
 
 	// This lock should succeed normally.
 	err := lock.Lock(ctx)
@@ -23,7 +24,8 @@ func TestLock(t *testing.T) {
 
 func TestUnlock(t *testing.T) {
 	lock := newMockZooKeeperLock()
-	ctx, _ := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cf := context.WithTimeout(context.Background(), 1*time.Second)
+	_ = cf
 
 	// This lock should succeed normally.
 	err := lock.Lock(ctx)
