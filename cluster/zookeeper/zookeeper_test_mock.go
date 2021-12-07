@@ -14,6 +14,7 @@ type mockZooKeeperClient struct {
 	znodeNameTemplate string
 	locks             []string
 	nextID            int32
+	path              string
 }
 
 func newMockZooKeeperLock() *ZooKeeperLock {
@@ -22,6 +23,7 @@ func newMockZooKeeperLock() *ZooKeeperLock {
 			znodeNameTemplate: "_c_979cb11f40bb3dbc6908edeaac8f2de1-lock-00000000",
 			locks:             []string{},
 			nextID:            0,
+			path:              "/locks",
 		},
 		Path: "/locks",
 	}
@@ -35,7 +37,11 @@ func newMockZooKeeperLockWithClient(c *mockZooKeeperClient) *ZooKeeperLock {
 }
 
 func (m *mockZooKeeperClient) Children(s string) ([]string, *zk.Stat, error) {
-	return m.locks, nil, nil
+	var names []string
+	for _, lock := range m.locks {
+		names = append(names, strings.Trim(lock, m.path))
+	}
+	return names, nil, nil
 }
 
 func (m *mockZooKeeperClient) Create(s string, b []byte, i int32, a []zk.ACL) (string, error) {
@@ -54,11 +60,19 @@ func (m *mockZooKeeperClient) CreateProtectedEphemeralSequential(s string, b []b
 }
 
 func (m *mockZooKeeperClient) Delete(s string, i int32) error {
+	var l []string
+	for _, e := range m.locks {
+		if e != s {
+			l = append(l, e)
+		}
+	}
+	m.locks = l
+
 	return nil
 }
 
 func (m *mockZooKeeperClient) Get(s string) ([]byte, *zk.Stat, error) {
-	return nil, nil, nil
+	return nil, &zk.Stat{Version: 1}, nil
 }
 
 func (m *mockZooKeeperClient) GetW(s string) ([]byte, *zk.Stat, <-chan zk.Event, error) {
