@@ -75,8 +75,6 @@ func (z *ZooKeeperLock) Lock(ctx context.Context) error {
 			continue
 		}
 	}
-
-	return nil
 }
 
 // Unlock releases a lock.
