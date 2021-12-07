@@ -132,8 +132,6 @@ func main() {
 		if err := srvr.EnablingLocking(&zkConfig); err != nil {
 			log.Fatal(err)
 		}
-	} else {
-		srvr.Locking = dummyLock{}
 	}
 
 	// Init an admin Client.
@@ -170,14 +168,4 @@ func main() {
 	}()
 
 	wg.Wait()
-}
-
-type dummyLock struct{}
-
-func (dl dummyLock) Lock(_ context.Context) error {
-	return nil
-}
-
-func (dl dummyLock) Unlock(_ context.Context) error {
-	return nil
 }

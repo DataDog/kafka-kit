@@ -87,6 +87,7 @@ func NewServer(c Config) (*Server, error) {
 	th, _ := NewTagHandler(tcfg)
 
 	return &Server{
+		Locking:          dummyLock{},
 		HTTPListen:       c.HTTPListen,
 		GRPCListen:       c.GRPCListen,
 		Tags:             th,
@@ -421,4 +422,14 @@ func (s *Server) LogRequest(ctx context.Context, params string, reqID uint64) {
 
 	log.Printf("[request %d] requestor:%s type:%s method:%s params:%s",
 		reqID, requestor, reqType, method, params)
+}
+
+type dummyLock struct{}
+
+func (dl dummyLock) Lock(_ context.Context) error {
+	return nil
+}
+
+func (dl dummyLock) Unlock(_ context.Context) error {
+	return nil
 }
