@@ -2,64 +2,41 @@ package main
 
 import (
 	"context"
+	"flag"
 	"log"
-	"sync"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
-	"github.com/DataDog/kafka-kit/v3/cluster"
 	zklocking "github.com/DataDog/kafka-kit/v3/cluster/zookeeper"
 )
 
 func main() {
+	timeout := flag.Duration("timeout", 3*time.Second, "lock wait timeout")
+	flag.Parse()
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
 	// Init a Lock.
 	cfg := zklocking.ZooKeeperLockConfig{
 		Address: "localhost:2181",
 		Path:    "/my/locks",
 	}
 
-	lock1, _ := zklocking.NewZooKeeperLock(cfg)
-	lock2, _ := zklocking.NewZooKeeperLock(cfg)
-	lock3, _ := zklocking.NewZooKeeperLock(cfg)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	_ = cancel
+	lock, _ := zklocking.NewZooKeeperLock(cfg)
+	ctx, c := context.WithTimeout(context.Background(), *timeout)
+	defer c()
 
-	var wg = &sync.WaitGroup{}
-	wg.Add(3)
-
-	// Get a lock.
-	tryToUseTheLock(context.WithValue(ctx, "id", 1), lock1, wg)
-
-	// An imaginary second process attempting a lock. This one times out.
-	tryToUseTheLock(context.WithValue(ctx, "id", 2), lock2, wg)
-
-	// Another imaginary process attempting a lock. This one waits, but succeeds
-	// after the first lock is relinquished.
-	go tryToUseTheLock(context.WithValue(ctx, "id", 3), lock3, wg)
-
-	// The first process releases the lock.
-	releaseTheLock(context.WithValue(ctx, "id", 1), lock1)
-
-	wg.Wait()
-}
-
-func tryToUseTheLock(ctx context.Context, lock cluster.Lock, wg *sync.WaitGroup) {
-	id, _ := ctx.Value("id").(int)
-
+	// Try the lock.
 	if err := lock.Lock(ctx); err != nil {
-		log.Printf("[process %d] error: %s\n", id, err)
+		log.Println(err)
 	} else {
-		log.Printf("[process %d] I've got the lock!\n", id)
+		log.Println("I've got the lock!")
 	}
 
-	wg.Done()
-}
-
-func releaseTheLock(ctx context.Context, lock cluster.Lock) {
-	id, _ := ctx.Value("id").(int)
-
-	if err := lock.Unlock(ctx); err != nil {
-		log.Printf("[process %d] error: %s\n", id, err)
-	} else {
-		log.Printf("[process %d] I've released the lock!\n", id)
-	}
+	<-sigs
+	lock.Unlock(ctx)
+	log.Println("I've released the lock")
 }
