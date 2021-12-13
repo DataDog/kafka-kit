@@ -74,14 +74,14 @@ func TestNoMatchingTopicToEvac(t *testing.T) {
 	}
 }
 
-	// TODO: This test currently fails because the error case calls os.Exit(1). Better way to test, or better error handling.
-	//func TestEvacAllBrokersForPartitionFails(t *testing.T) {
-	//	problemBrokers := kafkazk.BrokerMap{}
-	//	problemBrokers[10001] = &kafkazk.Broker{}
-	//	problemBrokers[10002] = &kafkazk.Broker{}
-	//	problemBrokers[10003] = &kafkazk.Broker{}
-	//
-	//	EvacLeadership(pMapIn, problemBrokers)
-	//
-	//	t.Errorf("EvacLeadership should have errored out at this point.")
-	//}
+// TODO: This test currently fails because the error case calls os.Exit(1). Better way to test, or better error handling.
+//func TestEvacAllBrokersForPartitionFails(t *testing.T) {
+//	problemBrokers := kafkazk.BrokerMap{}
+//	problemBrokers[10001] = &kafkazk.Broker{}
+//	problemBrokers[10002] = &kafkazk.Broker{}
+//	problemBrokers[10003] = &kafkazk.Broker{}
+//
+//	EvacLeadership(pMapIn, problemBrokers)
+//
+//	t.Errorf("EvacLeadership should have errored out at this point.")
+//}

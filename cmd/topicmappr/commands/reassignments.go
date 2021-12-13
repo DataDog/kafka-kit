@@ -155,9 +155,9 @@ func EvacLeadership(partitionMapIn kafkazk.PartitionMap, evacBrokers []int, evac
 	// For now, problem brokers is the bigger use case.
 
 	// swap leadership for all broker/partition/topic combos
-	for i,p := range partitionMapIn.Partitions {
+	for i, p := range partitionMapIn.Partitions {
 		// check the topic is one of the target topics
-		if _,correctTopic := topicsMap[p.Topic]; !correctTopic {
+		if _, correctTopic := topicsMap[p.Topic]; !correctTopic {
 			continue
 		}
 
@@ -166,7 +166,7 @@ func EvacLeadership(partitionMapIn kafkazk.PartitionMap, evacBrokers []int, evac
 			continue
 		}
 
-		for j,replica := range p.Replicas {
+		for j, replica := range p.Replicas {
 			// If one of the replicas is not being leadership evacuated, use that one and swap.
 			if _, contains := brokersMap[replica]; !contains {
 				newLeader := p.Replicas[j]
@@ -176,7 +176,7 @@ func EvacLeadership(partitionMapIn kafkazk.PartitionMap, evacBrokers []int, evac
 			}
 
 			// If we've tried every replica, but they are all being leader evac'd.
-			if replica == p.Replicas[len(p.Replicas) - 1] {
+			if replica == p.Replicas[len(p.Replicas)-1] {
 				fmt.Println("No replicas available to evacuate leadership to. All replicas present in EvacLeadership broker list.")
 				os.Exit(1)
 			}
