@@ -135,14 +135,20 @@ func computeReassignmentBundles(params computeReassignmentBundlesParams) chan re
 // EvacLeadership For the given set of topics, makes sure that the given brokers are not
 // leaders of any partitions. If we have any partitions that only have replicas from the
 // evac broker list, we will fail.
-func EvacLeadership(partitionMapIn kafkazk.PartitionMap, evacBrokers kafkazk.BrokerMap) kafkazk.PartitionMap {
+func EvacLeadership(partitionMapIn kafkazk.PartitionMap, evacBrokers []int, evacTopics []string) *kafkazk.PartitionMap {
 	// evacuation algo starts here
-	partitionMapOut := partitionMapIn
+	partitionMapOut := partitionMapIn.Copy()
 
 	// make a lookup map of topics
 	topicsMap := map[string]struct{}{}
-	for _, topic := range partitionMapIn.Topics() {
+	for _, topic := range evacTopics {
 		topicsMap[topic] = struct{}{}
+	}
+
+	// make a lookup map of topics
+	brokersMap := map[int]struct{}{}
+	for _, b := range evacBrokers {
+		brokersMap[b] = struct{}{}
 	}
 
 	// TODO What if we only want to evacuate a subset of partitions?
@@ -156,13 +162,13 @@ func EvacLeadership(partitionMapIn kafkazk.PartitionMap, evacBrokers kafkazk.Bro
 		}
 
 		// check the leader to see if its one of the evac brokers
-		if _, contains := evacBrokers[p.Replicas[0]]; !contains {
+		if _, contains := brokersMap[p.Replicas[0]]; !contains {
 			continue
 		}
 
 		for j,replica := range p.Replicas {
 			// If one of the replicas is not being leadership evacuated, use that one and swap.
-			if _, contains := evacBrokers[replica]; !contains {
+			if _, contains := brokersMap[replica]; !contains {
 				newLeader := p.Replicas[j]
 				partitionMapOut.Partitions[i].Replicas[j] = p.Replicas[0]
 				partitionMapOut.Partitions[i].Replicas[0] = newLeader

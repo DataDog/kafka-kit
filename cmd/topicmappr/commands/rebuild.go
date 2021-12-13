@@ -44,6 +44,10 @@ func init() {
 	rebuildCmd.Flags().Bool("optimize-leadership", false, "Rebalance all broker leader/follower ratios")
 	rebuildCmd.Flags().Bool("phased-reassignment", false, "Create two-phase output maps")
 
+	// new params for evac leadership
+	rebuildCmd.Flags().String("leader-evac-brokers","", "Broker list to remove leadership for topics in leader-evac-topics.")
+	rebuildCmd.Flags().String("leader-evac-topics", "", "Topics list to remove leadership for the brokers given in leader-evac-brokers")
+
 	// Required.
 	rebuildCmd.MarkFlagRequired("brokers")
 }
@@ -57,6 +61,9 @@ func rebuild(cmd *cobra.Command, _ []string) {
 	fr, _ := cmd.Flags().GetBool("force-rebuild")
 	sa, _ := cmd.Flags().GetBool("sub-affinity")
 	m, _ := cmd.Flags().GetBool("use-meta")
+
+	let, _ := cmd.Flags().GetString("leader-evac-topics")
+	leb, _ := cmd.Flags().GetString("leader-evac-brokers")
 
 	switch {
 	case ms == "" && t == "":
@@ -73,132 +80,151 @@ func rebuild(cmd *cobra.Command, _ []string) {
 		defaultsAndExit()
 	case fr && sa:
 		fmt.Println("\n[INFO] --force-rebuild disables --sub-affinity")
+	case (leb != "" || let != "") && (leb == "" || let == ""): {
+		fmt.Println("\n[ERROR] --leader-evac-topics and --leader-evac-brokers must both be specified for leadership evacuation.")
+		defaultsAndExit()
 	}
 
-	bootstrap(cmd)
+		bootstrap(cmd)
 
-	// ZooKeeper init.
-	var zk kafkazk.Handler
-	if m || len(Config.topics) > 0 || p == "storage" {
-		var err error
-		zk, err = initZooKeeper(cmd)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+		// ZooKeeper init.
+		var zk kafkazk.Handler
+		if m || len(Config.topics) > 0 || p == "storage" {
+			var err error
+			zk, err = initZooKeeper(cmd)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+			defer zk.Close()
 		}
-		defer zk.Close()
+
+		// In addition to the global topic regex, we have leader-evac topic regex as well.
+		var evacTopics []string
+		var err error
+		if let != "" {
+			evacTopics, err = zk.GetTopics(TopicRegex(let))
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+		}
+
+		evacBrokers := brokerStringToSlice(leb)
+
+		// General flow:
+		// 1) A PartitionMap is formed (either unmarshaled from the literal
+		//   map input via --rebuild-map or generated from ZooKeeper Metadata
+		//   for topics matching --topics).
+		// 2) A BrokerMap is formed from brokers found in the PartitionMap
+		//   along with any new brokers provided via the --brokers param.
+		// 3) The PartitionMap and BrokerMap are fed to a rebuild
+		//   function. Missing brokers, brokers marked for replacement,
+		//   and all other placements are performed, returning a new
+		//   PartitionMap.
+		// 4) Differences between the original and new PartitionMap
+		//   are detected and reported.
+		// 5) The new PartitionMap is split by topic. Map(s) are written.
+
+		// Fetch broker metadata.
+		var withMetrics bool
+		if cmd.Flag("placement").Value.String() == "storage" {
+			checkMetaAge(cmd, zk)
+			withMetrics = true
+		}
+
+		var brokerMeta kafkazk.BrokerMetaMap
+		if m, _ := cmd.Flags().GetBool("use-meta"); m {
+			brokerMeta = getBrokerMeta(cmd, zk, withMetrics)
+		}
+
+		// Fetch partition metadata.
+		var partitionMeta kafkazk.PartitionMetaMap
+		if cmd.Flag("placement").Value.String() == "storage" {
+			partitionMeta = getPartitionMeta(cmd, zk)
+		}
+
+		// Build a partition map either from literal map text input or by fetching the
+		// map data from ZooKeeper. Store a copy of the original.
+		partitionMapIn, pending, excluded := getPartitionMap(cmd, zk)
+		originalMap := partitionMapIn.Copy()
+
+		// Get a list of affected topics.
+		printTopics(partitionMapIn)
+
+		// Print if any topics were excluded due to pending deletion or explicit
+		// exclusion.
+		printExcludedTopics(pending, excluded)
+
+		brokers, bs := getBrokers(cmd, partitionMapIn, brokerMeta)
+		brokersOrig := brokers.Copy()
+
+		if bs.Changes() {
+			fmt.Printf("%s-\n", indent)
+		}
+
+		// Check if any referenced brokers are marked as having
+		// missing/partial metrics data.
+		if m, _ := cmd.Flags().GetBool("use-meta"); m {
+			ensureBrokerMetrics(cmd, brokers, brokerMeta)
+		}
+
+		// Create substitution affinities.
+		affinities := getSubAffinities(cmd, brokers, brokersOrig, partitionMapIn)
+
+		if affinities != nil {
+			fmt.Printf("%s-\n", indent)
+		}
+
+		// Print changes, actions.
+		printChangesActions(cmd, bs)
+
+		// Apply any replication factor settings.
+		updateReplicationFactor(cmd, partitionMapIn)
+
+		// Build a new map using the provided list of brokers. This is OK to run even
+		// when a no-op is intended.
+		partitionMapOut, errs := buildMap(cmd, partitionMapIn, partitionMeta, brokers, affinities)
+
+		// Optimize leaders.
+		if t, _ := cmd.Flags().GetBool("optimize-leadership"); t {
+			partitionMapOut.OptimizeLeaderFollower()
+		}
+
+		// Count missing brokers as a warning.
+		if bs.Missing > 0 {
+			errs = append(errs, fmt.Errorf("%d provided brokers not found in ZooKeeper", bs.Missing))
+		}
+
+		// Count missing rack info as warning
+		if bs.RackMissing > 0 {
+			errs = append(
+				errs, fmt.Errorf("%d provided broker(s) do(es) not have a rack.id defined", bs.RackMissing),
+			)
+		}
+
+		// Generate phased map if enabled.
+		var phasedMap *kafkazk.PartitionMap
+		if phased, _ := cmd.Flags().GetBool("phased-reassignment"); phased {
+			phasedMap = phasedReassignment(originalMap, partitionMapOut)
+		}
+
+		partitionMapOut = EvacLeadership(*partitionMapOut, evacBrokers, evacTopics)
+
+		// Print map change results.
+		printMapChanges(originalMap, partitionMapOut)
+
+		// Print broker assignment statistics.
+		printBrokerAssignmentStats(cmd, originalMap, partitionMapOut, brokersOrig, brokers)
+
+		// Print error/warnings.
+		handleOverridableErrs(cmd, errs)
+
+		// Skip no-ops if configured.
+		if sno, _ := cmd.Flags().GetBool("skip-no-ops"); sno {
+			originalMap, partitionMapOut = skipReassignmentNoOps(originalMap, partitionMapOut)
+		}
+
+		writeMaps(cmd, partitionMapOut, phasedMap)
 	}
-
-	// General flow:
-	// 1) A PartitionMap is formed (either unmarshaled from the literal
-	//   map input via --rebuild-map or generated from ZooKeeper Metadata
-	//   for topics matching --topics).
-	// 2) A BrokerMap is formed from brokers found in the PartitionMap
-	//   along with any new brokers provided via the --brokers param.
-	// 3) The PartitionMap and BrokerMap are fed to a rebuild
-	//   function. Missing brokers, brokers marked for replacement,
-	//   and all other placements are performed, returning a new
-	//   PartitionMap.
-	// 4) Differences between the original and new PartitionMap
-	//   are detected and reported.
-	// 5) The new PartitionMap is split by topic. Map(s) are written.
-
-	// Fetch broker metadata.
-	var withMetrics bool
-	if cmd.Flag("placement").Value.String() == "storage" {
-		checkMetaAge(cmd, zk)
-		withMetrics = true
-	}
-
-	var brokerMeta kafkazk.BrokerMetaMap
-	if m, _ := cmd.Flags().GetBool("use-meta"); m {
-		brokerMeta = getBrokerMeta(cmd, zk, withMetrics)
-	}
-
-	// Fetch partition metadata.
-	var partitionMeta kafkazk.PartitionMetaMap
-	if cmd.Flag("placement").Value.String() == "storage" {
-		partitionMeta = getPartitionMeta(cmd, zk)
-	}
-
-	// Build a partition map either from literal map text input or by fetching the
-	// map data from ZooKeeper. Store a copy of the original.
-	partitionMapIn, pending, excluded := getPartitionMap(cmd, zk)
-	originalMap := partitionMapIn.Copy()
-
-	// Get a list of affected topics.
-	printTopics(partitionMapIn)
-
-	// Print if any topics were excluded due to pending deletion or explicit
-	// exclusion.
-	printExcludedTopics(pending, excluded)
-
-	brokers, bs := getBrokers(cmd, partitionMapIn, brokerMeta)
-	brokersOrig := brokers.Copy()
-
-	if bs.Changes() {
-		fmt.Printf("%s-\n", indent)
-	}
-
-	// Check if any referenced brokers are marked as having
-	// missing/partial metrics data.
-	if m, _ := cmd.Flags().GetBool("use-meta"); m {
-		ensureBrokerMetrics(cmd, brokers, brokerMeta)
-	}
-
-	// Create substitution affinities.
-	affinities := getSubAffinities(cmd, brokers, brokersOrig, partitionMapIn)
-
-	if affinities != nil {
-		fmt.Printf("%s-\n", indent)
-	}
-
-	// Print changes, actions.
-	printChangesActions(cmd, bs)
-
-	// Apply any replication factor settings.
-	updateReplicationFactor(cmd, partitionMapIn)
-
-	// Build a new map using the provided list of brokers. This is OK to run even
-	// when a no-op is intended.
-	partitionMapOut, errs := buildMap(cmd, partitionMapIn, partitionMeta, brokers, affinities)
-
-	// Optimize leaders.
-	if t, _ := cmd.Flags().GetBool("optimize-leadership"); t {
-		partitionMapOut.OptimizeLeaderFollower()
-	}
-
-	// Count missing brokers as a warning.
-	if bs.Missing > 0 {
-		errs = append(errs, fmt.Errorf("%d provided brokers not found in ZooKeeper", bs.Missing))
-	}
-
-	// Count missing rack info as warning
-	if bs.RackMissing > 0 {
-		errs = append(
-			errs, fmt.Errorf("%d provided broker(s) do(es) not have a rack.id defined", bs.RackMissing),
-		)
-	}
-
-	// Generate phased map if enabled.
-	var phasedMap *kafkazk.PartitionMap
-	if phased, _ := cmd.Flags().GetBool("phased-reassignment"); phased {
-		phasedMap = phasedReassignment(originalMap, partitionMapOut)
-	}
-
-	// Print map change results.
-	printMapChanges(originalMap, partitionMapOut)
-
-	// Print broker assignment statistics.
-	printBrokerAssignmentStats(cmd, originalMap, partitionMapOut, brokersOrig, brokers)
-
-	// Print error/warnings.
-	handleOverridableErrs(cmd, errs)
-
-	// Skip no-ops if configured.
-	if sno, _ := cmd.Flags().GetBool("skip-no-ops"); sno {
-		originalMap, partitionMapOut = skipReassignmentNoOps(originalMap, partitionMapOut)
-	}
-
-	writeMaps(cmd, partitionMapOut, phasedMap)
 }
