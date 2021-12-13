@@ -1,6 +1,8 @@
 package commands
 
 import (
+	"fmt"
+	"os"
 	"sync"
 
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
@@ -128,4 +130,52 @@ func computeReassignmentBundles(params computeReassignmentBundlesParams) chan re
 	close(results)
 
 	return results
+}
+
+// EvacLeadership For the given set of topics, makes sure that the given brokers are not
+// leaders of any partitions. If we have any partitions that only have replicas from the
+// evac broker list, we will fail.
+func EvacLeadership(partitionMapIn kafkazk.PartitionMap, evacBrokers kafkazk.BrokerMap) kafkazk.PartitionMap {
+	// evacuation algo starts here
+	partitionMapOut := partitionMapIn
+
+	// make a lookup map of topics
+	topicsMap := map[string]struct{}{}
+	for _, topic := range partitionMapIn.Topics() {
+		topicsMap[topic] = struct{}{}
+	}
+
+	// TODO What if we only want to evacuate a subset of partitions?
+	// For now, problem brokers is the bigger use case.
+
+	// swap leadership for all broker/partition/topic combos
+	for i,p := range partitionMapIn.Partitions {
+		// check the topic is one of the target topics
+		if _,correctTopic := topicsMap[p.Topic]; !correctTopic {
+			continue
+		}
+
+		// check the leader to see if its one of the evac brokers
+		if _, contains := evacBrokers[p.Replicas[0]]; !contains {
+			continue
+		}
+
+		for j,replica := range p.Replicas {
+			// If one of the replicas is not being leadership evacuated, use that one and swap.
+			if _, contains := evacBrokers[replica]; !contains {
+				newLeader := p.Replicas[j]
+				partitionMapOut.Partitions[i].Replicas[j] = p.Replicas[0]
+				partitionMapOut.Partitions[i].Replicas[0] = newLeader
+				break
+			}
+
+			// If we've tried every replica, but they are all being leader evac'd.
+			if replica == p.Replicas[len(p.Replicas) - 1] {
+				fmt.Println("No replicas available to evacuate leadership to. All replicas present in EvacLeadership broker list.")
+				os.Exit(1)
+			}
+		}
+	}
+
+	return partitionMapOut
 }
