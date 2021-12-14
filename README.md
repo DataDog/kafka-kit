@@ -26,6 +26,39 @@ A utility that fetches metrics via the Datadog API for Kafka storage rebalancing
 
 [README](cmd/metricsfetcher)
 
+# Building
+
+All tools/services will likely build on recent versions of MacOS and Go: `go install ./cmd/...`.
+
+A Docker based environment is available for repeatable linux builds and local testing. This will setup a Kafka environment with a running Registry instance from which all other Kafka-Kit tools will be available:
+
+```
+$ make run-compose
+docker-compose build
+zookeeper uses an image, skipping
+kafka uses an image, skipping
+Building ssl_setup
+[+] Building 0.5s (15/15) FINISHED
+[...build output...]
+
+$ docker exec -ti kafka-kit_registry_1 bash
+root@280ae6597b9b:/go/src/github.com/DataDog/kafka-kit# which topicmappr registry autothrottle metricsfetcher
+/go/bin/topicmappr
+/go/bin/registry
+/go/bin/autothrottle
+/go/bin/metricsfetcher
+
+root@280ae6597b9b:/go/src/github.com/DataDog/kafka-kit# curl -s localhost:8080/v1/topics/list | jq
+{
+  "topics": {},
+  "names": [
+    "__consumer_offsets"
+  ]
+}
+```
+
+When finished, `make stop-compose` will tear down the environment.
+
 # Development
 
 See the [Development Guide](https://github.com/DataDog/kafka-kit/wiki/Development-Guide) for testing and contributing changes.
