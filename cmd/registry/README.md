@@ -15,6 +15,8 @@ Additionally, Registry is continuously receiving support for write operations. A
 
 Binary will be found at `$GOPATH/bin/registry`
 
+Tested with Kafka 0.10, 2.2-2.7, ZooKeeper 3.4, 3.5
+
 # Usage
 
 ## Flags
