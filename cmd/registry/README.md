@@ -15,6 +15,8 @@ Additionally, Registry is continuously receiving support for write operations. A
 
 Binary will be found at `$GOPATH/bin/registry`
 
+Tested with Kafka 0.10, 2.2-2.7, ZooKeeper 3.4, 3.5
+
 # Usage
 
 ## Flags
@@ -23,24 +25,32 @@ Binary will be found at `$GOPATH/bin/registry`
 Usage of registry:
   -bootstrap-servers string
     	Kafka bootstrap servers [REGISTRY_BOOTSTRAP_SERVERS] (default "localhost")
+  -enable-locking
+    	Enable distributed locking for write operations [REGISTRY_ENABLE_LOCKING]
+  -enable-profiling
+    	Enable Datadog continuous profiling [REGISTRY_ENABLE_PROFILING]
   -grpc-listen string
     	Server gRPC listen address [REGISTRY_GRPC_LISTEN] (default "localhost:8090")
   -http-listen string
     	Server HTTP listen address [REGISTRY_HTTP_LISTEN] (default "localhost:8080")
   -kafka-sasl-mechanism string
-    	SASL mechanism to use for authentication. Supported: SCRAM-SHA-512, PLAIN, SCRAM-SHA-256 [REGISTRY_KAFKA_SASL_MECHANISM]
+    	SASL mechanism to use for authentication. Supported: PLAIN, SCRAM-SHA-256, SCRAM-SHA-512 [REGISTRY_KAFKA_SASL_MECHANISM]
   -kafka-sasl-password string
     	SASL password for use with the PLAIN and SASL-SCRAM-* mechanisms [REGISTRY_KAFKA_SASL_PASSWORD]
   -kafka-sasl-username string
     	SASL username for use with the PLAIN and SASL-SCRAM-* mechanisms [REGISTRY_KAFKA_SASL_USERNAME]
   -kafka-security-protocol string
-    	Protocol used to communicate with brokers. Supported: SSL, SASL_PLAINTEXT, SASL_SSL, PLAINTEXT [REGISTRY_KAFKA_SECURITY_PROTOCOL]
+    	Protocol used to communicate with brokers. Supported: PLAINTEXT, SSL, SASL_PLAINTEXT, SASL_SSL [REGISTRY_KAFKA_SECURITY_PROTOCOL]
   -kafka-ssl-ca-location string
     	CA certificate path (.pem/.crt) for verifying broker's identity. Needed for SSL and SASL_SSL protocols. [REGISTRY_KAFKA_SSL_CA_LOCATION]
   -kafka-version string
     	Kafka release (Semantic Versioning) [REGISTRY_KAFKA_VERSION] (default "v0.10.2")
   -read-rate-limit int
     	Read request rate limit (reqs/s) [REGISTRY_READ_RATE_LIMIT] (default 5)
+  -tag-allowed-staleness int
+    	Minutes before tags with no associated resource are deleted [REGISTRY_TAG_ALLOWED_STALENESS] (default 60)
+  -tag-cleanup-frequency int
+    	Minutes between runs of tag cleanup [REGISTRY_TAG_CLEANUP_FREQUENCY] (default 20)
   -version
     	version [REGISTRY_VERSION]
   -write-rate-limit int
@@ -65,6 +75,8 @@ $ registry --zk-addr zk-test-0.service.consul:2181 --zk-prefix kafka --bootstrap
 2019/12/10 21:48:42 gRPC up: 0.0.0.0:8090
 2019/12/10 21:48:42 HTTP up: 0.0.0.0:8080
 ```
+
+For multi-node setups, it's strongly advised to set `--enable-locking=true`; this backs write/update operations with a ZooKeeper based distributed lock.
 
 # API Examples
 
@@ -115,7 +127,9 @@ $ curl -s "localhost:8080/v1/topics/list?tag=replication:3" | jq
   "names": [
     "__consumer_offsets",
     "test0",
-    "test1"
+    "test1",
+    "test3",
+    "test4"
   ]
 }
 ```
@@ -126,6 +140,64 @@ $ curl -s "localhost:8080/v1/topics/list?tag=replication:2&tag=partitions:32" | 
     "test0"
   ]
 }
+```
+
+## List Reassigning Topics
+Lists topics that are undergoing reassignment.
+```
+$ curl -s "localhost:8080/v1/topics/reassigning" | jq
+{
+  "names": [
+    "test3",
+  ]
+}
+```
+
+## List Under Replicated Topics
+Lists topics that have under-replicated ISRs.
+```
+$ curl -s "localhost:8080/v1/topics/underreplicated" | jq
+{
+  "names": [
+    "test4",
+  ]
+}
+```
+
+## Create a Topic
+Topics can be created through the Registry service. Additionally, all partitions can be scoped to specific brokers by tag. This call embeds [topicmappr](https://github.com/DataDog/kafka-kit/tree/master/cmd/topicmappr) placement constraints logic to ensure safe and optimal partition placement.
+
+```
+$ curl -XPOST localhost:8080/v1/topics/create -d '{
+  "topic": {
+    "name": "test2",
+    "partitions": 6,
+    "replication": 2,
+    "tags": {
+      "team": "eng"
+    }
+  },
+  "target_broker_tags": [
+    "pool:test"
+  ]
+}'
+```
+
+## Delete a Topic
+Deletes the specified topic. Attempting to delete a non-existent topic will return an error.
+
+```
+$ curl localhost:8080/v1/topics/list
+{"names":["__consumer_offsets","test1","test2"]}
+
+$ curl -XDELETE "localhost:8080/v1/topics/test2"
+{}
+
+$ curl localhost:8080/v1/topics/list
+{"names":["__consumer_offsets","test1"]}
+
+$ curl -XDELETE "localhost:8080/v1/topics/test2"
+{"error":"topic does not exist","code":2,"message":"topic does not exist"}
 ```
 
 ## List Brokers
@@ -156,6 +228,9 @@ $ curl -s "localhost:8080/v1/brokers?id=1001" | jq
       "listenersecurityprotocolmap": {
         "PLAINTEXT": "PLAINTEXT"
       },
+      "endpoints": [
+        "SASL_SSL://733fad76d5be:9093"
+      ],
       "rack": "europe-west3-a",
       "jmxport": 9999,
       "host": "10.14.224.198",
@@ -186,6 +261,9 @@ $ curl -s "localhost:8080/v1/brokers?tag=rack:a" | jq
       "listenersecurityprotocolmap": {
         "PLAINTEXT": "PLAINTEXT"
       },
+      "endpoints": [
+        "SASL_SSL://776d5be33fad:9093"
+      ],
       "rack": "a",
       "jmxport": 9999,
       "host": "10.0.1.103",
@@ -276,38 +354,29 @@ $ curl -XDELETE "localhost:8080/v1/topics/tag/test0?tag=team&tag=use"
 {"message":"success"}
 ```
 
-## Create a Topic
-Topics can be created through the Registry service. Additionally, all partitions can be scoped to specific brokers by tag. This call embeds [topicmappr](https://github.com/DataDog/kafka-kit/tree/master/cmd/topicmappr) placement constraints logic to ensure safe and optimal partition placement.
+## MirrorMaker2 Offset Translation
+Reports upstream and local offsets for MirrorMaker2 replicated topics.
 
 ```
-$ curl -XPOST localhost:8080/v1/topics/create -d '{
-  "topic": {
-    "name": "test2",
-    "partitions": 6,
-    "replication": 2,
-    "tags": {
-      "team": "eng"
+$ curl "localhost:8080/v1/translate-offsets/source/test4 | jq"
+{
+  "offsets": {
+    "source.test4-1:0": {
+      "upstream_offset": "3",
+      "local_offset": "3"
+    },
+    "source.test4-2:0": {
+      "upstream_offset": "5",
+      "local_offset": "5"
+    },
+    "source.test4-2:1": {
+      "upstream_offset": "3",
+      "local_offset": "3"
+    },
+    "source.test4-2:2": {
+      "upstream_offset": "7",
+      "local_offset": "7"
     }
-  },
-  "target_broker_tags": [
-    "pool:test"
-  ]
-}'
-```
-
-## Delete a Topic
-Deletes the specified topic. Attempting to delete a non-existent topic will return an error.
-
-```
-$ curl localhost:8080/v1/topics/list
-{"names":["__consumer_offsets","test1","test2"]}
-
-$ curl -XDELETE "localhost:8080/v1/topics/test2"
-{}
-
-$ curl localhost:8080/v1/topics/list
-{"names":["__consumer_offsets","test1"]}
-
-$ curl -XDELETE "localhost:8080/v1/topics/test2"
-{"error":"topic does not exist","code":2,"message":"topic does not exist"}
+  }
+}
 ```

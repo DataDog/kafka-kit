@@ -14,7 +14,7 @@ Binary will be found at `$GOPATH/bin/metricsfetcher`
 
 **Compatibility**
 
-Tested with Go 1.10+ (required), Kafka 0.10.x, ZooKeeper 3.4.x.
+Tested with Kafka 0.10, 2.2-2.7, ZooKeeper 3.4, 3.5
 
 # Usage
 
