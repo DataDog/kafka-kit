@@ -3,7 +3,7 @@ from ubuntu:21.04
 # Install pre-reqs
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt update >/dev/null
-RUN apt install -y build-essential unzip curl git pkg-config software-properties-common apt-transport-https ca-certificates >/dev/null
+RUN apt install -y jq build-essential unzip curl git pkg-config software-properties-common apt-transport-https ca-certificates >/dev/null
 
 WORKDIR /root
 
@@ -58,7 +58,7 @@ RUN protoc -I ./registry -I $GOPATH/pkg/mod/$(awk '/googleapis/ {printf "%s@%s",
     registry/registry/registry.proto
 
 # Build
-RUN go install ./cmd/registry
+RUN go install ./cmd/...
 
 # Clean
 RUN apt autoremove
