@@ -79,6 +79,7 @@ services:
       - kafka
     environment:
       TEST_ZK_ADDR: zookeeper:2181
+      REGISTRY_ENABLE_LOCKING: "true"
       REGISTRY_ZK_ADDR: zookeeper:2181
       REGISTRY_BOOTSTRAP_SERVERS: kafka:9093
       REGISTRY_HTTP_LISTEN: 0.0.0.0:8080

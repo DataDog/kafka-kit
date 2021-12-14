@@ -13,6 +13,8 @@ import (
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 
+	"github.com/DataDog/kafka-kit/v3/cluster"
+	zklocking "github.com/DataDog/kafka-kit/v3/cluster/zookeeper"
 	"github.com/DataDog/kafka-kit/v3/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
 	pb "github.com/DataDog/kafka-kit/v3/registry/registry"
@@ -31,6 +33,7 @@ const (
 // Server implements the registry APIs.
 type Server struct {
 	pb.UnimplementedRegistryServer
+	Locking          cluster.Lock
 	HTTPListen       string
 	GRPCListen       string
 	ZK               kafkazk.Handler
@@ -84,6 +87,7 @@ func NewServer(c Config) (*Server, error) {
 	th, _ := NewTagHandler(tcfg)
 
 	return &Server{
+		Locking:          dummyLock{},
 		HTTPListen:       c.HTTPListen,
 		GRPCListen:       c.GRPCListen,
 		Tags:             th,
@@ -270,6 +274,24 @@ func (s *Server) InitKafkaConsumer(ctx context.Context, wg *sync.WaitGroup, cfg 
 	return nil
 }
 
+// EnablingLocking uses distributed locking for write operations.
+func (s *Server) EnablingLocking(c *kafkazk.Config) error {
+	cfg := zklocking.ZooKeeperLockConfig{
+		Address: c.Connect,
+		Path:    "/registry/locks",
+	}
+
+	zkl, err := zklocking.NewZooKeeperLock(cfg)
+	if err != nil {
+		return fmt.Errorf("failed to initialize ZooKeeper locking backend")
+	}
+
+	log.Printf("Using ZooKeeper based distributed locking")
+	s.Locking = zkl
+
+	return nil
+}
+
 // DialZK takes a Context, WaitGroup and *kafkazk.Config and initializes
 // a kafkazk.Handler. A background shutdown procedure is called when the
 // context is cancelled.
@@ -400,4 +422,14 @@ func (s *Server) LogRequest(ctx context.Context, params string, reqID uint64) {
 
 	log.Printf("[request %d] requestor:%s type:%s method:%s params:%s",
 		reqID, requestor, reqType, method, params)
+}
+
+type dummyLock struct{}
+
+func (dl dummyLock) Lock(_ context.Context) error {
+	return nil
+}
+
+func (dl dummyLock) Unlock(_ context.Context) error {
+	return nil
 }

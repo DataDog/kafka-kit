@@ -156,6 +156,11 @@ func (s *Server) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*
 		defer cancel()
 	}
 
+	if err := s.Locking.Lock(ctx); err != nil {
+		return nil, err
+	}
+	defer s.Locking.Unlock(ctx)
+
 	if req.Topic == nil {
 		return nil, ErrTopicFieldMissing
 	}
@@ -275,6 +280,11 @@ func (s *Server) DeleteTopic(ctx context.Context, req *pb.TopicRequest) (*pb.Emp
 		defer cancel()
 	}
 
+	if err := s.Locking.Lock(ctx); err != nil {
+		return nil, err
+	}
+	defer s.Locking.Unlock(ctx)
+
 	if req.Name == "" {
 		return nil, ErrTopicNameEmpty
 	}
@@ -354,6 +364,11 @@ func (s *Server) TagTopic(ctx context.Context, req *pb.TopicRequest) (*pb.TagRes
 		defer cancel()
 	}
 
+	if err := s.Locking.Lock(ctx); err != nil {
+		return nil, err
+	}
+	defer s.Locking.Unlock(ctx)
+
 	if req.Name == "" {
 		return nil, ErrTopicNameEmpty
 	}
@@ -402,6 +417,11 @@ func (s *Server) DeleteTopicTags(ctx context.Context, req *pb.TopicRequest) (*pb
 	if cancel != nil {
 		defer cancel()
 	}
+
+	if err := s.Locking.Lock(ctx); err != nil {
+		return nil, err
+	}
+	defer s.Locking.Unlock(ctx)
 
 	if req.Name == "" {
 		return nil, ErrTopicNameEmpty

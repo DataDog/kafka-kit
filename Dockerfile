@@ -39,6 +39,7 @@ RUN go install \
 
 # Copy src
 COPY cmd cmd
+COPY cluster cluster
 COPY kafkaadmin kafkaadmin
 COPY kafkametrics kafkametrics
 COPY kafkazk kafkazk
