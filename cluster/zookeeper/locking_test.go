@@ -22,6 +22,21 @@ func TestLock(t *testing.T) {
 	assert.Equal(t, err2, ErrLockingTimedOut, "Expected ErrLockingTimedOut")
 }
 
+func TestLockSameOwner(t *testing.T) {
+	lock := newMockZooKeeperLock()
+	ctx, cf := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx = context.WithValue(ctx, "owner", "owner")
+	_ = cf
+
+	// This lock should succeed normally.
+	err := lock.Lock(ctx)
+	assert.Nil(t, err)
+
+	// This should also succeed because we have the same instance, same owner key/value.
+	err2 := lock.Lock(ctx)
+	assert.Nil(t, err2)
+}
+
 func TestUnlock(t *testing.T) {
 	lock := newMockZooKeeperLock()
 	ctx, cf := context.WithTimeout(context.Background(), 1*time.Second)

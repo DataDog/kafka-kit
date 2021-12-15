@@ -18,8 +18,6 @@ func (z *ZooKeeperLock) Lock(ctx context.Context) error {
 
 	// Check if the context has a lock owner value. If so, check if this owner
 	// already has the lock.
-	fmt.Println("owner: ", z.owner)
-	fmt.Println("this context: ", ctx.Value(z.OwnerKey))
 	if owner := ctx.Value(z.OwnerKey); owner != nil && owner == z.owner {
 		return nil
 	}
