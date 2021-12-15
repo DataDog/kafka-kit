@@ -16,6 +16,14 @@ func (z *ZooKeeperLock) Lock(ctx context.Context) error {
 	z.mu.Lock()
 	defer z.mu.Unlock()
 
+	// Check if the context has a lock owner value. If so, check if this owner
+	// already has the lock.
+	fmt.Println("owner: ", z.owner)
+	fmt.Println("this context: ", ctx.Value(z.OwnerKey))
+	if owner := ctx.Value(z.OwnerKey); owner != nil && owner == z.owner {
+		return nil
+	}
+
 	// Enter the claim into ZooKeeper.
 	lockPath := fmt.Sprintf("%s/lock-", z.Path)
 	node, err := z.c.CreateProtectedEphemeralSequential(lockPath, nil, zk.WorldACL(31))
@@ -48,6 +56,12 @@ func (z *ZooKeeperLock) Lock(ctx context.Context) error {
 		if thisID == firstClaim {
 			// We have the lock.
 			z.lockZnode, err = locks.LockPath(thisID)
+
+			// Set the owner value if the context OwnerKey is specified.
+			if owner := ctx.Value(z.OwnerKey); owner != nil {
+				z.owner = owner
+			}
+
 			return nil
 		}
 
@@ -87,6 +101,7 @@ func (z *ZooKeeperLock) Unlock(ctx context.Context) error {
 	}
 
 	z.lockZnode = ""
+	z.owner = nil
 
 	return nil
 }
