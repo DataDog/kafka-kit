@@ -25,14 +25,16 @@ func newMockZooKeeperLock() *ZooKeeperLock {
 			nextID:            0,
 			path:              "/locks",
 		},
-		Path: "/locks",
+		OwnerKey: "owner",
+		Path:     "/locks",
 	}
 }
 
 func newMockZooKeeperLockWithClient(c *mockZooKeeperClient) *ZooKeeperLock {
 	return &ZooKeeperLock{
-		c:    c,
-		Path: "/locks",
+		c:        c,
+		Path:     "/locks",
+		OwnerKey: "owner",
 	}
 }
 

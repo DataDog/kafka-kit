@@ -13,14 +13,17 @@ import (
 
 // ZooKeeperLock implements a Lock.
 type ZooKeeperLock struct {
-	c    ZooKeeperClient
-	Path string
+	c        ZooKeeperClient
+	Path     string
+	OwnerKey string
 
 	// The mutex can't be embedded because ZooKeeperLock also has Lock() / Unlock()
 	// methods.
 	mu sync.Mutex
 	// When a lock is successfully claimed, we store the full znode path.
 	lockZnode string
+	// The current owner name.
+	owner interface{}
 }
 
 // ZooKeeperClient interface.
@@ -35,13 +38,27 @@ type ZooKeeperClient interface {
 
 // ZooKeeperLockConfig holds ZooKeeperLock configurations.
 type ZooKeeperLockConfig struct {
+	// The address of the ZooKeeper cluster.
 	Address string
-	Path    string
+	// The locking path; this is the register that locks are attempting to acquire.
+	Path string
+	// An optional lock ownership identifier. Context values can be inspected to
+	// determine if a lock owner already has the lock. For example, if we specify
+	// an OwnerKey configuration value of UserID, any successful lock claim will
+	// set the lock owner as the value of UserID from the context received. Any
+	// successive calls to Lock() with the same UserID context value will also
+	// succeed. As a safety, this is not a distributed feature and is scoped to the
+	// ZooKeeperLock instance; attempting to have two processes claim a lock
+	// on the same path with the same OwnerKey/value will result in only one lock
+	// being granted.
+	OwnerKey string
 }
 
 // NewZooKeeperLock returns a ZooKeeperLock.
 func NewZooKeeperLock(c ZooKeeperLockConfig) (*ZooKeeperLock, error) {
-	var zkl = &ZooKeeperLock{}
+	var zkl = &ZooKeeperLock{
+		OwnerKey: c.OwnerKey,
+	}
 	var err error
 
 	// Dial zk.
