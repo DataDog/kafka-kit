@@ -44,6 +44,10 @@ func init() {
 	rebuildCmd.Flags().Bool("optimize-leadership", false, "Rebalance all broker leader/follower ratios")
 	rebuildCmd.Flags().Bool("phased-reassignment", false, "Create two-phase output maps")
 
+	// new params for evac leadership
+	rebuildCmd.Flags().String("leader-evac-brokers", "", "Broker list to remove leadership for topics in leader-evac-topics.")
+	rebuildCmd.Flags().String("leader-evac-topics", "", "Topics list to remove leadership for the brokers given in leader-evac-brokers")
+
 	// Required.
 	rebuildCmd.MarkFlagRequired("brokers")
 }
@@ -57,6 +61,9 @@ func rebuild(cmd *cobra.Command, _ []string) {
 	fr, _ := cmd.Flags().GetBool("force-rebuild")
 	sa, _ := cmd.Flags().GetBool("sub-affinity")
 	m, _ := cmd.Flags().GetBool("use-meta")
+
+	let, _ := cmd.Flags().GetString("leader-evac-topics")
+	leb, _ := cmd.Flags().GetString("leader-evac-brokers")
 
 	switch {
 	case ms == "" && t == "":
@@ -73,6 +80,9 @@ func rebuild(cmd *cobra.Command, _ []string) {
 		defaultsAndExit()
 	case fr && sa:
 		fmt.Println("\n[INFO] --force-rebuild disables --sub-affinity")
+	case (leb != "" || let != "") && (leb == "" || let == ""):
+		fmt.Println("\n[ERROR] --leader-evac-topics and --leader-evac-brokers must both be specified for leadership evacuation.")
+		defaultsAndExit()
 	}
 
 	bootstrap(cmd)
@@ -88,6 +98,19 @@ func rebuild(cmd *cobra.Command, _ []string) {
 		}
 		defer zk.Close()
 	}
+
+	// In addition to the global topic regex, we have leader-evac topic regex as well.
+	var evacTopics []string
+	var err error
+	if let != "" {
+		evacTopics, err = zk.GetTopics(TopicRegex(let))
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	}
+
+	evacBrokers := brokerStringToSlice(leb)
 
 	// General flow:
 	// 1) A PartitionMap is formed (either unmarshaled from the literal
@@ -185,6 +208,8 @@ func rebuild(cmd *cobra.Command, _ []string) {
 	if phased, _ := cmd.Flags().GetBool("phased-reassignment"); phased {
 		phasedMap = phasedReassignment(originalMap, partitionMapOut)
 	}
+
+	partitionMapOut = EvacLeadership(*partitionMapOut, evacBrokers, evacTopics)
 
 	// Print map change results.
 	printMapChanges(originalMap, partitionMapOut)
