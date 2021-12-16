@@ -21,3 +21,5 @@ require (
 	google.golang.org/protobuf v1.27.1
 	gopkg.in/DataDog/dd-trace-go.v1 v1.34.0
 )
+
+replace github.com/spf13/viper v1.10.0 => github.com/spf13/viper v1.10.1
