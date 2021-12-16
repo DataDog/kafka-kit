@@ -39,9 +39,11 @@ RUN mv protoc/include/* /usr/local/include/
 RUN rm -rf protoc*
 
 # Install protoc / gRPC deps; these versions are managed in go.mod
-RUN go install google.golang.org/protobuf/cmd/protoc-gen-go
-RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc
-RUN go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway
+RUN go get -d github.com/googleapis/googleapis
+RUN go install \
+  google.golang.org/protobuf/cmd/protoc-gen-go \
+  google.golang.org/grpc/cmd/protoc-gen-go-grpc \
+  github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway
 
 # Codegen
 RUN protoc -I ./registry -I $GOPATH/pkg/mod/$(awk '/googleapis/ {printf "%s@%s", $1, $2}' go.mod) \

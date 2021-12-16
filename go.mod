@@ -8,7 +8,6 @@ require (
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/confluentinc/confluent-kafka-go v1.8.2
 	github.com/go-zookeeper/zk v1.0.2
-	github.com/googleapis/googleapis v0.0.0-20211216002249-82a542279650 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.7.2
 	github.com/jamiealquiza/envy v1.1.0
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
