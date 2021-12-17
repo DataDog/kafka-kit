@@ -11,6 +11,7 @@ import (
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
+// Requires gRPC-Go v1.32.0 or later.
 const _ = grpc.SupportPackageIsVersion7
 
 // RegistryClient is the client API for Registry service.
@@ -419,8 +420,8 @@ type UnsafeRegistryServer interface {
 	mustEmbedUnimplementedRegistryServer()
 }
 
-func RegisterRegistryServer(s *grpc.Server, srv RegistryServer) {
-	s.RegisterService(&_Registry_serviceDesc, srv)
+func RegisterRegistryServer(s grpc.ServiceRegistrar, srv RegistryServer) {
+	s.RegisterService(&Registry_ServiceDesc, srv)
 }
 
 func _Registry_GetBrokers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -711,7 +712,10 @@ func _Registry_TranslateOffsets_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
-var _Registry_serviceDesc = grpc.ServiceDesc{
+// Registry_ServiceDesc is the grpc.ServiceDesc for Registry service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var Registry_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "registry.Registry",
 	HandlerType: (*RegistryServer)(nil),
 	Methods: []grpc.MethodDesc{

@@ -8,8 +8,8 @@ RUN apt install -y jq build-essential unzip curl git pkg-config software-propert
 WORKDIR /root
 
 # Install Go
-RUN curl -sOL https://golang.org/dl/go1.16.4.linux-amd64.tar.gz
-RUN tar -C /usr/local -xzf go1.16.4.linux-amd64.tar.gz
+RUN curl -sOL https://go.dev/dl/go1.17.5.linux-amd64.tar.gz
+RUN tar -C /usr/local -xzf go1.17.5.linux-amd64.tar.gz
 ENV PATH=$PATH:/usr/local/go/bin:/go/bin
 ENV GOPATH=/go
 
@@ -20,30 +20,30 @@ RUN apt-get update && apt-get install -y librdkafka1 librdkafka-dev >/dev/null
 
 # Init repo.
 WORKDIR /go/src/github.com/DataDog/kafka-kit
-COPY go.mod go.mod
-RUN go mod download
-
-# Install protoc
-RUN curl -sOL https://github.com/protocolbuffers/protobuf/releases/download/v3.17.1/protoc-3.17.1-linux-x86_64.zip
-RUN unzip protoc-3.17.1-linux-x86_64.zip -d protoc
-RUN mv protoc/bin/* /usr/local/bin/
-RUN mv protoc/include/* /usr/local/include/
-RUN rm -rf protoc*
-
-# Install protoc / gRPC deps
-RUN go install \
-    github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway \
-    github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2 \
-    google.golang.org/protobuf/cmd/protoc-gen-go \
-    google.golang.org/grpc/cmd/protoc-gen-go-grpc
-
-# Copy src
 COPY cmd cmd
 COPY cluster cluster
 COPY kafkaadmin kafkaadmin
 COPY kafkametrics kafkametrics
 COPY kafkazk kafkazk
 COPY registry registry
+COPY tools.go tools.go
+COPY go.mod go.mod
+COPY go.sum go.sum
+RUN go mod download
+
+# Install protoc
+RUN curl -sOL https://github.com/protocolbuffers/protobuf/releases/download/v3.19.1/protoc-3.19.1-linux-x86_64.zip
+RUN unzip protoc-3.19.1-linux-x86_64.zip -d protoc
+RUN mv protoc/bin/* /usr/local/bin/
+RUN mv protoc/include/* /usr/local/include/
+RUN rm -rf protoc*
+
+# Install protoc / gRPC deps; these versions are managed in go.mod
+RUN go get -d github.com/googleapis/googleapis
+RUN go install \
+  google.golang.org/protobuf/cmd/protoc-gen-go \
+  google.golang.org/grpc/cmd/protoc-gen-go-grpc \
+  github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway
 
 # Codegen
 RUN protoc -I ./registry -I $GOPATH/pkg/mod/$(awk '/googleapis/ {printf "%s@%s", $1, $2}' go.mod) \
