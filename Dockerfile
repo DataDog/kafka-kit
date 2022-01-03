@@ -20,12 +20,6 @@ RUN apt-get update && apt-get install -y librdkafka1 librdkafka-dev >/dev/null
 
 # Init repo.
 WORKDIR /go/src/github.com/DataDog/kafka-kit
-COPY cmd cmd
-COPY cluster cluster
-COPY kafkaadmin kafkaadmin
-COPY kafkametrics kafkametrics
-COPY kafkazk kafkazk
-COPY registry registry
 COPY tools.go tools.go
 COPY go.mod go.mod
 COPY go.sum go.sum
@@ -44,6 +38,14 @@ RUN go install \
   google.golang.org/protobuf/cmd/protoc-gen-go \
   google.golang.org/grpc/cmd/protoc-gen-go-grpc \
   github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway
+
+# Copy source.
+COPY cmd cmd
+COPY cluster cluster
+COPY kafkaadmin kafkaadmin
+COPY kafkametrics kafkametrics
+COPY kafkazk kafkazk
+COPY registry registry
 
 # Codegen
 RUN protoc -I ./registry -I $GOPATH/pkg/mod/$(awk '/googleapis/ {printf "%s@%s", $1, $2}' go.mod) \
