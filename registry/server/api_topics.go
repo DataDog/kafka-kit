@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 
+	zklocking "github.com/DataDog/kafka-kit/v3/cluster/zookeeper"
 	"github.com/DataDog/kafka-kit/v3/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
 	pb "github.com/DataDog/kafka-kit/v3/registry/registry"
@@ -364,17 +365,23 @@ func (s *Server) TagTopic(ctx context.Context, req *pb.TopicRequest) (*pb.TagRes
 		defer cancel()
 	}
 
-	if err := s.Locking.Lock(ctx); err != nil {
-		return nil, err
-	}
-	defer s.Locking.Unlock(ctx)
-
 	if req.Name == "" {
 		return nil, ErrTopicNameEmpty
 	}
 
 	if len(req.Tag) == 0 {
 		return nil, ErrNilTags
+	}
+
+	err = s.Locking.Lock(ctx)
+	switch err {
+	case nil:
+		defer s.Locking.Unlock(ctx)
+	case zklocking.ErrAlreadyOwnLock:
+		// Don't call unlock. We should be here because CreateTopic was called with
+		// optional tags. We'll let the parent CreateTopic call finally issue unlock.
+	default:
+		return nil, err
 	}
 
 	// Get a TagSet from the supplied tags.
