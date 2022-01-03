@@ -12,6 +12,8 @@ var (
 	// ErrInvalidSeqNode is returned when sequential znodes are being parsed for
 	// a trailing integer ID, but one isn't found.
 	ErrInvalidSeqNode = errors.New("znode doesn't appear to be a sequential type")
+	// ErrNotLockOwner
+	ErrNotLockOwner = errors.New("non-owner attempted to call unlock")
 )
 
 // ErrLockingFailed is a general failure.
