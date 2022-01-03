@@ -156,11 +156,6 @@ func (s *Server) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*
 		defer cancel()
 	}
 
-	if err := s.Locking.Lock(ctx); err != nil {
-		return nil, err
-	}
-	defer s.Locking.Unlock(ctx)
-
 	if req.Topic == nil {
 		return nil, ErrTopicFieldMissing
 	}
@@ -180,6 +175,11 @@ func (s *Server) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*
 	if len(resp.Names) > 0 {
 		return empty, ErrTopicAlreadyExists
 	}
+
+	if err := s.Locking.Lock(ctx); err != nil {
+		return nil, err
+	}
+	defer s.Locking.Unlock(ctx)
 
 	// If we're targeting a specific set of brokers by tag, build
 	// a replica assignment.
