@@ -6,6 +6,9 @@ import (
 )
 
 var (
+	// ErrAlreadyOwnLock is returned if Lock is called with a context holding an
+	// OwnerKey equal to that of an active lock.
+	ErrAlreadyOwnLock = errors.New("requestor already has an active lock")
 	// ErrLockingTimedOut is returned when a lock couldn't be acquired  by the
 	// context deadline.
 	ErrLockingTimedOut = errors.New("attempt to acquire lock timed out")

@@ -14,7 +14,7 @@ func (z *ZooKeeperLock) Lock(ctx context.Context) error {
 	// Check if the context has a lock owner value. If so, check if this owner
 	// already has the lock.
 	if owner := ctx.Value(z.OwnerKey); owner != nil && owner == z.Owner() {
-		return nil
+		return ErrAlreadyOwnLock
 	}
 
 	// Enter the claim into ZooKeeper.
