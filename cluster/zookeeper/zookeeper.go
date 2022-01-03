@@ -19,7 +19,7 @@ type ZooKeeperLock struct {
 
 	// The mutex can't be embedded because ZooKeeperLock also has Lock() / Unlock()
 	// methods.
-	mu sync.Mutex
+	mu sync.RWMutex
 	// When a lock is successfully claimed, we store the full znode path.
 	lockZnode string
 	// The current owner name.
@@ -50,7 +50,8 @@ type ZooKeeperLockConfig struct {
 	// succeed. As a safety, this is not a distributed feature and is scoped to the
 	// ZooKeeperLock instance; attempting to have two processes claim a lock
 	// on the same path with the same OwnerKey/value will result in only one lock
-	// being granted.
+	// being granted. This also prevents a concurrent program sharing a ZooKeeperLock
+	// from allowing requestors to call Unlock on a lock that it doesn't own.
 	OwnerKey string
 }
 
@@ -81,6 +82,13 @@ func NewZooKeeperLockWithClient(cfg ZooKeeperLockConfig, zkc ZooKeeperClient) (*
 		c:    zkc,
 		Path: fmt.Sprintf("/%s", strings.Trim(cfg.Path, "/")),
 	}, nil
+}
+
+// Owner returns the current lock owner.
+func (z *ZooKeeperLock) Owner() interface{} {
+	z.mu.RLock()
+	defer z.mu.RUnlock()
+	return z.owner
 }
 
 // init performs any bootstrapping steps required for a ZooKeeperLock.

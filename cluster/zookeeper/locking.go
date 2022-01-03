@@ -13,7 +13,7 @@ import (
 func (z *ZooKeeperLock) Lock(ctx context.Context) error {
 	// Check if the context has a lock owner value. If so, check if this owner
 	// already has the lock.
-	if owner := ctx.Value(z.OwnerKey); owner != nil && owner == z.owner {
+	if owner := ctx.Value(z.OwnerKey); owner != nil && owner == z.Owner() {
 		return nil
 	}
 
@@ -48,12 +48,15 @@ func (z *ZooKeeperLock) Lock(ctx context.Context) error {
 		firstClaim, _ := locks.First()
 		if thisID == firstClaim {
 			// We have the lock.
+			z.mu.Lock()
+			// Update the lock znode.
 			z.lockZnode, err = locks.LockPath(thisID)
-
 			// Set the owner value if the context OwnerKey is specified.
 			if owner := ctx.Value(z.OwnerKey); owner != nil {
 				z.owner = owner
 			}
+
+			z.mu.Unlock()
 
 			return nil
 		}
@@ -87,7 +90,7 @@ func (z *ZooKeeperLock) Lock(ctx context.Context) error {
 // Unlock releases a lock.
 func (z *ZooKeeperLock) Unlock(ctx context.Context) error {
 	// Check if the context has a lock owner value.
-	if owner := ctx.Value(z.OwnerKey); owner != nil && owner != z.owner {
+	if owner := ctx.Value(z.OwnerKey); owner != nil && owner != z.Owner() {
 		return ErrNotLockOwner
 	}
 
@@ -95,8 +98,10 @@ func (z *ZooKeeperLock) Unlock(ctx context.Context) error {
 		return ErrUnlockingFailed{message: err.Error()}
 	}
 
+	z.mu.Lock()
 	z.lockZnode = ""
 	z.owner = nil
+	z.mu.Unlock()
 
 	return nil
 }

@@ -12,8 +12,12 @@ var (
 	// ErrInvalidSeqNode is returned when sequential znodes are being parsed for
 	// a trailing integer ID, but one isn't found.
 	ErrInvalidSeqNode = errors.New("znode doesn't appear to be a sequential type")
-	// ErrNotLockOwner
+	// ErrNotLockOwner is returned when Unlock is attempting to be called where the
+	// requestor's OwnerKey value does not equal the current lock owner.
 	ErrNotLockOwner = errors.New("non-owner attempted to call unlock")
+	// ErrOwnerAlreadySet is returned when SetOwner is being called on a lock where
+	// the owner field is non-nil.
+	ErrOwnerAlreadySet = errors.New("attempt to set owner on a claimed lock")
 )
 
 // ErrLockingFailed is a general failure.
