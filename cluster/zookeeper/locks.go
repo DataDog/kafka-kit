@@ -15,6 +15,9 @@ type LockEntries struct {
 
 // locks returns a LockEntries of all current locks.
 func (z *ZooKeeperLock) locks() (LockEntries, error) {
+	z.mu.RLock()
+	defer z.mu.RUnlock()
+
 	var locks = LockEntries{
 		m: map[int]string{},
 		l: []int{},
