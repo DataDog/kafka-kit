@@ -72,8 +72,8 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8080:8080"
-      - "8090:8090"
+      - "8080"
+      - "8090"
     depends_on:
       - zookeeper
       - kafka

@@ -13,4 +13,6 @@ type Lock interface {
 	// through this interface. A context is accepted for setting wait bounds.
 	Lock(context.Context) error
 	Unlock(context.Context) error
+	// Owner returns the current owner value.
+	Owner() interface{}
 }

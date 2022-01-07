@@ -11,15 +11,10 @@ import (
 // Lock attemps to acquire a lock. If the lock cannot be acquired by the context
 // deadline, the lock attempt times out.
 func (z *ZooKeeperLock) Lock(ctx context.Context) error {
-	// Lock locally as a cheap way to avoid overhead in the distributed locking
-	// backend.
-	z.mu.Lock()
-	defer z.mu.Unlock()
-
 	// Check if the context has a lock owner value. If so, check if this owner
 	// already has the lock.
-	if owner := ctx.Value(z.OwnerKey); owner != nil && owner == z.owner {
-		return nil
+	if owner := ctx.Value(z.OwnerKey); owner != nil && owner == z.Owner() {
+		return ErrAlreadyOwnLock
 	}
 
 	// Enter the claim into ZooKeeper.
@@ -53,12 +48,15 @@ func (z *ZooKeeperLock) Lock(ctx context.Context) error {
 		firstClaim, _ := locks.First()
 		if thisID == firstClaim {
 			// We have the lock.
+			z.mu.Lock()
+			// Update the lock znode.
 			z.lockZnode, err = locks.LockPath(thisID)
-
 			// Set the owner value if the context OwnerKey is specified.
 			if owner := ctx.Value(z.OwnerKey); owner != nil {
 				z.owner = owner
 			}
+
+			z.mu.Unlock()
 
 			return nil
 		}
@@ -91,15 +89,19 @@ func (z *ZooKeeperLock) Lock(ctx context.Context) error {
 
 // Unlock releases a lock.
 func (z *ZooKeeperLock) Unlock(ctx context.Context) error {
-	z.mu.Lock()
-	defer z.mu.Unlock()
+	// Check if the context has a lock owner value.
+	if owner := ctx.Value(z.OwnerKey); owner != nil && owner != z.Owner() {
+		return ErrNotLockOwner
+	}
 
 	if err := z.deleteLockZnode(z.lockZnode); err != nil {
 		return ErrUnlockingFailed{message: err.Error()}
 	}
 
+	z.mu.Lock()
 	z.lockZnode = ""
 	z.owner = nil
+	z.mu.Unlock()
 
 	return nil
 }

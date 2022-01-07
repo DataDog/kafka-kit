@@ -32,9 +32,10 @@ func TestLockSameOwner(t *testing.T) {
 	err := lock.Lock(ctx)
 	assert.Nil(t, err)
 
-	// This should also succeed because we have the same instance, same owner key/value.
+	// This should also succeed (with a soft error) because we have the same
+	// instance, same owner key/value.
 	err2 := lock.Lock(ctx)
-	assert.Nil(t, err2)
+	assert.Equal(t, err2, ErrAlreadyOwnLock)
 }
 
 func TestUnlock(t *testing.T) {
