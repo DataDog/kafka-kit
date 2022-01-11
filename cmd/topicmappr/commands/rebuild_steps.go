@@ -330,7 +330,7 @@ func evacuateLeadership(partitionMapIn kafkazk.PartitionMap, evacBrokers []int, 
 
 			// If we've tried every replica, but they are all being leader evac'd.
 			if replica == p.Replicas[len(p.Replicas)-1] {
-				fmt.Println("No replicas available to evacuate leadership to. All replicas present in EvacLeadership broker list.")
+				fmt.Println("[ERROR] trying to evict all replicas at once")
 				os.Exit(1)
 			}
 		}
