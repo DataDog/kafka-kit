@@ -103,7 +103,7 @@ func rebuild(cmd *cobra.Command, _ []string) {
 	var evacTopics []string
 	var err error
 	if let != "" {
-		evacTopics, err = zk.GetTopics(TopicRegex(let))
+		evacTopics, err = zk.GetTopics(topicRegex(let))
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)

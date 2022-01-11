@@ -44,18 +44,18 @@ func bootstrap(cmd *cobra.Command) {
 
 	// Populate topic include / exclude regex.
 	if include, _ := cmd.Flags().GetString("topics"); include != "" {
-		Config.topics = TopicRegex(include)
+		Config.topics = topicRegex(include)
 	}
 
 	if exclude, _ := cmd.Flags().GetString("topics-exclude"); exclude != "" {
-		Config.topicsExclude = TopicRegex(exclude)
+		Config.topicsExclude = topicRegex(exclude)
 	}
 }
 
-// TopicRegex takes a string of csv values and returns a []*regexp.Regexp.
+// topicRegex takes a string of csv values and returns a []*regexp.Regexp.
 // The values are either a string literal and become ^value$ or are regex and
 // compiled then added.
-func TopicRegex(s string) []*regexp.Regexp {
+func topicRegex(s string) []*regexp.Regexp {
 	var out []*regexp.Regexp
 
 	// Update string literals to ^value$ regex.
