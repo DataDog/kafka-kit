@@ -212,7 +212,7 @@ func rebuild(cmd *cobra.Command, _ []string) {
 		phasedMap = phasedReassignment(originalMap, partitionMapOut)
 	}
 
-	partitionMapOut = EvacLeadership(*partitionMapOut, evacBrokers, evacTopics)
+	partitionMapOut = evacuateLeadership(*partitionMapOut, evacBrokers, evacTopics)
 
 	// Print map change results.
 	printMapChanges(originalMap, partitionMapOut)
