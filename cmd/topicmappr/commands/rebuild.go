@@ -110,7 +110,10 @@ func rebuild(cmd *cobra.Command, _ []string) {
 		}
 	}
 
-	evacBrokers := brokerStringToSlice(leb)
+	var evacBrokers []int
+	if leb != "" {
+		evacBrokers = brokerStringToSlice(leb)
+	}
 
 	// General flow:
 	// 1) A PartitionMap is formed (either unmarshaled from the literal
