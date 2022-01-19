@@ -1,6 +1,6 @@
 # Overview
 
-This package provides a ZooKeeper backed, coarse grained distributed lock. The lock path is determined at instantiation time. At request time, locks are enqueued and block until the lock is either acquired or the context deadline is me.
+This package provides a ZooKeeper backed, coarse grained distributed lock. The lock path is determined at instantiation time. At request time, locks are enqueued and block until the lock is either acquired or the context deadline is met.
 
 Further implementation notes:
 - Locks are enqueued and granted in order as locks ahead are relinquished or timed out.
