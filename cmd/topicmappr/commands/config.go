@@ -23,39 +23,20 @@ const (
 var (
 	// Characters allowed in Kafka topic names
 	topicNormalChar = regexp.MustCompile(`[a-zA-Z0-9_\\-]`)
-
-	// Config holds global configs.
-	Config struct {
-		topics        []*regexp.Regexp
-		topicsExclude []*regexp.Regexp
-		brokers       []int
-	}
 )
 
-func bootstrap(cmd *cobra.Command) {
-	b, _ := cmd.Flags().GetString("brokers")
-	Config.brokers = brokerStringToSlice(b)
-
+func sanitizeInput(cmd *cobra.Command) {
 	// Append trailing slash if not included.
 	op := cmd.Flag("out-path").Value.String()
 	if op != "" && !strings.HasSuffix(op, "/") {
 		cmd.Flags().Set("out-path", op+"/")
 	}
-
-	// Populate topic include / exclude regex.
-	if include, _ := cmd.Flags().GetString("topics"); include != "" {
-		Config.topics = TopicRegex(include)
-	}
-
-	if exclude, _ := cmd.Flags().GetString("topics-exclude"); exclude != "" {
-		Config.topicsExclude = TopicRegex(exclude)
-	}
 }
 
-// TopicRegex takes a string of csv values and returns a []*regexp.Regexp.
+// topicRegex takes a string of csv values and returns a []*regexp.Regexp.
 // The values are either a string literal and become ^value$ or are regex and
 // compiled then added.
-func TopicRegex(s string) []*regexp.Regexp {
+func topicRegex(s string) []*regexp.Regexp {
 	var out []*regexp.Regexp
 
 	// Update string literals to ^value$ regex.
@@ -88,23 +69,21 @@ func TopicRegex(s string) []*regexp.Regexp {
 //    topic discovery` via ZooKeeper.
 //  - that the --placement flag was set to 'storage', which expects
 //    metrics metadata to be stored in ZooKeeper.
-func initZooKeeper(cmd *cobra.Command) (kafkazk.Handler, error) {
+func initZooKeeper(zkAddr, kafkaPrefix, metricsPrefix string) (kafkazk.Handler, error) {
 	// Suppress underlying ZK client noise.
 	log.SetOutput(ioutil.Discard)
 
-	zkAddr := cmd.Parent().Flag("zk-addr").Value.String()
-	timeout := 250 * time.Millisecond
-
 	zk, err := kafkazk.NewHandler(&kafkazk.Config{
 		Connect:       zkAddr,
-		Prefix:        cmd.Parent().Flag("zk-prefix").Value.String(),
-		MetricsPrefix: cmd.Flag("zk-metrics-prefix").Value.String(),
+		Prefix:        kafkaPrefix,
+		MetricsPrefix: metricsPrefix,
 	})
 
 	if err != nil {
 		return nil, fmt.Errorf("Error connecting to ZooKeeper: %s", err)
 	}
 
+	timeout := 250 * time.Millisecond
 	time.Sleep(timeout)
 
 	if !zk.Ready() {

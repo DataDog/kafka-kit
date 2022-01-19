@@ -5,9 +5,153 @@ import (
 	"os"
 
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
-
-	"github.com/spf13/cobra"
 )
+
+func runRebuild(params rebuildParams, zk kafkazk.Handler) ([]*kafkazk.PartitionMap, []error) {
+	// General flow:
+	// 1) A PartitionMap is formed (either unmarshaled from the literal
+	//   map input via --rebuild-map or generated from ZooKeeper Metadata
+	//   for topics matching --topics).
+	// 2) A BrokerMap is formed from brokers found in the PartitionMap
+	//   along with any new brokers provided via the --brokers param.
+	// 3) The PartitionMap and BrokerMap are fed to a rebuild
+	//   function. Missing brokers, brokers marked for replacement,
+	//   and all other placements are performed, returning a new
+	//   PartitionMap.
+	// 4) Differences between the original and new PartitionMap
+	//   are detected and reported.
+	// 5) The new PartitionMap is split by topic. Map(s) are written.
+
+	// In addition to the global topic regex, we have leader-evac topic regex as well.
+	var evacTopics []string
+	var err error
+	if len(params.leaderEvacTopics) != 0 {
+		evacTopics, err = zk.GetTopics(params.leaderEvacTopics)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	}
+
+	// Fetch broker metadata.
+	var withMetrics bool
+	if params.placement == "storage" {
+		if err := checkMetaAge(zk, params.maxMetadataAge); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		withMetrics = true
+	}
+
+	var brokerMeta kafkazk.BrokerMetaMap
+	var errs []error
+	if params.useMetadata {
+		if brokerMeta, errs = getBrokerMeta(zk, withMetrics); errs != nil && brokerMeta == nil {
+			for _, e := range errs {
+				fmt.Println(e)
+			}
+			os.Exit(1)
+		}
+	}
+
+	// Fetch partition metadata.
+	var partitionMeta kafkazk.PartitionMetaMap
+	if params.placement == "storage" {
+		if partitionMeta, err = getPartitionMeta(zk); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	}
+
+	// Build a partition map either from literal map text input or by fetching the
+	// map data from ZooKeeper. Store a copy of the original.
+	partitionMapIn, pending, excluded := getPartitionMap(params, zk)
+	originalMap := partitionMapIn.Copy()
+
+	// Get a list of affected topics.
+	printTopics(partitionMapIn)
+
+	// Print if any topics were excluded due to pending deletion or explicit
+	// exclusion.
+	printExcludedTopics(pending, excluded)
+
+	brokers, bs := getBrokers(params, partitionMapIn, brokerMeta)
+	brokersOrig := brokers.Copy()
+
+	if bs.Changes() {
+		fmt.Printf("%s-\n", indent)
+	}
+
+	// Check if any referenced brokers are marked as having
+	// missing/partial metrics data.
+	if params.useMetadata {
+		if errs := ensureBrokerMetrics(brokers, brokerMeta); len(errs) > 0 {
+			for _, e := range errs {
+				fmt.Println(e)
+			}
+			os.Exit(1)
+		}
+	}
+
+	// Create substitution affinities.
+	affinities := getSubAffinities(params, brokers, brokersOrig, partitionMapIn)
+
+	if affinities != nil {
+		fmt.Printf("%s-\n", indent)
+	}
+
+	// Print changes, actions.
+	printChangesActions(params, bs)
+
+	// Apply any replication factor settings.
+	updateReplicationFactor(params, partitionMapIn)
+
+	// Build a new map using the provided list of brokers. This is OK to run even
+	// when a no-op is intended.
+	partitionMapOut, errs := buildMap(params, partitionMapIn, partitionMeta, brokers, affinities)
+
+	// Optimize leaders.
+	if params.optimizeLeadership {
+		partitionMapOut.OptimizeLeaderFollower()
+	}
+
+	// Count missing brokers as a warning.
+	if bs.Missing > 0 {
+		errs = append(errs, fmt.Errorf("%d provided brokers not found in ZooKeeper", bs.Missing))
+	}
+
+	// Count missing rack info as warning
+	if bs.RackMissing > 0 {
+		errs = append(
+			errs, fmt.Errorf("%d provided broker(s) do(es) not have a rack.id defined", bs.RackMissing),
+		)
+	}
+
+	outputMaps := []*kafkazk.PartitionMap{}
+	// Generate phased map if enabled.
+	if params.phasedReassignment {
+		outputMaps = append(outputMaps, phasedReassignment(originalMap, partitionMapOut))
+	}
+
+	partitionMapOut = evacuateLeadership(*partitionMapOut, params.leaderEvacBrokers, evacTopics)
+
+	// Print map change results.
+	printMapChanges(originalMap, partitionMapOut)
+
+	// Print broker assignment statistics.
+	errs = append(
+		errs,
+		printBrokerAssignmentStats(originalMap, partitionMapOut, brokersOrig, brokers, params.placement == "storage", params.partitionSizeFactor)...,
+	)
+
+	// Skip no-ops if configured.
+	if params.skipNoOps {
+		originalMap, partitionMapOut = skipReassignmentNoOps(originalMap, partitionMapOut)
+	}
+	outputMaps = append(outputMaps, partitionMapOut)
+
+	return outputMaps, errs
+}
 
 // *References to metrics metadata persisted in ZooKeeper, see:
 // https://github.com/DataDog/kafka-kit/tree/master/cmd/metricsfetcher#data-structures)
@@ -20,34 +164,36 @@ import (
 // via the --topics flag. Two []string are returned; topics excluded due to
 // pending deletion and topics explicitly excluded (via the --topics-exclude
 // flag), respectively.
-func getPartitionMap(cmd *cobra.Command, zk kafkazk.Handler) (*kafkazk.PartitionMap, []string, []string) {
-	ms := cmd.Flag("map-string").Value.String()
+func getPartitionMap(params rebuildParams, zk kafkazk.Handler) (*kafkazk.PartitionMap, []string, []string) {
 
 	switch {
 	// The map was provided as text.
-	case ms != "":
+	case params.mapString != "":
 		// Get a deserialized map.
-		pm, err := kafkazk.PartitionMapFromString(ms)
+		pm, err := kafkazk.PartitionMapFromString(params.mapString)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
 		// Exclude topics explicitly listed.
-		et := removeTopics(pm, Config.topicsExclude)
+		et := removeTopics(pm, params.topicsExclude)
 		return pm, []string{}, et
 	// The map needs to be fetched via ZooKeeper metadata for all specified topics.
-	case len(Config.topics) > 0:
-		pm, err := kafkazk.PartitionMapFromZK(Config.topics, zk)
+	case len(params.topics) > 0:
+		pm, err := kafkazk.PartitionMapFromZK(params.topics, zk)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
 
 		// Exclude any topics that are pending deletion.
-		pd := stripPendingDeletes(pm, zk)
+		pd, err := stripPendingDeletes(pm, zk)
+		if err != nil {
+			fmt.Println("Error fetching topics pending deletion")
+		}
 
 		// Exclude topics explicitly listed.
-		et := removeTopics(pm, Config.topicsExclude)
+		et := removeTopics(pm, params.topicsExclude)
 
 		return pm, pd, et
 	}
@@ -57,12 +203,10 @@ func getPartitionMap(cmd *cobra.Command, zk kafkazk.Handler) (*kafkazk.Partition
 
 // getSubAffinities, if enabled via --sub-affinity, takes reference broker maps
 // and a partition map and attempts to return a complete SubstitutionAffinities.
-func getSubAffinities(cmd *cobra.Command, bm kafkazk.BrokerMap, bmo kafkazk.BrokerMap, pm *kafkazk.PartitionMap) kafkazk.SubstitutionAffinities {
+func getSubAffinities(params rebuildParams, bm kafkazk.BrokerMap, bmo kafkazk.BrokerMap, pm *kafkazk.PartitionMap) kafkazk.SubstitutionAffinities {
 	var affinities kafkazk.SubstitutionAffinities
-	sa, _ := cmd.Flags().GetBool("sub-affinity")
-	fr, _ := cmd.Flags().GetBool("force-rebuild")
 
-	if sa && !fr {
+	if params.subAffinity && !params.forceRebuild {
 		var err error
 		affinities, err = bm.SubstitutionAffinities(pm)
 		if err != nil {
@@ -94,16 +238,15 @@ func getSubAffinities(cmd *cobra.Command, bm kafkazk.BrokerMap, bmo kafkazk.Brok
 //   brokers were discovered or newly provided (i.e. specified in the --brokers flag but
 //   not previously holding any partitions for any partitions of the referenced topics
 //   being rebuilt by topicmappr)
-func getBrokers(cmd *cobra.Command, pm *kafkazk.PartitionMap, bm kafkazk.BrokerMetaMap) (kafkazk.BrokerMap, *kafkazk.BrokerStatus) {
+func getBrokers(params rebuildParams, pm *kafkazk.PartitionMap, bm kafkazk.BrokerMetaMap) (kafkazk.BrokerMap, *kafkazk.BrokerStatus) {
 	fmt.Printf("\nBroker change summary:\n")
 
 	// Get a broker map of the brokers in the current partition map.
 	// If meta data isn't being looked up, brokerMeta will be empty.
-	fr, _ := cmd.Flags().GetBool("force-rebuild")
-	brokers := kafkazk.BrokerMapFromPartitionMap(pm, bm, fr)
+	brokers := kafkazk.BrokerMapFromPartitionMap(pm, bm, params.forceRebuild)
 
 	// Update the currentBrokers list with the provided broker list.
-	bs, msgs := brokers.Update(Config.brokers, bm)
+	bs, msgs := brokers.Update(params.brokers, bm)
 	for m := range msgs {
 		fmt.Printf("%s%s\n", indent, m)
 	}
@@ -113,11 +256,8 @@ func getBrokers(cmd *cobra.Command, pm *kafkazk.PartitionMap, bm kafkazk.BrokerM
 
 // printChangesActions takes a BrokerStatus and prints out information output
 // describing changes in broker counts and liveness.
-func printChangesActions(cmd *cobra.Command, bs *kafkazk.BrokerStatus) {
+func printChangesActions(params rebuildParams, bs *kafkazk.BrokerStatus) {
 	change := bs.New - bs.Replace
-	r, _ := cmd.Flags().GetInt("replication")
-	fr, _ := cmd.Flags().GetBool("force-rebuild")
-	ol, _ := cmd.Flags().GetBool("optimize-leadership")
 
 	// Print broker change summary.
 	fmt.Printf("%sReplacing %d, added %d, missing %d, total count changed by %d\n",
@@ -138,15 +278,15 @@ func printChangesActions(cmd *cobra.Command, bs *kafkazk.BrokerStatus) {
 		actions <- fmt.Sprintf("Shrinking topic by %d broker(s)", -change)
 	}
 
-	if fr {
+	if params.forceRebuild {
 		actions <- fmt.Sprintf("Force rebuilding map")
 	}
 
-	if r > 0 {
-		actions <- fmt.Sprintf("Setting replication factor to %d", r)
+	if params.replication > 0 {
+		actions <- fmt.Sprintf("Setting replication factor to %d", params.replication)
 	}
 
-	if ol {
+	if params.optimizeLeadership {
 		actions <- fmt.Sprintf("Optimizing leader/follower ratios")
 	}
 
@@ -167,33 +307,27 @@ func printChangesActions(cmd *cobra.Command, bs *kafkazk.BrokerStatus) {
 
 // updateReplicationFactor takes a PartitionMap and normalizes the replica set
 // length to an optionally provided value.
-func updateReplicationFactor(cmd *cobra.Command, pm *kafkazk.PartitionMap) {
-	r, _ := cmd.Flags().GetInt("replication")
+func updateReplicationFactor(params rebuildParams, pm *kafkazk.PartitionMap) {
 	// If the replication factor is changed, the partition map input needs to have
 	// stub brokers appended (r factor increase) or existing brokers removed
 	// (r factor decrease).
-	if r > 0 {
-		pm.SetReplication(r)
+	if params.replication > 0 {
+		pm.SetReplication(params.replication)
 	}
 }
 
 // buildMap takes an input PartitionMap, rebuild parameters, and all partition/broker
 // metadata structures required to generate the output PartitionMap. A []string of
 // warnings / advisories is returned if any are encountered.
-func buildMap(cmd *cobra.Command, pm *kafkazk.PartitionMap, pmm kafkazk.PartitionMetaMap, bm kafkazk.BrokerMap, af kafkazk.SubstitutionAffinities) (*kafkazk.PartitionMap, errors) {
-	placement := cmd.Flag("placement").Value.String()
-	psf, _ := cmd.Flags().GetFloat64("partition-size-factor")
-	mrrid, _ := cmd.Flags().GetInt("min-rack-ids")
-
+func buildMap(params rebuildParams, pm *kafkazk.PartitionMap, pmm kafkazk.PartitionMetaMap, bm kafkazk.BrokerMap, af kafkazk.SubstitutionAffinities) (*kafkazk.PartitionMap, errors) {
 	rebuildParams := kafkazk.RebuildParams{
 		PMM:              pmm,
 		BM:               bm,
-		Strategy:         placement,
-		Optimization:     cmd.Flag("optimize").Value.String(),
-		PartnSzFactor:    psf,
-		MinUniqueRackIDs: mrrid,
+		Strategy:         params.placement,
+		Optimization:     params.optimize,
+		PartnSzFactor:    params.partitionSizeFactor,
+		MinUniqueRackIDs: params.minRackIds,
 	}
-
 	if af != nil {
 		rebuildParams.Affinities = af
 	}
@@ -211,14 +345,13 @@ func buildMap(cmd *cobra.Command, pm *kafkazk.PartitionMap, pmm kafkazk.Partitio
 	//   can be readded to the broker's StorageFree value. The amount to be readded,
 	//   the size of the partition, is referenced from the PartitionMetaMap.
 
-	if fr, _ := cmd.Flags().GetBool("force-rebuild"); fr {
+	if params.forceRebuild {
 		// Get a stripped map that we'll call rebuild on.
 		partitionMapInStripped := pm.Strip()
 		// If the storage placement strategy is being used,
 		// update the broker StorageFree values.
-		if placement == "storage" {
-			allBrokers := func(b *kafkazk.Broker) bool { return true }
-			err := rebuildParams.BM.SubStorage(pm, pmm, allBrokers)
+		if params.placement == "storage" {
+			err := rebuildParams.BM.SubStorage(pm, pmm, kafkazk.AllBrokersFn)
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(1)
@@ -230,9 +363,8 @@ func buildMap(cmd *cobra.Command, pm *kafkazk.PartitionMap, pmm kafkazk.Partitio
 	}
 
 	// Update the StorageFree only on brokers marked for replacement.
-	if placement == "storage" {
-		replacedBrokers := func(b *kafkazk.Broker) bool { return b.Replace }
-		err := rebuildParams.BM.SubStorage(pm, pmm, replacedBrokers)
+	if params.placement == "storage" {
+		err := rebuildParams.BM.SubStorage(pm, pmm, kafkazk.ReplacedBrokersFn)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -285,4 +417,58 @@ func notInReplicaSet(id int, rs []int) bool {
 	}
 
 	return true
+}
+
+// evacuateLeadership For the given set of topics, makes sure that the given brokers are not
+// leaders of any partitions. If we have any partitions that only have replicas from the
+// evac broker list, we will fail.
+func evacuateLeadership(partitionMapIn kafkazk.PartitionMap, evacBrokers []int, evacTopics []string) *kafkazk.PartitionMap {
+	// evacuation algo starts here
+	partitionMapOut := partitionMapIn.Copy()
+
+	// make a lookup map of topics
+	topicsMap := map[string]struct{}{}
+	for _, topic := range evacTopics {
+		topicsMap[topic] = struct{}{}
+	}
+
+	// make a lookup map of topics
+	brokersMap := map[int]struct{}{}
+	for _, b := range evacBrokers {
+		brokersMap[b] = struct{}{}
+	}
+
+	// TODO What if we only want to evacuate a subset of partitions?
+	// For now, problem brokers is the bigger use case.
+
+	// swap leadership for all broker/partition/topic combos
+	for i, p := range partitionMapIn.Partitions {
+		// check the topic is one of the target topics
+		if _, correctTopic := topicsMap[p.Topic]; !correctTopic {
+			continue
+		}
+
+		// check the leader to see if its one of the evac brokers
+		if _, contains := brokersMap[p.Replicas[0]]; !contains {
+			continue
+		}
+
+		for j, replica := range p.Replicas {
+			// If one of the replicas is not being leadership evacuated, use that one and swap.
+			if _, contains := brokersMap[replica]; !contains {
+				newLeader := p.Replicas[j]
+				partitionMapOut.Partitions[i].Replicas[j] = p.Replicas[0]
+				partitionMapOut.Partitions[i].Replicas[0] = newLeader
+				break
+			}
+
+			// If we've tried every replica, but they are all being leader evac'd.
+			if replica == p.Replicas[len(p.Replicas)-1] {
+				fmt.Println("[ERROR] trying to evict all replicas at once")
+				os.Exit(1)
+			}
+		}
+	}
+
+	return partitionMapOut
 }

@@ -41,7 +41,7 @@ var pMapIn = kafkazk.PartitionMap{
 func TestRemoveProblemBroker(t *testing.T) {
 	problemBrokerId := 10001
 
-	pMapOut := EvacLeadership(pMapIn, []int{problemBrokerId}, []string{topic})
+	pMapOut := evacuateLeadership(pMapIn, []int{problemBrokerId}, []string{topic})
 
 	for _, partition := range pMapOut.Partitions {
 		if partition.Replicas[0] == problemBrokerId {
@@ -53,7 +53,7 @@ func TestRemoveProblemBroker(t *testing.T) {
 func TestEvacTwoProblemBrokers(t *testing.T) {
 	problemBrokers := []int{10001, 10002}
 
-	pMapOut := EvacLeadership(pMapIn, problemBrokers, []string{topic})
+	pMapOut := evacuateLeadership(pMapIn, problemBrokers, []string{topic})
 
 	for _, partition := range pMapOut.Partitions {
 		if partition.Replicas[0] == problemBrokers[0] || partition.Replicas[0] == problemBrokers[1] {
@@ -63,7 +63,7 @@ func TestEvacTwoProblemBrokers(t *testing.T) {
 }
 
 func TestNoMatchingTopicToEvac(t *testing.T) {
-	pMapOut := EvacLeadership(pMapIn, []int{10001}, []string{"some other topic"})
+	pMapOut := evacuateLeadership(pMapIn, []int{10001}, []string{"some other topic"})
 
 	for i, partition := range pMapOut.Partitions {
 		for j, broker := range partition.Replicas {
@@ -81,7 +81,7 @@ func TestNoMatchingTopicToEvac(t *testing.T) {
 //	problemBrokers[10002] = &kafkazk.Broker{}
 //	problemBrokers[10003] = &kafkazk.Broker{}
 //
-//	EvacLeadership(pMapIn, problemBrokers)
+//	evacuateLeadership(pMapIn, problemBrokers)
 //
-//	t.Errorf("EvacLeadership should have errored out at this point.")
+//	t.Errorf("evacuateLeadership should have errored out at this point.")
 //}

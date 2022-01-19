@@ -216,24 +216,26 @@ func (b BrokerMap) Mean() float64 {
 	return t / c
 }
 
+// AboveMeanFn returns a BrokerFilterFn that filters brokers that are above the
+// mean by d percent (0.00 < d). The mean type is provided as a function f.
+func AboveMeanFn(d float64, f func() float64) BrokerFilterFn {
+	m := f()
+	return func(b *Broker) bool { return (b.StorageFree-m)/m > d }
+}
+
 // AboveMean returns a sorted []int of broker IDs that are above the mean
 // by d percent (0.00 < d). The mean type is provided as a function f.
 func (b BrokerMap) AboveMean(d float64, f func() float64) []int {
-	m := f()
 	var ids []int
 
 	if d <= 0.00 {
 		return ids
 	}
 
-	for _, br := range b {
-		if br.ID == StubBrokerID {
-			continue
-		}
+	filtered := b.Filter(AboveMeanFn(d, f))
 
-		if (br.StorageFree-m)/m > d {
-			ids = append(ids, br.ID)
-		}
+	for _, br := range filtered {
+		ids = append(ids, br.ID)
 	}
 
 	sort.Ints(ids)
@@ -241,24 +243,26 @@ func (b BrokerMap) AboveMean(d float64, f func() float64) []int {
 	return ids
 }
 
+// BelowMeanFn returns a BrokerFilterFn that filters brokers that are below the
+// mean by d percent (0.00 < d). The mean type is provided as a function f.
+func BelowMeanFn(d float64, f func() float64) BrokerFilterFn {
+	m := f()
+	return func(b *Broker) bool { return (m-b.StorageFree)/m > d }
+}
+
 // BelowMean returns a sorted []int of broker IDs that are below the mean
 // by d percent (0.00 < d). The mean type is provided as a function f.
 func (b BrokerMap) BelowMean(d float64, f func() float64) []int {
-	m := f()
 	var ids []int
 
 	if d <= 0.00 {
 		return ids
 	}
 
-	for _, br := range b {
-		if br.ID == StubBrokerID {
-			continue
-		}
+	filtered := b.Filter(BelowMeanFn(d, f))
 
-		if (m-br.StorageFree)/m > d {
-			ids = append(ids, br.ID)
-		}
+	for _, br := range filtered {
+		ids = append(ids, br.ID)
 	}
 
 	sort.Ints(ids)
