@@ -27,6 +27,7 @@ func (z *ZooKeeperLock) Lock(ctx context.Context) error {
 	// Get our claim ID.
 	thisID, err := idFromZnode(node)
 	if err != nil {
+		z.deleteLockZnode(node)
 		return ErrLockingFailed{message: err.Error()}
 	}
 
@@ -41,6 +42,7 @@ func (z *ZooKeeperLock) Lock(ctx context.Context) error {
 		// Get all current locks.
 		locks, err := z.locks()
 		if err != nil {
+			z.deleteLockZnode(node)
 			return ErrLockingFailed{message: err.Error()}
 		}
 
