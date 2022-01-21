@@ -105,7 +105,7 @@ func (z *ZooKeeperLock) Unlock(ctx context.Context) error {
 		if err = z.deleteLockZnode(z.lockZnode); err == nil {
 			break
 		}
-		time.Sleep(125*time.Millisecond)
+		time.Sleep(125 * time.Millisecond)
 	}
 
 	// We still have a non-nil error after the final attempt.
