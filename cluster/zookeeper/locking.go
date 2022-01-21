@@ -27,6 +27,7 @@ func (z *ZooKeeperLock) Lock(ctx context.Context) error {
 	// Get our claim ID.
 	thisID, err := idFromZnode(node)
 	if err != nil {
+		z.deleteLockZnode(node)
 		return ErrLockingFailed{message: err.Error()}
 	}
 
@@ -41,6 +42,7 @@ func (z *ZooKeeperLock) Lock(ctx context.Context) error {
 		// Get all current locks.
 		locks, err := z.locks()
 		if err != nil {
+			z.deleteLockZnode(node)
 			return ErrLockingFailed{message: err.Error()}
 		}
 
@@ -94,14 +96,25 @@ func (z *ZooKeeperLock) Unlock(ctx context.Context) error {
 		return ErrNotLockOwner
 	}
 
-	if err := z.deleteLockZnode(z.lockZnode); err != nil {
+	z.mu.Lock()
+	defer z.mu.Unlock()
+
+	var err error
+	// Retry the znode delete on errors.
+	for attempt := 0; attempt < 3; attempt++ {
+		if err = z.deleteLockZnode(z.lockZnode); err == nil {
+			break
+		}
+		time.Sleep(125 * time.Millisecond)
+	}
+
+	// We still have a non-nil error after the final attempt.
+	if err != nil {
 		return ErrUnlockingFailed{message: err.Error()}
 	}
 
-	z.mu.Lock()
 	z.lockZnode = ""
 	z.owner = nil
-	z.mu.Unlock()
 
 	return nil
 }
