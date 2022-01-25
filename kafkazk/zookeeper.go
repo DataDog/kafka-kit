@@ -62,6 +62,7 @@ type Handler interface {
 	GetPendingDeletion() ([]string, error)
 	GetTopics([]*regexp.Regexp) ([]string, error)
 	GetTopicConfig(string) (*TopicConfig, error)
+	GetTopicMetadata(string) (TopicMetadata, error)
 	GetAllBrokerMeta(bool) (BrokerMetaMap, []error)
 	GetAllPartitionMeta() (PartitionMetaMap, error)
 	MaxMetaAge() (time.Duration, error)
@@ -388,6 +389,44 @@ func (z *ZKHandler) GetTopics(ts []*regexp.Regexp) ([]string, error) {
 	}
 
 	return matchingTopics, nil
+}
+
+// TopicMetadata holds the topic data found in the /brokers/topics/<topic> znode.
+// This is designed for the version 3 fields present in Kafka version ~2.4+.
+type TopicMetadata struct {
+	Version          int
+	TopicID          string `json:"topic_id"`
+	Partitions       map[int][]int
+	AddingReplicas   map[int][]int `json:"adding_replicas"`
+	RemovingReplicas map[int][]int `json:"removing_replicas"`
+}
+
+// GetTopicMetadata takes a topic name. If the topic exists, the topic metadata
+// is returned as a TopicMetadata.
+func (z *ZKHandler) GetTopicMetadata(t string) (TopicMetadata, error) {
+	topicMetadata := TopicMetadata{}
+
+	if t == "" {
+		return topicMetadata, fmt.Errorf("unspecified topic")
+	}
+
+	var path = "/brokers/topics/" + t
+	if z.Prefix != "" {
+		path = "/" + z.Prefix + path
+	}
+
+	// Get the metadata.
+	data, err := z.Get(path)
+	if err != nil {
+		return topicMetadata, err
+	}
+
+	// Deserialized.
+	if err := json.Unmarshal(data, &topicMetadata); err != nil {
+		return topicMetadata, err
+	}
+
+	return topicMetadata, nil
 }
 
 // GetTopicConfig takes a topic name. If the topic exists, the topic config
