@@ -37,6 +37,7 @@ type TopicConfig struct {
 // This is designed for the version 3 fields present in Kafka version ~2.4+.
 type TopicMetadata struct {
 	Version          int
+	Name             string
 	TopicID          string `json:"topic_id"`
 	Partitions       map[int][]int
 	AddingReplicas   map[int][]int `json:"adding_replicas"`
@@ -66,4 +67,64 @@ func NewKafkaConfigData() KafkaConfigData {
 	return KafkaConfigData{
 		Config: make(map[string]string),
 	}
+}
+
+// Reassignments returns a Reassignments from a given topics TopicMetadata.
+func (tm TopicMetadata) Reassignments() Reassignments {
+	var reassignments = make(Reassignments)
+
+	// Create a reassignment entry for this topic.
+	reassignments[tm.Name] = make(map[int][]int)
+
+	/*
+			Build a replica set for each partition that excludes brokers being removed.
+			This represents the desired, final partition assignment.
+			Example:
+		  Given the following TopicMetadata:
+			  TopicMetadata {
+					Version: 3,
+					Name:	"mytopic",
+					TopicID: "some_id",
+					Partitions: {"0":[1001,1003,1002]},
+					AddingReplicas: {"0":[1001]},
+					RemovingReplicas: {0":[1002]}
+			  }
+
+			We want the reassignment result: {"0":[1001,1003]}.
+	*/
+	for partition, currentReplicas := range tm.Partitions {
+		// We only have to modify the final set if there's a RemovingReplicas entry.
+		if removing, hasRemoving := tm.RemovingReplicas[partition]; hasRemoving {
+			var targetReplicas []int
+			for _, replica := range currentReplicas {
+				if !inIntSlice(replica, removing) {
+					targetReplicas = append(targetReplicas, replica)
+				}
+			}
+			// Add the result to the reassignments.
+			reassignments[tm.Name][partition] = targetReplicas
+			continue
+		}
+
+		// We then only need to add partitions that currently have an AddingReplicas
+		// entry and weren't already added due to having a RemovingReplicas entry.
+		// These are automatically skipped with the 'continue' above.
+		if _, hasAdding := tm.AddingReplicas[partition]; hasAdding {
+			targetReplicas := make([]int, len(tm.Partitions[partition]))
+			copy(targetReplicas, tm.Partitions[partition])
+			reassignments[tm.Name][partition] = targetReplicas
+		}
+	}
+
+	return reassignments
+}
+
+func inIntSlice(i int, s []int) bool {
+	for _, e := range s {
+		if i == e {
+			return true
+		}
+	}
+
+	return false
 }
