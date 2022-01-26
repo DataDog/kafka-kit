@@ -77,20 +77,19 @@ func (tm TopicMetadata) Reassignments() Reassignments {
 	reassignments[tm.Name] = make(map[int][]int)
 
 	/*
-			Build a replica set for each partition that excludes brokers being removed.
-			This represents the desired, final partition assignment.
-			Example:
-		  Given the following TopicMetadata:
-			  TopicMetadata {
-					Version: 3,
-					Name:	"mytopic",
-					TopicID: "some_id",
-					Partitions: {"0":[1001,1003,1002]},
-					AddingReplicas: {"0":[1001]},
-					RemovingReplicas: {0":[1002]}
-			  }
-
-			We want the reassignment result: {"0":[1001,1003]}.
+		Build a replica set for each partition that excludes brokers being removed.
+		This represents the desired, final partition assignment.
+		Example:
+		Given the following TopicMetadata:
+			TopicMetadata {
+				Version: 3,
+				Name:	"mytopic",
+				TopicID: "some_id",
+				Partitions: {"0":[1001,1003,1002]},
+				AddingReplicas: {"0":[1001]},
+				RemovingReplicas: {0":[1002]}
+			}
+		We want the reassignment result: {"0":[1001,1003]}.
 	*/
 	for partition, currentReplicas := range tm.Partitions {
 		// We only have to modify the final set if there's a RemovingReplicas entry.

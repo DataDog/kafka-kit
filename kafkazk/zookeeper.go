@@ -24,6 +24,7 @@ type Handler interface {
 	GetTopicStateISR(string) (TopicStateISR, error)
 	UpdateKafkaConfig(KafkaConfig) ([]bool, error)
 	GetReassignments() Reassignments
+	ListReassignments() (Reassignments, error)
 	GetUnderReplicated() ([]string, error)
 	GetPendingDeletion() ([]string, error)
 	GetTopics([]*regexp.Regexp) ([]string, error)
@@ -246,6 +247,41 @@ func (z *ZKHandler) GetReassignments() Reassignments {
 	return reassigns
 }
 
+// ListReassignments looks up any ongoing topic reassignments and returns the data
+// as a Reassignments. ListReassignments is a KIP-455 compatible call for Kafka
+// 2.4 and Kafka cli tools 2.6.
+func (z *ZKHandler) ListReassignments() (Reassignments, error) {
+	reassignments := Reassignments{}
+
+	var path = "/brokers/topics"
+	if z.Prefix != "" {
+		path = "/" + z.Prefix + path
+	}
+
+	// Get a topic list.
+	topics, err := z.GetTopics([]*regexp.Regexp{regexp.MustCompile(".*")})
+	if err != nil {
+		return nil, err
+	}
+
+	// Get the current topic configuration for each topic.
+	for _, topic := range topics {
+		// Fetch the metadata.
+		topicMetadata, err := z.GetTopicMetadata(topic)
+		if err != nil {
+			return reassignments, err
+		}
+		// Get a Reassignments output from the metadata.
+		topicReassignment := topicMetadata.Reassignments()
+		// Populate it into the parent reassignments.
+		if len(topicReassignment[topic]) > 0 {
+			reassignments[topic] = topicReassignment[topic]
+		}
+	}
+
+	return reassignments, nil
+}
+
 // GetPendingDeletion returns any topics pending deletion.
 func (z *ZKHandler) GetPendingDeletion() ([]string, error) {
 	var path string
@@ -329,6 +365,9 @@ func (z *ZKHandler) GetTopicMetadata(t string) (TopicMetadata, error) {
 	if err := json.Unmarshal(data, &topicMetadata); err != nil {
 		return topicMetadata, err
 	}
+
+	// We have to append the name since it's not part of the metadata.
+	topicMetadata.Name = t
 
 	return topicMetadata, nil
 }
@@ -660,13 +699,13 @@ func (z *ZKHandler) GetPartitionMap(t string) (*PartitionMap, error) {
 	// Get current reassign_partitions.
 	re := z.GetReassignments()
 
-	// Update with partitions in reassignment.
-	// We might have this in /admin/reassign_partitions:
+	// Update with partitions in reassignment. We might have this in
+	// /admin/reassign_partitions:
 	// {"version":1,"partitions":[{"topic":"myTopic","partition":14,"replicas":[1039,1044]}]}
 	// But retrieved this in /brokers/topics/myTopic:
 	// {"version":1,"partitions":{"14":[1039,1044,1041,1071]}}.
-	// The latter will be in ts if we're undergoing a partition move, so
-	// but we need to overwrite it with what's intended (the former).
+	// The latter will be in ts if we're undergoing a partition move, so we
+	// need to overwrite it with what's intended (the former).
 	if re[t] != nil {
 		for p, replicas := range re[t] {
 			pn := strconv.Itoa(p)
