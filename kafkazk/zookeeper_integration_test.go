@@ -170,7 +170,10 @@ func TestSetup(t *testing.T) {
 			}
 		}
 
-		config := `{"version":1,"partitions":{"0":[1001,1002], "1":[1002,1001], "2":[1003,1004], "3":[1004,1003]}}`
+		config := fmt.Sprintf(`{"version":3,"topic_id":"bl1zjuFPR6acRu_IjMJwVA%d", "partitions":{"0":[1001,1002], "1":[1002,1001], "2":[1003,1004], "3":[1004,1003]},"adding_replicas":{},"removing_replicas":{}}`, i)
+		if i == 2 {
+			config = fmt.Sprintf(`{"version":3,"topic_id":"bl1zjuFPR6acRu_IjMJwVA%d", "partitions":{"0":[1001,1003,1002], "1":[1002,1001], "2":[1003,1004], "3":[1004,1003]},"adding_replicas":{"0":[1003]},"removing_replicas":{"0":[1001]}}`, i)
+		}
 		cfgPath := fmt.Sprintf("%s/brokers/topics/topic%d", zkprefix, i)
 		_, err = zkc.Set(cfgPath, []byte(config), -1)
 		if err != nil {
