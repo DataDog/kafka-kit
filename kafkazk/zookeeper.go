@@ -16,20 +16,10 @@ import (
 	zkclient "github.com/go-zookeeper/zk"
 )
 
-// Handler provides basic ZooKeeper operations along with
-// calls that return kafkazk types describing Kafka states.
+// Handler specifies an interface for common Kafka metadata retrieval and
+// configuration methods.
 type Handler interface {
-	Exists(string) (bool, error)
-	Create(string, string) error
-	CreateSequential(string, string) error
-	Set(string, string) error
-	Get(string) ([]byte, error)
-	Delete(string) error
-	Children(string) ([]string, error)
-	NextInt(string) (int32, error)
-	Close()
-	Ready() bool
-	// Kafka specific.
+	SimpleZooKeeperClient
 	GetTopicState(string) (*TopicState, error)
 	GetTopicStateISR(string) (TopicStateISR, error)
 	UpdateKafkaConfig(KafkaConfig) ([]bool, error)
@@ -45,8 +35,23 @@ type Handler interface {
 	GetPartitionMap(string) (*PartitionMap, error)
 }
 
-// ZKHandler implements the Handler interface
-// for real ZooKeeper clusters.
+// SimpleZooKeeperClient is an interface that wraps a real ZooKeeper client,
+// obscuring much of the API semantics that are unneeded for a ZooKeeper based
+// Handler implementation.
+type SimpleZooKeeperClient interface {
+	Exists(string) (bool, error)
+	Create(string, string) error
+	CreateSequential(string, string) error
+	Set(string, string) error
+	Get(string) ([]byte, error)
+	Delete(string) error
+	Children(string) ([]string, error)
+	NextInt(string) (int32, error)
+	Close()
+	Ready() bool
+}
+
+// ZKHandler implements the Handler interface for real ZooKeeper clusters.
 type ZKHandler struct {
 	client        *zkclient.Conn
 	Connect       string
@@ -65,8 +70,7 @@ type Config struct {
 	MetricsPrefix string
 }
 
-// NewHandler takes a *Config, performs
-// any initialization and returns a Handler.
+// NewHandler takes a *Config, performs any initialization and returns a Handler.
 func NewHandler(c *Config) (Handler, error) {
 	z := &ZKHandler{
 		Connect:       c.Connect,
@@ -83,9 +87,8 @@ func NewHandler(c *Config) (Handler, error) {
 	return z, nil
 }
 
-// Ready returns true if the client is in either state
-// StateConnected or StateHasSession.
-// See https://godoc.org/github.com/go-zookeeper/zk#State.
+// Ready returns true if the client is in either state StateConnected or
+// StateHasSession. See https://godoc.org/github.com/go-zookeeper/zk#State.
 func (z *ZKHandler) Ready() bool {
 	switch z.client.State() {
 	case 100, 101:
@@ -95,8 +98,8 @@ func (z *ZKHandler) Ready() bool {
 	}
 }
 
-// Close calls close on the *ZKHandler. Any additional
-// shutdown cleanup or other tasks should be performed here.
+// Close calls close on the *ZKHandler. Any additional shutdown cleanup or
+// other tasks should be performed here.
 func (z *ZKHandler) Close() {
 	z.client.Close()
 }
@@ -143,9 +146,8 @@ func (z *ZKHandler) Delete(p string) error {
 	return nil
 }
 
-// CreateSequential takes a path p and data d and creates
-// a sequential znode at p with data d. An error is
-// returned if encountered.
+// CreateSequential takes a path p and data d and creates a sequential znode at
+// p with data d. An error is returned if encountered.
 func (z *ZKHandler) CreateSequential(p string, d string) error {
 	_, e := z.client.Create(p, []byte(d), zkclient.FlagSequence, zkclient.WorldACL(31))
 	var err error
@@ -156,9 +158,8 @@ func (z *ZKHandler) CreateSequential(p string, d string) error {
 	return err
 }
 
-// Create creates the provided path p with the data
-// from the provided string d and returns an error
-// if encountered.
+// Create creates the provided path p with the data from the provided string d
+// and returns an error if encountered.
 func (z *ZKHandler) Create(p string, d string) error {
 	_, e := z.client.Create(p, []byte(d), 0, zkclient.WorldACL(31))
 	if e != nil {
@@ -173,8 +174,8 @@ func (z *ZKHandler) Create(p string, d string) error {
 	return nil
 }
 
-// Exists takes a path p and returns a bool as to whether the
-// path exists and an error if encountered.
+// Exists takes a path p and returns a bool as to whether the path exists and
+// an error if encountered.
 func (z *ZKHandler) Exists(p string) (bool, error) {
 	b, _, e := z.client.Exists(p)
 	var err error
@@ -185,8 +186,8 @@ func (z *ZKHandler) Exists(p string) (bool, error) {
 	return b, err
 }
 
-// Children takes a path p and returns a list
-// of child znodes and an error if encountered.
+// Children takes a path p and returns a list of child znodes and an error
+// if encountered.
 func (z *ZKHandler) Children(p string) ([]string, error) {
 	c, _, e := z.client.Children(p)
 
@@ -213,8 +214,8 @@ func (z *ZKHandler) NextInt(p string) (int32, error) {
 	return s.Version, nil
 }
 
-// GetReassignments looks up any ongoing topic reassignments and
-// returns the data as a Reassignments.
+// GetReassignments looks up any ongoing topic reassignments and returns the
+// data as a Reassignments.
 func (z *ZKHandler) GetReassignments() Reassignments {
 	reassigns := Reassignments{}
 
@@ -234,8 +235,7 @@ func (z *ZKHandler) GetReassignments() Reassignments {
 	rec := &reassignPartitions{}
 	json.Unmarshal(data, rec)
 
-	// Map reassignment config to a
-	// Reassignments.
+	// Map reassignment config to a Reassignments.
 	for _, cfg := range rec.Partitions {
 		if reassigns[cfg.Topic] == nil {
 			reassigns[cfg.Topic] = map[int][]int{}
@@ -269,8 +269,8 @@ func (z *ZKHandler) GetPendingDeletion() ([]string, error) {
 	return p, nil
 }
 
-// GetTopics takes a []*regexp.Regexp and returns a []string of all topic
-// names that match any of the provided regex.
+// GetTopics takes a []*regexp.Regexp and returns a []string of all topic names
+// that match any of the provided regex.
 func (z *ZKHandler) GetTopics(ts []*regexp.Regexp) ([]string, error) {
 	matchingTopics := []string{}
 
@@ -288,8 +288,7 @@ func (z *ZKHandler) GetTopics(ts []*regexp.Regexp) ([]string, error) {
 	}
 
 	matched := map[string]bool{}
-	// Get all topics that match all
-	// provided topic regexps.
+	// Get all topics that match all provided topic regexps.
 	for _, topicRe := range ts {
 		for _, topic := range entries {
 			if topicRe.MatchString(topic) {
@@ -381,8 +380,8 @@ func (z *ZKHandler) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, []error) 
 	// Map each broker.
 	for _, b := range entries {
 		bm := &BrokerMeta{}
-		// In case we encounter non-ints (broker IDs) for
-		// whatever reason, just continue.
+		// In case we encounter non-ints (broker IDs) for whatever reason, just
+		// continue.
 		bid, err := strconv.Atoi(b)
 		if err != nil {
 			continue
@@ -411,8 +410,7 @@ func (z *ZKHandler) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, []error) 
 			return nil, []error{err}
 		}
 
-		// Populate each broker with
-		// metric data.
+		// Populate each broker with metric data.
 		for bid := range bmm {
 			m, exists := bmetrics[bid]
 			if !exists {
@@ -428,8 +426,8 @@ func (z *ZKHandler) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, []error) 
 	return bmm, errs
 }
 
-// GetBrokerMetrics fetches broker metrics stored in ZooKeeper and returns
-// a BrokerMetricsMap and an error if encountered.
+// GetBrokerMetrics fetches broker metrics stored in ZooKeeper and returns a
+// BrokerMetricsMap and an error if encountered.
 func (z *ZKHandler) getBrokerMetrics() (BrokerMetricsMap, error) {
 	var path string
 	if z.MetricsPrefix != "" {
@@ -491,8 +489,8 @@ func (z *ZKHandler) GetAllPartitionMeta() (PartitionMetaMap, error) {
 	return pmm, nil
 }
 
-// MaxMetaAge returns the greatest age between the partitionmeta
-// and brokermetrics stuctures.
+// MaxMetaAge returns the greatest age between the partitionmeta and
+// brokermetrics stuctures.
 func (z *ZKHandler) MaxMetaAge() (time.Duration, error) {
 	t, err := z.oldestMetaTs()
 	if err != nil {
@@ -502,8 +500,8 @@ func (z *ZKHandler) MaxMetaAge() (time.Duration, error) {
 	return time.Since(time.Unix(0, t)), nil
 }
 
-// oldestMetaTs returns returns the oldest unix epoch ns between
-// partitionmeta and brokermetrics stuctures.
+// oldestMetaTs returns returns the oldest unix epoch ns between partitionmeta
+// and brokermetrics stuctures.
 func (z *ZKHandler) oldestMetaTs() (int64, error) {
 	var paths []string
 
@@ -542,8 +540,8 @@ func (z *ZKHandler) oldestMetaTs() (int64, error) {
 	return ts, nil
 }
 
-// GetTopicState takes a topic name. If the topic exists,
-// the topic state is returned as a *TopicState.
+// GetTopicState takes a topic name. If the topic exists,  the topic state is
+// returned as a *TopicState.
 func (z *ZKHandler) GetTopicState(t string) (*TopicState, error) {
 	var path string
 	if z.Prefix != "" {
@@ -650,8 +648,8 @@ func (z *ZKHandler) GetTopicStateISR(t string) (TopicStateISR, error) {
 	return ts, nil
 }
 
-// GetPartitionMap takes a topic name. If the topic exists, the state of
-// the topic is fetched and returned as a *PartitionMap.
+// GetPartitionMap takes a topic name. If the topic exists, the state of the
+// topic is fetched and returned as a *PartitionMap.
 func (z *ZKHandler) GetPartitionMap(t string) (*PartitionMap, error) {
 	// Get current topic state.
 	ts, err := z.GetTopicState(t)
@@ -676,8 +674,7 @@ func (z *ZKHandler) GetPartitionMap(t string) (*PartitionMap, error) {
 		}
 	}
 
-	// Map TopicState to a
-	// PartitionMap.
+	// Map TopicState to a PartitionMap.
 	pm := NewPartitionMap()
 	pl := PartitionList{}
 
@@ -713,8 +710,7 @@ func (z *ZKHandler) UpdateKafkaConfig(c KafkaConfig) ([]bool, error) {
 		return changed, ErrInvalidKafkaConfigType
 	}
 
-	// Get current config from the
-	// appropriate path.
+	// Get current config from the appropriate path.
 	var path string
 	if z.Prefix != "" {
 		path = fmt.Sprintf("/%s/config/%ss/%s", z.Prefix, c.Type, c.Name)
@@ -726,10 +722,9 @@ func (z *ZKHandler) UpdateKafkaConfig(c KafkaConfig) ([]bool, error) {
 
 	data, err := z.Get(path)
 	if err != nil {
-		// The path may be missing if the broker/topic has never had a
-		// configuration applied. This has only been observed for newly added
-		// brokers. Uncertain under what circumstance a topic config path
-		// wouldn't exist.
+		// The path may be missing if the broker/topic has never had a configuration
+		// applied. This has only been observed for newly added brokers. It's uncertain
+		// under what circumstance a topic config path wouldn't exist.
 		switch err.(type) {
 		case ErrNoNode:
 			config = NewKafkaConfigData()
@@ -780,8 +775,8 @@ func (z *ZKHandler) UpdateKafkaConfig(c KafkaConfig) ([]bool, error) {
 		return changed, err
 	}
 
-	// If there were any config changes, write a change notification
-	// at /config/changes/config_change_<seq>.
+	// If there were any config changes, write a change notification at
+	// /config/changes/config_change_<seq>.
 	cpath := "/config/changes/config_change_"
 	if z.Prefix != "" {
 		cpath = "/" + z.Prefix + cpath
@@ -790,17 +785,17 @@ func (z *ZKHandler) UpdateKafkaConfig(c KafkaConfig) ([]bool, error) {
 	cdata := fmt.Sprintf(`{"version":2,"entity_path":"%ss/%s"}`, c.Type, c.Name)
 	err = z.CreateSequential(cpath, cdata)
 	if err != nil {
-		// If we're here, this would actually be a partial write since the
-		// config was updated but we're failing at the watch entry.
+		// If we're here, this would actually be a partial write since the config
+		// was updated but we're failing at the watch entry.
 		return changed, err
 	}
 
 	return changed, nil
 }
 
-// uncompress takes a []byte and attempts to uncompress it as gzip.
-// The uncompressed data and a bool that indicates whether the data
-// was compressed is returned.
+// uncompress takes a []byte and attempts to uncompress it as gzip. The
+// uncompressed data and a bool that indicates whether the data was compressed
+// is returned.
 func uncompress(b []byte) ([]byte, bool) {
 	zr, err := gzip.NewReader(bytes.NewReader(b))
 	if err == nil {

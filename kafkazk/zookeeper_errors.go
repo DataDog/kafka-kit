@@ -8,8 +8,8 @@ import (
 var (
 	// ErrInvalidKafkaConfigType error.
 	ErrInvalidKafkaConfigType = errors.New("Invalid Kafka config type")
-	// validKafkaConfigTypes is used as a set
-	// to define valid configuration type names.
+	// validKafkaConfigTypes is used as a set to define valid configuration
+	// type names.
 	validKafkaConfigTypes = map[string]struct{}{
 		"broker": {},
 		"topic":  {},
@@ -18,8 +18,7 @@ var (
 	allTopicsRegexp = regexp.MustCompile(".*")
 )
 
-// ErrNoNode error type is specifically for
-// Get method calls where the underlying
+// ErrNoNode error type is specifically for Get method calls where the underlying
 // error type is a zkclient.ErrNoNode.
 type ErrNoNode struct {
 	s string

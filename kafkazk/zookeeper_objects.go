@@ -16,8 +16,7 @@ type PartitionState struct {
 // Reassignments is a map of topic:partition:brokers.
 type Reassignments map[string]map[int][]int
 
-// reassignPartitions is used for unmarshalling
-// /admin/reassign_partitions data.
+// reassignPartitions is used for unmarshalling /admin/reassign_partitions data.
 type reassignPartitions struct {
 	Partitions []reassignConfig `json:"partitions"`
 }
@@ -28,8 +27,7 @@ type reassignConfig struct {
 	Replicas  []int  `json:"replicas"`
 }
 
-// TopicConfig is used for unmarshalling
-// /config/topics/<topic> from ZooKeeper.
+// TopicConfig is used for unmarshalling  /config/topics/<topic> from ZooKeeper.
 type TopicConfig struct {
 	Version int               `json:"version"`
 	Config  map[string]string `json:"config"`
@@ -53,12 +51,11 @@ type KafkaConfig struct {
 	Configs []KafkaConfigKV // Config KVs.
 }
 
-// KafkaConfigKV is a [2]string{key, value} representing
-// a Kafka configuration.
+// KafkaConfigKV is a [2]string{key, value} representing a Kafka configuration.
 type KafkaConfigKV [2]string
 
-// KafkaConfigData is used for unmarshalling
-// /config/<type>/<name> data from ZooKeeper.
+// KafkaConfigData is used for unmarshalling /config/<type>/<name> data
+// from ZooKeeper.
 type KafkaConfigData struct {
 	Version int               `json:"version"`
 	Config  map[string]string `json:"config"`
