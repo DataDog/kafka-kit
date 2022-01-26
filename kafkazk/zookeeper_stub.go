@@ -60,6 +60,17 @@ func (zk *Stub) AddBrokers(b map[int]BrokerMeta) {
 
 // Many of these methods aren't complete stubs as they haven't been needed.
 
+// ListReassignments stubs ListReassignments.
+func (zk *Stub) ListReassignments() (Reassignments, error) {
+	r := Reassignments{
+		"reassigning_topic": map[int][]int{
+			0: {1003, 1000, 1002},
+			1: {1005, 1010},
+		},
+	}
+	return r, nil
+}
+
 // GetReassignments stubs GetReassignments.
 func (zk *Stub) GetReassignments() Reassignments {
 	r := Reassignments{
