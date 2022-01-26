@@ -16,30 +16,6 @@ import (
 	zkclient "github.com/go-zookeeper/zk"
 )
 
-var (
-	// ErrInvalidKafkaConfigType error.
-	ErrInvalidKafkaConfigType = errors.New("Invalid Kafka config type")
-	// validKafkaConfigTypes is used as a set
-	// to define valid configuration type names.
-	validKafkaConfigTypes = map[string]struct{}{
-		"broker": {},
-		"topic":  {},
-	}
-	// Misc.
-	allTopicsRegexp = regexp.MustCompile(".*")
-)
-
-// ErrNoNode error type is specifically for
-// Get method calls where the underlying
-// error type is a zkclient.ErrNoNode.
-type ErrNoNode struct {
-	s string
-}
-
-func (e ErrNoNode) Error() string {
-	return e.s
-}
-
 // Handler provides basic ZooKeeper operations along with
 // calls that return kafkazk types describing Kafka states.
 type Handler interface {
@@ -102,6 +78,16 @@ type reassignConfig struct {
 type TopicConfig struct {
 	Version int               `json:"version"`
 	Config  map[string]string `json:"config"`
+}
+
+// TopicMetadata holds the topic data found in the /brokers/topics/<topic> znode.
+// This is designed for the version 3 fields present in Kafka version ~2.4+.
+type TopicMetadata struct {
+	Version          int
+	TopicID          string `json:"topic_id"`
+	Partitions       map[int][]int
+	AddingReplicas   map[int][]int `json:"adding_replicas"`
+	RemovingReplicas map[int][]int `json:"removing_replicas"`
 }
 
 // KafkaConfig is used to issue configuration updates to either
@@ -389,16 +375,6 @@ func (z *ZKHandler) GetTopics(ts []*regexp.Regexp) ([]string, error) {
 	}
 
 	return matchingTopics, nil
-}
-
-// TopicMetadata holds the topic data found in the /brokers/topics/<topic> znode.
-// This is designed for the version 3 fields present in Kafka version ~2.4+.
-type TopicMetadata struct {
-	Version          int
-	TopicID          string `json:"topic_id"`
-	Partitions       map[int][]int
-	AddingReplicas   map[int][]int `json:"adding_replicas"`
-	RemovingReplicas map[int][]int `json:"removing_replicas"`
 }
 
 // GetTopicMetadata takes a topic name. If the topic exists, the topic metadata
