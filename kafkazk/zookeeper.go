@@ -253,11 +253,6 @@ func (z *ZKHandler) GetReassignments() Reassignments {
 func (z *ZKHandler) ListReassignments() (Reassignments, error) {
 	reassignments := Reassignments{}
 
-	var path = "/brokers/topics"
-	if z.Prefix != "" {
-		path = "/" + z.Prefix + path
-	}
-
 	// Get a topic list.
 	topics, err := z.GetTopics([]*regexp.Regexp{regexp.MustCompile(".*")})
 	if err != nil {
