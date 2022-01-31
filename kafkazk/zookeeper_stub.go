@@ -60,6 +60,17 @@ func (zk *Stub) AddBrokers(b map[int]BrokerMeta) {
 
 // Many of these methods aren't complete stubs as they haven't been needed.
 
+// ListReassignments stubs ListReassignments.
+func (zk *Stub) ListReassignments() (Reassignments, error) {
+	r := Reassignments{
+		"reassigning_topic": map[int][]int{
+			0: {1003, 1000, 1002},
+			1: {1005, 1010},
+		},
+	}
+	return r, nil
+}
+
 // GetReassignments stubs GetReassignments.
 func (zk *Stub) GetReassignments() Reassignments {
 	r := Reassignments{
@@ -303,6 +314,20 @@ func (zk *Stub) GetTopics(ts []*regexp.Regexp) ([]string, error) {
 	}
 
 	return matched, nil
+}
+
+// GetTopicMetadata stubs GetTopicMetadata.
+func (zk *Stub) GetTopicMetadata(t string) (TopicMetadata, error) {
+	return TopicMetadata{
+		Version: 3,
+		TopicID: "bl1zjuFPR6acRu_IjMJwVA",
+		Partitions: map[int][]int{
+			0: {1001, 1003, 1002},
+			1: {1002, 1001},
+		},
+		AddingReplicas:   map[int][]int{0: {1001}},
+		RemovingReplicas: map[int][]int{0: {1002}},
+	}, nil
 }
 
 // GetTopicConfig stubs GetTopicConfig.

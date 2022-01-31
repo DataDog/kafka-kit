@@ -15,6 +15,8 @@ import (
 	"time"
 
 	zkclient "github.com/go-zookeeper/zk"
+
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -170,7 +172,13 @@ func TestSetup(t *testing.T) {
 			}
 		}
 
-		config := `{"version":1,"partitions":{"0":[1001,1002], "1":[1002,1001], "2":[1003,1004], "3":[1004,1003]}}`
+		config := fmt.Sprintf(`{"version":3,"topic_id":"bl1zjuFPR6acRu_IjMJwVA%d", "partitions":{"0":[1001,1002], "1":[1002,1001], "2":[1003,1004], "3":[1004,1003]},"adding_replicas":{},"removing_replicas":{}}`, i)
+
+		// Configure two topics to have reassignment data.
+		if i == 2 || i == 3 {
+			config = fmt.Sprintf(`{"version":3,"topic_id":"bl1zjuFPR6acRu_IjMJwVA%d", "partitions":{"0":[1001,1003,1002], "1":[1002,1001], "2":[1003,1004], "3":[1004,1003]},"adding_replicas":{"0":[1003]},"removing_replicas":{"0":[1001]}}`, i)
+		}
+
 		cfgPath := fmt.Sprintf("%s/brokers/topics/topic%d", zkprefix, i)
 		_, err = zkc.Set(cfgPath, []byte(config), -1)
 		if err != nil {
@@ -361,9 +369,21 @@ func TestGetUnderReplicated(t *testing.T) {
 		t.Error(err)
 	}
 
-	if len(ur) != 1 || ur[0] != "topic2" {
-		t.Errorf("Expected 'topic2' in under replicated results, got '%s'", ur[0])
+	expected := []string{"topic2", "topic3"}
+	sort.Strings(ur)
+
+	assert.Equal(t, expected, ur)
+}
+
+func TestListReassignments(t *testing.T) {
+	re, _ := zki.ListReassignments()
+
+	expected := Reassignments{
+		"topic2": {0: []int{1003, 1002}},
+		"topic3": {0: []int{1003, 1002}},
 	}
+
+	assert.Equal(t, expected, re)
 }
 
 func TestGetReassignments(t *testing.T) {
