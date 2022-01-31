@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	zkclient "github.com/go-zookeeper/zk"
@@ -219,13 +220,7 @@ func (z *ZKHandler) NextInt(p string) (int32, error) {
 // data as a Reassignments.
 func (z *ZKHandler) GetReassignments() Reassignments {
 	reassigns := Reassignments{}
-
-	var path string
-	if z.Prefix != "" {
-		path = fmt.Sprintf("/%s/admin/reassign_partitions", z.Prefix)
-	} else {
-		path = "/admin/reassign_partitions"
-	}
+	path := z.getPath("/admin/reassign_partitions")
 
 	// Get reassignment config.
 	data, err := z.Get(path)
@@ -279,12 +274,7 @@ func (z *ZKHandler) ListReassignments() (Reassignments, error) {
 
 // GetPendingDeletion returns any topics pending deletion.
 func (z *ZKHandler) GetPendingDeletion() ([]string, error) {
-	var path string
-	if z.Prefix != "" {
-		path = fmt.Sprintf("/%s/admin/delete_topics", z.Prefix)
-	} else {
-		path = "/admin/delete_topics"
-	}
+	path := z.getPath("/admin/delete_topics")
 
 	// Get reassignment config.
 	p, err := z.Children(path)
@@ -304,13 +294,7 @@ func (z *ZKHandler) GetPendingDeletion() ([]string, error) {
 // that match any of the provided regex.
 func (z *ZKHandler) GetTopics(ts []*regexp.Regexp) ([]string, error) {
 	matchingTopics := []string{}
-
-	var path string
-	if z.Prefix != "" {
-		path = fmt.Sprintf("/%s/brokers/topics", z.Prefix)
-	} else {
-		path = "/brokers/topics"
-	}
+	path := z.getPath("/brokers/topics")
 
 	// Find all topics in zk.
 	entries, err := z.Children(path)
@@ -345,10 +329,7 @@ func (z *ZKHandler) GetTopicMetadata(t string) (TopicMetadata, error) {
 		return topicMetadata, fmt.Errorf("unspecified topic")
 	}
 
-	var path = "/brokers/topics/" + t
-	if z.Prefix != "" {
-		path = "/" + z.Prefix + path
-	}
+	path := z.getPath("/brokers/topics/" + t)
 
 	// Get the metadata.
 	data, err := z.Get(path)
@@ -371,13 +352,7 @@ func (z *ZKHandler) GetTopicMetadata(t string) (TopicMetadata, error) {
 // is returned as a *TopicConfig.
 func (z *ZKHandler) GetTopicConfig(t string) (*TopicConfig, error) {
 	config := &TopicConfig{}
-
-	var path string
-	if z.Prefix != "" {
-		path = fmt.Sprintf("/%s/config/topics/%s", z.Prefix, t)
-	} else {
-		path = fmt.Sprintf("/config/topics/%s", t)
-	}
+	path := z.getPath("/config/topics/" + t)
 
 	// Get topic config.
 	data, err := z.Get(path)
@@ -395,13 +370,7 @@ func (z *ZKHandler) GetTopicConfig(t string) (*TopicConfig, error) {
 // we additionally want to fetch stored broker metrics.
 func (z *ZKHandler) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, []error) {
 	var errs []error
-
-	var path string
-	if z.Prefix != "" {
-		path = fmt.Sprintf("/%s/brokers/ids", z.Prefix)
-	} else {
-		path = "/brokers/ids"
-	}
+	path := z.getPath("/brokers/ids")
 
 	// Get all brokers.
 	entries, err := z.Children(path)
@@ -463,12 +432,7 @@ func (z *ZKHandler) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, []error) 
 // GetBrokerMetrics fetches broker metrics stored in ZooKeeper and returns a
 // BrokerMetricsMap and an error if encountered.
 func (z *ZKHandler) getBrokerMetrics() (BrokerMetricsMap, error) {
-	var path string
-	if z.MetricsPrefix != "" {
-		path = fmt.Sprintf("/%s/brokermetrics", z.MetricsPrefix)
-	} else {
-		path = "/brokermetrics"
-	}
+	path := z.getMetricsPath("/brokermetrics")
 
 	// Fetch the metrics object.
 	data, err := z.Get(path)
@@ -492,12 +456,7 @@ func (z *ZKHandler) getBrokerMetrics() (BrokerMetricsMap, error) {
 
 // GetAllPartitionMeta fetches partition metadata stored in Zookeeper.
 func (z *ZKHandler) GetAllPartitionMeta() (PartitionMetaMap, error) {
-	var path string
-	if z.MetricsPrefix != "" {
-		path = fmt.Sprintf("/%s/partitionmeta", z.MetricsPrefix)
-	} else {
-		path = "/partitionmeta"
-	}
+	path := z.getMetricsPath("/partitionmeta")
 
 	// Fetch the metrics object.
 	data, err := z.Get(path)
@@ -540,12 +499,8 @@ func (z *ZKHandler) oldestMetaTs() (int64, error) {
 	var paths []string
 
 	for _, p := range []string{"partitionmeta", "brokermetrics"} {
-		var path string
-		if z.MetricsPrefix != "" {
-			path = fmt.Sprintf("/%s/%s", z.MetricsPrefix, p)
-		} else {
-			path = fmt.Sprintf("/%s", p)
-		}
+		path := z.getMetricsPath("/" + p)
+
 		paths = append(paths, path)
 	}
 
@@ -577,12 +532,7 @@ func (z *ZKHandler) oldestMetaTs() (int64, error) {
 // GetTopicState takes a topic name. If the topic exists,  the topic state is
 // returned as a *TopicState.
 func (z *ZKHandler) GetTopicState(t string) (*TopicState, error) {
-	var path string
-	if z.Prefix != "" {
-		path = fmt.Sprintf("/%s/brokers/topics/%s", z.Prefix, t)
-	} else {
-		path = fmt.Sprintf("/brokers/topics/%s", t)
-	}
+	path := z.getPath("/brokers/topics/" + t)
 
 	// Fetch topic data from z.
 	ts := &TopicState{}
@@ -646,12 +596,7 @@ func (z *ZKHandler) GetUnderReplicated() ([]string, error) {
 // returned for each partition. This method is more expensive due to the
 // need for a call per partition to ZK.
 func (z *ZKHandler) GetTopicStateISR(t string) (TopicStateISR, error) {
-	var path string
-	if z.Prefix != "" {
-		path = fmt.Sprintf("/%s/brokers/topics/%s/partitions", z.Prefix, t)
-	} else {
-		path = fmt.Sprintf("/brokers/topics/%s/partitions", t)
-	}
+	path := z.getPath(fmt.Sprintf("/brokers/topics/%s/partitions", t))
 
 	ts := TopicStateISR{}
 
@@ -745,12 +690,7 @@ func (z *ZKHandler) UpdateKafkaConfig(c KafkaConfig) ([]bool, error) {
 	}
 
 	// Get current config from the appropriate path.
-	var path string
-	if z.Prefix != "" {
-		path = fmt.Sprintf("/%s/config/%ss/%s", z.Prefix, c.Type, c.Name)
-	} else {
-		path = fmt.Sprintf("/config/%ss/%s", c.Type, c.Name)
-	}
+	path := z.getPath(fmt.Sprintf("/config/%ss/%s", c.Type, c.Name))
 
 	var config KafkaConfigData
 
@@ -825,6 +765,22 @@ func (z *ZKHandler) UpdateKafkaConfig(c KafkaConfig) ([]bool, error) {
 	}
 
 	return changed, nil
+}
+
+func (z *ZKHandler) getPath(p string) string {
+	if z.Prefix != "" {
+		return fmt.Sprintf("/%s/%s", z.Prefix, strings.TrimLeft(p, "/"))
+	}
+
+	return p
+}
+
+func (z *ZKHandler) getMetricsPath(p string) string {
+	if z.Prefix != "" {
+		return fmt.Sprintf("/%s/%s", z.MetricsPrefix, strings.TrimLeft(p, "/"))
+	}
+
+	return p
 }
 
 // uncompress takes a []byte and attempts to uncompress it as gzip. The
