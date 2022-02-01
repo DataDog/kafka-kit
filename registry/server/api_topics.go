@@ -286,7 +286,7 @@ func (s *Server) DeleteTopic(ctx context.Context, req *pb.TopicRequest) (*pb.Emp
 	if err := s.Locking.Lock(ctx); err != nil {
 		return nil, err
 	}
-	defer s.Locking.Unlock(ctx)
+	defer s.Locking.UnlockLogError(ctx)
 
 	if req.Name == "" {
 		return nil, ErrTopicNameEmpty
@@ -378,7 +378,7 @@ func (s *Server) TagTopic(ctx context.Context, req *pb.TopicRequest) (*pb.TagRes
 	err = s.Locking.Lock(ctx)
 	switch err {
 	case nil:
-		defer s.Locking.Unlock(ctx)
+		defer s.Locking.UnlockLogError(ctx)
 	case zklocking.ErrAlreadyOwnLock:
 		// Don't call unlock. We should be here because CreateTopic was called with
 		// optional tags. We'll let the parent CreateTopic call finally issue unlock.
@@ -430,7 +430,7 @@ func (s *Server) DeleteTopicTags(ctx context.Context, req *pb.TopicRequest) (*pb
 	if err := s.Locking.Lock(ctx); err != nil {
 		return nil, err
 	}
-	defer s.Locking.Unlock(ctx)
+	defer s.Locking.UnlockLogError(ctx)
 
 	if req.Name == "" {
 		return nil, ErrTopicNameEmpty
