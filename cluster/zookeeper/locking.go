@@ -2,6 +2,7 @@ package zookeeper
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"time"
@@ -9,18 +10,32 @@ import (
 	"github.com/go-zookeeper/zk"
 )
 
+// lockMetadata is internal metadata persisted in the lock znode.
+type lockMetadata struct {
+	Timestamp time.Time `json:"timestamp"`
+	OwnerID   string    `json:"owner_id"`
+}
+
 // Lock attemps to acquire a lock. If the lock cannot be acquired by the context
 // deadline, the lock attempt times out.
 func (z *ZooKeeperLock) Lock(ctx context.Context) error {
 	// Check if the context has a lock owner value. If so, check if this owner
 	// already has the lock.
-	if owner := ctx.Value(z.OwnerKey); owner != nil && owner == z.Owner() {
+	owner := ctx.Value(z.OwnerKey)
+	if owner != nil && owner == z.Owner() {
 		return ErrAlreadyOwnLock
 	}
 
+	// Populate a lockMetadata.
+	meta := lockMetadata{
+		Timestamp: time.Now(),
+		OwnerID:   fmt.Sprintf("%v", owner),
+	}
+	metaJSON, _ := json.Marshal(meta)
+
 	// Enter the claim into ZooKeeper.
 	lockPath := fmt.Sprintf("%s/lock-", z.Path)
-	node, err := z.c.CreateProtectedEphemeralSequential(lockPath, nil, zk.WorldACL(31))
+	node, err := z.c.CreateProtectedEphemeralSequential(lockPath, metaJSON, zk.WorldACL(31))
 	if err != nil {
 		return ErrLockingFailed{message: err.Error()}
 	}
@@ -72,6 +87,7 @@ func (z *ZooKeeperLock) Lock(ctx context.Context) error {
 			return ErrLockingFailed{message: err.Error()}
 		}
 
+		// XXX(jamie): determine what we should do here.
 		lockAheadPath, _ := locks.LockPath(lockAhead)
 
 		// Get a ZooKeeper watch on the lock we're waiting on.
