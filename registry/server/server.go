@@ -438,6 +438,7 @@ func (s *Server) LogRequest(ctx context.Context, params string, reqID uint64) {
 
 type dummyLock struct{}
 
-func (dl dummyLock) Lock(_ context.Context) error   { return nil }
-func (dl dummyLock) Unlock(_ context.Context) error { return nil }
-func (dl dummyLock) Owner() interface{}             { return nil }
+func (dl dummyLock) Lock(_ context.Context) error     { return nil }
+func (dl dummyLock) Unlock(_ context.Context) error   { return nil }
+func (dl dummyLock) UnlockLogError(_ context.Context) { return }
+func (dl dummyLock) Owner() interface{}               { return nil }

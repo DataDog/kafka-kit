@@ -38,19 +38,19 @@ func TestTagSetFromObject(t *testing.T) {
 
 func TestTagSetKeys(t *testing.T) {
 	type testCase struct {
-		input TagSet
+		input    TagSet
 		expected []string
 	}
 
 	tests := []testCase{
 		// Single KV.
 		{
-			input: TagSet{"myKey": "myValue"},
+			input:    TagSet{"myKey": "myValue"},
 			expected: []string{"myKey"},
 		},
 		// Multiple KV.
 		{
-			input: TagSet{"myKey": "myValue", "myKey2": "myValue2"},
+			input:    TagSet{"myKey": "myValue", "myKey2": "myValue2"},
 			expected: []string{"myKey", "myKey2"},
 		},
 	}
@@ -62,22 +62,21 @@ func TestTagSetKeys(t *testing.T) {
 	}
 }
 
-
 func TestTagsKeys(t *testing.T) {
 	type testCase struct {
-		input Tags
+		input    Tags
 		expected []string
 	}
 
 	tests := []testCase{
 		// Single tag.
 		{
-			input: Tags{"myKey:myValue"},
+			input:    Tags{"myKey:myValue"},
 			expected: []string{"myKey"},
 		},
 		// Multiple tags, mixed kv and k.
 		{
-			input: Tags{"myKey:myValue", "myKey2"},
+			input:    Tags{"myKey:myValue", "myKey2"},
 			expected: []string{"myKey", "myKey2"},
 		},
 	}
