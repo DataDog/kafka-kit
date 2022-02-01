@@ -359,12 +359,17 @@ func (s *Server) ValidateRequest(ctx context.Context, req interface{}, kind int)
 	var cancel context.CancelFunc
 
 	// Check if the incoming context has a deadline set.
-	// configuredDeadline, deadlineSet := ctx.Deadline()
-	_, deadlineSet := ctx.Deadline()
+	configuredDeadline, deadlineSet := ctx.Deadline()
+	maxDeadline := s.defaultRequestTimeout * 3
+	deadlineLimit := time.Now().Add(maxDeadline)
+
 	switch {
 	// No deadline set, use our default.
 	case !deadlineSet:
 		cCtx, cancel = context.WithTimeout(ctx, s.defaultRequestTimeout)
+	// A deadline was set, but it's longer than we permit.
+	case configuredDeadline.After(deadlineLimit):
+		cCtx, cancel = context.WithTimeout(ctx, maxDeadline)
 	// An acceptable deadline was configured.
 	default:
 		cCtx = ctx
