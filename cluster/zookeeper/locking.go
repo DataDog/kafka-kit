@@ -3,6 +3,7 @@ package zookeeper
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/go-zookeeper/zk"
@@ -117,6 +118,13 @@ func (z *ZooKeeperLock) Unlock(ctx context.Context) error {
 	z.owner = nil
 
 	return nil
+}
+
+// Unlock releases a lock and logs, rather than returning, any errors if encountered.
+func (z *ZooKeeperLock) UnlockLogError(ctx context.Context) {
+	if err := z.Unlock(ctx); err != nil {
+		log.Println(err)
+	}
 }
 
 func (z *ZooKeeperLock) deleteLockZnode(p string) error {
