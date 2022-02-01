@@ -41,6 +41,7 @@ func testIntegrationServer() (*Server, error) {
 	s, _ := NewServer(Config{
 		HTTPListen:   "localhost:8080",
 		GRPCListen:   "localhost:8090",
+		DefaultRequestTimeout: 5*time.Second,
 		ReadReqRate:  10,
 		WriteReqRate: 10,
 		ZKTagsPrefix: testConfig.Prefix,
