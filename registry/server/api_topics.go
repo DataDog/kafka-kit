@@ -180,7 +180,7 @@ func (s *Server) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*
 	if err := s.Locking.Lock(ctx); err != nil {
 		return nil, err
 	}
-	defer s.Locking.Unlock(ctx)
+	defer s.Locking.UnlockLogError(ctx)
 
 	// If we're targeting a specific set of brokers by tag, build
 	// a replica assignment.
