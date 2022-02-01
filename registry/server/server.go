@@ -33,17 +33,17 @@ const (
 // Server implements the registry APIs.
 type Server struct {
 	pb.UnimplementedRegistryServer
-	Locking          cluster.Lock
-	HTTPListen       string
-	GRPCListen       string
-	ZK               kafkazk.Handler
-	kafkaadmin       kafkaadmin.KafkaAdmin
-	Tags             *TagHandler
-	reqTimeout       time.Duration
-	readReqThrottle  RequestThrottle
-	writeReqThrottle RequestThrottle
-	reqID            uint64
-	kafkaconsumer    *kafka.Consumer
+	Locking               cluster.Lock
+	HTTPListen            string
+	GRPCListen            string
+	ZK                    kafkazk.Handler
+	kafkaadmin            kafkaadmin.KafkaAdmin
+	Tags                  *TagHandler
+	defaultRequestTimeout time.Duration
+	readReqThrottle       RequestThrottle
+	writeReqThrottle      RequestThrottle
+	reqID                 uint64
+	kafkaconsumer         *kafka.Consumer
 	// For tests.
 	test bool
 }
@@ -55,6 +55,7 @@ type Config struct {
 	ReadReqRate                int
 	WriteReqRate               int
 	ZKTagsPrefix               string
+	DefaultRequestTimeout      time.Duration
 	TagCleanupFrequencyMinutes int
 	TagAllowedStalenessMinutes int
 
@@ -87,14 +88,14 @@ func NewServer(c Config) (*Server, error) {
 	th, _ := NewTagHandler(tcfg)
 
 	return &Server{
-		Locking:          dummyLock{},
-		HTTPListen:       c.HTTPListen,
-		GRPCListen:       c.GRPCListen,
-		Tags:             th,
-		reqTimeout:       3000 * time.Millisecond,
-		readReqThrottle:  rrt,
-		writeReqThrottle: wrt,
-		test:             c.test,
+		Locking:               dummyLock{},
+		HTTPListen:            c.HTTPListen,
+		GRPCListen:            c.GRPCListen,
+		Tags:                  th,
+		defaultRequestTimeout: c.DefaultRequestTimeout,
+		readReqThrottle:       rrt,
+		writeReqThrottle:      wrt,
+		test:                  c.test,
 	}, nil
 }
 
@@ -358,10 +359,15 @@ func (s *Server) ValidateRequest(ctx context.Context, req interface{}, kind int)
 	var cancel context.CancelFunc
 
 	// Check if the incoming context has a deadline set.
-	if _, ok := ctx.Deadline(); ok {
+	// configuredDeadline, deadlineSet := ctx.Deadline()
+	_, deadlineSet := ctx.Deadline()
+	switch {
+	// No deadline set, use our default.
+	case !deadlineSet:
+		cCtx, cancel = context.WithTimeout(ctx, s.defaultRequestTimeout)
+	// An acceptable deadline was configured.
+	default:
 		cCtx = ctx
-	} else {
-		cCtx, cancel = context.WithTimeout(ctx, s.reqTimeout)
 	}
 
 	cCtx = context.WithValue(cCtx, "reqID", reqID)

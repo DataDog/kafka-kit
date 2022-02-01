@@ -254,6 +254,8 @@ func (s *Server) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*
 	}
 
 	if err = s.kafkaadmin.CreateTopic(ctx, cfg); err != nil {
+		// XXX: sometimes topics fail to create but no error is returned. One example
+		// is if a replication higher than the number of available brokers is attempted.
 		return empty, err
 	}
 

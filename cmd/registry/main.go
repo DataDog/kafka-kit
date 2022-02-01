@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/DataDog/kafka-kit/v3/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
@@ -52,6 +53,7 @@ func main() {
 	flag.StringVar(&adminConfig.SASLMechanism, "kafka-sasl-mechanism", "", fmt.Sprintf("SASL mechanism to use for authentication. Supported: %s", strings.Join(saslMechanims, ", ")))
 	flag.StringVar(&adminConfig.SASLUsername, "kafka-sasl-username", "", "SASL username for use with the PLAIN and SASL-SCRAM-* mechanisms")
 	flag.StringVar(&adminConfig.SASLPassword, "kafka-sasl-password", "", "SASL password for use with the PLAIN and SASL-SCRAM-* mechanisms")
+	defaultRequestTimeout := flag.Int("default-request-timeout", 5000, "Default request API request timeout in milliseconds. API request deadlines are also automatically capped to 3x this value.")
 	flag.IntVar(&serverConfig.TagAllowedStalenessMinutes, "tag-allowed-staleness", 60, "Minutes before tags with no associated resource are deleted")
 	flag.IntVar(&serverConfig.TagCleanupFrequencyMinutes, "tag-cleanup-frequency", 20, "Minutes between runs of tag cleanup")
 
@@ -59,6 +61,8 @@ func main() {
 
 	envy.Parse("REGISTRY")
 	flag.Parse()
+
+	serverConfig.DefaultRequestTimeout = time.Duration(*defaultRequestTimeout) * time.Millisecond
 
 	if *v {
 		fmt.Println(version)
