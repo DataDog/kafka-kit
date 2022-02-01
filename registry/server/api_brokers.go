@@ -348,7 +348,7 @@ func (s *Server) DeleteBrokerTags(ctx context.Context, req *pb.BrokerRequest) (*
 
 	// Delete the tags.
 	id := fmt.Sprintf("%d", req.Id)
-	err = s.Tags.Store.DeleteTags(KafkaObject{Type: "broker", ID: id}, req.Tag)
+	err = s.Tags.Store.DeleteTags(KafkaObject{Type: "broker", ID: id}, Tags(req.Tag).Keys())
 	if err != nil {
 		return nil, err
 	}
