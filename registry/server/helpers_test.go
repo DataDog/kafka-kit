@@ -26,6 +26,7 @@ func testServer() *Server {
 	s, _ := NewServer(Config{
 		ReadReqRate:  10,
 		WriteReqRate: 10,
+		DefaultRequestTimeout: 5*time.Second,
 		ZKTagsPrefix: testConfig.Prefix,
 		test:         true,
 	})
