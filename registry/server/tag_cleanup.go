@@ -31,7 +31,7 @@ func (tc *TagCleaner) RunTagCleanup(s *Server, ctx context.Context, c Config) {
 			log.Println(err)
 			continue
 		}
-		defer s.Locking.Unlock(ctx)
+		defer s.Locking.UnlockLogError(ctx)
 
 		err := s.MarkForDeletion(time.Now)
 		if err != nil {
