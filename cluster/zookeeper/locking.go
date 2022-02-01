@@ -68,6 +68,7 @@ func (z *ZooKeeperLock) Lock(ctx context.Context) error {
 		// by watching the ID immediately ahead of ours.
 		lockAhead, err := locks.LockAhead(thisID)
 		if err != nil {
+			z.deleteLockZnode(node)
 			return ErrLockingFailed{message: err.Error()}
 		}
 
