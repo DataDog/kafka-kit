@@ -18,6 +18,7 @@ type ZooKeeperLock struct {
 	c        ZooKeeperClient
 	Path     string
 	OwnerKey string
+	TTL      int
 
 	// The mutex can't be embedded because ZooKeeperLock also has Lock() / Unlock()
 	// methods.
@@ -44,6 +45,10 @@ type ZooKeeperLockConfig struct {
 	Address string
 	// The locking path; this is the register that locks are attempting to acquire.
 	Path string
+	// A non-zero TTL sets a limit (in milliseconds) on how long a lock is possibly
+	// valid for. Once this limit is exceeded, any new lock claims can destroy those
+	// exceeding their TTL.
+	TTL int
 	// An optional lock ownership identifier. Context values can be inspected to
 	// determine if a lock owner already has the lock. For example, if we specify
 	// an OwnerKey configuration value of UserID, any successful lock claim will
@@ -61,6 +66,7 @@ type ZooKeeperLockConfig struct {
 func NewZooKeeperLock(c ZooKeeperLockConfig) (*ZooKeeperLock, error) {
 	var zkl = &ZooKeeperLock{
 		OwnerKey: c.OwnerKey,
+		TTL:      c.TTL,
 	}
 
 	var err error
