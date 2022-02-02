@@ -36,6 +36,18 @@ func (z *ZooKeeperLock) Lock(ctx context.Context) error {
 	// Enter the claim into ZooKeeper.
 	lockPath := fmt.Sprintf("%s/lock-", z.Path)
 	node, err := z.c.CreateProtectedEphemeralSequential(lockPath, metaJSON, zk.WorldACL(31))
+
+	// In all return paths other than the case that we have successfully acquired
+	// a lock, it's critical that we remove the claim znode.
+	var removeZnodeAtExit bool = true
+	defer func() {
+		if removeZnodeAtExit {
+			z.deleteLockZnode(node)
+		}
+	}()
+
+	// Handle the error after the cleanup defer is registered. It's likely that
+	// 'node' will always be an empty string if there's a non-nil error, anyway.
 	if err != nil {
 		return ErrLockingFailed{message: err.Error()}
 	}
@@ -43,7 +55,6 @@ func (z *ZooKeeperLock) Lock(ctx context.Context) error {
 	// Get our claim ID.
 	thisID, err := idFromZnode(node)
 	if err != nil {
-		z.deleteLockZnode(node)
 		return ErrLockingFailed{message: err.Error()}
 	}
 
@@ -54,7 +65,6 @@ func (z *ZooKeeperLock) Lock(ctx context.Context) error {
 
 		// Max failure threshold.
 		if interval > 5 && lockWaitingErr != nil {
-			z.deleteLockZnode(node)
 			return ErrLockingFailed{message: lockWaitingErr.Error()}
 		}
 
@@ -66,7 +76,6 @@ func (z *ZooKeeperLock) Lock(ctx context.Context) error {
 		// Get all current locks.
 		locks, err := z.locks()
 		if err != nil {
-			z.deleteLockZnode(node)
 			return ErrLockingFailed{message: err.Error()}
 		}
 
@@ -75,12 +84,16 @@ func (z *ZooKeeperLock) Lock(ctx context.Context) error {
 		if thisID == firstClaim {
 			// We have the lock.
 			z.mu.Lock()
+
 			// Update the lock znode.
 			z.lockZnode, err = locks.LockPath(thisID)
 			// Set the owner value if the context OwnerKey is specified.
 			if owner := ctx.Value(z.OwnerKey); owner != nil {
 				z.owner = owner
 			}
+
+			// XXX preventing this znode from being terminated is essential.
+			removeZnodeAtExit = false
 
 			z.mu.Unlock()
 
@@ -95,7 +108,6 @@ func (z *ZooKeeperLock) Lock(ctx context.Context) error {
 			continue
 		}
 
-		// XXX(jamie): determine what we should do here.
 		lockAheadPath, err := locks.LockPath(lockAhead)
 		if err != nil {
 			lockWaitingErr = err
@@ -113,8 +125,6 @@ func (z *ZooKeeperLock) Lock(ctx context.Context) error {
 		select {
 		// We've timed out.
 		case <-ctx.Done():
-			// XXX it's critical that we clean up the attempted lock.
-			z.deleteLockZnode(node)
 			return ErrLockingTimedOut
 		// Else see if we can get the claim.
 		case <-blockingLockReleased:
