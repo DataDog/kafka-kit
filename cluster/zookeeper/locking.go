@@ -27,6 +27,9 @@ func (z *ZooKeeperLock) Lock(ctx context.Context) error {
 		return ErrAlreadyOwnLock
 	}
 
+	// If lock TTLs are being used, forcibly remove any expired locks.
+	// z.purgeExpiredLocks()
+
 	// Populate a lockMetadata.
 	meta := lockMetadata{
 		Timestamp:   time.Now(),
@@ -122,30 +125,6 @@ func (z *ZooKeeperLock) Lock(ctx context.Context) error {
 	}
 }
 
-// getLockAheadWait takes a lock ID and returns a watch on the lock immediately
-// ahead of it.
-func (z *ZooKeeperLock) getLockAheadWait(locks LockEntries, id int) (<-chan zk.Event, error) {
-	// Find the lock ID ahead.
-	lockAhead, err := locks.LockAhead(id)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get its path.
-	lockAheadPath, err := locks.LockPath(lockAhead)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get a ZooKeeper watch on the lock path we're waiting on.
-	_, _, watch, err := z.c.GetW(lockAheadPath)
-	if err != nil {
-		return nil, err
-	}
-
-	return watch, nil
-}
-
 // Unlock releases a lock.
 func (z *ZooKeeperLock) Unlock(ctx context.Context) error {
 	// Check if the context has a lock owner value.
@@ -198,4 +177,28 @@ func (z *ZooKeeperLock) deleteLockZnode(p string) error {
 	}
 
 	return nil
+}
+
+// getLockAheadWait takes a lock ID and returns a watch on the lock immediately
+// ahead of it.
+func (z *ZooKeeperLock) getLockAheadWait(locks LockEntries, id int) (<-chan zk.Event, error) {
+	// Find the lock ID ahead.
+	lockAhead, err := locks.LockAhead(id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get its path.
+	lockAheadPath, err := locks.LockPath(lockAhead)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get a ZooKeeper watch on the lock path we're waiting on.
+	_, _, watch, err := z.c.GetW(lockAheadPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return watch, nil
 }
