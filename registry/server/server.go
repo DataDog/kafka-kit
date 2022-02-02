@@ -278,8 +278,11 @@ func (s *Server) InitKafkaConsumer(ctx context.Context, wg *sync.WaitGroup, cfg 
 // EnablingLocking uses distributed locking for write operations.
 func (s *Server) EnablingLocking(c *kafkazk.Config) error {
 	cfg := zklocking.ZooKeeperLockConfig{
-		Address:  c.Connect,
-		Path:     "/registry/locks",
+		Address: c.Connect,
+		Path:    "/registry/locks",
+		// The maximum API request timeout is 3x the default. Lock TTLs should be
+		// bound to this same duration.
+		TTL:      3 * int(s.defaultRequestTimeout) / 1e6,
 		OwnerKey: "reqID",
 	}
 
