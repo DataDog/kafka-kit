@@ -3,6 +3,8 @@ package zookeeper
 
 import (
 	"fmt"
+	"io/ioutil"
+	"log"
 	"strconv"
 	"strings"
 	"sync"
@@ -60,10 +62,12 @@ func NewZooKeeperLock(c ZooKeeperLockConfig) (*ZooKeeperLock, error) {
 	var zkl = &ZooKeeperLock{
 		OwnerKey: c.OwnerKey,
 	}
+
 	var err error
+	var nilLog = log.New(ioutil.Discard, "", 0)
 
 	// Dial zk.
-	zkl.c, _, err = zk.Connect([]string{c.Address}, 10*time.Second, zk.WithLogInfo(false))
+	zkl.c, _, err = zk.Connect([]string{c.Address}, 10*time.Second, zk.WithLogger(nilLog))
 	if err != nil {
 		return zkl, err
 	}
