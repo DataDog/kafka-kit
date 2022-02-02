@@ -62,7 +62,7 @@ func (le LockEntries) LockPath(id int) (string, error) {
 	if path, exists := le.m[id]; exists {
 		return path, nil
 	}
-	return "", fmt.Errorf("lock ID doesn't exist")
+	return "", fmt.Errorf("failed to get lock path; referenced ID doesn't exist")
 }
 
 // LockAhead returns the lock ahead of the ID provided.
