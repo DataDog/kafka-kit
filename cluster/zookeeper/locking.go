@@ -27,9 +27,6 @@ func (z *ZooKeeperLock) Lock(ctx context.Context) error {
 		return ErrAlreadyOwnLock
 	}
 
-	// If lock TTLs are being used, forcibly remove any expired locks.
-	// z.purgeExpiredLocks()
-
 	// Populate a lockMetadata.
 	meta := lockMetadata{
 		Timestamp:   time.Now(),
@@ -105,8 +102,21 @@ func (z *ZooKeeperLock) Lock(ctx context.Context) error {
 			return nil
 		}
 
-		// If we're here, we don't have the lock; we need to enqueue our wait position
-		// by watching the ID immediately ahead of ours.
+		// If we're here, we don't have the lock but can enqueue.
+
+		// First, we'll check if the lock ahead has an expired TTL.
+		expiredLock, err := z.expireLockAhead(locks, thisID)
+		if err != nil {
+			lockWaitingErr = err
+			continue
+		}
+
+		// If so, restart the iteration to get a refreshed linked list.
+		if expiredLock {
+			continue
+		}
+
+		// Enqueue our wait position by watching the ID immediately ahead of ours.
 		blockingLockReleased, err := z.getLockAheadWait(locks, thisID)
 		if err != nil {
 			lockWaitingErr = err
@@ -179,17 +189,55 @@ func (z *ZooKeeperLock) deleteLockZnode(p string) error {
 	return nil
 }
 
+// expireLockAhead takes an ID and checks if the lock ahead of it has an expired
+// TTL. If so, it purges the lock and returns true.
+func (z *ZooKeeperLock) expireLockAhead(locks LockEntries, id int) (bool, error) {
+	// TTLs aren't being used.
+	if z.TTL == 0 {
+		return false, nil
+	}
+
+	// Get the path to the lock ahead.
+	lockAheadPath, err := lockAheadPath(locks, id)
+	if err != nil {
+		return false, ErrExpireLockFailed{message: err.Error()}
+	}
+
+	// Get its metadata.
+	dat, _, err := z.c.Get(lockAheadPath)
+	if err != nil {
+		return false, ErrExpireLockFailed{message: err.Error()}
+	}
+
+	// Deserialize.
+	var metadata lockMetadata
+	if err := json.Unmarshal(dat, &metadata); err != nil {
+		return false, ErrExpireLockFailed{message: err.Error()}
+	}
+
+	// Check if it's expired.
+	if time.Now().Before(metadata.TTLDeadline) {
+		return false, nil
+	}
+
+	// We can purge the lock.
+	if err := z.deleteLockZnode(lockAheadPath); err != nil {
+		return false, ErrExpireLockFailed{message: err.Error()}
+	}
+
+	// Clear the lock state.
+	z.mu.Lock()
+	z.lockZnode = ""
+	z.owner = nil
+	z.mu.Unlock()
+
+	return true, nil
+}
+
 // getLockAheadWait takes a lock ID and returns a watch on the lock immediately
 // ahead of it.
 func (z *ZooKeeperLock) getLockAheadWait(locks LockEntries, id int) (<-chan zk.Event, error) {
-	// Find the lock ID ahead.
-	lockAhead, err := locks.LockAhead(id)
-	if err != nil {
-		return nil, err
-	}
-
-	// Get its path.
-	lockAheadPath, err := locks.LockPath(lockAhead)
+	lockAheadPath, err := lockAheadPath(locks, id)
 	if err != nil {
 		return nil, err
 	}
@@ -201,4 +249,15 @@ func (z *ZooKeeperLock) getLockAheadWait(locks LockEntries, id int) (<-chan zk.E
 	}
 
 	return watch, nil
+}
+
+func lockAheadPath(locks LockEntries, id int) (string, error) {
+	// Find the lock ID ahead.
+	lockAhead, err := locks.LockAhead(id)
+	if err != nil {
+		return "", err
+	}
+
+	// Get its path.
+	return locks.LockPath(lockAhead)
 }
