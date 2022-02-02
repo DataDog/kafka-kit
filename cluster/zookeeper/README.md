@@ -1,10 +1,11 @@
 # Overview
 
-This package provides a ZooKeeper backed, coarse grained distributed lock. The lock path is determined at instantiation time. At request time, locks are enqueued and block until the lock is either acquired or the context deadline is met.
+This package provides a ZooKeeper backed, coarse grained distributed lock. The lock path is determined at instantiation time. At request time, locks are enqueued and block until the lock is either acquired or the context deadline is met. Locks can be configured with an optional TTL.
 
 Further implementation notes:
 - Locks are enqueued and granted in order as locks ahead are relinquished or timed out.
 - Session timeouts/disconnects are handled through ZooKeeper sessions with automatic cleanup; locks that fail to acquire before the context timeout are removed from the queue even if the lock session is still active.
+- Setting a `ZooKeeperLockConfig.TTL` value > 0 enables lock TTLs. Take note that TTL expirations are handled at request time from contending locks; if service A is not using TTLs and service B is, service B can forcibly abort service A locks.
 
 # Examples
 
@@ -37,6 +38,7 @@ func main() {
 	cfg := zklocking.ZooKeeperLockConfig{
 		Address:  "localhost:2181",
 		Path:     "/my/locks",
+		TTL: 30000,
 		OwnerKey: "owner",
 	}
 
