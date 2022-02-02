@@ -48,10 +48,18 @@ func (z *ZooKeeperLock) Lock(ctx context.Context) error {
 	}
 
 	var interval int
+	var lockWaitingErr error
 	for {
-		// Prevent thrashing.
 		interval++
-		if interval%5 == 0 {
+
+		// Max failure threshold.
+		if interval > 5 && lockWaitingErr != nil {
+			z.deleteLockZnode(node)
+			return ErrLockingFailed{message: lockWaitingErr.Error()}
+		}
+
+		// Prevent thrashing.
+		if interval > 1 {
 			time.Sleep(50 * time.Millisecond)
 		}
 
@@ -83,15 +91,23 @@ func (z *ZooKeeperLock) Lock(ctx context.Context) error {
 		// by watching the ID immediately ahead of ours.
 		lockAhead, err := locks.LockAhead(thisID)
 		if err != nil {
-			z.deleteLockZnode(node)
-			return ErrLockingFailed{message: err.Error()}
+			lockWaitingErr = err
+			continue
 		}
 
 		// XXX(jamie): determine what we should do here.
-		lockAheadPath, _ := locks.LockPath(lockAhead)
+		lockAheadPath, err := locks.LockPath(lockAhead)
+		if err != nil {
+			lockWaitingErr = err
+			continue
+		}
 
 		// Get a ZooKeeper watch on the lock we're waiting on.
 		_, _, blockingLockReleased, err := z.c.GetW(lockAheadPath)
+		if err != nil {
+			lockWaitingErr = err
+			continue
+		}
 
 		// Race the watch event against the context timeout.
 		select {
