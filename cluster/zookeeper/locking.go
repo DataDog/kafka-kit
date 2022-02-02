@@ -12,8 +12,9 @@ import (
 
 // lockMetadata is internal metadata persisted in the lock znode.
 type lockMetadata struct {
-	Timestamp time.Time `json:"timestamp"`
-	OwnerID   string    `json:"owner_id"`
+	Timestamp   time.Time `json:"timestamp"`
+	TTLDeadline time.Time `json:"ttl_deadline"`
+	OwnerID     string    `json:"owner_id"`
 }
 
 // Lock attemps to acquire a lock. If the lock cannot be acquired by the context
@@ -28,8 +29,9 @@ func (z *ZooKeeperLock) Lock(ctx context.Context) error {
 
 	// Populate a lockMetadata.
 	meta := lockMetadata{
-		Timestamp: time.Now(),
-		OwnerID:   fmt.Sprintf("%v", owner),
+		Timestamp:   time.Now(),
+		TTLDeadline: time.Now().Add(time.Duration(z.TTL) * time.Millisecond),
+		OwnerID:     fmt.Sprintf("%v", owner),
 	}
 	metaJSON, _ := json.Marshal(meta)
 
@@ -102,20 +104,7 @@ func (z *ZooKeeperLock) Lock(ctx context.Context) error {
 
 		// If we're here, we don't have the lock; we need to enqueue our wait position
 		// by watching the ID immediately ahead of ours.
-		lockAhead, err := locks.LockAhead(thisID)
-		if err != nil {
-			lockWaitingErr = err
-			continue
-		}
-
-		lockAheadPath, err := locks.LockPath(lockAhead)
-		if err != nil {
-			lockWaitingErr = err
-			continue
-		}
-
-		// Get a ZooKeeper watch on the lock we're waiting on.
-		_, _, blockingLockReleased, err := z.c.GetW(lockAheadPath)
+		blockingLockReleased, err := z.getLockAheadWait(locks, thisID)
 		if err != nil {
 			lockWaitingErr = err
 			continue
@@ -131,6 +120,30 @@ func (z *ZooKeeperLock) Lock(ctx context.Context) error {
 			continue
 		}
 	}
+}
+
+// getLockAheadWait takes a lock ID and returns a watch on the lock immediately
+// ahead of it.
+func (z *ZooKeeperLock) getLockAheadWait(locks LockEntries, id int) (<-chan zk.Event, error) {
+	// Find the lock ID ahead.
+	lockAhead, err := locks.LockAhead(id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get its path.
+	lockAheadPath, err := locks.LockPath(lockAhead)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get a ZooKeeper watch on the lock path we're waiting on.
+	_, _, watch, err := z.c.GetW(lockAheadPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return watch, nil
 }
 
 // Unlock releases a lock.
