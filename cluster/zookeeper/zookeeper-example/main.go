@@ -25,6 +25,7 @@ func main() {
 		Address:  "localhost:2181",
 		Path:     "/my/locks",
 		OwnerKey: "owner",
+		TTL:      30000,
 	}
 
 	lock, _ := zklocking.NewZooKeeperLock(cfg)
@@ -37,7 +38,7 @@ func main() {
 	} else {
 		log.Println("I've got the lock!")
 		defer log.Println("I've released the lock")
-		defer lock.Unlock(ctx)
+		defer lock.UnlockLogError(ctx)
 	}
 
 	<-sigs

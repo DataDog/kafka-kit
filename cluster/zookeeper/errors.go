@@ -42,3 +42,13 @@ type ErrUnlockingFailed struct {
 func (err ErrUnlockingFailed) Error() string {
 	return fmt.Sprintf("attempt to release lock failed: %s", err.message)
 }
+
+// ErrExpireLockFailed is returned when a lock with an expired TTL fails to purge.
+type ErrExpireLockFailed struct {
+	message string
+}
+
+// Error returns an error string.
+func (err ErrExpireLockFailed) Error() string {
+	return fmt.Sprintf("failed to TTL expire lock: %s", err.message)
+}
