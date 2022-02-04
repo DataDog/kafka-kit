@@ -1,0 +1,8 @@
+build:
+  image: registry.ddbuild.io/docker:20.10.3
+  only:
+    - testing
+  tags: ["runner:docker"]
+  script:
+    - docker build -t registry.ddbuild.io/kafka-kit:${CI_PIPELINE_ID} --label target=staging .
+    - docker push registry.ddbuild.io/kafka-kit:${CI_PIPELINE_ID}
