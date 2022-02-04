@@ -65,3 +65,6 @@ RUN go install ./cmd/...
 # Clean
 RUN apt autoremove
 RUN apt clean
+
+COPY entrypoint.sh /
+ENTRYPOINT ["/entrypoint.sh"]
