@@ -36,8 +36,35 @@ func TestLockIntegration(t *testing.T) {
 
 	// This lock should time out.
 	err2 := lock2.Lock(ctx)
+	defer lock2.Unlock(ctx)
+	assert.Equal(t, err2, ErrLockingTimedOut)
+}
+
+func TestLockTTLIntegration(t *testing.T) {
+	cfg := ZooKeeperLockConfig{
+		Address: TESTING_ZK_ADDR,
+		Path:    "/registry/locks",
+		TTL:     1000,
+	}
+
+	lock, err := NewZooKeeperLock(cfg)
+	assert.Nil(t, err)
+	lock2, err := NewZooKeeperLock(cfg)
+	assert.Nil(t, err)
+
+	ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
+
+	// This lock should succeed normally.
+	err = lock.Lock(ctx)
 	defer lock.Unlock(ctx)
-	assert.Equal(t, err2, ErrLockingTimedOut, "Expected ErrLockingTimedOut")
+	assert.Nil(t, err)
+
+	time.Sleep(1 * time.Second)
+
+	// This lock should succeed by purging the now stale lock.
+	err2 := lock2.Lock(ctx)
+	defer lock2.Unlock(ctx)
+	assert.Equal(t, err2, nil)
 }
 
 func TestUnlockIntegration(t *testing.T) {

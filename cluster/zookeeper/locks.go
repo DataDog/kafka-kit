@@ -68,7 +68,7 @@ func (le LockEntries) LockPath(id int) (string, error) {
 // LockAhead returns the lock ahead of the ID provided.
 func (le LockEntries) LockAhead(id int) (int, error) {
 	for i, next := range le.idList {
-		if next == id && i >= 0 {
+		if next == id && i > 0 {
 			return le.idList[i-1], nil
 		}
 	}
