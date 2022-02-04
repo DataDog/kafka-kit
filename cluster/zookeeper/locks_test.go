@@ -9,9 +9,13 @@ import (
 func TestIDs(t *testing.T) {
 	c := &mockZooKeeperClient{
 		znodeNameTemplate: "_c_979cb11f40bb3dbc6908edeaac8f2de1-lock-00000000",
-		locks: []string{
-			"/locks/_c_979cb11f40bb3dbc6908edeaac8f2de1-lock-000000001",
-			"/locks/_c_979cb11f40bb3dbc6908edeaac8f2de1-lock-000000002",
+		locks: []fakeLock{
+			{
+				path: "_c_979cb11f40bb3dbc6908edeaac8f2de1-lock-000000001",
+			},
+			{
+				path: "_c_979cb11f40bb3dbc6908edeaac8f2de1-lock-000000002",
+			},
 		},
 	}
 
@@ -25,9 +29,13 @@ func TestIDs(t *testing.T) {
 func TestFirst(t *testing.T) {
 	c := &mockZooKeeperClient{
 		znodeNameTemplate: "_c_979cb11f40bb3dbc6908edeaac8f2de1-lock-00000000",
-		locks: []string{
-			"_c_979cb11f40bb3dbc6908edeaac8f2de1-lock-000000001",
-			"_c_979cb11f40bb3dbc6908edeaac8f2de1-lock-000000002",
+		locks: []fakeLock{
+			{
+				path: "_c_979cb11f40bb3dbc6908edeaac8f2de1-lock-000000001",
+			},
+			{
+				path: "_c_979cb11f40bb3dbc6908edeaac8f2de1-lock-000000002",
+			},
 		},
 	}
 
@@ -44,9 +52,13 @@ func TestFirst(t *testing.T) {
 func TestLockPath(t *testing.T) {
 	c := &mockZooKeeperClient{
 		znodeNameTemplate: "_c_979cb11f40bb3dbc6908edeaac8f2de1-lock-00000000",
-		locks: []string{
-			"_c_979cb11f40bb3dbc6908edeaac8f2de1-lock-000000001",
-			"_c_979cb11f40bb3dbc6908edeaac8f2de1-lock-000000002",
+		locks: []fakeLock{
+			{
+				path: "_c_979cb11f40bb3dbc6908edeaac8f2de1-lock-000000001",
+			},
+			{
+				path: "_c_979cb11f40bb3dbc6908edeaac8f2de1-lock-000000002",
+			},
 		},
 	}
 
@@ -69,9 +81,13 @@ func TestLockPath(t *testing.T) {
 func TestLockAhead(t *testing.T) {
 	c := &mockZooKeeperClient{
 		znodeNameTemplate: "_c_979cb11f40bb3dbc6908edeaac8f2de1-lock-00000000",
-		locks: []string{
-			"_c_979cb11f40bb3dbc6908edeaac8f2de1-lock-000000001",
-			"_c_979cb11f40bb3dbc6908edeaac8f2de1-lock-000000002",
+		locks: []fakeLock{
+			{
+				path: "_c_979cb11f40bb3dbc6908edeaac8f2de1-lock-000000001",
+			},
+			{
+				path: "_c_979cb11f40bb3dbc6908edeaac8f2de1-lock-000000002",
+			},
 		},
 	}
 
