@@ -33,17 +33,17 @@ const (
 // Server implements the registry APIs.
 type Server struct {
 	pb.UnimplementedRegistryServer
-	Locking          cluster.Lock
-	HTTPListen       string
-	GRPCListen       string
-	ZK               kafkazk.Handler
-	kafkaadmin       kafkaadmin.KafkaAdmin
-	Tags             *TagHandler
-	reqTimeout       time.Duration
-	readReqThrottle  RequestThrottle
-	writeReqThrottle RequestThrottle
-	reqID            uint64
-	kafkaconsumer    *kafka.Consumer
+	Locking               cluster.Lock
+	HTTPListen            string
+	GRPCListen            string
+	ZK                    kafkazk.Handler
+	kafkaadmin            kafkaadmin.KafkaAdmin
+	Tags                  *TagHandler
+	defaultRequestTimeout time.Duration
+	readReqThrottle       RequestThrottle
+	writeReqThrottle      RequestThrottle
+	reqID                 uint64
+	kafkaconsumer         *kafka.Consumer
 	// For tests.
 	test bool
 }
@@ -55,6 +55,7 @@ type Config struct {
 	ReadReqRate                int
 	WriteReqRate               int
 	ZKTagsPrefix               string
+	DefaultRequestTimeout      time.Duration
 	TagCleanupFrequencyMinutes int
 	TagAllowedStalenessMinutes int
 
@@ -87,14 +88,14 @@ func NewServer(c Config) (*Server, error) {
 	th, _ := NewTagHandler(tcfg)
 
 	return &Server{
-		Locking:          dummyLock{},
-		HTTPListen:       c.HTTPListen,
-		GRPCListen:       c.GRPCListen,
-		Tags:             th,
-		reqTimeout:       3000 * time.Millisecond,
-		readReqThrottle:  rrt,
-		writeReqThrottle: wrt,
-		test:             c.test,
+		Locking:               dummyLock{},
+		HTTPListen:            c.HTTPListen,
+		GRPCListen:            c.GRPCListen,
+		Tags:                  th,
+		defaultRequestTimeout: c.DefaultRequestTimeout,
+		readReqThrottle:       rrt,
+		writeReqThrottle:      wrt,
+		test:                  c.test,
 	}, nil
 }
 
@@ -277,8 +278,11 @@ func (s *Server) InitKafkaConsumer(ctx context.Context, wg *sync.WaitGroup, cfg 
 // EnablingLocking uses distributed locking for write operations.
 func (s *Server) EnablingLocking(c *kafkazk.Config) error {
 	cfg := zklocking.ZooKeeperLockConfig{
-		Address:  c.Connect,
-		Path:     "/registry/locks",
+		Address: c.Connect,
+		Path:    "/registry/locks",
+		// The maximum API request timeout is 3x the default. Lock TTLs should be
+		// bound to this same duration.
+		TTL:      3 * int(s.defaultRequestTimeout) / 1e6,
 		OwnerKey: "reqID",
 	}
 
@@ -358,10 +362,20 @@ func (s *Server) ValidateRequest(ctx context.Context, req interface{}, kind int)
 	var cancel context.CancelFunc
 
 	// Check if the incoming context has a deadline set.
-	if _, ok := ctx.Deadline(); ok {
+	configuredDeadline, deadlineSet := ctx.Deadline()
+	maxDeadline := s.defaultRequestTimeout * 3
+	deadlineLimit := time.Now().Add(maxDeadline)
+
+	switch {
+	// No deadline set, use our default.
+	case !deadlineSet:
+		cCtx, cancel = context.WithTimeout(ctx, s.defaultRequestTimeout)
+	// A deadline was set, but it's longer than we permit.
+	case configuredDeadline.After(deadlineLimit):
+		cCtx, cancel = context.WithTimeout(ctx, maxDeadline)
+	// An acceptable deadline was configured.
+	default:
 		cCtx = ctx
-	} else {
-		cCtx, cancel = context.WithTimeout(ctx, s.reqTimeout)
 	}
 
 	cCtx = context.WithValue(cCtx, "reqID", reqID)
@@ -427,6 +441,7 @@ func (s *Server) LogRequest(ctx context.Context, params string, reqID uint64) {
 
 type dummyLock struct{}
 
-func (dl dummyLock) Lock(_ context.Context) error   { return nil }
-func (dl dummyLock) Unlock(_ context.Context) error { return nil }
-func (dl dummyLock) Owner() interface{}             { return nil }
+func (dl dummyLock) Lock(_ context.Context) error     { return nil }
+func (dl dummyLock) Unlock(_ context.Context) error   { return nil }
+func (dl dummyLock) UnlockLogError(_ context.Context) { return }
+func (dl dummyLock) Owner() interface{}               { return nil }

@@ -1,10 +1,12 @@
 package server
 
 import (
+	"context"
 	"fmt"
-	"github.com/DataDog/kafka-kit/v3/kafkazk"
 	"testing"
 	"time"
+
+	"github.com/DataDog/kafka-kit/v3/kafkazk"
 )
 
 func TestMarkStaleTags(t *testing.T) {
@@ -21,13 +23,16 @@ func TestMarkStaleTags(t *testing.T) {
 
 	zk := kafkazk.NewZooKeeperStub()
 	th := testTagHandler()
-	s := Server{Tags: th, ZK: zk}
+
+	s := testServer()
+	s.Tags = th
+	s.ZK = zk
 
 	// WHEN
 	th.Store.SetTags(topic, tt)
 	th.Store.SetTags(broker, bt)
 	th.Store.SetTags(noBroker, nbt)
-	s.MarkForDeletion(time.Now)
+	s.MarkForDeletion(context.Background(), time.Now)
 
 	// THEN
 	nbtags, _ := th.Store.GetTags(noBroker)
@@ -54,13 +59,16 @@ func TestDeleteStaleTags(t *testing.T) {
 	bt := TagSet{"foo": "bar", TagMarkTimeKey: fmt.Sprint(markTime.Unix())}
 	broker := KafkaObject{Type: "broker", ID: "not found"}
 
-	th := testTagHandler()
 	zk := kafkazk.NewZooKeeperStub()
-	s := Server{Tags: th, ZK: zk}
+	th := testTagHandler()
+
+	s := testServer()
+	s.Tags = th
+	s.ZK = zk
 
 	//WHEN
 	th.Store.SetTags(broker, bt)
-	s.DeleteStaleTags(func() time.Time { return sweepTime }, Config{TagAllowedStalenessMinutes: 10})
+	s.DeleteStaleTags(context.Background(), func() time.Time { return sweepTime }, Config{TagAllowedStalenessMinutes: 10})
 
 	//THEN
 	btags, _ := th.Store.GetTags(broker)
@@ -77,13 +85,16 @@ func TestUnmarkedTagsAreSafe(t *testing.T) {
 	bt := TagSet{"foo": "bar"}
 	broker := KafkaObject{Type: "broker", ID: "not found"}
 
-	th := testTagHandler()
 	zk := kafkazk.NewZooKeeperStub()
-	s := Server{Tags: th, ZK: zk}
+	th := testTagHandler()
+
+	s := testServer()
+	s.Tags = th
+	s.ZK = zk
 
 	//WHEN
 	th.Store.SetTags(broker, bt)
-	s.DeleteStaleTags(func() time.Time { return sweepTime }, Config{TagAllowedStalenessMinutes: 10})
+	s.DeleteStaleTags(context.Background(), func() time.Time { return sweepTime }, Config{TagAllowedStalenessMinutes: 10})
 
 	//THEN
 	btags, _ := th.Store.GetTags(broker)
@@ -102,12 +113,15 @@ func TestKafkaObjectComesBack(t *testing.T) {
 
 	zk := kafkazk.NewZooKeeperStub()
 	th := testTagHandler()
-	s := Server{Tags: th, ZK: zk}
+
+	s := testServer()
+	s.Tags = th
+	s.ZK = zk
 
 	// WHEN
 	th.Store.SetTags(broker, bt)
 	th.Store.SetTags(topic, tt)
-	s.MarkForDeletion(time.Now)
+	s.MarkForDeletion(context.Background(), time.Now)
 
 	// THEN
 	btags, _ := th.Store.GetTags(broker)

@@ -24,10 +24,11 @@ var (
 
 func testServer() *Server {
 	s, _ := NewServer(Config{
-		ReadReqRate:  10,
-		WriteReqRate: 10,
-		ZKTagsPrefix: testConfig.Prefix,
-		test:         true,
+		ReadReqRate:           10,
+		WriteReqRate:          10,
+		DefaultRequestTimeout: 5 * time.Second,
+		ZKTagsPrefix:          testConfig.Prefix,
+		test:                  true,
 	})
 
 	s.ZK = kafkazk.NewZooKeeperStub()
@@ -38,11 +39,12 @@ func testServer() *Server {
 
 func testIntegrationServer() (*Server, error) {
 	s, _ := NewServer(Config{
-		HTTPListen:   "localhost:8080",
-		GRPCListen:   "localhost:8090",
-		ReadReqRate:  10,
-		WriteReqRate: 10,
-		ZKTagsPrefix: testConfig.Prefix,
+		HTTPListen:            "localhost:8080",
+		GRPCListen:            "localhost:8090",
+		DefaultRequestTimeout: 5 * time.Second,
+		ReadReqRate:           10,
+		WriteReqRate:          10,
+		ZKTagsPrefix:          testConfig.Prefix,
 	})
 
 	wg := &sync.WaitGroup{}

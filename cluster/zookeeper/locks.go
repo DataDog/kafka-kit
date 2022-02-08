@@ -8,9 +8,9 @@ import (
 // LockEntries is a container of locks.
 type LockEntries struct {
 	// Map of lock ID integer to the full znode path.
-	m map[int]string
+	idToZnode map[int]string
 	// List of IDs ascending.
-	l []int
+	idList []int
 }
 
 // locks returns a LockEntries of all current locks.
@@ -19,8 +19,8 @@ func (z *ZooKeeperLock) locks() (LockEntries, error) {
 	defer z.mu.RUnlock()
 
 	var locks = LockEntries{
-		m: map[int]string{},
-		l: []int{},
+		idToZnode: map[int]string{},
+		idList:    []int{},
 	}
 
 	// Get all nodes in the lock path.
@@ -33,19 +33,19 @@ func (z *ZooKeeperLock) locks() (LockEntries, error) {
 			continue
 		}
 		// Append the znode to the map.
-		locks.m[id] = fmt.Sprintf("%s/%s", z.Path, n)
+		locks.idToZnode[id] = fmt.Sprintf("%s/%s", z.Path, n)
 		// Append the ID to the list.
-		locks.l = append(locks.l, id)
+		locks.idList = append(locks.idList, id)
 	}
 
-	sort.Ints(locks.l)
+	sort.Ints(locks.idList)
 
 	return locks, e
 }
 
 // IDs returns all held lock IDs ascending.
 func (le LockEntries) IDs() []int {
-	return le.l
+	return le.idList
 }
 
 // First returns the ID with the lowest value.
@@ -59,17 +59,17 @@ func (le LockEntries) First() (int, error) {
 
 // LockPath takes a lock ID and returns the znode path.
 func (le LockEntries) LockPath(id int) (string, error) {
-	if path, exists := le.m[id]; exists {
+	if path, exists := le.idToZnode[id]; exists {
 		return path, nil
 	}
-	return "", fmt.Errorf("lock ID doesn't exist")
+	return "", fmt.Errorf("failed to get lock path; referenced ID doesn't exist")
 }
 
 // LockAhead returns the lock ahead of the ID provided.
 func (le LockEntries) LockAhead(id int) (int, error) {
-	for i, next := range le.l {
-		if next == id && i >= 0 {
-			return le.l[i-1], nil
+	for i, next := range le.idList {
+		if next == id && i > 0 {
+			return le.idList[i-1], nil
 		}
 	}
 

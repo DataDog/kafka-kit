@@ -180,7 +180,7 @@ func (s *Server) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*
 	if err := s.Locking.Lock(ctx); err != nil {
 		return nil, err
 	}
-	defer s.Locking.Unlock(ctx)
+	defer s.Locking.UnlockLogError(ctx)
 
 	// If we're targeting a specific set of brokers by tag, build
 	// a replica assignment.
@@ -254,6 +254,8 @@ func (s *Server) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*
 	}
 
 	if err = s.kafkaadmin.CreateTopic(ctx, cfg); err != nil {
+		// XXX: sometimes topics fail to create but no error is returned. One example
+		// is if a replication higher than the number of available brokers is attempted.
 		return empty, err
 	}
 
@@ -284,7 +286,7 @@ func (s *Server) DeleteTopic(ctx context.Context, req *pb.TopicRequest) (*pb.Emp
 	if err := s.Locking.Lock(ctx); err != nil {
 		return nil, err
 	}
-	defer s.Locking.Unlock(ctx)
+	defer s.Locking.UnlockLogError(ctx)
 
 	if req.Name == "" {
 		return nil, ErrTopicNameEmpty
@@ -376,7 +378,7 @@ func (s *Server) TagTopic(ctx context.Context, req *pb.TopicRequest) (*pb.TagRes
 	err = s.Locking.Lock(ctx)
 	switch err {
 	case nil:
-		defer s.Locking.Unlock(ctx)
+		defer s.Locking.UnlockLogError(ctx)
 	case zklocking.ErrAlreadyOwnLock:
 		// Don't call unlock. We should be here because CreateTopic was called with
 		// optional tags. We'll let the parent CreateTopic call finally issue unlock.
@@ -428,7 +430,7 @@ func (s *Server) DeleteTopicTags(ctx context.Context, req *pb.TopicRequest) (*pb
 	if err := s.Locking.Lock(ctx); err != nil {
 		return nil, err
 	}
-	defer s.Locking.Unlock(ctx)
+	defer s.Locking.UnlockLogError(ctx)
 
 	if req.Name == "" {
 		return nil, ErrTopicNameEmpty
@@ -454,7 +456,7 @@ func (s *Server) DeleteTopicTags(ctx context.Context, req *pb.TopicRequest) (*pb
 	}
 
 	// Delete the tags.
-	err = s.Tags.Store.DeleteTags(KafkaObject{Type: "topic", ID: req.Name}, req.Tag)
+	err = s.Tags.Store.DeleteTags(KafkaObject{Type: "topic", ID: req.Name}, Tags(req.Tag).Keys())
 	if err != nil {
 		return nil, err
 	}

@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	pb "github.com/DataDog/kafka-kit/v3/registry/registry"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestTagSetFromObject(t *testing.T) {
@@ -31,6 +33,58 @@ func TestTagSetFromObject(t *testing.T) {
 		if ts[k] != v {
 			t.Errorf("Expected value %s for key %s, got %s", v, k, ts[k])
 		}
+	}
+}
+
+func TestTagSetKeys(t *testing.T) {
+	type testCase struct {
+		input    TagSet
+		expected []string
+	}
+
+	tests := []testCase{
+		// Single KV.
+		{
+			input:    TagSet{"myKey": "myValue"},
+			expected: []string{"myKey"},
+		},
+		// Multiple KV.
+		{
+			input:    TagSet{"myKey": "myValue", "myKey2": "myValue2"},
+			expected: []string{"myKey", "myKey2"},
+		},
+	}
+
+	for _, test := range tests {
+		results := test.input.Keys()
+		sort.Strings(results)
+		assert.Equal(t, test.expected, results)
+	}
+}
+
+func TestTagsKeys(t *testing.T) {
+	type testCase struct {
+		input    Tags
+		expected []string
+	}
+
+	tests := []testCase{
+		// Single tag.
+		{
+			input:    Tags{"myKey:myValue"},
+			expected: []string{"myKey"},
+		},
+		// Multiple tags, mixed kv and k.
+		{
+			input:    Tags{"myKey:myValue", "myKey2"},
+			expected: []string{"myKey", "myKey2"},
+		},
+	}
+
+	for _, test := range tests {
+		results := test.input.Keys()
+		sort.Strings(results)
+		assert.Equal(t, test.expected, results)
 	}
 }
 

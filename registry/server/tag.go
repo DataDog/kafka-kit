@@ -32,8 +32,7 @@ func (e ErrReservedTag) Error() string {
 	return fmt.Sprintf("tag '%s' is a reserved tag", e.t)
 }
 
-// TagHandler provides object filtering by tags
-// along with tag storage and retrieval.
+// TagHandler provides object filtering by tags along with tag storage and retrieval.
 type TagHandler struct {
 	Store TagStorage
 }
@@ -61,8 +60,8 @@ func NewTagHandler(c TagHandlerConfig) (*TagHandler, error) {
 	}
 
 	return &TagHandler{
-		// More sophisticated initialization/config passing
-		// if additional TagStorage backends are written.
+		// More sophisticated initialization/config passing if additional TagStorage
+		// backends are written.
 		Store: ts,
 	}, nil
 }
@@ -78,15 +77,14 @@ type Tags []string
 // TagSet is a map of key:values.
 type TagSet map[string]string
 
-// KafkaObject holds an object type (broker, topic) and
-// object identifier (ID, name).
+// KafkaObject holds an object type (broker, topic) and object identifier (ID,
+// name).
 type KafkaObject struct {
 	Type string
 	ID   string
 }
 
-// Valid checks if a KafkaObject has a valid
-// Type field value.
+// Valid checks if a KafkaObject has a valid Type field value.
 func (o KafkaObject) Valid() bool {
 	switch {
 	case o.Type == "broker", o.Type == "topic":
@@ -96,14 +94,13 @@ func (o KafkaObject) Valid() bool {
 	return false
 }
 
-// Complete checks if a KafkaObject is valid
-// and has a non-empty ID field value.
+// Complete checks if a KafkaObject is valid and has a non-empty ID field value.
 func (o KafkaObject) Complete() bool {
 	return o.Valid() && o.ID != ""
 }
 
-// TagSetFromObject takes a protobuf type and returns the
-// default TagSet along with any user-defined tags.
+// TagSetFromObject takes a protobuf type and returns the default TagSet along
+// with any user-defined tags.
 func (t *TagHandler) TagSetFromObject(o interface{}) (TagSet, error) {
 	var ts = TagSet{}
 	var ko = KafkaObject{}
@@ -138,9 +135,8 @@ func (t *TagHandler) TagSetFromObject(o interface{}) (TagSet, error) {
 	st, err := t.Store.GetTags(ko)
 	if err != nil {
 		switch {
-		// ErrKafkaObjectDoesNotExist from TagStorage
-		// simply means we do not have any user-defined
-		// tags stored for the requested object.
+		// ErrKafkaObjectDoesNotExist from TagStorage simply means we do not have any
+		// user-defined tags stored for the requested object.
 		case err == ErrKafkaObjectDoesNotExist:
 			break
 		default:
@@ -180,8 +176,8 @@ func (t *TagHandler) FilterTopics(in TopicSet, tags Tags) (TopicSet, error) {
 		if ts.matchAll(tagKV) {
 			out[name] = topic
 
-			// Ensure that custom tags fetched from storage are
-			// populated into the tags field for the object.
+			// Ensure that custom tags fetched from storage are populated into the
+			// tags field for the object.
 			for k, v := range ts {
 				// Custom tags are any non-reserved object fields.
 				if !t.Store.FieldReserved(KafkaObject{Type: "topic"}, k) {
@@ -198,11 +194,10 @@ func (t *TagHandler) FilterTopics(in TopicSet, tags Tags) (TopicSet, error) {
 	return out, nil
 }
 
-// FilterBrokers takes a map of broker IDs to *pb.Broker and tags KV list.
-// A filtered map is returned that includes brokers where all tags
-// values match the provided input tag KVs. Additionally, any custom
-// tags persisted in the TagStorage backend are populated into the
-// Tags field for each matched object.
+// FilterBrokers takes a map of broker IDs to *pb.Broker and tags KV list. A
+// filtered map is returned that includes brokers where all tags values match
+// the provided input tag KVs. Additionally, any custom tags persisted in the
+// TagStorage backend are populated into the Tags field for each matched object.
 func (t *TagHandler) FilterBrokers(in BrokerSet, tags Tags) (BrokerSet, error) {
 	var out = make(BrokerSet)
 
@@ -222,8 +217,8 @@ func (t *TagHandler) FilterBrokers(in BrokerSet, tags Tags) (BrokerSet, error) {
 		if ts.matchAll(tagKV) {
 			out[id] = broker
 
-			// Ensure that custom tags fetched from storage are
-			// populated into the tags field for the object.
+			// Ensure that custom tags fetched from storage are populated into the tags
+			// field for the object.
 			for k, v := range ts {
 				// Custom tags are any non-reserved object fields.
 				if !t.Store.FieldReserved(KafkaObject{Type: "broker"}, k) {
@@ -240,9 +235,21 @@ func (t *TagHandler) FilterBrokers(in BrokerSet, tags Tags) (BrokerSet, error) {
 	return out, nil
 }
 
-// matchAll takes a TagSet and returns true
-// if all key/values are present and equal
-// to those in the input TagSet.
+// Keys returns a []string of all tag keys for a Tags. It's possible to receive
+// fully formed tags or just tag keys.
+func (t Tags) Keys() []string {
+	var keys []string
+
+	for _, tag := range t {
+		kv := strings.Split(tag, ":")
+		keys = append(keys, kv[0])
+	}
+
+	return keys
+}
+
+// matchAll takes a TagSet and returns true if all key/values are present and
+// equal to those in the input TagSet.
 func (t TagSet) matchAll(kv TagSet) bool {
 	for k, v := range kv {
 		if t[k] != v {
@@ -253,8 +260,8 @@ func (t TagSet) matchAll(kv TagSet) bool {
 	return true
 }
 
-// Equal checks if the input TagSet has the same
-// key:value pairs as the calling TagSet.
+// Equal checks if the input TagSet has the same key:value pairs as the calling
+// TagSet.
 func (t1 TagSet) Equal(t2 TagSet) bool {
 	if len(t1) != len(t2) {
 		return false
@@ -291,9 +298,9 @@ func (t TagSet) Keys() []string {
 	return keys
 }
 
-// TagSet takes a Tags and returns a TagSet and error for any
-// malformed tags. Tags are expected to be formatted as a
-// comma delimited "key:value,key2:value2" string.
+// TagSet takes a Tags and returns a TagSet and error for any malformed tags.
+// Tags are expected to be formatted as a comma delimited "key:value,key2:value2"
+// string.
 // TODO normalize all tag usage to lower case.
 func (t Tags) TagSet() (TagSet, error) {
 	var ts = TagSet{}
@@ -310,14 +317,14 @@ func (t Tags) TagSet() (TagSet, error) {
 	return ts, nil
 }
 
-// ReservedFields is a mapping of object types (topic, broker)
-// to a set of fields reserved for internal use; these are
-// default fields that become searchable through the tags interface.
+// ReservedFields is a mapping of object types (topic, broker)  to a set of fields
+// reserved for internal use; these are default fields that become searchable
+// through the tags interface.
 type ReservedFields map[string]map[string]struct{}
 
-// GetReservedFields returns a map proto message types to field names
-// considered reserved for internal use. All fields specified in the
-// Registry proto messages are discovered here and reserved by default.
+// GetReservedFields returns a map proto message types to field names considered
+// reserved for internal use. All fields specified in the Registry proto messages
+// are discovered here and reserved by default.
 func GetReservedFields() ReservedFields {
 	var fs = make(ReservedFields)
 
@@ -327,8 +334,8 @@ func GetReservedFields() ReservedFields {
 	return fs
 }
 
-// fieldsFromStruct extracts all user-defined fields from proto
-// messages. Discovered fields are returned all lowercase.
+// fieldsFromStruct extracts all user-defined fields from proto messages.
+// Discovered fields are returned all lowercase.
 func fieldsFromStruct(s interface{}) map[string]struct{} {
 	var fs = make(map[string]struct{})
 
