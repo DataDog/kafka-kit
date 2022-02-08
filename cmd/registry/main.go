@@ -118,6 +118,7 @@ func main() {
 	log.Println("Registry running")
 
 	ctx, cancel := context.WithCancel(context.Background())
+	ctx = context.WithValue(ctx, "reqID", "registry-server")
 	wg := &sync.WaitGroup{}
 
 	// Initialize Server.
