@@ -27,25 +27,20 @@ func (tc *TagCleaner) RunTagCleanup(s *Server, ctx context.Context, c Config) {
 	for tc.running {
 		<-t.C
 
-		if err := s.Locking.Lock(ctx); err != nil {
-			log.Println(err)
-			continue
-		}
-		defer s.Locking.UnlockLogError(ctx)
-
-		err := s.MarkForDeletion(time.Now)
-		if err != nil {
-			log.Println(err)
+		if err := s.MarkForDeletion(ctx, time.Now); err != nil {
+			log.Println("error marking tags for deletion: ", err)
 			continue
 		}
 
-		s.DeleteStaleTags(time.Now, c)
+		if err := s.DeleteStaleTags(ctx, time.Now, c); err != nil {
+			log.Println("error deleting stale tags: ", err)
+		}
 	}
 }
 
 // MarkForDeletion marks stored tags that have been stranded without an associated
 // kafka resource.
-func (s *Server) MarkForDeletion(now func() time.Time) error {
+func (s *Server) MarkForDeletion(ctx context.Context, now func() time.Time) error {
 	markTimeMinutes := fmt.Sprint(now().Unix())
 
 	// Get all brokers from ZK.
@@ -53,6 +48,12 @@ func (s *Server) MarkForDeletion(now func() time.Time) error {
 	if errs != nil {
 		return ErrFetchingBrokers
 	}
+
+	// Lock.
+	if err := s.Locking.Lock(ctx); err != nil {
+		return err
+	}
+	defer s.Locking.UnlockLogError(ctx)
 
 	// Get all topics from ZK
 	topics, err := s.ZK.GetTopics([]*regexp.Regexp{topicRegex})
@@ -110,8 +111,15 @@ func (s *Server) MarkForDeletion(now func() time.Time) error {
 }
 
 // DeleteStaleTags deletes any tags that have not had a kafka resource associated with them.
-func (s *Server) DeleteStaleTags(now func() time.Time, c Config) {
+func (s *Server) DeleteStaleTags(ctx context.Context, now func() time.Time, c Config) error {
 	sweepTime := now().Unix()
+
+	// Lock.
+	if err := s.Locking.Lock(ctx); err != nil {
+		return err
+	}
+	defer s.Locking.UnlockLogError(ctx)
+
 	allTags, _ := s.Tags.Store.GetAllTags()
 
 	for kafkaObject, tags := range allTags {
@@ -132,6 +140,8 @@ func (s *Server) DeleteStaleTags(now func() time.Time, c Config) {
 			log.Printf("deleted tags for non-existent %s %s\n", kafkaObject.Type, kafkaObject.ID)
 		}
 	}
+
+	return nil
 }
 
 // TopicSetFromSlice converts a slice into a TopicSet for convenience
