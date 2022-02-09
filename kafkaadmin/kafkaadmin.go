@@ -10,8 +10,11 @@ import (
 // KafkaAdmin interface.
 type KafkaAdmin interface {
 	Close()
+	// Topics.
 	CreateTopic(context.Context, CreateTopicConfig) error
 	DeleteTopic(context.Context, string) error
+	// Cluster.
+	SetThrottle(context.Context, ThrottleConfig) error
 }
 
 // NewClient returns a KafkaAdmin.
