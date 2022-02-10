@@ -35,7 +35,7 @@ type BrokerThrottleConfig struct {
 // and broker inbound/outbound throttle configs.
 func (c Client) SetThrottle(ctx context.Context, cfg ThrottleConfig) error {
 	// Get the named topic dynamic configs.
-	topicGetDynamicConfigs, err := c.GetDynamicConfigs(ctx, "topic", cfg.Topics)
+	topicDynamicConfigs, err := c.GetDynamicConfigs(ctx, "topic", cfg.Topics)
 	if err != nil {
 		return ErrSetThrottle{Message: err.Error()}
 	}
@@ -46,27 +46,52 @@ func (c Client) SetThrottle(ctx context.Context, cfg ThrottleConfig) error {
 		brokerIDs = append(brokerIDs, fmt.Sprintf("%d", id))
 	}
 
-	brokerGetDynamicConfigs, err := c.GetDynamicConfigs(ctx, "broker", brokerIDs)
+	brokerDynamicConfigs, err := c.GetDynamicConfigs(ctx, "broker", brokerIDs)
 	if err != nil {
+		return ErrSetThrottle{Message: err.Error()}
+	}
+
+	// Update the fetched configs to include the desired new configs.
+	if err := populateTopicConfigs(cfg.Topics, topicDynamicConfigs); err != nil {
+		return ErrSetThrottle{Message: err.Error()}
+	}
+
+	// Update the broker configs to the desired new configs.
+	if err := populateBrokerConfigs(cfg.Brokers, brokerDynamicConfigs); err != nil {
 		return ErrSetThrottle{Message: err.Error()}
 	}
 
 	// Build a new configuration set.
 	var throttleConfigs []kafka.ConfigResource
 
-	// Update the fetched configs to include the desired new configs.
-	for _, topic := range cfg.Topics {
+	// Merge all configs into the global configuration set.
+	// for _, := range []ResourceConfigs{topicGetDynamicConfigs, brokerGetDynamicConfigs} {
+	// 	// StringMapToConfigEntries
+	// }
+
+	fmt.Printf("%+v\n", topicDynamicConfigs)
+	fmt.Printf("%+v\n", brokerDynamicConfigs)
+	fmt.Printf("%+v\n", throttleConfigs)
+
+	return nil
+}
+
+func populateTopicConfigs(topics []string, configs ResourceConfigs) error {
+	for _, topic := range topics {
 		// We need to update the leader and follower throttle replicas list.
 		for _, cfgName := range []string{topicThrottledLeadersCfgName, topicThrottledFollowersCfgName} {
-			err := topicGetDynamicConfigs.AddConfig(topic, cfgName, "*")
+			err := configs.AddConfig(topic, cfgName, "*")
 			if err != nil {
-				return ErrSetThrottle{Message: err.Error()}
+				return err
 			}
 		}
 	}
 
-	// Update the broker configs to the desired new configs.
-	for brokerID, throttleRates := range cfg.Brokers {
+	return nil
+}
+
+func populateBrokerConfigs(brokers map[int]BrokerThrottleConfig, configs ResourceConfigs) error {
+	for brokerID, throttleRates := range brokers {
 		var err error
 
 		// String values.
@@ -75,21 +100,15 @@ func (c Client) SetThrottle(ctx context.Context, cfg ThrottleConfig) error {
 		rxRate := fmt.Sprintf("%f", throttleRates.InboundLimitBytes)
 
 		// Write configs.
-		err = brokerGetDynamicConfigs.AddConfig(id, brokerTXThrottleCfgName, txRate)
+		err = configs.AddConfig(id, brokerTXThrottleCfgName, txRate)
 		if err != nil {
-			return ErrSetThrottle{Message: err.Error()}
+			return err
 		}
-		err = brokerGetDynamicConfigs.AddConfig(id, brokerRXThrottleCfgName, rxRate)
+		err = configs.AddConfig(id, brokerRXThrottleCfgName, rxRate)
 		if err != nil {
-			return ErrSetThrottle{Message: err.Error()}
+			return err
 		}
 	}
-
-	// Merge all configs into the global configuration set.
-
-	fmt.Printf("%+v\n", topicGetDynamicConfigs)
-	fmt.Printf("%+v\n", brokerGetDynamicConfigs)
-	fmt.Printf("%+v\n", throttleConfigs)
 
 	return nil
 }
