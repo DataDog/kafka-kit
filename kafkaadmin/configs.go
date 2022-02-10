@@ -12,28 +12,6 @@ var (
 	brokerResourceType, _ = kafka.ResourceTypeFromString("broker")
 )
 
-// ResourceConfigs is a map of resource name to a map of configuration name
-// and configuration.
-// Example: map["my_topic"]map["retention.ms"] = 'retention.ms="4000000"'
-type ResourceConfigs map[string]map[string]kafka.ConfigEntryResult
-
-// AddConfig takes a resource name (ie a broker ID or topic name) and a
-// kafka.ConfigEntryResult. It populates the kafka.ConfigEntryResult in the
-// ResourceConfigs keyed by the provided resource name.
-func (rc ResourceConfigs) AddConfig(name string, config kafka.ConfigEntryResult) error {
-	if _, ok := rc[name]; !ok {
-		rc[name] = make(map[string]kafka.ConfigEntryResult)
-	}
-
-	if config.Name == "" {
-		return fmt.Errorf("empty ConfigEntryResult name")
-	}
-
-	rc[name][config.Name] = config
-
-	return nil
-}
-
 // DynamicConfigMapForResources takes a kafka resource type (ie topic, broker) and
 // list of names and returns a ResourceConfigs for all dynamic configurations
 // discovered for each resource by name.
@@ -71,10 +49,48 @@ func (c Client) DynamicConfigMapForResources(ctx context.Context, kind string, n
 	for _, config := range resourceConfigs {
 		for _, v := range config.Config {
 			if v.Source == kafka.ConfigSourceDynamicTopic || v.Source == kafka.ConfigSourceDynamicBroker {
-				results.AddConfig(config.Name, v)
+				results.AddConfigEntry(config.Name, v)
 			}
 		}
 	}
 
 	return results, nil
+}
+
+// ResourceConfigs is a map of resource name to a map of configuration name
+// and configuration value
+// Example: map["my_topic"]map["retention.ms"] = "4000000"
+type ResourceConfigs map[string]map[string]string
+
+// AddConfig takes a resource name and populates the config key to the specified
+// value.
+func (rc ResourceConfigs) AddConfig(name, key, value string) error {
+	if name == "" || key == "" || value == "" {
+		return fmt.Errorf("all parameters must be non-empty")
+	}
+
+	if _, ok := rc[name]; !ok {
+		rc[name] = make(map[string]string)
+	}
+
+	rc[name][key] = value
+
+	return nil
+}
+
+// AddConfigEntry takes a resource name (ie a broker ID or topic name) and a
+// kafka.ConfigEntryResult. It populates the kafka.ConfigEntryResult in the
+// ResourceConfigs keyed by the provided resource name.
+func (rc ResourceConfigs) AddConfigEntry(name string, config kafka.ConfigEntryResult) error {
+	if _, ok := rc[name]; !ok {
+		rc[name] = make(map[string]string)
+	}
+
+	if config.Name == "" {
+		return fmt.Errorf("empty ConfigEntryResult name")
+	}
+
+	rc[name][config.Name] = config.Value
+
+	return nil
 }
