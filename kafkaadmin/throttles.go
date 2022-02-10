@@ -26,8 +26,8 @@ type ThrottleConfig struct {
 // BrokerThrottleConfig defines an inbound and outbound throttle rate in bytes
 // to be applied to a broker.
 type BrokerThrottleConfig struct {
-	InboundLimitBytes  float64
-	OutboundLimitBytes float64
+	InboundLimitBytes  int
+	OutboundLimitBytes int
 }
 
 // SetThrottle takes a ThrottleConfig and sets the underlying throttle configs
@@ -65,13 +65,33 @@ func (c Client) SetThrottle(ctx context.Context, cfg ThrottleConfig) error {
 	var throttleConfigs []kafka.ConfigResource
 
 	// Merge all configs into the global configuration set.
-	// for _, := range []ResourceConfigs{topicGetDynamicConfigs, brokerGetDynamicConfigs} {
-	// 	// StringMapToConfigEntries
-	// }
+	for i, resourceConfig := range []ResourceConfigs{topicDynamicConfigs, brokerDynamicConfigs} {
+		for name, configs := range resourceConfig {
+			// StringMapToConfigEntries
+			c := kafka.ConfigResource{
+				Name:   name,
+				Config: kafka.StringMapToConfigEntries(configs, kafka.AlterOperationSet),
+			}
 
-	fmt.Printf("%+v\n", topicDynamicConfigs)
-	fmt.Printf("%+v\n", brokerDynamicConfigs)
-	fmt.Printf("%+v\n", throttleConfigs)
+			// Assign the type to the respective config class according to the index.
+			switch i {
+			case 0:
+				c.Type = topicResourceType
+			case 1:
+				c.Type = brokerResourceType
+			}
+
+			throttleConfigs = append(throttleConfigs, c)
+		}
+	}
+
+	// Apply the configs.
+	// TODO(jamie) review whether the kafak.SetAdminIncremental AlterConfigsAdminOption
+	// actually works here.
+	_, err = c.c.AlterConfigs(ctx, throttleConfigs)
+	if err != nil {
+		return ErrSetThrottle{Message: err.Error()}
+	}
 
 	return nil
 }
@@ -96,8 +116,8 @@ func populateBrokerConfigs(brokers map[int]BrokerThrottleConfig, configs Resourc
 
 		// String values.
 		id := strconv.Itoa(brokerID)
-		txRate := fmt.Sprintf("%f", throttleRates.OutboundLimitBytes)
-		rxRate := fmt.Sprintf("%f", throttleRates.InboundLimitBytes)
+		txRate := fmt.Sprintf("%d", throttleRates.OutboundLimitBytes)
+		rxRate := fmt.Sprintf("%d", throttleRates.InboundLimitBytes)
 
 		// Write configs.
 		err = configs.AddConfig(id, brokerTXThrottleCfgName, txRate)

@@ -32,6 +32,7 @@ func (c Client) GetDynamicConfigs(ctx context.Context, kind string, names []stri
 		return nil, fmt.Errorf("no resource names provided")
 	}
 
+	// Populate the ConfigResource request.
 	for _, n := range names {
 		cr := kafka.ConfigResource{
 			Type: ckgType,
@@ -40,14 +41,17 @@ func (c Client) GetDynamicConfigs(ctx context.Context, kind string, names []stri
 		configResources = append(configResources, cr)
 	}
 
+	// Request configs.
 	resourceConfigs, err := c.c.DescribeConfigs(ctx, configResources)
 	if err != nil {
 		return nil, err
 	}
 
+	// Populate the results into the ResourceConfigs.
 	var results = make(ResourceConfigs)
 	for _, config := range resourceConfigs {
 		for _, v := range config.Config {
+			// Only return dynamic configs.
 			if v.Source == kafka.ConfigSourceDynamicTopic || v.Source == kafka.ConfigSourceDynamicBroker {
 				results.AddConfigEntry(config.Name, v)
 			}
