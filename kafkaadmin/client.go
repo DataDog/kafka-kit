@@ -24,7 +24,9 @@ type Client struct {
 
 // Config holds Client configuration parameters.
 type Config struct {
+	// Required.
 	BootstrapServers string
+	// Misc.
 	GroupId          string
 	SSLCALocation    string
 	SecurityProtocol string
