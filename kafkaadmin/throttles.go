@@ -37,7 +37,7 @@ func (c Client) SetThrottle(ctx context.Context, cfg ThrottleConfig) error {
 	// Get the named topic dynamic configs.
 	topicDynamicConfigs, err := c.DynamicConfigMapForResources(ctx, "topic", cfg.Topics)
 	if err != nil {
-		return err
+		return ErrSetThrottle{Message: err.Error()}
 	}
 
 	// Get the named broker ID dynamic configs.
@@ -48,7 +48,7 @@ func (c Client) SetThrottle(ctx context.Context, cfg ThrottleConfig) error {
 
 	brokerDynamicConfigs, err := c.DynamicConfigMapForResources(ctx, "broker", brokerIDs)
 	if err != nil {
-		return err
+		return ErrSetThrottle{Message: err.Error()}
 	}
 
 	// Build a new configuration set.
@@ -60,7 +60,7 @@ func (c Client) SetThrottle(ctx context.Context, cfg ThrottleConfig) error {
 		for _, cfgName := range []string{topicThrottledLeadersCfgName, topicThrottledFollowersCfgName} {
 			err := topicDynamicConfigs.AddConfig(topic, cfgName, "*")
 			if err != nil {
-				return err
+				return ErrSetThrottle{Message: err.Error()}
 			}
 		}
 	}
@@ -77,11 +77,11 @@ func (c Client) SetThrottle(ctx context.Context, cfg ThrottleConfig) error {
 		// Write configs.
 		err = brokerDynamicConfigs.AddConfig(id, brokerTXThrottleCfgName, txRate)
 		if err != nil {
-			return err
+			return ErrSetThrottle{Message: err.Error()}
 		}
 		err = brokerDynamicConfigs.AddConfig(id, brokerRXThrottleCfgName, rxRate)
 		if err != nil {
-			return err
+			return ErrSetThrottle{Message: err.Error()}
 		}
 	}
 
