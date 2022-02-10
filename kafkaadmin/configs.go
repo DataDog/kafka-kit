@@ -50,8 +50,11 @@ func (c Client) DynamicConfigMapForResources(ctx context.Context, kind string, n
 		return nil, fmt.Errorf("invalid resource type")
 	}
 
+	if len(names) == 0 {
+		return nil, fmt.Errorf("no resource names provided")
+	}
+
 	for _, n := range names {
-		fmt.Println(topicResourceType)
 		cr := kafka.ConfigResource{
 			Type: ckgType,
 			Name: n,
