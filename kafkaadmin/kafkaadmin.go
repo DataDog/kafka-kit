@@ -15,7 +15,7 @@ type KafkaAdmin interface {
 	DeleteTopic(context.Context, string) error
 	// Cluster.
 	SetThrottle(context.Context, ThrottleConfig) error
-	DynamicConfigMapForResources(context.Context, string, []string) (ResourceConfigs, error)
+	GetDynamicConfigs(context.Context, string, []string) (ResourceConfigs, error)
 }
 
 // NewClient returns a KafkaAdmin.

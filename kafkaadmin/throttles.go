@@ -35,7 +35,7 @@ type BrokerThrottleConfig struct {
 // and broker inbound/outbound throttle configs.
 func (c Client) SetThrottle(ctx context.Context, cfg ThrottleConfig) error {
 	// Get the named topic dynamic configs.
-	topicDynamicConfigs, err := c.DynamicConfigMapForResources(ctx, "topic", cfg.Topics)
+	topicGetDynamicConfigs, err := c.GetDynamicConfigs(ctx, "topic", cfg.Topics)
 	if err != nil {
 		return ErrSetThrottle{Message: err.Error()}
 	}
@@ -46,7 +46,7 @@ func (c Client) SetThrottle(ctx context.Context, cfg ThrottleConfig) error {
 		brokerIDs = append(brokerIDs, fmt.Sprintf("%d", id))
 	}
 
-	brokerDynamicConfigs, err := c.DynamicConfigMapForResources(ctx, "broker", brokerIDs)
+	brokerGetDynamicConfigs, err := c.GetDynamicConfigs(ctx, "broker", brokerIDs)
 	if err != nil {
 		return ErrSetThrottle{Message: err.Error()}
 	}
@@ -58,7 +58,7 @@ func (c Client) SetThrottle(ctx context.Context, cfg ThrottleConfig) error {
 	for _, topic := range cfg.Topics {
 		// We need to update the leader and follower throttle replicas list.
 		for _, cfgName := range []string{topicThrottledLeadersCfgName, topicThrottledFollowersCfgName} {
-			err := topicDynamicConfigs.AddConfig(topic, cfgName, "*")
+			err := topicGetDynamicConfigs.AddConfig(topic, cfgName, "*")
 			if err != nil {
 				return ErrSetThrottle{Message: err.Error()}
 			}
@@ -75,18 +75,20 @@ func (c Client) SetThrottle(ctx context.Context, cfg ThrottleConfig) error {
 		rxRate := fmt.Sprintf("%f", throttleRates.InboundLimitBytes)
 
 		// Write configs.
-		err = brokerDynamicConfigs.AddConfig(id, brokerTXThrottleCfgName, txRate)
+		err = brokerGetDynamicConfigs.AddConfig(id, brokerTXThrottleCfgName, txRate)
 		if err != nil {
 			return ErrSetThrottle{Message: err.Error()}
 		}
-		err = brokerDynamicConfigs.AddConfig(id, brokerRXThrottleCfgName, rxRate)
+		err = brokerGetDynamicConfigs.AddConfig(id, brokerRXThrottleCfgName, rxRate)
 		if err != nil {
 			return ErrSetThrottle{Message: err.Error()}
 		}
 	}
 
-	fmt.Printf("%+v\n", topicDynamicConfigs)
-	fmt.Printf("%+v\n", brokerDynamicConfigs)
+	// Merge all configs into the global configuration set.
+
+	fmt.Printf("%+v\n", topicGetDynamicConfigs)
+	fmt.Printf("%+v\n", brokerGetDynamicConfigs)
 	fmt.Printf("%+v\n", throttleConfigs)
 
 	return nil

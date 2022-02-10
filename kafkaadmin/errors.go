@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-// ErrSetThrottle is a generic error for SetThrottle. 
+// ErrSetThrottle is a generic error for SetThrottle.
 type ErrSetThrottle struct {
 	Message string
 }

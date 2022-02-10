@@ -12,10 +12,10 @@ var (
 	brokerResourceType, _ = kafka.ResourceTypeFromString("broker")
 )
 
-// DynamicConfigMapForResources takes a kafka resource type (ie topic, broker) and
+// GetDynamicConfigs takes a kafka resource type (ie topic, broker) and
 // list of names and returns a ResourceConfigs for all dynamic configurations
 // discovered for each resource by name.
-func (c Client) DynamicConfigMapForResources(ctx context.Context, kind string, names []string) (ResourceConfigs, error) {
+func (c Client) GetDynamicConfigs(ctx context.Context, kind string, names []string) (ResourceConfigs, error) {
 	var configResources []kafka.ConfigResource
 
 	var ckgType kafka.ResourceType
