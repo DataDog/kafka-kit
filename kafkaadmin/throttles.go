@@ -3,6 +3,16 @@ package kafkaadmin
 import (
 	"context"
 	"fmt"
+	"strconv"
+
+	"github.com/confluentinc/confluent-kafka-go/kafka"
+)
+
+const (
+	brokerTXThrottleCfgName        = "leader.replication.throttled.rate"
+	brokerRXThrottleCfgName        = "follower.replication.throttled.rate"
+	topicThrottledLeadersCfgName   = "leader.replication.throttled.replicas"
+	topicThrottledFollowersCfgName = "leader.replication.throttled.replicas"
 )
 
 // ThrottleConfig holds SetThrottle configs.
@@ -24,21 +34,13 @@ type BrokerThrottleConfig struct {
 // accordingly. A throttle is a combination of topic throttled replicas configs
 // and broker inbound/outbound throttle configs.
 func (c Client) SetThrottle(ctx context.Context, cfg ThrottleConfig) error {
-	// 1) Map ThrottleConfig to ckg ConfigResource.
-
-	// 2) Get topic configs.
+	// Get the named topic dynamic configs.
 	topicDynamicConfigs, err := c.DynamicConfigMapForResources(ctx, "topic", cfg.Topics)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("%+v\n", topicDynamicConfigs)
-
-	// 3) Populate new configs.
-
-	// 4) Get broker configs.
-
-	// 2) Get topic configs.
+	// Get the named broker ID dynamic configs.
 	var brokerIDs []string
 	for id := range cfg.Brokers {
 		brokerIDs = append(brokerIDs, fmt.Sprintf("%d", id))
@@ -49,10 +51,43 @@ func (c Client) SetThrottle(ctx context.Context, cfg ThrottleConfig) error {
 		return err
 	}
 
+	// Build a new configuration set.
+	var throttleConfigs []kafka.ConfigResource
+
+	// Update the fetched configs to include the desired new configs.
+	for _, topic := range cfg.Topics {
+		// We need to update the leader and follower throttle replicas list.
+		for _, cfgName := range []string{topicThrottledLeadersCfgName, topicThrottledFollowersCfgName} {
+			err := topicDynamicConfigs.AddConfig(topic, cfgName, "*")
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Update the broker configs to the desired new configs.
+	for brokerID, throttleRates := range cfg.Brokers {
+		var err error
+
+		// String values.
+		id := strconv.Itoa(brokerID)
+		txRate := fmt.Sprintf("%f", throttleRates.OutboundLimitBytes)
+		rxRate := fmt.Sprintf("%f", throttleRates.InboundLimitBytes)
+
+		// Write configs.
+		err = brokerDynamicConfigs.AddConfig(id, brokerTXThrottleCfgName, txRate)
+		if err != nil {
+			return err
+		}
+		err = brokerDynamicConfigs.AddConfig(id, brokerRXThrottleCfgName, rxRate)
+		if err != nil {
+			return err
+		}
+	}
+
+	fmt.Printf("%+v\n", topicDynamicConfigs)
 	fmt.Printf("%+v\n", brokerDynamicConfigs)
+	fmt.Printf("%+v\n", throttleConfigs)
 
-	// 5) Populate broker configs.
-
-	// 6) Apply.
 	return nil
 }
