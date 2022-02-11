@@ -187,6 +187,19 @@ func (c Client) RemoveThrottle(ctx context.Context, cfg RemoveThrottleConfig) er
 // If the topic from the topics list exists in the ResourceConfigs, we append the
 // throttle config. If it doesn't exist, we create the entry.
 func populateTopicConfigs(topics []string, configs ResourceConfigs) error {
+	// Remove any topics in the ResourceConfigs that aren't in the topics list.
+	nameSet := map[string]struct{}{}
+	for _, t := range topics {
+		nameSet[t] = struct{}{}
+	}
+
+	for t := range configs {
+		if _, present := nameSet[t]; !present {
+			delete(configs, t)
+		}
+	}
+
+	// Update the configs.
 	for _, topic := range topics {
 		// We need to update the leader and follower throttle replicas list.
 		for _, cfgName := range []string{topicThrottledLeadersCfgName, topicThrottledFollowersCfgName} {
@@ -230,6 +243,14 @@ func clearTopicThrottleConfigs(configs ResourceConfigs) error {
 // dynamic config. If the broker from the map exists in the ResourceConfigs, we
 // append the throttle config. If it doesn't exist, we create the entry.
 func populateBrokerConfigs(brokers map[int]BrokerThrottleConfig, configs ResourceConfigs) error {
+	// Remove any brokers in the ResourceConfigs that don't have a BrokerThrottleConfig.
+	for idStr := range configs {
+		id, _ := strconv.Atoi(idStr)
+		if _, present := brokers[id]; !present {
+			delete(configs, idStr)
+		}
+	}
+
 	for brokerID, throttleRates := range brokers {
 		var err error
 
