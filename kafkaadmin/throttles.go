@@ -88,8 +88,7 @@ func (c Client) SetThrottle(ctx context.Context, cfg ThrottleConfig) error {
 	// Apply the configs.
 	// TODO(jamie) review whether the kafak.SetAdminIncremental AlterConfigsAdminOption
 	// actually works here.
-	_, err = c.c.AlterConfigs(ctx, throttleConfigs)
-	if err != nil {
+	if _, err = c.c.AlterConfigs(ctx, throttleConfigs); err != nil {
 		return ErrSetThrottle{Message: err.Error()}
 	}
 
