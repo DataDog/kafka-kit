@@ -34,21 +34,28 @@ type BrokerThrottleConfig struct {
 // accordingly. A throttle is a combination of topic throttled replicas configs
 // and broker inbound/outbound throttle configs.
 func (c Client) SetThrottle(ctx context.Context, cfg ThrottleConfig) error {
+	var topicDynamicConfigs, brokerDynamicConfigs ResourceConfigs
+	var err error
+
 	// Get the named topic dynamic configs.
-	topicDynamicConfigs, err := c.GetDynamicConfigs(ctx, "topic", cfg.Topics)
-	if err != nil {
-		return ErrSetThrottle{Message: err.Error()}
+	if len(cfg.Topics) > 0 {
+		topicDynamicConfigs, err = c.GetDynamicConfigs(ctx, "topic", cfg.Topics)
+		if err != nil {
+			return ErrSetThrottle{Message: err.Error()}
+		}
 	}
 
 	// Get the named broker ID dynamic configs.
-	var brokerIDs []string
-	for id := range cfg.Brokers {
-		brokerIDs = append(brokerIDs, fmt.Sprintf("%d", id))
-	}
+	if len(cfg.Brokers) > 0 {
+		var brokerIDs []string
+		for id := range cfg.Brokers {
+			brokerIDs = append(brokerIDs, fmt.Sprintf("%d", id))
+		}
 
-	brokerDynamicConfigs, err := c.GetDynamicConfigs(ctx, "broker", brokerIDs)
-	if err != nil {
-		return ErrSetThrottle{Message: err.Error()}
+		brokerDynamicConfigs, err = c.GetDynamicConfigs(ctx, "broker", brokerIDs)
+		if err != nil {
+			return ErrSetThrottle{Message: err.Error()}
+		}
 	}
 
 	// Update the fetched configs to include the desired new configs.
@@ -85,11 +92,13 @@ func (c Client) SetThrottle(ctx context.Context, cfg ThrottleConfig) error {
 		}
 	}
 
-	// Apply the configs.
-	// TODO(jamie) review whether the kafak.SetAdminIncremental AlterConfigsAdminOption
-	// actually works here.
-	if _, err = c.c.AlterConfigs(ctx, throttleConfigs); err != nil {
-		return ErrSetThrottle{Message: err.Error()}
+	if len(throttleConfigs) > 0 {
+		// Apply the configs.
+		// TODO(jamie) review whether the kafak.SetAdminIncremental AlterConfigsAdminOption
+		// actually works here.
+		if _, err = c.c.AlterConfigs(ctx, throttleConfigs); err != nil {
+			return ErrSetThrottle{Message: err.Error()}
+		}
 	}
 
 	return nil
