@@ -12,7 +12,7 @@ const (
 	brokerTXThrottleCfgName        = "leader.replication.throttled.rate"
 	brokerRXThrottleCfgName        = "follower.replication.throttled.rate"
 	topicThrottledLeadersCfgName   = "leader.replication.throttled.replicas"
-	topicThrottledFollowersCfgName = "leader.replication.throttled.replicas"
+	topicThrottledFollowersCfgName = "follower.replication.throttled.replicas"
 )
 
 // ThrottleConfig holds SetThrottle configs.
@@ -154,7 +154,6 @@ func (c Client) RemoveThrottle(ctx context.Context, cfg RemoveThrottleConfig) er
 	// Merge all configs into the global configuration set.
 	for i, resourceConfig := range []ResourceConfigs{topicDynamicConfigs, brokerDynamicConfigs} {
 		for name, configs := range resourceConfig {
-			// StringMapToConfigEntries
 			c := kafka.ConfigResource{
 				Name:   name,
 				Config: kafka.StringMapToConfigEntries(configs, kafka.AlterOperationSet),
