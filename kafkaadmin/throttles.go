@@ -15,8 +15,8 @@ const (
 	topicThrottledFollowersCfgName = "follower.replication.throttled.replicas"
 )
 
-// ThrottleConfig holds SetThrottle configs.
-type ThrottleConfig struct {
+// SetThrottleConfig holds SetThrottle configs.
+type SetThrottleConfig struct {
 	// Topics is a list of all topics that require throttled replica configs.
 	Topics []string
 	// Brokers is a mapping of broker ID to BrokerThrottleConfig.
@@ -37,10 +37,10 @@ type BrokerThrottleConfig struct {
 	OutboundLimitBytes int
 }
 
-// SetThrottle takes a ThrottleConfig and sets the underlying throttle configs
+// SetThrottle takes a SetThrottleConfig and sets the underlying throttle configs
 // accordingly. A throttle is a combination of topic throttled replicas configs
 // and broker inbound/outbound throttle configs.
-func (c Client) SetThrottle(ctx context.Context, cfg ThrottleConfig) error {
+func (c Client) SetThrottle(ctx context.Context, cfg SetThrottleConfig) error {
 	var topicDynamicConfigs, brokerDynamicConfigs ResourceConfigs
 	var err error
 
