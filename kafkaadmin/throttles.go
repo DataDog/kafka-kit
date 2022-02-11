@@ -111,6 +111,77 @@ func (c Client) SetThrottle(ctx context.Context, cfg ThrottleConfig) error {
 	return nil
 }
 
+// RemoveThrottle takes a RemoveThrottleConfig that includes an optionally specified
+// list of brokers and topics to remove all throttle configurations from.
+func (c Client) RemoveThrottle(ctx context.Context, cfg RemoveThrottleConfig) error {
+	var topicDynamicConfigs, brokerDynamicConfigs ResourceConfigs
+	var err error
+
+	// Get the named topic dynamic configs.
+	if len(cfg.Topics) > 0 {
+		topicDynamicConfigs, err = c.GetDynamicConfigs(ctx, "topic", cfg.Topics)
+		if err != nil {
+			return ErrRemoveThrottle{Message: err.Error()}
+		}
+	}
+
+	// Get the named broker ID dynamic configs.
+	if len(cfg.Brokers) > 0 {
+		var brokerIDs []string
+		for _, id := range cfg.Brokers {
+			brokerIDs = append(brokerIDs, fmt.Sprintf("%d", id))
+		}
+
+		brokerDynamicConfigs, err = c.GetDynamicConfigs(ctx, "broker", brokerIDs)
+		if err != nil {
+			return ErrRemoveThrottle{Message: err.Error()}
+		}
+	}
+
+	// Update the fetched configs to include the desired new configs.
+	if err := clearTopicThrottleConfigs(topicDynamicConfigs); err != nil {
+		return ErrRemoveThrottle{Message: err.Error()}
+	}
+
+	// Update the broker configs to the desired new configs.
+	if err := clearBrokerThrottleConfigs(brokerDynamicConfigs); err != nil {
+		return ErrRemoveThrottle{Message: err.Error()}
+	}
+
+	// Build a new configuration set.
+	var throttleConfigs []kafka.ConfigResource
+
+	// Merge all configs into the global configuration set.
+	for i, resourceConfig := range []ResourceConfigs{topicDynamicConfigs, brokerDynamicConfigs} {
+		for name, configs := range resourceConfig {
+			// StringMapToConfigEntries
+			c := kafka.ConfigResource{
+				Name:   name,
+				Config: kafka.StringMapToConfigEntries(configs, kafka.AlterOperationSet),
+			}
+
+			// Assign the type to the respective config class according to the index.
+			switch i {
+			case 0:
+				c.Type = topicResourceType
+			case 1:
+				c.Type = brokerResourceType
+			}
+
+			throttleConfigs = append(throttleConfigs, c)
+		}
+	}
+
+	if len(throttleConfigs) > 0 {
+		// Apply the configs.
+		if _, err = c.c.AlterConfigs(ctx, throttleConfigs); err != nil {
+			return ErrRemoveThrottle{Message: err.Error()}
+		}
+	}
+
+	return nil
+}
+
 // populateTopicConfigs takes a list of topics that should have a throttle config
 // set along with a ResourceConfigs. We need both; the provided ResourceConfigs
 // will only include topics that have at least one preexisting dynamic config.
