@@ -23,6 +23,13 @@ type ThrottleConfig struct {
 	Brokers map[int]BrokerThrottleConfig
 }
 
+// RemoveThrottleConfig holds lists of all topics and brokers to remove throttles
+// from.
+type RemoveThrottleConfig struct {
+	Topics  []string
+	Brokers []int
+}
+
 // BrokerThrottleConfig defines an inbound and outbound throttle rate in bytes
 // to be applied to a broker.
 type BrokerThrottleConfig struct {
@@ -104,6 +111,11 @@ func (c Client) SetThrottle(ctx context.Context, cfg ThrottleConfig) error {
 	return nil
 }
 
+// populateTopicConfigs takes a list of topics that should have a throttle config
+// set along with a ResourceConfigs. We need both; the provided ResourceConfigs
+// will only include topics that have at least one preexisting dynamic config.
+// If the topic from the topics list exists in the ResourceConfigs, we append the
+// throttle config. If it doesn't exist, we create the entry.
 func populateTopicConfigs(topics []string, configs ResourceConfigs) error {
 	for _, topic := range topics {
 		// We need to update the leader and follower throttle replicas list.
@@ -118,6 +130,35 @@ func populateTopicConfigs(topics []string, configs ResourceConfigs) error {
 	return nil
 }
 
+// clearTopicThrottleConfigs takes a ResourceConfigs and searches for topics with
+// any throttle replicas configuration. If the configuration exists, it's cleared.
+// Otherwise the topic is removed from the ResourceConfigs as a configuration
+// update does not need to be sent.
+func clearTopicThrottleConfigs(configs ResourceConfigs) error {
+	for topic, config := range configs {
+		_, hasLeaderCfg := config[topicThrottledLeadersCfgName]
+		_, hasFollowersCfg := config[topicThrottledFollowersCfgName]
+
+		// If either are set, remove the keys so they can be reset to the Kafka
+		// default.
+		if hasLeaderCfg || hasFollowersCfg {
+			delete(config, topicThrottledLeadersCfgName)
+			delete(config, topicThrottledFollowersCfgName)
+		} else {
+			// If we have neither leader nor follower config, we don't need to send
+			// a configuration update at all.
+			delete(configs, topic)
+		}
+	}
+
+	return nil
+}
+
+// populateBrokerConfigs takes a map of BrokerThrottleConfig for brokers that should
+// have a throttle config set along with a ResourceConfigs. We need both; the provided
+// ResourceConfigs will only include brokers that have at least one preexisting
+// dynamic config. If the broker from the map exists in the ResourceConfigs, we
+// append the throttle config. If it doesn't exist, we create the entry.
 func populateBrokerConfigs(brokers map[int]BrokerThrottleConfig, configs ResourceConfigs) error {
 	for brokerID, throttleRates := range brokers {
 		var err error
@@ -135,6 +176,30 @@ func populateBrokerConfigs(brokers map[int]BrokerThrottleConfig, configs Resourc
 		err = configs.AddConfig(id, brokerRXThrottleCfgName, rxRate)
 		if err != nil {
 			return err
+		}
+	}
+
+	return nil
+}
+
+// clearTopicThrottleConfigs takes a ResourceConfigs and searches for brokers with
+// any throttle replicas configuration. If the configuration exists, it's cleared.
+// Otherwise the broker is removed from the ResourceConfigs as a configuration
+// update does not need to be sent.
+func clearBrokerThrottleConfigs(configs ResourceConfigs) error {
+	for broker, config := range configs {
+		_, hasLeaderCfg := config[brokerTXThrottleCfgName]
+		_, hasFollowersCfg := config[brokerRXThrottleCfgName]
+
+		// If either are set, remove the keys so they can be reset to the Kafka
+		// default.
+		if hasLeaderCfg || hasFollowersCfg {
+			delete(config, brokerTXThrottleCfgName)
+			delete(config, brokerRXThrottleCfgName)
+		} else {
+			// If we have neither leader nor follower config, we don't need to send
+			// a configuration update at all.
+			delete(configs, broker)
 		}
 	}
 
