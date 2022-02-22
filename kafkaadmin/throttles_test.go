@@ -218,4 +218,55 @@ func TestPopulateBrokerConfigs(t *testing.T) {
 	}
 }
 
-// func TestClearBrokerThrottleConfigs(t *testing.T) {}
+func TestClearBrokerThrottleConfigs(t *testing.T) {
+	tests := []struct {
+		input       ResourceConfigs
+		expected    ResourceConfigs
+		expectedErr error
+	}{
+		// Case: One broker with throttle configs to remove and one config to retain,
+		// one broker with no configs; needs to be removed.
+		{
+			input: ResourceConfigs{
+				"1001": map[string]string{
+					"log.cleaner.threads":                 "8",
+					"leader.replication.throttled.rate":   "2000",
+					"follower.replication.throttled.rate": "4000",
+				},
+				"1002": map[string]string{},
+			},
+			expected: ResourceConfigs{
+				"1001": map[string]string{
+					"log.cleaner.threads": "8",
+				},
+			},
+			expectedErr: nil,
+		},
+		// Case: One broker with dynamic configs that will be entirely excluded as to
+		// not reset anything, one broker with empty configs to ignore, one broker with
+		// only a follower rate set that needs to be cleared.
+		{
+			input: ResourceConfigs{
+				"1001": map[string]string{
+					"log.cleaner.threads": "8",
+				},
+				"1002": map[string]string{},
+				"1003": map[string]string{
+					"follower.replication.throttled.rate": "4000",
+				},
+			},
+			expected: ResourceConfigs{
+				"1003": map[string]string{},
+			},
+			expectedErr: nil,
+		},
+	}
+
+	for i, testCase := range tests {
+		err := clearBrokerThrottleConfigs(testCase.input)
+		// Check the error.
+		assert.Equalf(t, testCase.expectedErr, err, fmt.Sprintf("case %d", i))
+		// Check the output.
+		assert.Equalf(t, testCase.expected, testCase.input, fmt.Sprintf("case %d", i))
+	}
+}
