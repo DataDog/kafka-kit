@@ -147,5 +147,75 @@ func TestClearTopicThrottleConfigs(t *testing.T) {
 	}
 }
 
-// func TestPopulateBrokerConfigs(t *testing.T) {}
+func TestPopulateBrokerConfigs(t *testing.T) {
+	inputBrokers := map[int]BrokerThrottleConfig{
+		1001: {
+			InboundLimitBytes:  4000,
+			OutboundLimitBytes: 2000,
+		},
+		1002: {
+			InboundLimitBytes:  3000,
+			OutboundLimitBytes: 4000,
+		},
+	}
+
+	tests := []struct {
+		input       ResourceConfigs
+		expected    ResourceConfigs
+		expectedErr error
+	}{
+		// Case: Adding throttles for two brokers. One is not in the ResourceConfigs
+		// yet, the other has a pre-existing config we need to retain.
+		{
+			input: ResourceConfigs{
+				"1001": map[string]string{
+					"log.cleaner.threads": "8",
+				},
+			},
+			expected: ResourceConfigs{
+				"1001": map[string]string{
+					"log.cleaner.threads":                 "8",
+					"leader.replication.throttled.rate":   "2000",
+					"follower.replication.throttled.rate": "4000",
+				},
+				"1002": map[string]string{
+					"leader.replication.throttled.rate":   "4000",
+					"follower.replication.throttled.rate": "3000",
+				},
+			},
+			expectedErr: nil,
+		},
+		// Case: Updating configs for a broker that has previously had throttles set.
+		// Another broker exists but has no configs.
+		{
+			input: ResourceConfigs{
+				"1001": map[string]string{
+					"leader.replication.throttled.rate":   "9000",
+					"follower.replication.throttled.rate": "8000",
+				},
+				"1002": map[string]string{},
+			},
+			expected: ResourceConfigs{
+				"1001": map[string]string{
+					"leader.replication.throttled.rate":   "2000",
+					"follower.replication.throttled.rate": "4000",
+				},
+				"1002": map[string]string{
+					"leader.replication.throttled.rate":   "4000",
+					"follower.replication.throttled.rate": "3000",
+				},
+			},
+			expectedErr: nil,
+		},
+	}
+
+	for i, testCase := range tests {
+		err := populateBrokerConfigs(inputBrokers, testCase.input)
+		// Check the error.
+		assert.Equalf(t, testCase.expectedErr, err, fmt.Sprintf("case %d", i))
+		// Check the output.
+		assert.Equalf(t, testCase.expected, testCase.input, fmt.Sprintf("case %d", i))
+	}
+}
+
 // func TestClearBrokerThrottleConfigs(t *testing.T) {}
