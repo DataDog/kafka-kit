@@ -35,6 +35,11 @@ type Config struct {
 	SASLPassword     string
 }
 
+// NewClient returns a KafkaAdmin.
+func NewClient(cfg Config) (KafkaAdmin, error) {
+	return newClient(cfg, kafka.NewAdminClient)
+}
+
 // Close closes the Client.
 func (c Client) Close() {
 	c.c.Close()
