@@ -66,12 +66,12 @@ func (c Client) SetThrottle(ctx context.Context, cfg SetThrottleConfig) error {
 	}
 
 	// Update the fetched configs to include the desired new configs.
-	if err := populateTopicConfigs(cfg.Topics, topicDynamicConfigs); err != nil {
+	if err := populateTopicThrottleConfigs(cfg.Topics, topicDynamicConfigs); err != nil {
 		return ErrSetThrottle{Message: err.Error()}
 	}
 
 	// Update the broker configs to the desired new configs.
-	if err := populateBrokerConfigs(cfg.Brokers, brokerDynamicConfigs); err != nil {
+	if err := populateBrokerThrottleConfigs(cfg.Brokers, brokerDynamicConfigs); err != nil {
 		return ErrSetThrottle{Message: err.Error()}
 	}
 
@@ -181,12 +181,12 @@ func (c Client) RemoveThrottle(ctx context.Context, cfg RemoveThrottleConfig) er
 	return nil
 }
 
-// populateTopicConfigs takes a list of topics that should have a throttle config
+// populateTopicThrottleConfigs takes a list of topics that should have a throttle config
 // set along with a ResourceConfigs. We need both; the provided ResourceConfigs
 // will only include topics that have at least one preexisting dynamic config.
 // If the topic from the topics list exists in the ResourceConfigs, we append the
 // throttle config. If it doesn't exist, we create the entry.
-func populateTopicConfigs(topics []string, configs ResourceConfigs) error {
+func populateTopicThrottleConfigs(topics []string, configs ResourceConfigs) error {
 	// Remove any topics in the ResourceConfigs that aren't in the topics list.
 	nameSet := map[string]struct{}{}
 	for _, t := range topics {
@@ -237,12 +237,12 @@ func clearTopicThrottleConfigs(configs ResourceConfigs) error {
 	return nil
 }
 
-// populateBrokerConfigs takes a map of BrokerThrottleConfig for brokers that should
+// populateBrokerThrottleConfigs takes a map of BrokerThrottleConfig for brokers that should
 // have a throttle config set along with a ResourceConfigs. We need both; the provided
 // ResourceConfigs will only include brokers that have at least one preexisting
 // dynamic config. If the broker from the map exists in the ResourceConfigs, we
 // append the throttle config. If it doesn't exist, we create the entry.
-func populateBrokerConfigs(brokers map[int]BrokerThrottleConfig, configs ResourceConfigs) error {
+func populateBrokerThrottleConfigs(brokers map[int]BrokerThrottleConfig, configs ResourceConfigs) error {
 	// Remove any brokers in the ResourceConfigs that don't have a BrokerThrottleConfig.
 	for idStr := range configs {
 		id, _ := strconv.Atoi(idStr)

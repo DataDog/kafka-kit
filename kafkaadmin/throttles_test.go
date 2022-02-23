@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestPopulateTopicConfigs(t *testing.T) {
+func TestPopulateTopicThrottleConfigs(t *testing.T) {
 	inputTopics := []string{"topic1", "topic2"}
 
 	tests := []struct {
@@ -80,7 +80,7 @@ func TestPopulateTopicConfigs(t *testing.T) {
 	}
 
 	for i, testCase := range tests {
-		err := populateTopicConfigs(inputTopics, testCase.input)
+		err := populateTopicThrottleConfigs(inputTopics, testCase.input)
 		// Check the error.
 		assert.Equalf(t, testCase.expectedErr, err, fmt.Sprintf("case %d", i))
 		// Check the output.
@@ -147,7 +147,7 @@ func TestClearTopicThrottleConfigs(t *testing.T) {
 	}
 }
 
-func TestPopulateBrokerConfigs(t *testing.T) {
+func TestPopulateBrokerThrottleConfigs(t *testing.T) {
 	inputBrokers := map[int]BrokerThrottleConfig{
 		1001: {
 			InboundLimitBytes:  4000,
@@ -210,7 +210,7 @@ func TestPopulateBrokerConfigs(t *testing.T) {
 	}
 
 	for i, testCase := range tests {
-		err := populateBrokerConfigs(inputBrokers, testCase.input)
+		err := populateBrokerThrottleConfigs(inputBrokers, testCase.input)
 		// Check the error.
 		assert.Equalf(t, testCase.expectedErr, err, fmt.Sprintf("case %d", i))
 		// Check the output.
