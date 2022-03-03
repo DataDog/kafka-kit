@@ -15,22 +15,22 @@ import (
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
 )
 
-// brokerChangeEvent is the message type returned in the events channel
-// from the applyBrokerThrottles func.
+// brokerChangeEvent is the message type returned in the events channel from the
+// applyBrokerThrottles func.
 type brokerChangeEvent struct {
 	id   int
 	role string
 	rate float64
 }
 
-// updateReplicationThrottle takes a ReplicationThrottleConfigs that holds
-// topics being replicated, any ZooKeeper/other clients, throttle override
-// params, and other required metadata. Metrics for brokers participating in
-// any ongoing replication are fetched to determine replication headroom.
-// The replication throttle is then adjusted accordingly. If a non-empty
-// override is provided, that static value is used instead of a dynamically
-// determined value. Additionally, broker-specific overrides may be specified,
-// which take precedence over the global override.
+// updateReplicationThrottle takes a ReplicationThrottleConfigs that holds topics
+// being replicated, any ZooKeeper/other clients, throttle override params, and
+// other required metadata. Metrics for brokers participating in any ongoing
+// replication are fetched to determine replication headroom. The replication
+// throttle is then adjusted accordingly. If a non-empty override is provided,
+// that static value is used instead of a dynamically determined value.
+// Additionally, broker-specific overrides may be specified, which take precedence
+// over the global override.
 // TODO(jamie): this function is absolute Mad Max. Fix.
 func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 	// Creates lists from maps.
@@ -41,8 +41,8 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 
 	// Determine throttle rates.
 
-	// Use the throttle override if set. Otherwise, make a calculation
-	// using broker metrics and configured capacity values.
+	// Use the throttle override if set. Otherwise, make a calculation using broker
+	// metrics and configured capacity values.
 	var capacities = make(replicationCapacityByBroker)
 	var brokerMetrics kafkametrics.BrokerMetrics
 	var rateOverride bool
@@ -59,9 +59,9 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 	if !rateOverride {
 		// Get broker metrics.
 		brokerMetrics, metricErrs = params.km.GetMetrics()
-		// Even if errors are returned, we can still proceed as long as we have
-		// complete metrics data for all target brokers. If we have broker
-		// metrics for all target brokers, we can ignore any errors.
+		// Even if errors are returned, we can still proceed as long as we have complete
+		// metrics data for all target brokers. If we have broker metrics for all target
+		// brokers, we can ignore any errors.
 		if metricErrs != nil {
 			if brokerMetrics == nil || incompleteBrokerMetrics(allBrokers, brokerMetrics) {
 				inFailureMode = true
@@ -69,9 +69,9 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 		}
 	}
 
-	// If we cannot proceed normally due to missing/partial metrics data,
-	// check what failure iteration we're in. If we're above the threshold,
-	// revert to the minimum rate, otherwise retain the previous rate.
+	// If we cannot proceed normally due to missing/partial metrics data, check what
+	// failure iteration we're in. If we're above the threshold, revert to the minimum
+	// rate, otherwise retain the previous rate.
 	if inFailureMode {
 		log.Printf("Errors fetching metrics: %s\n", metricErrs)
 
@@ -93,14 +93,14 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 		capacities.setAllRatesWithDefault(allBrokers, params.limits["minimum"])
 	}
 
-	// Reset the failure counter. We may have incremented in past iterations,
-	// but if we're here now, we can reset the count.
+	// Reset the failure counter. We may have incremented in past iterations, but if
+	// we're here now, we can reset the count.
 	if !inFailureMode {
 		params.ResetFailures()
 	}
 
-	// If there's no override set and we're not in a failure mode, apply
-	// the calculated throttles.
+	// If there's no override set and we're not in a failure mode, apply the
+	// calculated throttles.
 	if !rateOverride && !inFailureMode {
 		var err error
 		capacities, err = brokerReplicationCapacities(params, params.reassigningBrokers, brokerMetrics)
@@ -112,8 +112,8 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 	// Merge in broker-specific overrides if they're part of the reassignment.
 	for id := range params.reassigningBrokers.all {
 		if override, exists := params.brokerOverrides[id]; exists {
-			// Any brokers with throttle overrides that are being issued as part
-			// of a reassignemnt should be marked as such.
+			// Any brokers with throttle overrides that are being issued as part of a
+			// reassignemnt should be marked as such.
 			override.ReassignmentParticipant = true
 			params.brokerOverrides[id] = override
 
@@ -130,10 +130,17 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 	}
 
 	// Set broker throttle configs.
-	events, errs := applyBrokerThrottles(params.reassigningBrokers.all, capacities, params.previouslySetThrottles, params.limits, params.zk)
+	events, errs := applyBrokerThrottles(
+		params.reassigningBrokers.all,
+		capacities,
+		params.previouslySetThrottles,
+		params.limits,
+		params.zk,
+	)
+
 	for _, e := range errs {
-		// TODO(jamie): revisit whether we should actually be returning
-		// rather than just logging errors here.
+		// TODO(jamie): revisit whether we should actually be returning rather than
+		// just logging errors here.
 		log.Println(e)
 	}
 
@@ -181,8 +188,8 @@ func updateOverrideThrottles(params *ReplicationThrottleConfigs) error {
 	var toRemove = make(map[int]struct{})
 
 	for _, override := range params.brokerOverrides {
-		// ReassignmentParticipant have already had their override rates
-		// used as part of an ongoing reassignment.
+		// ReassignmentParticipant have already had their override rate used as part
+		// of an ongoing reassignment.
 		if !override.ReassignmentParticipant {
 			rate := float64(override.Config.Rate)
 			// Rate == 0 means the rate was removed via the API.
@@ -202,7 +209,13 @@ func updateOverrideThrottles(params *ReplicationThrottleConfigs) error {
 	}
 
 	// Set broker throttle configs.
-	events, errs := applyBrokerThrottles(toAssign, capacities, params.previouslySetThrottles, params.limits, params.zk)
+	events, errs := applyBrokerThrottles(toAssign,
+		capacities,
+		params.previouslySetThrottles,
+		params.limits,
+		params.zk,
+	)
+
 	for _, e := range errs {
 		log.Println(e)
 	}
@@ -302,8 +315,8 @@ func applyBrokerThrottles(bs map[int]struct{}, capacities, prevThrottles replica
 			log.Printf("Replication throttle rate for broker %d [%s] (based on a %.0f%% max free capacity utilization): %0.2fMB/s\n",
 				ID, role, max, *rate)
 
-			// Check if the delta between the newly calculated throttle and the
-			// previous throttle exceeds the ChangeThreshold param.
+			// Check if the delta between the newly calculated throttle and the previous
+			// throttle exceeds the ChangeThreshold param.
 			d := math.Abs((*prevRate - *rate) / *prevRate * 100)
 			if d < Config.ChangeThreshold {
 				log.Printf("Proposed throttle is within %.2f%% of the previous throttle "+
@@ -365,12 +378,11 @@ func applyBrokerThrottles(bs map[int]struct{}, capacities, prevThrottles replica
 	return events, errs
 }
 
-// applyTopicThrottles updates a throttledReplicas for all topics
-// undergoing replication, returning a channel of events and []string
-// of errors.
-// TODO(jamie) review whether the throttled replicas list changes as
-// replication finishes; each time the list changes here, we probably
-// update the config then propagate a watch to all the brokers in the cluster.
+// applyTopicThrottles updates a throttledReplicas for all topics undergoing
+// replication, returning a channel of events and []string of errors.
+// TODO(jamie) review whether the throttled replicas list changes as replication
+// finishes; each time the list changes here, we probably update the config then
+// propagate a watch to all the brokers in the cluster.
 func applyTopicThrottles(throttled topicThrottledReplicas, zk kafkazk.Handler) (chan string, []string) {
 	events := make(chan string, len(throttled))
 	var errs []string
@@ -463,8 +475,6 @@ func removeTopicThrottles(params *ReplicationThrottleConfigs) error {
 			log.Printf("Error removing throttle config on topic %s: %s\n", topic, err)
 		}
 
-		// Hardcoded sleep to reduce
-		// ZK load.
 		time.Sleep(250 * time.Millisecond)
 	}
 

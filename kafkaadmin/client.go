@@ -24,13 +24,20 @@ type Client struct {
 
 // Config holds Client configuration parameters.
 type Config struct {
+	// Required.
 	BootstrapServers string
+	// Misc.
 	GroupId          string
 	SSLCALocation    string
 	SecurityProtocol string
 	SASLMechanism    string
 	SASLUsername     string
 	SASLPassword     string
+}
+
+// NewClient returns a KafkaAdmin.
+func NewClient(cfg Config) (KafkaAdmin, error) {
+	return newClient(cfg, kafka.NewAdminClient)
 }
 
 // Close closes the Client.
