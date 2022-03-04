@@ -16,8 +16,6 @@ var (
 // list of names and returns a ResourceConfigs for all dynamic configurations
 // discovered for each resource by name.
 func (c Client) GetDynamicConfigs(ctx context.Context, kind string, names []string) (ResourceConfigs, error) {
-	var configResources []kafka.ConfigResource
-
 	var ckgType kafka.ResourceType
 	switch kind {
 	case "topic":
@@ -32,28 +30,31 @@ func (c Client) GetDynamicConfigs(ctx context.Context, kind string, names []stri
 		return nil, fmt.Errorf("no resource names provided")
 	}
 
-	// Populate the ConfigResource request.
+	// Populate the results into the ResourceConfigs.
+	var results = make(ResourceConfigs)
+
+	// Fetch the config for each resource sequentially.
+	// TODO(jamie) do this in batch when it becomes possible.
 	for _, n := range names {
+		// Populate the ConfigResource request.
 		cr := kafka.ConfigResource{
 			Type: ckgType,
 			Name: n,
 		}
-		configResources = append(configResources, cr)
-	}
 
-	// Request configs.
-	resourceConfigs, err := c.c.DescribeConfigs(ctx, configResources)
-	if err != nil {
-		return nil, err
-	}
+		// Request.
+		resourceConfigs, err := c.c.DescribeConfigs(ctx, []kafka.ConfigResource{cr})
+		if err != nil {
+			return nil, err
+		}
 
-	// Populate the results into the ResourceConfigs.
-	var results = make(ResourceConfigs)
-	for _, config := range resourceConfigs {
-		for _, v := range config.Config {
-			// Only return dynamic configs.
-			if v.Source == kafka.ConfigSourceDynamicTopic || v.Source == kafka.ConfigSourceDynamicBroker {
-				results.AddConfigEntry(config.Name, v)
+		// Populate results.
+		for _, config := range resourceConfigs {
+			for _, v := range config.Config {
+				// Only return dynamic configs.
+				if v.Source == kafka.ConfigSourceDynamicTopic || v.Source == kafka.ConfigSourceDynamicBroker {
+					results.AddConfigEntry(config.Name, v)
+				}
 			}
 		}
 	}
