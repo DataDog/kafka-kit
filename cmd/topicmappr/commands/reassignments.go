@@ -288,6 +288,46 @@ func computeReassignmentBundles(
 	return results
 }
 
+/**
+CHUNKED DOWNSCALING ALGORITHM
+
+Define the brokers that will be going away and the brokers that will be staying
+Define a chunked step size, defaults to 3
+create a rebuild map that exists just on the brokers that are staying
+going step size at a time, make a new map that is the last new map, but with all partitions from the latest brokers leaving assigned to the target group
+output each intermediate map as a separate, numbered map.
+*/
+
+func chunked(finalMap *kafkazk.PartitionMap, initialMap *kafkazk.PartitionMap, brokerIds []int, chunkStepSize int) []*kafkazk.PartitionMap {
+	var intermediateMap = initialMap
+	var out []*kafkazk.PartitionMap
+
+	for i := 0; i < len(brokerIds); i += chunkStepSize {
+		// Select the brokers we will move data from for this chunk
+		var chunkBrokers map[int]struct{}
+		for j := 0; j < chunkStepSize; j++ {
+			chunkBrokers[brokerIds[i+j]] = struct{}{}
+		}
+
+		// Go through the current map, and any partitions with replicas in our chunked brokers for this iteration
+		// will be moved this time.
+		var tempMap = intermediateMap
+		for pIndex, p := range intermediateMap.Partitions {
+			for rIndex, r := range p.Replicas {
+				if _, correctReplica := chunkBrokers[r]; correctReplica {
+					// This replica needs to be switched with one from the final map
+					tempMap.Partitions[pIndex].Replicas[rIndex] = finalMap.Partitions[pIndex].Replicas[rIndex]
+				}
+			}
+		}
+
+		out = append(out, tempMap)
+		intermediateMap = tempMap
+	}
+
+	return out
+}
+
 func validateBrokers(
 	newBrokers []int,
 	currentBrokers kafkazk.BrokerMap,

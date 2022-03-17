@@ -43,8 +43,6 @@ func init() {
 	rebuildCmd.Flags().Bool("skip-no-ops", false, "Skip no-op partition assigments")
 	rebuildCmd.Flags().Bool("optimize-leadership", false, "Rebalance all broker leader/follower ratios")
 	rebuildCmd.Flags().Bool("phased-reassignment", false, "Create two-phase output maps")
-
-	// new params for evac leadership
 	rebuildCmd.Flags().String("leader-evac-brokers", "", "Broker list to remove leadership for topics in leader-evac-topics.")
 	rebuildCmd.Flags().String("leader-evac-topics", "", "Topics list to remove leadership for the brokers given in leader-evac-brokers")
 
