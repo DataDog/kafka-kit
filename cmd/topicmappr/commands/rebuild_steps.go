@@ -151,7 +151,7 @@ func runRebuild(params rebuildParams, zk kafkazk.Handler) ([]*kafkazk.PartitionM
 
 	// If this is a getPartitionMapChunk operation, break it up into smaller operations and list those as intermediate maps.
 	if params.chunked {
-		mapChunks := getPartitionMapChunk(partitionMapOut, partitionMapIn, brokers.List(), params.chunkStepSize)
+		mapChunks := getPartitionMapChunk(partitionMapOut, originalMap, brokers.List(), params.chunkStepSize)
 		for _, chunk := range mapChunks {
 			outputMaps = append(outputMaps, chunk)
 		}

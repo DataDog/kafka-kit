@@ -289,16 +289,15 @@ func computeReassignmentBundles(
 }
 
 /**
-CHUNKED DOWNSCALING ALGORITHM
+getPartitionMapChunk Breaks a reassignment into a series of sequential, smaller reassignments.
+For large reassignments that may take a while, or risky operations that may require downtime in between, a chunked reassignment can be used.
+This will generate a series of partition maps that will converge on the desired state. To minimize data transfer,
+partitions are only moved to replicas in the desired final state.
 
-Define the brokers that will be going away and the brokers that will be staying
-Define a chunked step size, defaults to 3
-create a rebuild map that exists just on the brokers that are staying
-going step size at a time, make a new map that is the last new map, but with all partitions from the latest brokers leaving assigned to the target group
-output each intermediate map as a separate, numbered map.
+The original design was intended for downscaling operations, to remove partitions from one (or three) brokers at a time,
+without overwhelming whatever brokers are remaining in the cluster.
 */
-
-func chunked(finalMap *kafkazk.PartitionMap, initialMap *kafkazk.PartitionMap, brokerIds []int, chunkStepSize int) []*kafkazk.PartitionMap {
+func getPartitionMapChunk(finalMap *kafkazk.PartitionMap, initialMap *kafkazk.PartitionMap, brokerIds kafkazk.BrokerList, chunkStepSize int) []*kafkazk.PartitionMap {
 	var intermediateMap = initialMap.Copy()
 	var out []*kafkazk.PartitionMap
 
@@ -306,7 +305,7 @@ func chunked(finalMap *kafkazk.PartitionMap, initialMap *kafkazk.PartitionMap, b
 		// Select the brokers we will move data from for this chunk
 		var chunkBrokers = map[int]struct{}{}
 		for j := 0; j < chunkStepSize && i+j < len(brokerIds); j++ {
-			chunkBrokers[brokerIds[i+j]] = struct{}{}
+			chunkBrokers[brokerIds[i+j].ID] = struct{}{}
 		}
 
 		// Go through the current map, and any partitions with replicas in our chunked brokers for this iteration
