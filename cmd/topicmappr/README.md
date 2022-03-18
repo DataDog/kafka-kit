@@ -85,8 +85,12 @@ Usage:
 
 Flags:
       --brokers string                Broker list to scope all partition placements to ('-1' for all currently mapped brokers, '-2' for all brokers in cluster)
+      --chunk-step-size int           Number of brokers to move data at a time for with a getPartitionMapChunk operation. (default 3)
+      --chunked                       Output the result map in a series of smaller sequential maps that work towards the desired state.
       --force-rebuild                 Forces a complete map rebuild
   -h, --help                          help for rebuild
+      --leader-evac-brokers string    Broker list to remove leadership for topics in leader-evac-topics.
+      --leader-evac-topics string     Topics list to remove leadership for the brokers given in leader-evac-brokers
       --map-string string             Rebuild a partition map provided as a string literal
       --metrics-age int               Kafka metrics age tolerance (in minutes) (when using storage placement) (default 60)
       --min-rack-ids int              Minimum number of required of unique rack IDs per replica set (0 requires that all are unique)
@@ -103,12 +107,13 @@ Flags:
       --topics string                 Rebuild topics (comma delim. list) by lookup in ZooKeeper
       --topics-exclude string         Exclude topics
       --use-meta                      Use broker metadata in placement constraints (default true)
-      --zk-metrics-prefix string      ZooKeeper namespace prefix for Kafka metrics (when using storage placement) (default "topicmappr")
 
 Global Flags:
-      --ignore-warns       Produce a map even if warnings are encountered [TOPICMAPPR_IGNORE_WARNS]
-      --zk-addr string     ZooKeeper connect string [TOPICMAPPR_ZK_ADDR] (default "localhost:2181")
-      --zk-prefix string   ZooKeeper prefix (if Kafka is configured with a chroot path prefix) [TOPICMAPPR_ZK_PREFIX]
+      --ignore-warns               Produce a map even if warnings are encountered [TOPICMAPPR_IGNORE_WARNS]
+      --zk-addr string             ZooKeeper connect string [TOPICMAPPR_ZK_ADDR] (default "localhost:2181")
+      --zk-metrics-prefix string   ZooKeeper namespace prefix for Kafka metrics [TOPICMAPPR_ZK_METRICS_PREFIX] (default "topicmappr")
+      --zk-prefix string           ZooKeeper prefix (if Kafka is configured with a chroot path prefix) [TOPICMAPPR_ZK_PREFIX]
+
 ```
 
 ## rebalance usage
