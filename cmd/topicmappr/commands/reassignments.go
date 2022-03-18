@@ -299,19 +299,19 @@ output each intermediate map as a separate, numbered map.
 */
 
 func chunked(finalMap *kafkazk.PartitionMap, initialMap *kafkazk.PartitionMap, brokerIds []int, chunkStepSize int) []*kafkazk.PartitionMap {
-	var intermediateMap = initialMap
+	var intermediateMap = initialMap.Copy()
 	var out []*kafkazk.PartitionMap
 
 	for i := 0; i < len(brokerIds); i += chunkStepSize {
 		// Select the brokers we will move data from for this chunk
-		var chunkBrokers map[int]struct{}
-		for j := 0; j < chunkStepSize; j++ {
+		var chunkBrokers = map[int]struct{}{}
+		for j := 0; j < chunkStepSize && i+j < len(brokerIds); j++ {
 			chunkBrokers[brokerIds[i+j]] = struct{}{}
 		}
 
 		// Go through the current map, and any partitions with replicas in our chunked brokers for this iteration
 		// will be moved this time.
-		var tempMap = intermediateMap
+		var tempMap = intermediateMap.Copy()
 		for pIndex, p := range intermediateMap.Partitions {
 			for rIndex, r := range p.Replicas {
 				if _, correctReplica := chunkBrokers[r]; correctReplica {
@@ -321,7 +321,10 @@ func chunked(finalMap *kafkazk.PartitionMap, initialMap *kafkazk.PartitionMap, b
 			}
 		}
 
-		out = append(out, tempMap)
+		// Don't return noop maps
+		if equal, _ := tempMap.Equal(intermediateMap); !equal {
+			out = append(out, tempMap)
+		}
 		intermediateMap = tempMap
 	}
 
