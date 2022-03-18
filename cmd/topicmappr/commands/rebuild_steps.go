@@ -127,7 +127,7 @@ func runRebuild(params rebuildParams, zk kafkazk.Handler) ([]*kafkazk.PartitionM
 		)
 	}
 
-	outputMaps := []*kafkazk.PartitionMap{}
+	var outputMaps []*kafkazk.PartitionMap
 	// Generate phased map if enabled.
 	if params.phasedReassignment {
 		outputMaps = append(outputMaps, phasedReassignment(originalMap, partitionMapOut))
@@ -148,7 +148,16 @@ func runRebuild(params rebuildParams, zk kafkazk.Handler) ([]*kafkazk.PartitionM
 	if params.skipNoOps {
 		originalMap, partitionMapOut = skipReassignmentNoOps(originalMap, partitionMapOut)
 	}
-	outputMaps = append(outputMaps, partitionMapOut)
+
+	// If this is a getPartitionMapChunk operation, break it up into smaller operations and list those as intermediate maps.
+	if params.chunked {
+		mapChunks := getPartitionMapChunk(partitionMapOut, partitionMapIn, brokers.List(), params.chunkStepSize)
+		for _, chunk := range mapChunks {
+			outputMaps = append(outputMaps, chunk)
+		}
+	} else {
+		outputMaps = append(outputMaps, partitionMapOut)
+	}
 
 	return outputMaps, errs
 }
