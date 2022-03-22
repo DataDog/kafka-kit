@@ -133,8 +133,6 @@ func (c rebuildParams) validate() error {
 		return fmt.Errorf("\n[INFO] --force-rebuild disables --sub-affinity")
 	case (len(c.leaderEvacBrokers) != 0 || len(c.leaderEvacTopics) != 0) && (len(c.leaderEvacBrokers) == 0 || len(c.leaderEvacTopics) == 0):
 		return fmt.Errorf("\n[ERROR] --leader-evac-topics and --leader-evac-brokers must both be specified for leadership evacuation.")
-	case c.chunkStepSize <= 0:
-		return fmt.Errorf("\n[ERROR] --chunk-step-size must be a positive integer.")
 	}
 	return nil
 }
