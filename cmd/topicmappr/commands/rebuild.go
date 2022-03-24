@@ -45,7 +45,7 @@ func init() {
 	rebuildCmd.Flags().Bool("phased-reassignment", false, "Create two-phase output maps")
 	rebuildCmd.Flags().String("leader-evac-brokers", "", "Broker list to remove leadership for topics in leader-evac-topics.")
 	rebuildCmd.Flags().String("leader-evac-topics", "", "Topics list to remove leadership for the brokers given in leader-evac-brokers")
-	rebuildCmd.Flags().Int("chunk-step-size", 0, "Number of brokers to move data at a time for with a getPartitionMapChunk operation.")
+	rebuildCmd.Flags().Int("chunk-step-size", 0, "Number of brokers to move data at a time for with a chunked operation.")
 
 	// Required.
 	rebuildCmd.MarkFlagRequired("brokers")

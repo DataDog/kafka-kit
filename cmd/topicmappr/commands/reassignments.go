@@ -289,7 +289,7 @@ func computeReassignmentBundles(
 }
 
 /**
-getPartitionMapChunk Breaks a reassignment into a series of sequential, smaller reassignments.
+getPartitionMapChunks Breaks a reassignment into a series of sequential, smaller reassignments.
 For large reassignments that may take a while, or risky operations that may require downtime in between, a chunked reassignment can be used.
 This will generate a series of partition maps that will converge on the desired state. To minimize data transfer,
 partitions are only moved to replicas in the desired final state.
@@ -297,7 +297,7 @@ partitions are only moved to replicas in the desired final state.
 The original design was intended for downscaling operations, to remove partitions from one (or three) brokers at a time,
 without overwhelming whatever brokers are remaining in the cluster.
 */
-func getPartitionMapChunk(finalMap *kafkazk.PartitionMap, initialMap *kafkazk.PartitionMap, brokerIds kafkazk.BrokerList, chunkStepSize int) []*kafkazk.PartitionMap {
+func getPartitionMapChunks(finalMap *kafkazk.PartitionMap, initialMap *kafkazk.PartitionMap, brokerIds kafkazk.BrokerList, chunkStepSize int) []*kafkazk.PartitionMap {
 	var intermediateMap = initialMap.Copy()
 	var out []*kafkazk.PartitionMap
 	brokerIds.SortByIDDesc()
@@ -327,7 +327,7 @@ func getPartitionMapChunk(finalMap *kafkazk.PartitionMap, initialMap *kafkazk.Pa
 
 		// Don't return noop maps
 		if equal, _ := tempMap.Equal(intermediateMap); !equal {
-			fmt.Printf("\n\n Printing changes for chunk %d", i)
+			fmt.Printf("\n\nChanges for partition map Chunk %d", i)
 			printMapChanges(intermediateMap, tempMap)
 			out = append(out, tempMap)
 		}

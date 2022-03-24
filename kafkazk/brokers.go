@@ -101,7 +101,6 @@ type BrokerList []*Broker
 type brokersByCount BrokerList
 type brokersByStorage BrokerList
 type brokersByID BrokerList
-type brokersByIDDesc BrokerList
 
 // Satisfy the sort interface for BrokerList types.
 
@@ -138,11 +137,6 @@ func (b brokersByID) Len() int           { return len(b) }
 func (b brokersByID) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
 func (b brokersByID) Less(i, j int) bool { return b[i].ID < b[j].ID }
 
-// By ID value descending.
-func (b brokersByIDDesc) Len() int           { return len(b) }
-func (b brokersByIDDesc) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
-func (b brokersByIDDesc) Less(i, j int) bool { return b[i].ID > b[j].ID }
-
 // Sort methods.
 
 // SortByCount sorts the BrokerList by Used values.
@@ -162,7 +156,7 @@ func (b BrokerList) SortByID() {
 
 // SortByIDDesc sorts the BrokerList by ID values.
 func (b BrokerList) SortByIDDesc() {
-	sort.Sort(brokersByIDDesc(b))
+	sort.Sort(sort.Reverse(brokersByID(b)))
 }
 
 // BrokerFilterFn is a filter function

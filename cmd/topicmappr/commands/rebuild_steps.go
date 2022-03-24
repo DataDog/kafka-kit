@@ -149,10 +149,10 @@ func runRebuild(params rebuildParams, zk kafkazk.Handler) ([]*kafkazk.PartitionM
 		originalMap, partitionMapOut = skipReassignmentNoOps(originalMap, partitionMapOut)
 	}
 
-	// If this is a getPartitionMapChunk operation, break it up into smaller operations and list those as intermediate maps.
+	// If this is a getPartitionMapChunks operation, break it up into smaller operations and list those as intermediate maps.
 	if params.chunkStepSize > 0 {
 		fmt.Printf("\n\nGenerating reassignments in chunks %d brokers at a time: \n\n", params.chunkStepSize)
-		mapChunks := getPartitionMapChunk(partitionMapOut, originalMap, brokersOrig.List(), params.chunkStepSize)
+		mapChunks := getPartitionMapChunks(partitionMapOut, originalMap, brokersOrig.List(), params.chunkStepSize)
 		for _, chunk := range mapChunks {
 			outputMaps = append(outputMaps, chunk)
 		}
