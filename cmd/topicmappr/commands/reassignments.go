@@ -330,6 +330,8 @@ func getPartitionMapChunks(finalMap *kafkazk.PartitionMap, initialMap *kafkazk.P
 			fmt.Printf("\n\nChanges for partition map Chunk %d", i)
 			printMapChanges(intermediateMap, tempMap)
 			out = append(out, tempMap)
+		} else {
+			fmt.Printf("\n\nSkipping map output for chunked noop map%d", i)
 		}
 		intermediateMap = tempMap
 	}

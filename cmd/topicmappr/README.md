@@ -85,8 +85,7 @@ Usage:
 
 Flags:
       --brokers string                Broker list to scope all partition placements to ('-1' for all currently mapped brokers, '-2' for all brokers in cluster)
-      --chunk-step-size int           Number of brokers to move data at a time for with a getPartitionMapChunk operation. (default 3)
-      --chunked                       Output the result map in a series of smaller sequential maps that work towards the desired state.
+      --chunk-step-size int           Number of brokers to move data at a time for with a chunked operation. (default 0)
       --force-rebuild                 Forces a complete map rebuild
   -h, --help                          help for rebuild
       --leader-evac-brokers string    Broker list to remove leadership for topics in leader-evac-topics.
