@@ -300,6 +300,7 @@ without overwhelming whatever brokers are remaining in the cluster.
 func getPartitionMapChunk(finalMap *kafkazk.PartitionMap, initialMap *kafkazk.PartitionMap, brokerIds kafkazk.BrokerList, chunkStepSize int) []*kafkazk.PartitionMap {
 	var intermediateMap = initialMap.Copy()
 	var out []*kafkazk.PartitionMap
+	brokerIds.SortByIDDesc()
 
 	for i := 0; i < len(brokerIds); i += chunkStepSize {
 		// Select the brokers we will move data from for this chunk
@@ -315,6 +316,10 @@ func getPartitionMapChunk(finalMap *kafkazk.PartitionMap, initialMap *kafkazk.Pa
 			for rIndex, r := range p.Replicas {
 				if _, correctReplica := chunkBrokers[r]; correctReplica {
 					// This replica needs to be switched with one from the final map
+					if len(tempMap.Partitions[pIndex].Replicas) != len(finalMap.Partitions[pIndex].Replicas) {
+						fmt.Println("Chunked reassignment cannot be used when reducing or increasing replication factor. Exiting.")
+						os.Exit(1)
+					}
 					tempMap.Partitions[pIndex].Replicas[rIndex] = finalMap.Partitions[pIndex].Replicas[rIndex]
 				}
 			}
@@ -322,6 +327,8 @@ func getPartitionMapChunk(finalMap *kafkazk.PartitionMap, initialMap *kafkazk.Pa
 
 		// Don't return noop maps
 		if equal, _ := tempMap.Equal(intermediateMap); !equal {
+			fmt.Printf("\n\n Printing changes for chunk %d", i)
+			printMapChanges(intermediateMap, tempMap)
 			out = append(out, tempMap)
 		}
 		intermediateMap = tempMap

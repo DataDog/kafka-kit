@@ -106,7 +106,7 @@ func rebuildParamsFromCmd(cmd *cobra.Command) (params rebuildParams) {
 	params.topicsExclude = topicRegex(topicsExclude)
 	useMetadata, _ := cmd.Flags().GetBool("use-meta")
 	params.useMetadata = useMetadata
-	chunkStepSize, _ := cmd.Flags().GetInt("chunkStepSize")
+	chunkStepSize, _ := cmd.Flags().GetInt("chunk-step-size")
 	params.chunkStepSize = chunkStepSize
 	let, _ := cmd.Flags().GetString("leader-evac-topics")
 	if let != "" {
