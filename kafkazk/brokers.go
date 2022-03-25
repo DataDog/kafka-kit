@@ -154,6 +154,11 @@ func (b BrokerList) SortByID() {
 	sort.Sort(brokersByID(b))
 }
 
+// SortByIDDesc sorts the BrokerList by ID values.
+func (b BrokerList) SortByIDDesc() {
+	sort.Sort(sort.Reverse(brokersByID(b)))
+}
+
 // BrokerFilterFn is a filter function
 // for BrokerList and BrokerMap types.
 type BrokerFilterFn func(*Broker) bool

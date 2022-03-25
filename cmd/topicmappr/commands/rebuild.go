@@ -43,10 +43,9 @@ func init() {
 	rebuildCmd.Flags().Bool("skip-no-ops", false, "Skip no-op partition assigments")
 	rebuildCmd.Flags().Bool("optimize-leadership", false, "Rebalance all broker leader/follower ratios")
 	rebuildCmd.Flags().Bool("phased-reassignment", false, "Create two-phase output maps")
-
-	// new params for evac leadership
 	rebuildCmd.Flags().String("leader-evac-brokers", "", "Broker list to remove leadership for topics in leader-evac-topics.")
 	rebuildCmd.Flags().String("leader-evac-topics", "", "Topics list to remove leadership for the brokers given in leader-evac-brokers")
+	rebuildCmd.Flags().Int("chunk-step-size", 0, "Number of brokers to move data at a time for with a chunked operation.")
 
 	// Required.
 	rebuildCmd.MarkFlagRequired("brokers")
@@ -71,6 +70,7 @@ type rebuildParams struct {
 	useMetadata         bool
 	leaderEvacTopics    []*regexp.Regexp
 	leaderEvacBrokers   []int
+	chunkStepSize       int
 }
 
 func rebuildParamsFromCmd(cmd *cobra.Command) (params rebuildParams) {
@@ -106,6 +106,8 @@ func rebuildParamsFromCmd(cmd *cobra.Command) (params rebuildParams) {
 	params.topicsExclude = topicRegex(topicsExclude)
 	useMetadata, _ := cmd.Flags().GetBool("use-meta")
 	params.useMetadata = useMetadata
+	chunkStepSize, _ := cmd.Flags().GetInt("chunk-step-size")
+	params.chunkStepSize = chunkStepSize
 	let, _ := cmd.Flags().GetString("leader-evac-topics")
 	if let != "" {
 		params.leaderEvacTopics = topicRegex(let)
