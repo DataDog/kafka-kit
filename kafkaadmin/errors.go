@@ -4,6 +4,11 @@ import (
 	"fmt"
 )
 
+var (
+	// ErrNoData is a generic error for no data available to be returned.
+	ErrNoData = fmt.Errorf("no data returned")
+)
+
 // ErrSetThrottle is a generic error for SetThrottle.
 type ErrSetThrottle struct{ Message string }
 

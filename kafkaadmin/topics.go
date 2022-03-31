@@ -2,7 +2,6 @@ package kafkaadmin
 
 import (
 	"context"
-	"fmt"
 	"regexp"
 	"time"
 
@@ -100,6 +99,14 @@ func (c Client) DescribeTopics(ctx context.Context, topics []*regexp.Regexp) (To
 	md, err := c.c.GetMetadata(nil, true, int(timeout.Milliseconds()))
 	if err != nil {
 		return nil, ErrorFetchingMetadata{Message: err.Error()}
+	}
+
+	return topicStatesFromMetadata(md)
+}
+
+func topicStatesFromMetadata(md *kafka.Metadata) (TopicStates, error) {
+	if len(md.Topics) == 0 {
+		return nil, ErrNoData
 	}
 
 	// Extract the topic metadata and populate it into the TopicStates.
