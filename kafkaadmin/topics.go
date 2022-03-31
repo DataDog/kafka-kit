@@ -2,6 +2,9 @@ package kafkaadmin
 
 import (
 	"context"
+	"fmt"
+	"regexp"
+	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
@@ -66,4 +69,25 @@ func (c Client) CreateTopic(ctx context.Context, cfg CreateTopicConfig) error {
 func (c Client) DeleteTopic(ctx context.Context, name string) error {
 	_, err := c.c.DeleteTopics(ctx, []string{name})
 	return err
+}
+
+// DescribeTopics takes a []*regexp.Regexp and returns a TopicState for all topics
+// with names that match any of the regex patterns specified.
+func (c Client) DescribeTopics(ctx context.Context, topics []*regexp.Regexp) (TopicStates, error) {
+	// GetMetadata(topic *string, allTopics bool, timeoutMs int) (*Metadata, error)
+	var timeout time.Duration
+	if dl, set := ctx.Deadline(); set {
+		timeout = dl.Sub(time.Now())
+	} else {
+		timeout = defaultTimeout
+	}
+
+	// If we're getting the metadata for <= 5 topics
+	md, err := c.c.GetMetadata(nil, true, int(timeout.Milliseconds()))
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Printf("%+v\n", md)
+	return nil, nil
 }

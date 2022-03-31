@@ -3,6 +3,7 @@ package kafkaadmin
 
 import (
 	"context"
+	"regexp"
 )
 
 // KafkaAdmin interface.
