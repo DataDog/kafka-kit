@@ -2,7 +2,7 @@ package kafkaadmin
 
 import (
 	"context"
-	"regexp"
+	//"regexp"
 	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
@@ -83,9 +83,9 @@ func (c Client) DeleteTopic(ctx context.Context, name string) error {
 	return err
 }
 
-// DescribeTopics takes a []*regexp.Regexp and returns a TopicState for all topics
-// with names that match any of the regex patterns specified.
-func (c Client) DescribeTopics(ctx context.Context, topics []*regexp.Regexp) (TopicStates, error) {
+// DescribeTopics takes a []string of topic names. Topic names can be name literals
+// or optional regex. A TopicStates is returned for all matching topics.
+func (c Client) DescribeTopics(ctx context.Context, topics []string) (TopicStates, error) {
 	// Use the context deadline remaining budget if set, otherwise use the default
 	// timeout value.
 	var timeout time.Duration

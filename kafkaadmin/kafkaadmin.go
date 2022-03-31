@@ -3,7 +3,6 @@ package kafkaadmin
 
 import (
 	"context"
-	"regexp"
 )
 
 // KafkaAdmin interface.
@@ -12,7 +11,7 @@ type KafkaAdmin interface {
 	// Topics.
 	CreateTopic(context.Context, CreateTopicConfig) error
 	DeleteTopic(context.Context, string) error
-	DescribeTopics(context.Context, []*regexp.Regexp) (TopicStates, error)
+	DescribeTopics(context.Context, []string) (TopicStates, error)
 	// Cluster.
 	SetThrottle(context.Context, SetThrottleConfig) error
 	RemoveThrottle(context.Context, RemoveThrottleConfig) error
