@@ -42,6 +42,19 @@ type PartitionState struct {
 	ISR      []int32
 }
 
+// NewTopicStates initializes a TopicStates.
+func NewTopicStates() TopicStates {
+	return make(map[string]TopicState)
+}
+
+// NewTopicState initializes a TopicState.
+func NewTopicState(name string) TopicState {
+	return TopicState{
+		Name:            name,
+		PartitionStates: make(map[int]PartitionState),
+	}
+}
+
 // CreateTopic creates a topic.
 func (c Client) CreateTopic(ctx context.Context, cfg CreateTopicConfig) error {
 	spec := kafka.TopicSpecification{
@@ -89,6 +102,40 @@ func (c Client) DescribeTopics(ctx context.Context, topics []*regexp.Regexp) (To
 		return nil, ErrorFetchingMetadata{Message: err.Error()}
 	}
 
-	fmt.Printf("%+v\n", md)
-	return nil, nil
+	// Extract the topic metadata and populate it into the TopicStates.
+	var topicStates = NewTopicStates()
+
+	// For each topic in the global metadata, translate its metadata to a TopicState.
+	for topic, topicMeta := range md.Topics {
+		topicState := NewTopicState(topic)
+
+		var maxSeenReplicaLen int
+
+		// Scan the partitions and map the states.
+		for _, partn := range topicMeta.Partitions {
+			// Track the max seen replicas len to infer the replication factor. This may
+			// be worth referring to the Kafka code since it is possible to explicitly
+			// configure partitions to have variable replica set sizes; perhaps an
+			// average makes more sense?
+			if maxSeenReplicaLen < len(partn.Replicas) {
+				maxSeenReplicaLen = len(partn.Replicas)
+			}
+
+			topicState.PartitionStates[int(partn.ID)] = PartitionState{
+				ID:       partn.ID,
+				Leader:   partn.Leader,
+				Replicas: partn.Replicas,
+				ISR:      partn.Isrs,
+			}
+		}
+
+		// Set the general topic attributes.
+		topicState.ReplicationFactor = int32(maxSeenReplicaLen)
+		topicState.Partitions = int32(len(topicMeta.Partitions))
+
+		// Add the TopicState to the global TopicStates.
+		topicStates[topic] = topicState
+	}
+
+	return topicStates, nil
 }
