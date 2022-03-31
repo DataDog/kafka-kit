@@ -2,7 +2,7 @@ package kafkaadmin
 
 import (
 	"context"
-	//"regexp"
+	"regexp"
 	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
@@ -101,7 +101,29 @@ func (c Client) DescribeTopics(ctx context.Context, topics []string) (TopicState
 		return nil, ErrorFetchingMetadata{Message: err.Error()}
 	}
 
+	// Strip topics that don't match any of the specified names.
+	topicNamesRegex, err := stringsToRegex(topics)
+	if err != nil {
+		return nil, err
+	}
+
+	filterMatches(md, topicNamesRegex)
+
 	return topicStatesFromMetadata(md)
+}
+
+func filterMatches(md *kafka.Metadata, re []*regexp.Regexp) {
+	for topic := range md.Topics {
+		var keep bool
+		for _, r := range re {
+			if r.MatchString(topic) {
+				keep = true
+			}
+		}
+		if !keep {
+			delete(md.Topics, topic)
+		}
+	}
 }
 
 func topicStatesFromMetadata(md *kafka.Metadata) (TopicStates, error) {
