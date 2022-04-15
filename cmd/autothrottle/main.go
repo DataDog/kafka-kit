@@ -108,6 +108,11 @@ func main() {
 		Connect: Config.ZKAddr,
 		Prefix:  Config.ZKPrefix,
 	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer zk.Close()
 
 	// Init the admin API.
 	apiConfig := &APIConfig{
@@ -117,10 +122,6 @@ func main() {
 
 	initAPI(apiConfig, zk)
 	log.Printf("Admin API: %s\n", Config.APIListen)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer zk.Close()
 
 	// Init a Kafka metrics fetcher.
 	km, err := datadog.NewHandler(&datadog.Config{
@@ -195,7 +196,7 @@ func main() {
 	var ticker = time.NewTicker(time.Duration(Config.Interval) * time.Second)
 
 	// TODO(jamie): refactor this loop.
-	for {
+	for ; ; <-ticker.C {
 		interval++
 
 		// Get topics undergoing reassignment.
@@ -203,7 +204,12 @@ func main() {
 			reassignments = zk.GetReassignments()
 		} else {
 			// KIP-455 compatible reassignments lookup.
-			reassignments, _ = zk.ListReassignments()
+			reassignments, err = zk.ListReassignments()
+		}
+
+		if err != nil {
+			fmt.Printf("error fetching reassignments: %s\n", err)
+			continue
 		}
 
 		topicsReplicatingNow = newSet()
@@ -427,7 +433,6 @@ func main() {
 			}
 		}
 
-		<-ticker.C
 	}
 
 }
