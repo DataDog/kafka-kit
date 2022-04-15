@@ -154,7 +154,7 @@ func main() {
 		tags:        tags,
 	}
 
-	// Default to true on startup in case throttles were set in  an autothrottle
+	// Default to true on startup in case throttles were set in an autothrottle
 	// process other than the current one.
 	knownThrottles := true
 
@@ -199,7 +199,13 @@ func main() {
 		interval++
 
 		// Get topics undergoing reassignment.
-		reassignments = zk.GetReassignments() // XXX This needs to return an error.
+		if !Config.KafkaNativeMode {
+			reassignments = zk.GetReassignments()
+		} else {
+			// KIP-455 compatible reassignments lookup.
+			reassignments, _ = zk.ListReassignments()
+		}
+
 		topicsReplicatingNow = newSet()
 		for t := range reassignments {
 			topicsReplicatingNow.add(t)
