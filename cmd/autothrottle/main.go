@@ -33,6 +33,7 @@ var (
 		BrokerIDTag        string
 		InstanceTypeTag    string
 		MetricsWindow      int
+		BootstrapServers   []string
 		ZKAddr             string
 		ZKPrefix           string
 		Interval           int
@@ -54,7 +55,7 @@ var (
 
 func main() {
 	v := flag.Bool("version", false, "version")
-	flag.BoolVar(&Config.KafkaNativeMode, false, "Favor native Kafka RPCs over ZooKeeper metadata access")
+	flag.BoolVar(&Config.KafkaNativeMode, "kafka-native-mode", false, "Favor native Kafka RPCs over ZooKeeper metadata access")
 	flag.StringVar(&Config.APIKey, "api-key", "", "Datadog API key")
 	flag.StringVar(&Config.AppKey, "app-key", "", "Datadog app key")
 	flag.StringVar(&Config.NetworkTXQuery, "net-tx-query", "avg:system.net.bytes_sent{service:kafka} by {host}", "Datadog query for broker outbound bandwidth by host")
@@ -62,6 +63,7 @@ func main() {
 	flag.StringVar(&Config.BrokerIDTag, "broker-id-tag", "broker_id", "Datadog host tag for broker ID")
 	flag.StringVar(&Config.InstanceTypeTag, "instance-type-tag", "instance-type", "Datadog tag for instance type")
 	flag.IntVar(&Config.MetricsWindow, "metrics-window", 120, "Time span of metrics required (seconds)")
+	bss := flag.String("bootstrap-servers", "localhost:9092", "Kafka bootstrap servers")
 	flag.StringVar(&Config.ZKAddr, "zk-addr", "localhost:2181", "ZooKeeper connect string (for broker metadata or rebuild-topic lookups)")
 	flag.StringVar(&Config.ZKPrefix, "zk-prefix", "", "ZooKeeper namespace prefix")
 	flag.IntVar(&Config.Interval, "interval", 180, "Autothrottle check interval (seconds)")
@@ -83,6 +85,8 @@ func main() {
 		fmt.Println(version)
 		os.Exit(0)
 	}
+
+	Config.BootstrapServers = strings.Split(*bss, ",")
 
 	// Deserialize instance-type capacity map.
 	Config.CapMap = map[string]float64{}
