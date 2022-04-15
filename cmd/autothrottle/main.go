@@ -25,6 +25,7 @@ var (
 	// Config holds configuration
 	// parameters.
 	Config struct {
+		KafkaNativeMode    bool
 		APIKey             string
 		AppKey             string
 		NetworkTXQuery     string
@@ -53,6 +54,7 @@ var (
 
 func main() {
 	v := flag.Bool("version", false, "version")
+	flag.BoolVar(&Config.KafkaNativeMode, false, "Favor native Kafka RPCs over ZooKeeper metadata access")
 	flag.StringVar(&Config.APIKey, "api-key", "", "Datadog API key")
 	flag.StringVar(&Config.AppKey, "app-key", "", "Datadog app key")
 	flag.StringVar(&Config.NetworkTXQuery, "net-tx-query", "avg:system.net.bytes_sent{service:kafka} by {host}", "Datadog query for broker outbound bandwidth by host")
