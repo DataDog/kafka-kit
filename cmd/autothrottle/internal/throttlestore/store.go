@@ -1,4 +1,4 @@
-package main
+package throttlestore
 
 import (
 	"encoding/json"
@@ -10,18 +10,27 @@ import (
 )
 
 var (
-	errNoOverrideSet = errors.New("no override set at path")
+	ErrNoOverrideSet = errors.New("no override set at path")
 )
 
+// ThrottleOverrideConfig holds throttle override configurations.
+type ThrottleOverrideConfig struct {
+	// Rate in MB.
+	Rate int `json:"rate"`
+	// Whether the override rate should be
+	// removed when the current reassignments finish.
+	AutoRemove bool `json:"autoremove"`
+}
+
 // fetchThrottleOverride gets a throttle override from path p.
-func fetchThrottleOverride(zk kafkazk.Handler, p string) (*ThrottleOverrideConfig, error) {
+func FetchThrottleOverride(zk kafkazk.Handler, p string) (*ThrottleOverrideConfig, error) {
 	c := &ThrottleOverrideConfig{}
 
 	override, err := zk.Get(p)
 	if err != nil {
 		switch err.(type) {
 		case kafkazk.ErrNoNode:
-			return c, errNoOverrideSet
+			return c, ErrNoOverrideSet
 		default:
 			return c, fmt.Errorf("error getting throttle override: %s", err)
 		}
@@ -39,7 +48,7 @@ func fetchThrottleOverride(zk kafkazk.Handler, p string) (*ThrottleOverrideConfi
 }
 
 // storeThrottleOverride sets a throttle override to path p.
-func storeThrottleOverride(zk kafkazk.Handler, p string, c ThrottleOverrideConfig) error {
+func StoreThrottleOverride(zk kafkazk.Handler, p string, c ThrottleOverrideConfig) error {
 	d, err := json.Marshal(c)
 	if err != nil {
 		return fmt.Errorf("error marshalling override config: %s", err)
@@ -65,7 +74,7 @@ func storeThrottleOverride(zk kafkazk.Handler, p string, c ThrottleOverrideConfi
 }
 
 // removeThrottleOverride deletes an override at path p.
-func removeThrottleOverride(zk kafkazk.Handler, p string) error {
+func RemoveThrottleOverride(zk kafkazk.Handler, p string) error {
 	exists, err := zk.Exists(p)
 	if !exists && err == nil {
 		return nil
@@ -79,11 +88,11 @@ func removeThrottleOverride(zk kafkazk.Handler, p string) error {
 	return nil
 }
 
-// fetchBrokerOverrides returns a BrokerOverrides populated with all brokers
+// FetchBrokerOverrides returns a BrokerOverrides populated with all brokers
 // with overrides set. This function exists as a convenience since the number of
 // broker overrides can vary, as opposed to the global which has a single,
 // consistent znode that always exists.
-func fetchBrokerOverrides(zk kafkazk.Handler, p string) (BrokerOverrides, error) {
+func FetchBrokerOverrides(zk kafkazk.Handler, p string) (BrokerOverrides, error) {
 	overrides := BrokerOverrides{}
 
 	// Get brokers with overrides configured.

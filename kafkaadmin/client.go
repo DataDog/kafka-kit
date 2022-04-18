@@ -3,6 +3,7 @@ package kafkaadmin
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
@@ -13,6 +14,9 @@ var (
 	SecurityProtocolSet = map[string]struct{}{"PLAINTEXT": empty, "SSL": empty, "SASL_PLAINTEXT": empty, "SASL_SSL": empty}
 	// SASLMechanismSet is the set of mechanisms supported for client to broker authentication
 	SASLMechanismSet = map[string]struct{}{"PLAIN": empty, "SCRAM-SHA-256": empty, "SCRAM-SHA-512": empty}
+	// Default timeout for requests to Kafka if a context is passed in with no
+	// deadline set.
+	defaultTimeout = 5 * time.Second
 )
 
 type FactoryFunc func(conf *kafka.ConfigMap) (*kafka.AdminClient, error)
@@ -24,13 +28,20 @@ type Client struct {
 
 // Config holds Client configuration parameters.
 type Config struct {
+	// Required.
 	BootstrapServers string
+	// Misc.
 	GroupId          string
 	SSLCALocation    string
 	SecurityProtocol string
 	SASLMechanism    string
 	SASLUsername     string
 	SASLPassword     string
+}
+
+// NewClient returns a KafkaAdmin.
+func NewClient(cfg Config) (KafkaAdmin, error) {
+	return newClient(cfg, kafka.NewAdminClient)
 }
 
 // Close closes the Client.

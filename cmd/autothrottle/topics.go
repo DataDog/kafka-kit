@@ -92,7 +92,7 @@ func (t TopicStates) Filter(fn TopicStatesFilterFn) TopicStates {
 // getTopicsWithThrottledBrokers returns a topicThrottledReplicas that includes
 // any topics that have partitions assigned to brokers with a static throttle
 // rate set.
-func getTopicsWithThrottledBrokers(params *ReplicationThrottleConfigs) (topicThrottledReplicas, error) {
+func getTopicsWithThrottledBrokers(params *ThrottleManager) (topicThrottledReplicas, error) {
 	// Fetch all topic states.
 	states, err := getAllTopicStates(params.zk)
 	if err != nil {

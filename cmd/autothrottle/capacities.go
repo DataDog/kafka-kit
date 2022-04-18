@@ -58,7 +58,7 @@ func (r replicationCapacityByBroker) reset() {
 // in the reassignment. For each broker, it determines whether the broker is
 // a leader (source) or a follower (destination), and calculates a throttle
 // accordingly, returning a replicationCapacityByBroker and error.
-func brokerReplicationCapacities(rtc *ReplicationThrottleConfigs, reassigning reassigningBrokers, bm kafkametrics.BrokerMetrics) (replicationCapacityByBroker, error) {
+func brokerReplicationCapacities(rtc *ThrottleManager, reassigning reassigningBrokers, bm kafkametrics.BrokerMetrics) (replicationCapacityByBroker, error) {
 	capacities := replicationCapacityByBroker{}
 
 	// For each broker, check whether the it's a source and/or destination,

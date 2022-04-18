@@ -706,6 +706,7 @@ func (pm *PartitionMap) ReplicaSets(t string) ReplicaSets {
 // Copy returns a copy of a *PartitionMap.
 func (pm *PartitionMap) Copy() *PartitionMap {
 	cpy := NewPartitionMap()
+	cpy.Partitions = make(PartitionList, 0, cap(pm.Partitions))
 
 	for _, p := range pm.Partitions {
 		part := Partition{

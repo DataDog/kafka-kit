@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DataDog/kafka-kit/v3/cmd/autothrottle/internal/api"
+	"github.com/DataDog/kafka-kit/v3/cmd/autothrottle/internal/throttlestore"
 	"github.com/DataDog/kafka-kit/v3/kafkametrics"
 	"github.com/DataDog/kafka-kit/v3/kafkametrics/datadog"
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
@@ -25,6 +27,7 @@ var (
 	// Config holds configuration
 	// parameters.
 	Config struct {
+		KafkaNativeMode    bool
 		APIKey             string
 		AppKey             string
 		NetworkTXQuery     string
@@ -32,6 +35,7 @@ var (
 		BrokerIDTag        string
 		InstanceTypeTag    string
 		MetricsWindow      int
+		BootstrapServers   []string
 		ZKAddr             string
 		ZKPrefix           string
 		Interval           int
@@ -53,6 +57,7 @@ var (
 
 func main() {
 	v := flag.Bool("version", false, "version")
+	flag.BoolVar(&Config.KafkaNativeMode, "kafka-native-mode", false, "Favor native Kafka RPCs over ZooKeeper metadata access")
 	flag.StringVar(&Config.APIKey, "api-key", "", "Datadog API key")
 	flag.StringVar(&Config.AppKey, "app-key", "", "Datadog app key")
 	flag.StringVar(&Config.NetworkTXQuery, "net-tx-query", "avg:system.net.bytes_sent{service:kafka} by {host}", "Datadog query for broker outbound bandwidth by host")
@@ -60,6 +65,7 @@ func main() {
 	flag.StringVar(&Config.BrokerIDTag, "broker-id-tag", "broker_id", "Datadog host tag for broker ID")
 	flag.StringVar(&Config.InstanceTypeTag, "instance-type-tag", "instance-type", "Datadog tag for instance type")
 	flag.IntVar(&Config.MetricsWindow, "metrics-window", 120, "Time span of metrics required (seconds)")
+	bss := flag.String("bootstrap-servers", "localhost:9092", "Kafka bootstrap servers")
 	flag.StringVar(&Config.ZKAddr, "zk-addr", "localhost:2181", "ZooKeeper connect string (for broker metadata or rebuild-topic lookups)")
 	flag.StringVar(&Config.ZKPrefix, "zk-prefix", "", "ZooKeeper namespace prefix")
 	flag.IntVar(&Config.Interval, "interval", 180, "Autothrottle check interval (seconds)")
@@ -82,6 +88,8 @@ func main() {
 		os.Exit(0)
 	}
 
+	Config.BootstrapServers = strings.Split(*bss, ",")
+
 	// Deserialize instance-type capacity map.
 	Config.CapMap = map[string]float64{}
 	if len(*m) > 0 {
@@ -102,19 +110,20 @@ func main() {
 		Connect: Config.ZKAddr,
 		Prefix:  Config.ZKPrefix,
 	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer zk.Close()
 
 	// Init the admin API.
-	apiConfig := &APIConfig{
+	apiConfig := &api.APIConfig{
 		Listen:   Config.APIListen,
 		ZKPrefix: Config.ConfigZKPrefix,
 	}
 
-	initAPI(apiConfig, zk)
+	api.Init(apiConfig, zk)
 	log.Printf("Admin API: %s\n", Config.APIListen)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer zk.Close()
 
 	// Init a Kafka metrics fetcher.
 	km, err := datadog.NewHandler(&datadog.Config{
@@ -148,7 +157,7 @@ func main() {
 		tags:        tags,
 	}
 
-	// Default to true on startup in case throttles were set in  an autothrottle
+	// Default to true on startup in case throttles were set in an autothrottle
 	// process other than the current one.
 	knownThrottles := true
 
@@ -175,7 +184,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	throttleMeta := &ReplicationThrottleConfigs{
+	ThrottleManager := &ThrottleManager{
 		zk:                     zk,
 		km:                     km,
 		events:                 events,
@@ -189,11 +198,22 @@ func main() {
 	var ticker = time.NewTicker(time.Duration(Config.Interval) * time.Second)
 
 	// TODO(jamie): refactor this loop.
-	for {
+	for ; ; <-ticker.C {
 		interval++
 
 		// Get topics undergoing reassignment.
-		reassignments = zk.GetReassignments() // XXX This needs to return an error.
+		if !Config.KafkaNativeMode {
+			reassignments = zk.GetReassignments()
+		} else {
+			// KIP-455 compatible reassignments lookup.
+			reassignments, err = zk.ListReassignments()
+		}
+
+		if err != nil {
+			fmt.Printf("error fetching reassignments: %s\n", err)
+			continue
+		}
+
 		topicsReplicatingNow = newSet()
 		for t := range reassignments {
 			topicsReplicatingNow.add(t)
@@ -215,9 +235,9 @@ func main() {
 		// the Kafka topic throttled replicas list. This minimizes
 		// state that must be propagated through the cluster.
 		if topicsReplicatingNow.isSubSet(topicsReplicatingPreviously) {
-			throttleMeta.DisableTopicUpdates()
+			ThrottleManager.DisableTopicUpdates()
 		} else {
-			throttleMeta.EnableTopicUpdates()
+			ThrottleManager.EnableTopicUpdates()
 			// Unset any previously stored throttle rates. This is done to avoid a
 			// scenario that results in autothrottle being unaware of externally
 			// specified throttles and failing to override them. The condition can be
@@ -242,7 +262,7 @@ func main() {
 			//   required ChangeThreshold.
 			//
 			// Ensure we're doing option 1 right here:
-			throttleMeta.previouslySetThrottles.reset()
+			ThrottleManager.previouslySetThrottles.reset()
 		}
 
 		// Rebuild topicsReplicatingPreviously with the current replications
@@ -250,32 +270,35 @@ func main() {
 		topicsReplicatingPreviously = topicsReplicatingNow.copy()
 
 		// Check if a global throttle override was configured.
-		overrideCfg, err := fetchThrottleOverride(zk, overrideRateZnodePath)
+		overrideCfg, err := throttlestore.FetchThrottleOverride(zk, api.OverrideRateZnodePath)
 		if err != nil {
 			log.Println(err)
 		}
 
 		// Fetch all broker-specific overrides.
-		throttleMeta.brokerOverrides, err = fetchBrokerOverrides(zk, overrideRateZnodePath)
+		bo, err := throttlestore.FetchBrokerOverrides(zk, api.OverrideRateZnodePath)
 		if err != nil {
 			log.Println(err)
 		}
 
 		// Get the maps of brokers handling reassignments.
-		throttleMeta.reassigningBrokers, err = getReassigningBrokers(reassignments, zk)
+		rb, err := getReassigningBrokers(reassignments, zk)
 		if err != nil {
 			log.Println(err)
 		}
+
+		ThrottleManager.brokerOverrides = bo
+		ThrottleManager.reassigningBrokers = rb
 
 		// If topics are being reassigned, update the replication throttle.
 		if len(topicsReplicatingNow) > 0 {
 			log.Printf("Topics with ongoing reassignments: %s\n", topicsReplicatingNow.keys())
 
-			// Update the throttleMeta.
-			throttleMeta.overrideRate = overrideCfg.Rate
-			throttleMeta.reassignments = reassignments
+			// Update the ThrottleManager.
+			ThrottleManager.overrideRate = overrideCfg.Rate
+			ThrottleManager.reassignments = reassignments
 
-			err = updateReplicationThrottle(throttleMeta)
+			err = ThrottleManager.updateReplicationThrottle()
 			if err != nil {
 				log.Println(err)
 			} else {
@@ -286,11 +309,11 @@ func main() {
 
 		// Get brokers with active overrides, ie where the override rate is non-0,
 		// that are also not part of a reassignment.
-		activeOverrideBrokers := throttleMeta.brokerOverrides.Filter(notReassignmentParticipant)
+		activeOverrideBrokers := ThrottleManager.brokerOverrides.Filter(notReassignmentParticipant)
 
 		// Apply any additional broker-specific throttles that were not applied as
 		// part of a reassignment.
-		if len(throttleMeta.brokerOverrides) > 0 {
+		if len(ThrottleManager.brokerOverrides) > 0 {
 			// Find all topics that include brokers with static overrides
 			// configured that aren't being reassigned. In order for broker-specific
 			// throttles to be applied, topics being replicated by those brokers
@@ -301,7 +324,7 @@ func main() {
 			// have also have a reassignment? We're discovering topics here by
 			// reverse lookup of brokers that are not reassignment participants.
 			var err error
-			throttleMeta.overrideThrottleLists, err = getTopicsWithThrottledBrokers(throttleMeta)
+			ThrottleManager.overrideThrottleLists, err = getTopicsWithThrottledBrokers(ThrottleManager)
 			if err != nil {
 				log.Printf("Error fetching topic states: %s\n", err)
 			}
@@ -315,15 +338,15 @@ func main() {
 			}
 
 			if brokersThrottledNow.equal(brokersThrottledPreviously) {
-				throttleMeta.DisableOverrideTopicUpdates()
+				ThrottleManager.DisableOverrideTopicUpdates()
 			} else {
-				throttleMeta.EnableOverrideTopicUpdates()
+				ThrottleManager.EnableOverrideTopicUpdates()
 			}
 
 			brokersThrottledPreviously = brokersThrottledNow.copy()
 
 			// Update throttles.
-			if err := updateOverrideThrottles(throttleMeta); err != nil {
+			if err := ThrottleManager.updateOverrideThrottles(); err != nil {
 				log.Println(err)
 			}
 
@@ -335,7 +358,7 @@ func main() {
 		}
 
 		// Remove and delete any broker-specific overrides set to 0.
-		if errs := purgeOverrideThrottles(throttleMeta); errs != nil {
+		if errs := ThrottleManager.purgeOverrideThrottles(); errs != nil {
 			log.Println("Error removing persisted broker throttle overrides")
 			for i := range errs {
 				log.Println(errs[i])
@@ -391,7 +414,7 @@ func main() {
 			interval = 0
 
 			// Remove all the broker + topic throttle configs.
-			err := removeAllThrottles(throttleMeta)
+			err := ThrottleManager.removeAllThrottles()
 			if err != nil {
 				log.Printf("Error removing throttles: %s\n", err.Error())
 			} else {
@@ -401,12 +424,12 @@ func main() {
 			}
 
 			// Ensure topic throttle updates are re-enabled.
-			throttleMeta.EnableTopicUpdates()
-			throttleMeta.EnableOverrideTopicUpdates()
+			ThrottleManager.EnableTopicUpdates()
+			ThrottleManager.EnableOverrideTopicUpdates()
 
 			// Remove any configured throttle overrides if AutoRemove is true.
 			if overrideCfg.AutoRemove {
-				err := storeThrottleOverride(zk, overrideRateZnodePath, ThrottleOverrideConfig{})
+				err := throttlestore.StoreThrottleOverride(zk, api.OverrideRateZnodePath, throttlestore.ThrottleOverrideConfig{})
 				if err != nil {
 					log.Println(err)
 				} else {
@@ -415,7 +438,6 @@ func main() {
 			}
 		}
 
-		<-ticker.C
 	}
 
 }
