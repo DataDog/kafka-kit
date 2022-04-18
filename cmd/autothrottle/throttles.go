@@ -6,13 +6,13 @@ import (
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
 )
 
-// ThrottleManager holds all the data needed to call
-// updateReplicationThrottle.
+// ThrottleManager manages Kafka throttle rates.
 type ThrottleManager struct {
-	reassignments kafkazk.Reassignments
-	zk            kafkazk.Handler
-	km            kafkametrics.Handler
-	overrideRate  int
+	reassignments   kafkazk.Reassignments
+	zk              kafkazk.Handler
+	km              kafkametrics.Handler
+	overrideRate    int
+	kafkaNativeMode bool
 	// The following three fields are for brokers with static overrides set
 	// and a topicThrottledReplicas for topics where those brokers are assigned.
 	brokerOverrides          throttlestore.BrokerOverrides

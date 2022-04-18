@@ -187,6 +187,7 @@ func main() {
 	ThrottleManager := &ThrottleManager{
 		zk:                     zk,
 		km:                     km,
+		kafkaNativeMode:        Config.KafkaNativeMode,
 		events:                 events,
 		previouslySetThrottles: make(replicationCapacityByBroker),
 		limits:                 lim,

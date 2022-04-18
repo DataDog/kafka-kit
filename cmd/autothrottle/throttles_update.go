@@ -33,7 +33,11 @@ type brokerChangeEvent struct {
 // that static value is used instead of a dynamically determined value.
 // Additionally, broker-specific overrides may be specified, which take precedence
 // over the global override.
-// TODO(jamie): this function is absolute Mad Max. Fix.
+// TODO(jamie): This function is a masssively messy artifact from autothrottle
+// quickly growing in complexity from an originally flat, simple program. A
+// considerable amount of shared data needs to be better encapsulated so we can
+// deconstruct these functions that hold too much of the general autothrottle logic.
+// WIP on doing so.
 func (tm *ThrottleManager) updateReplicationThrottle() error {
 	// Creates lists from maps.
 	srcBrokers, dstBrokers, allBrokers := tm.reassigningBrokers.lists()
