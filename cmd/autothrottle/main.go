@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DataDog/kafka-kit/v3/cmd/autothrottle/internal/api"
+	"github.com/DataDog/kafka-kit/v3/cmd/autothrottle/internal/throttlestore"
 	"github.com/DataDog/kafka-kit/v3/kafkametrics"
 	"github.com/DataDog/kafka-kit/v3/kafkametrics/datadog"
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
@@ -115,12 +117,12 @@ func main() {
 	defer zk.Close()
 
 	// Init the admin API.
-	apiConfig := &APIConfig{
+	apiConfig := &api.APIConfig{
 		Listen:   Config.APIListen,
 		ZKPrefix: Config.ConfigZKPrefix,
 	}
 
-	initAPI(apiConfig, zk)
+	api.Init(apiConfig, zk)
 	log.Printf("Admin API: %s\n", Config.APIListen)
 
 	// Init a Kafka metrics fetcher.
@@ -268,22 +270,25 @@ func main() {
 		topicsReplicatingPreviously = topicsReplicatingNow.copy()
 
 		// Check if a global throttle override was configured.
-		overrideCfg, err := fetchThrottleOverride(zk, overrideRateZnodePath)
+		overrideCfg, err := throttlestore.FetchThrottleOverride(zk, api.OverrideRateZnodePath)
 		if err != nil {
 			log.Println(err)
 		}
 
 		// Fetch all broker-specific overrides.
-		throttleMeta.brokerOverrides, err = fetchBrokerOverrides(zk, overrideRateZnodePath)
+		bo, err := throttlestore.FetchBrokerOverrides(zk, api.OverrideRateZnodePath)
 		if err != nil {
 			log.Println(err)
 		}
 
 		// Get the maps of brokers handling reassignments.
-		throttleMeta.reassigningBrokers, err = getReassigningBrokers(reassignments, zk)
+		rb, err := getReassigningBrokers(reassignments, zk)
 		if err != nil {
 			log.Println(err)
 		}
+
+		throttleMeta.brokerOverrides = bo
+		throttleMeta.reassigningBrokers = rb
 
 		// If topics are being reassigned, update the replication throttle.
 		if len(topicsReplicatingNow) > 0 {
@@ -424,7 +429,7 @@ func main() {
 
 			// Remove any configured throttle overrides if AutoRemove is true.
 			if overrideCfg.AutoRemove {
-				err := storeThrottleOverride(zk, overrideRateZnodePath, ThrottleOverrideConfig{})
+				err := throttlestore.StoreThrottleOverride(zk, api.OverrideRateZnodePath, throttlestore.ThrottleOverrideConfig{})
 				if err != nil {
 					log.Println(err)
 				} else {

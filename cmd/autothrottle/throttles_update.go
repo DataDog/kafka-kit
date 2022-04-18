@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DataDog/kafka-kit/v3/cmd/autothrottle/internal/api"
+	"github.com/DataDog/kafka-kit/v3/cmd/autothrottle/internal/throttlestore"
 	"github.com/DataDog/kafka-kit/v3/kafkametrics"
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
 )
@@ -264,8 +266,8 @@ func purgeOverrideThrottles(params *ThrottleManager) []error {
 	var errs []error
 
 	for id := range toRemove {
-		path := fmt.Sprintf("%s/%d", overrideRateZnodePath, id)
-		if err := removeThrottleOverride(params.zk, path); err != nil {
+		path := fmt.Sprintf("%s/%d", api.OverrideRateZnodePath, id)
+		if err := throttlestore.RemoveThrottleOverride(params.zk, path); err != nil {
 			errs = append(errs, err)
 		}
 	}
