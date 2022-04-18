@@ -76,11 +76,11 @@ func TestFilter(t *testing.T) {
 }
 
 func TestGetTopicsWithThrottledBrokers(t *testing.T) {
-	rtf := &ReplicationThrottleConfigs{
+	rtf := &ThrottleManager{
 		zk: &kafkazk.Stub{},
 	}
 
-	// Minimally populate the ReplicationThrottleConfigs.
+	// Minimally populate the ThrottleManager.
 	rtf.brokerOverrides = BrokerOverrides{
 		1001: BrokerThrottleOverride{
 			ID:                      1001,

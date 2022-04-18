@@ -182,7 +182,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	throttleMeta := &ReplicationThrottleConfigs{
+	throttleMeta := &ThrottleManager{
 		zk:                     zk,
 		km:                     km,
 		events:                 events,

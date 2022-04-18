@@ -23,7 +23,7 @@ type brokerChangeEvent struct {
 	rate float64
 }
 
-// updateReplicationThrottle takes a ReplicationThrottleConfigs that holds topics
+// updateReplicationThrottle takes a ThrottleManager that holds topics
 // being replicated, any ZooKeeper/other clients, throttle override params, and
 // other required metadata. Metrics for brokers participating in any ongoing
 // replication are fetched to determine replication headroom. The replication
@@ -32,7 +32,7 @@ type brokerChangeEvent struct {
 // Additionally, broker-specific overrides may be specified, which take precedence
 // over the global override.
 // TODO(jamie): this function is absolute Mad Max. Fix.
-func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
+func updateReplicationThrottle(params *ThrottleManager) error {
 	// Creates lists from maps.
 	srcBrokers, dstBrokers, allBrokers := params.reassigningBrokers.lists()
 
@@ -177,9 +177,9 @@ func updateReplicationThrottle(params *ReplicationThrottleConfigs) error {
 	return nil
 }
 
-// updateOverrideThrottles takes a *ReplicationThrottleConfigs and applies
+// updateOverrideThrottles takes a *ThrottleManager and applies
 // replication throttles for any brokers with overrides set.
-func updateOverrideThrottles(params *ReplicationThrottleConfigs) error {
+func updateOverrideThrottles(params *ThrottleManager) error {
 	// The rate spec we'll be applying, which is the override rates.
 	var capacities = make(replicationCapacityByBroker)
 	// Broker IDs that will have throttles set.
@@ -247,9 +247,9 @@ func updateOverrideThrottles(params *ReplicationThrottleConfigs) error {
 	return removeBrokerThrottlesByID(params, toRemove)
 }
 
-// purgeOverrideThrottles takes a *ReplicationThrottleConfigs and removes
+// purgeOverrideThrottles takes a *ThrottleManager and removes
 // broker overrides from ZK that have been set to a value of 0.
-func purgeOverrideThrottles(params *ReplicationThrottleConfigs) []error {
+func purgeOverrideThrottles(params *ThrottleManager) []error {
 	// Broker IDs that should have previously set throttles removed.
 	var toRemove = make(map[int]struct{})
 
@@ -438,8 +438,8 @@ func applyTopicThrottles(throttled topicThrottledReplicas, zk kafkazk.Handler) (
 }
 
 // removeAllThrottles calls removeTopicThrottles and removeBrokerThrottles in sequence.
-func removeAllThrottles(params *ReplicationThrottleConfigs) error {
-	for _, fn := range []func(*ReplicationThrottleConfigs) error{
+func removeAllThrottles(params *ThrottleManager) error {
+	for _, fn := range []func(*ThrottleManager) error{
 		removeTopicThrottles,
 		removeBrokerThrottles,
 	} {
@@ -452,7 +452,7 @@ func removeAllThrottles(params *ReplicationThrottleConfigs) error {
 }
 
 // removeTopicThrottles removes all topic throttle configs.
-func removeTopicThrottles(params *ReplicationThrottleConfigs) error {
+func removeTopicThrottles(params *ThrottleManager) error {
 	// Get all topics.
 	topics, err := params.zk.GetTopics(topicsRegex)
 	if err != nil {
@@ -482,7 +482,7 @@ func removeTopicThrottles(params *ReplicationThrottleConfigs) error {
 }
 
 // removeBrokerThrottlesByID removes broker throttle configs for the specified IDs.
-func removeBrokerThrottlesByID(params *ReplicationThrottleConfigs, ids map[int]struct{}) error {
+func removeBrokerThrottlesByID(params *ThrottleManager, ids map[int]struct{}) error {
 	var unthrottledBrokers []int
 	var errorEncountered bool
 
@@ -541,7 +541,7 @@ func removeBrokerThrottlesByID(params *ReplicationThrottleConfigs, ids map[int]s
 }
 
 // removeBrokerThrottles removes all broker throttle configs.
-func removeBrokerThrottles(params *ReplicationThrottleConfigs) error {
+func removeBrokerThrottles(params *ThrottleManager) error {
 	// Fetch brokers.
 	brokers, errs := params.zk.GetAllBrokerMeta(false)
 	if errs != nil {

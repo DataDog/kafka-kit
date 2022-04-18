@@ -5,9 +5,9 @@ import (
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
 )
 
-// ReplicationThrottleConfigs holds all the data needed to call
+// ThrottleManager holds all the data needed to call
 // updateReplicationThrottle.
-type ReplicationThrottleConfigs struct {
+type ThrottleManager struct {
 	reassignments kafkazk.Reassignments
 	zk            kafkazk.Handler
 	km            kafkametrics.Handler
@@ -98,7 +98,7 @@ func (b BrokerOverrides) Filter(fn BrokerOverridesFilterFn) BrokerOverrides {
 
 // Failure increments the failures count and returns true if the
 // count exceeds the failures threshold.
-func (r *ReplicationThrottleConfigs) Failure() bool {
+func (r *ThrottleManager) Failure() bool {
 	r.failures++
 
 	if r.failures > r.failureThreshold {
@@ -109,30 +109,30 @@ func (r *ReplicationThrottleConfigs) Failure() bool {
 }
 
 // ResetFailures resets the failures count.
-func (r *ReplicationThrottleConfigs) ResetFailures() {
+func (r *ThrottleManager) ResetFailures() {
 	r.failures = 0
 }
 
 // DisableTopicUpdates prevents topic throttled replica lists from being
 // updated in ZooKeeper.
-func (r *ReplicationThrottleConfigs) DisableTopicUpdates() {
+func (r *ThrottleManager) DisableTopicUpdates() {
 	r.skipTopicUpdates = true
 }
 
 // DisableTopicUpdates allows topic throttled replica lists updates in ZooKeeper.
-func (r *ReplicationThrottleConfigs) EnableTopicUpdates() {
+func (r *ThrottleManager) EnableTopicUpdates() {
 	r.skipTopicUpdates = false
 }
 
 // DisableOverrideTopicUpdates prevents topic throttled replica lists for
 // topics assigned to override brokers from being updated in ZooKeeper.
-func (r *ReplicationThrottleConfigs) DisableOverrideTopicUpdates() {
+func (r *ThrottleManager) DisableOverrideTopicUpdates() {
 	r.skipOverrideTopicUpdates = true
 }
 
 // EnableOverrideTopicUpdates allows topic throttled replica lists for
 // topics assigned to override brokers to be updated in ZooKeeper.
-func (r *ReplicationThrottleConfigs) EnableOverrideTopicUpdates() {
+func (r *ThrottleManager) EnableOverrideTopicUpdates() {
 	r.skipOverrideTopicUpdates = false
 }
 

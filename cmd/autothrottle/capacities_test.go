@@ -18,7 +18,7 @@ func TestBrokerReplicationCapacities(t *testing.T) {
 		CapacityMap:        map[string]float64{"stub": 200.00},
 	})
 
-	rtc := &ReplicationThrottleConfigs{
+	rtc := &ThrottleManager{
 		reassignments:          reassignments,
 		previouslySetThrottles: replicationCapacityByBroker{1000: throttleByRole{float64ptr(20)}},
 		limits:                 lim,
