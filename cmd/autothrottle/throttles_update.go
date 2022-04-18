@@ -34,9 +34,9 @@ type brokerChangeEvent struct {
 // Additionally, broker-specific overrides may be specified, which take precedence
 // over the global override.
 // TODO(jamie): this function is absolute Mad Max. Fix.
-func updateReplicationThrottle(params *ThrottleManager) error {
+func (tm *ThrottleManager) updateReplicationThrottle() error {
 	// Creates lists from maps.
-	srcBrokers, dstBrokers, allBrokers := params.reassigningBrokers.lists()
+	srcBrokers, dstBrokers, allBrokers := tm.reassigningBrokers.lists()
 
 	log.Printf("Source brokers participating in replication: %v\n", srcBrokers)
 	log.Printf("Destination brokers participating in replication: %v\n", dstBrokers)
@@ -51,16 +51,16 @@ func updateReplicationThrottle(params *ThrottleManager) error {
 	var inFailureMode bool
 	var metricErrs []error
 
-	if params.overrideRate != 0 {
-		log.Printf("A global throttle override is set: %dMB/s\n", params.overrideRate)
+	if tm.overrideRate != 0 {
+		log.Printf("A global throttle override is set: %dMB/s\n", tm.overrideRate)
 		rateOverride = true
 
-		capacities.setAllRatesWithDefault(allBrokers, float64(params.overrideRate))
+		capacities.setAllRatesWithDefault(allBrokers, float64(tm.overrideRate))
 	}
 
 	if !rateOverride {
 		// Get broker metrics.
-		brokerMetrics, metricErrs = params.km.GetMetrics()
+		brokerMetrics, metricErrs = tm.km.GetMetrics()
 		// Even if errors are returned, we can still proceed as long as we have complete
 		// metrics data for all target brokers. If we have broker metrics for all target
 		// brokers, we can ignore any errors.
@@ -78,46 +78,46 @@ func updateReplicationThrottle(params *ThrottleManager) error {
 		log.Printf("Errors fetching metrics: %s\n", metricErrs)
 
 		// Increment and check our failure count against the configured threshold.
-		over := params.Failure()
+		over := tm.Failure()
 
 		// If we're not over the threshold, return and just retain previous throttles.
 		if !over {
 			log.Printf("Metrics fetch failure count %d doesn't exeed threshold %d, retaining previous throttle\n",
-				params.failures, params.failureThreshold)
+				tm.failures, tm.failureThreshold)
 			return nil
 		}
 
 		// We're over the threshold; failback to the configured minimum.
 		log.Printf("Metrics fetch failure count %d exceeds threshold %d, reverting to min-rate %.2fMB/s\n",
-			params.failures, params.failureThreshold, params.limits["minimum"])
+			tm.failures, tm.failureThreshold, tm.limits["minimum"])
 
 		// Set the failback rate.
-		capacities.setAllRatesWithDefault(allBrokers, params.limits["minimum"])
+		capacities.setAllRatesWithDefault(allBrokers, tm.limits["minimum"])
 	}
 
 	// Reset the failure counter. We may have incremented in past iterations, but if
 	// we're here now, we can reset the count.
 	if !inFailureMode {
-		params.ResetFailures()
+		tm.ResetFailures()
 	}
 
 	// If there's no override set and we're not in a failure mode, apply the
 	// calculated throttles.
 	if !rateOverride && !inFailureMode {
 		var err error
-		capacities, err = brokerReplicationCapacities(params, params.reassigningBrokers, brokerMetrics)
+		capacities, err = brokerReplicationCapacities(tm, tm.reassigningBrokers, brokerMetrics)
 		if err != nil {
 			return err
 		}
 	}
 
 	// Merge in broker-specific overrides if they're part of the reassignment.
-	for id := range params.reassigningBrokers.all {
-		if override, exists := params.brokerOverrides[id]; exists {
+	for id := range tm.reassigningBrokers.all {
+		if override, exists := tm.brokerOverrides[id]; exists {
 			// Any brokers with throttle overrides that are being issued as part of a
 			// reassignemnt should be marked as such.
 			override.ReassignmentParticipant = true
-			params.brokerOverrides[id] = override
+			tm.brokerOverrides[id] = override
 
 			rate := override.Config.Rate
 			// A rate of 0 means we intend to remove this throttle override. Skip.
@@ -133,11 +133,11 @@ func updateReplicationThrottle(params *ThrottleManager) error {
 
 	// Set broker throttle configs.
 	events, errs := applyBrokerThrottles(
-		params.reassigningBrokers.all,
+		tm.reassigningBrokers.all,
 		capacities,
-		params.previouslySetThrottles,
-		params.limits,
-		params.zk,
+		tm.previouslySetThrottles,
+		tm.limits,
+		tm.zk,
 	)
 
 	for _, e := range errs {
@@ -159,8 +159,8 @@ func updateReplicationThrottle(params *ThrottleManager) error {
 	}
 
 	// Set topic throttle configs.
-	if !params.skipTopicUpdates {
-		_, errs = applyTopicThrottles(params.reassigningBrokers.throttledReplicas, params.zk)
+	if !tm.skipTopicUpdates {
+		_, errs = applyTopicThrottles(tm.reassigningBrokers.throttledReplicas, tm.zk)
 		for _, e := range errs {
 			log.Println(e)
 		}
@@ -168,20 +168,20 @@ func updateReplicationThrottle(params *ThrottleManager) error {
 
 	// Append topic stats to event.
 	var topics []string
-	for t := range params.reassignments {
+	for t := range tm.reassignments {
 		topics = append(topics, t)
 	}
 	b.WriteString(fmt.Sprintf("Topics currently undergoing replication: %v", topics))
 
 	// Ship it.
-	params.events.Write("Broker replication throttle set", b.String())
+	tm.events.Write("Broker replication throttle set", b.String())
 
 	return nil
 }
 
 // updateOverrideThrottles takes a *ThrottleManager and applies
 // replication throttles for any brokers with overrides set.
-func updateOverrideThrottles(params *ThrottleManager) error {
+func (tm *ThrottleManager) updateOverrideThrottles() error {
 	// The rate spec we'll be applying, which is the override rates.
 	var capacities = make(replicationCapacityByBroker)
 	// Broker IDs that will have throttles set.
@@ -189,7 +189,7 @@ func updateOverrideThrottles(params *ThrottleManager) error {
 	// Broker IDs that should have previously set throttles removed.
 	var toRemove = make(map[int]struct{})
 
-	for _, override := range params.brokerOverrides {
+	for _, override := range tm.brokerOverrides {
 		// ReassignmentParticipant have already had their override rate used as part
 		// of an ongoing reassignment.
 		if !override.ReassignmentParticipant {
@@ -213,9 +213,9 @@ func updateOverrideThrottles(params *ThrottleManager) error {
 	// Set broker throttle configs.
 	events, errs := applyBrokerThrottles(toAssign,
 		capacities,
-		params.previouslySetThrottles,
-		params.limits,
-		params.zk,
+		tm.previouslySetThrottles,
+		tm.limits,
+		tm.zk,
 	)
 
 	for _, e := range errs {
@@ -223,8 +223,8 @@ func updateOverrideThrottles(params *ThrottleManager) error {
 	}
 
 	// Set topic throttle configs.
-	if !params.skipOverrideTopicUpdates {
-		_, errs = applyTopicThrottles(params.overrideThrottleLists, params.zk)
+	if !tm.skipOverrideTopicUpdates {
+		_, errs = applyTopicThrottles(tm.overrideThrottleLists, tm.zk)
 		for _, e := range errs {
 			log.Println(e)
 		}
@@ -243,19 +243,19 @@ func updateOverrideThrottles(params *ThrottleManager) error {
 	}
 
 	// Ship it.
-	params.events.Write("Broker level throttle override(s) configured", b.String())
+	tm.events.Write("Broker level throttle override(s) configured", b.String())
 
 	// Unset the broker throttles marked for removal.
-	return removeBrokerThrottlesByID(params, toRemove)
+	return tm.removeBrokerThrottlesByID(toRemove)
 }
 
 // purgeOverrideThrottles takes a *ThrottleManager and removes
 // broker overrides from ZK that have been set to a value of 0.
-func purgeOverrideThrottles(params *ThrottleManager) []error {
+func (tm *ThrottleManager) purgeOverrideThrottles() []error {
 	// Broker IDs that should have previously set throttles removed.
 	var toRemove = make(map[int]struct{})
 
-	for _, override := range params.brokerOverrides {
+	for _, override := range tm.brokerOverrides {
 		rate := float64(override.Config.Rate)
 		// Rate == 0 means the rate was removed via the API.
 		if rate == 0 {
@@ -267,7 +267,7 @@ func purgeOverrideThrottles(params *ThrottleManager) []error {
 
 	for id := range toRemove {
 		path := fmt.Sprintf("%s/%d", api.OverrideRateZnodePath, id)
-		if err := throttlestore.RemoveThrottleOverride(params.zk, path); err != nil {
+		if err := throttlestore.RemoveThrottleOverride(tm.zk, path); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -440,12 +440,12 @@ func applyTopicThrottles(throttled topicThrottledReplicas, zk kafkazk.Handler) (
 }
 
 // removeAllThrottles calls removeTopicThrottles and removeBrokerThrottles in sequence.
-func removeAllThrottles(params *ThrottleManager) error {
-	for _, fn := range []func(*ThrottleManager) error{
-		removeTopicThrottles,
-		removeBrokerThrottles,
+func (tm *ThrottleManager) removeAllThrottles() error {
+	for _, fn := range []func() error{
+		tm.removeTopicThrottles,
+		tm.removeBrokerThrottles,
 	} {
-		if err := fn(params); err != nil {
+		if err := fn(); err != nil {
 			return err
 		}
 	}
@@ -454,9 +454,9 @@ func removeAllThrottles(params *ThrottleManager) error {
 }
 
 // removeTopicThrottles removes all topic throttle configs.
-func removeTopicThrottles(params *ThrottleManager) error {
+func (tm *ThrottleManager) removeTopicThrottles() error {
 	// Get all topics.
-	topics, err := params.zk.GetTopics(topicsRegex)
+	topics, err := tm.zk.GetTopics(topicsRegex)
 	if err != nil {
 		return err
 	}
@@ -472,7 +472,7 @@ func removeTopicThrottles(params *ThrottleManager) error {
 		}
 
 		// Update the config.
-		_, err := params.zk.UpdateKafkaConfig(config)
+		_, err := tm.zk.UpdateKafkaConfig(config)
 		if err != nil {
 			log.Printf("Error removing throttle config on topic %s: %s\n", topic, err)
 		}
@@ -484,7 +484,7 @@ func removeTopicThrottles(params *ThrottleManager) error {
 }
 
 // removeBrokerThrottlesByID removes broker throttle configs for the specified IDs.
-func removeBrokerThrottlesByID(params *ThrottleManager, ids map[int]struct{}) error {
+func (tm *ThrottleManager) removeBrokerThrottlesByID(ids map[int]struct{}) error {
 	var unthrottledBrokers []int
 	var errorEncountered bool
 
@@ -499,7 +499,7 @@ func removeBrokerThrottlesByID(params *ThrottleManager, ids map[int]struct{}) er
 			},
 		}
 
-		changed, err := params.zk.UpdateKafkaConfig(config)
+		changed, err := tm.zk.UpdateKafkaConfig(config)
 		switch err.(type) {
 		case nil:
 		case kafkazk.ErrNoNode:
@@ -526,7 +526,7 @@ func removeBrokerThrottlesByID(params *ThrottleManager, ids map[int]struct{}) er
 	if len(unthrottledBrokers) > 0 {
 		m := fmt.Sprintf("Replication throttle removed on the following brokers: %v",
 			unthrottledBrokers)
-		params.events.Write("Broker replication throttle removed", m)
+		tm.events.Write("Broker replication throttle removed", m)
 	}
 
 	// Lazily check if any errors were encountered, return a generic error.
@@ -535,17 +535,17 @@ func removeBrokerThrottlesByID(params *ThrottleManager, ids map[int]struct{}) er
 	}
 
 	// Unset all stored throttle rates.
-	for ID := range params.previouslySetThrottles {
-		params.previouslySetThrottles[ID] = [2]*float64{}
+	for ID := range tm.previouslySetThrottles {
+		tm.previouslySetThrottles[ID] = [2]*float64{}
 	}
 
 	return nil
 }
 
 // removeBrokerThrottles removes all broker throttle configs.
-func removeBrokerThrottles(params *ThrottleManager) error {
+func (tm *ThrottleManager) removeBrokerThrottles() error {
 	// Fetch brokers.
-	brokers, errs := params.zk.GetAllBrokerMeta(false)
+	brokers, errs := tm.zk.GetAllBrokerMeta(false)
 	if errs != nil {
 		return errs[0]
 	}
@@ -553,7 +553,7 @@ func removeBrokerThrottles(params *ThrottleManager) error {
 	var ids = make(map[int]struct{})
 	for id := range brokers {
 		// Skip brokers with an override where AutoRemove is false.
-		if override, exists := params.brokerOverrides[id]; exists {
+		if override, exists := tm.brokerOverrides[id]; exists {
 			if !override.Config.AutoRemove {
 				continue
 			}
@@ -562,5 +562,5 @@ func removeBrokerThrottles(params *ThrottleManager) error {
 		ids[id] = struct{}{}
 	}
 
-	return removeBrokerThrottlesByID(params, ids)
+	return tm.removeBrokerThrottlesByID(ids)
 }

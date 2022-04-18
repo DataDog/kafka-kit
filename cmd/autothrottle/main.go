@@ -298,7 +298,7 @@ func main() {
 			throttleMeta.overrideRate = overrideCfg.Rate
 			throttleMeta.reassignments = reassignments
 
-			err = updateReplicationThrottle(throttleMeta)
+			err = throttleMeta.updateReplicationThrottle()
 			if err != nil {
 				log.Println(err)
 			} else {
@@ -346,7 +346,7 @@ func main() {
 			brokersThrottledPreviously = brokersThrottledNow.copy()
 
 			// Update throttles.
-			if err := updateOverrideThrottles(throttleMeta); err != nil {
+			if err := throttleMeta.updateOverrideThrottles(); err != nil {
 				log.Println(err)
 			}
 
@@ -358,7 +358,7 @@ func main() {
 		}
 
 		// Remove and delete any broker-specific overrides set to 0.
-		if errs := purgeOverrideThrottles(throttleMeta); errs != nil {
+		if errs := throttleMeta.purgeOverrideThrottles(); errs != nil {
 			log.Println("Error removing persisted broker throttle overrides")
 			for i := range errs {
 				log.Println(errs[i])
@@ -414,7 +414,7 @@ func main() {
 			interval = 0
 
 			// Remove all the broker + topic throttle configs.
-			err := removeAllThrottles(throttleMeta)
+			err := throttleMeta.removeAllThrottles()
 			if err != nil {
 				log.Printf("Error removing throttles: %s\n", err.Error())
 			} else {

@@ -3,6 +3,7 @@ package main
 import (
 	"testing"
 
+	"github.com/DataDog/kafka-kit/v3/cmd/autothrottle/internal/throttlestore"
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
 )
 
@@ -81,11 +82,11 @@ func TestGetTopicsWithThrottledBrokers(t *testing.T) {
 	}
 
 	// Minimally populate the ThrottleManager.
-	rtf.brokerOverrides = BrokerOverrides{
-		1001: BrokerThrottleOverride{
+	rtf.brokerOverrides = throttlestore.BrokerOverrides{
+		1001: throttlestore.BrokerThrottleOverride{
 			ID:                      1001,
 			ReassignmentParticipant: false,
-			Config: ThrottleOverrideConfig{
+			Config: throttlestore.ThrottleOverrideConfig{
 				Rate: 50,
 			},
 		},
@@ -93,10 +94,10 @@ func TestGetTopicsWithThrottledBrokers(t *testing.T) {
 		// BrokerThrottleOverride.Filter called in getTopicsWithThrottledBrokers
 		// excludes any topics mapped to brokers where ReassignmentParticipant
 		// == true.
-		1002: BrokerThrottleOverride{
+		1002: throttlestore.BrokerThrottleOverride{
 			ID:                      1002,
 			ReassignmentParticipant: true,
-			Config: ThrottleOverrideConfig{
+			Config: throttlestore.ThrottleOverrideConfig{
 				Rate: 50,
 			},
 		},
