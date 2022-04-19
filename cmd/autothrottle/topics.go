@@ -35,6 +35,15 @@ var acceptedReplicaTypes = map[replicaType]struct{}{
 	"followers": {},
 }
 
+// topics returns the topic names held in the topicThrottledReplicas.
+func (ttr topicThrottledReplicas) topics() []string {
+	var names []string
+	for topic := range ttr {
+		names = append(names, string(topic))
+	}
+	return names
+}
+
 // addReplica takes a topic, partition number, role (leader, follower), and
 // broker ID and adds the configuration to the topicThrottledReplicas.
 func (ttr topicThrottledReplicas) addReplica(topic topic, partn string, role replicaType, id string) error {

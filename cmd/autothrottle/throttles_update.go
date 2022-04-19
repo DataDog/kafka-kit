@@ -13,6 +13,7 @@ import (
 
 	"github.com/DataDog/kafka-kit/v3/cmd/autothrottle/internal/api"
 	"github.com/DataDog/kafka-kit/v3/cmd/autothrottle/internal/throttlestore"
+	"github.com/DataDog/kafka-kit/v3/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v3/kafkametrics"
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
 )
@@ -158,9 +159,13 @@ func (tm *ThrottleManager) updateReplicationThrottle() error {
 
 	// Set topic throttle configs.
 	if !tm.skipTopicUpdates {
-		_, errs = tm.applyTopicThrottles(tm.reassigningBrokers.throttledReplicas)
+		errs := tm.applyTopicThrottles(tm.reassigningBrokers.throttledReplicas)
 		for _, e := range errs {
 			log.Println(e)
+		}
+		if errs == nil {
+			topics := tm.reassigningBrokers.throttledReplicas.topics()
+			log.Printf("updated the throttle replicas configs for topics: %v\n", topics)
 		}
 	}
 
@@ -217,9 +222,13 @@ func (tm *ThrottleManager) updateOverrideThrottles() error {
 
 	// Set topic throttle configs.
 	if !tm.skipOverrideTopicUpdates {
-		_, errs = tm.applyTopicThrottles(tm.overrideThrottleLists)
+		errs := tm.applyTopicThrottles(tm.overrideThrottleLists)
 		for _, e := range errs {
 			log.Println(e)
+		}
+		if errs == nil {
+			topics := tm.overrideThrottleLists.topics()
+			log.Printf("updated the throttle replicas configs for topics: %v\n", topics)
 		}
 	}
 
@@ -374,13 +383,33 @@ func (tm *ThrottleManager) applyBrokerThrottles(bs map[int]struct{}, capacities 
 }
 
 // applyTopicThrottles updates a throttledReplicas for all topics undergoing
-// replication, returning a channel of events and []string of errors.
+// replication.
 // TODO(jamie) review whether the throttled replicas list changes as replication
 // finishes; each time the list changes here, we probably update the config then
 // propagate a watch to all the brokers in the cluster.
-func (tm *ThrottleManager) applyTopicThrottles(throttled topicThrottledReplicas) (chan string, []string) {
-	events := make(chan string, len(throttled))
-	var errs []string
+func (tm *ThrottleManager) applyTopicThrottles(throttledTopics topicThrottledReplicas) []error {
+	if !tm.kafkaNativeMode {
+		// Use the direct ZooKeeper config update method.
+		return tm.legacyApplyTopicThrottles(throttledTopics)
+	}
+
+	// Populate the config with all topics named in the topicThrottledReplicas.
+	ctx, cancel := tm.kafkaRequestContext()
+	defer cancel()
+
+	var throttleCfg = kafkaadmin.SetThrottleConfig{Topics: throttledTopics.topics()}
+
+	// Apply the config.
+	if err := tm.ka.SetThrottle(ctx, throttleCfg); err != nil {
+		return []error{err}
+	}
+
+	return nil
+}
+
+// legacyApplyTopicThrottles performs config updates directly through ZooKeeper.
+func (tm *ThrottleManager) legacyApplyTopicThrottles(throttled topicThrottledReplicas) []error {
+	var errs []error
 
 	for t := range throttled {
 		// Generate config.
@@ -408,28 +437,13 @@ func (tm *ThrottleManager) applyTopicThrottles(throttled topicThrottledReplicas)
 		}
 
 		// Write the config.
-		changes, err := tm.zk.UpdateKafkaConfig(config)
+		_, err := tm.zk.UpdateKafkaConfig(config)
 		if err != nil {
-			errs = append(errs, fmt.Sprintf("Error setting throttle list on topic %s: %s\n", t, err))
-		}
-
-		var anyChanges bool
-		for _, changed := range changes {
-			if changed {
-				anyChanges = true
-			}
-		}
-
-		if anyChanges {
-			// TODO(jamie): we don't use these events yet, but this probably isn't
-			// actually the format we want anyway.
-			events <- fmt.Sprintf("updated throttled brokers list for %s", string(t))
+			errs = append(errs, fmt.Errorf("Error setting throttle list on topic %s: %s\n", t, err))
 		}
 	}
 
-	close(events)
-
-	return events, errs
+	return nil
 }
 
 // removeAllThrottles calls removeTopicThrottles and removeBrokerThrottles in sequence.

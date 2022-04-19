@@ -26,28 +26,29 @@ var (
 
 	// Config holds configuration parameters.
 	Config struct {
-		KafkaNativeMode    bool
-		APIKey             string
-		AppKey             string
-		NetworkTXQuery     string
-		NetworkRXQuery     string
-		BrokerIDTag        string
-		InstanceTypeTag    string
-		MetricsWindow      int
-		BootstrapServers   string
-		ZKAddr             string
-		ZKPrefix           string
-		Interval           int
-		APIListen          string
-		ConfigZKPrefix     string
-		DDEventTags        string
-		MinRate            float64
-		SourceMaxRate      float64
-		DestinationMaxRate float64
-		ChangeThreshold    float64
-		FailureThreshold   int
-		CapMap             map[string]float64
-		CleanupAfter       int64
+		KafkaNativeMode        bool
+		KafkaAPIRequestTimeout int
+		APIKey                 string
+		AppKey                 string
+		NetworkTXQuery         string
+		NetworkRXQuery         string
+		BrokerIDTag            string
+		InstanceTypeTag        string
+		MetricsWindow          int
+		BootstrapServers       string
+		ZKAddr                 string
+		ZKPrefix               string
+		Interval               int
+		APIListen              string
+		ConfigZKPrefix         string
+		DDEventTags            string
+		MinRate                float64
+		SourceMaxRate          float64
+		DestinationMaxRate     float64
+		ChangeThreshold        float64
+		FailureThreshold       int
+		CapMap                 map[string]float64
+		CleanupAfter           int64
 	}
 
 	// Misc.
@@ -57,6 +58,7 @@ var (
 func main() {
 	v := flag.Bool("version", false, "version")
 	flag.BoolVar(&Config.KafkaNativeMode, "kafka-native-mode", false, "Favor native Kafka RPCs over ZooKeeper metadata access")
+	flag.IntVar(&Config.KafkaAPIRequestTimeout, "kafka-api-request-timeout", 15, "Kafka API request timeout (seconds)")
 	flag.StringVar(&Config.APIKey, "api-key", "", "Datadog API key")
 	flag.StringVar(&Config.AppKey, "app-key", "", "Datadog app key")
 	flag.StringVar(&Config.NetworkTXQuery, "net-tx-query", "avg:system.net.bytes_sent{service:kafka} by {host}", "Datadog query for broker outbound bandwidth by host")
@@ -184,6 +186,7 @@ func main() {
 		zk:                     zk,
 		km:                     km,
 		kafkaNativeMode:        Config.KafkaNativeMode,
+		kafkaAPIRequestTimeout: Config.KafkaAPIRequestTimeout,
 		events:                 events,
 		previouslySetThrottles: make(replicationCapacityByBroker),
 		limits:                 lim,
