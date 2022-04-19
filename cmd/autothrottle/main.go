@@ -24,8 +24,7 @@ var (
 	// This can be set with -ldflags "-X main.version=x.x.x"
 	version = "0.0.0"
 
-	// Config holds configuration
-	// parameters.
+	// Config holds configuration parameters.
 	Config struct {
 		KafkaNativeMode    bool
 		APIKey             string
@@ -35,7 +34,7 @@ var (
 		BrokerIDTag        string
 		InstanceTypeTag    string
 		MetricsWindow      int
-		BootstrapServers   []string
+		BootstrapServers   string
 		ZKAddr             string
 		ZKPrefix           string
 		Interval           int
@@ -65,7 +64,7 @@ func main() {
 	flag.StringVar(&Config.BrokerIDTag, "broker-id-tag", "broker_id", "Datadog host tag for broker ID")
 	flag.StringVar(&Config.InstanceTypeTag, "instance-type-tag", "instance-type", "Datadog tag for instance type")
 	flag.IntVar(&Config.MetricsWindow, "metrics-window", 120, "Time span of metrics required (seconds)")
-	bss := flag.String("bootstrap-servers", "localhost:9092", "Kafka bootstrap servers")
+	flag.StringVar(&Config.BootstrapServers, "bootstrap-servers", "localhost:9092", "Kafka bootstrap servers")
 	flag.StringVar(&Config.ZKAddr, "zk-addr", "localhost:2181", "ZooKeeper connect string (for broker metadata or rebuild-topic lookups)")
 	flag.StringVar(&Config.ZKPrefix, "zk-prefix", "", "ZooKeeper namespace prefix")
 	flag.IntVar(&Config.Interval, "interval", 180, "Autothrottle check interval (seconds)")
@@ -88,8 +87,6 @@ func main() {
 		os.Exit(0)
 	}
 
-	Config.BootstrapServers = strings.Split(*bss, ",")
-
 	// Deserialize instance-type capacity map.
 	Config.CapMap = map[string]float64{}
 	if len(*m) > 0 {
@@ -101,8 +98,7 @@ func main() {
 	}
 
 	log.Println("Autothrottle Running")
-	// Lazily prevent a tight restart
-	// loop from thrashing ZK.
+	// Lazily prevent a tight restart loop from thrashing ZK.
 	time.Sleep(1 * time.Second)
 
 	// Init ZK.
@@ -192,6 +188,10 @@ func main() {
 		previouslySetThrottles: make(replicationCapacityByBroker),
 		limits:                 lim,
 		failureThreshold:       Config.FailureThreshold,
+	}
+
+	if err := ThrottleManager.InitKafkaAdmin(Config.BootstrapServers); err != nil {
+		log.Fatal(err)
 	}
 
 	// Run.
