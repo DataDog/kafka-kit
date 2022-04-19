@@ -158,7 +158,7 @@ func (tm *ThrottleManager) updateReplicationThrottle() error {
 
 	// Set topic throttle configs.
 	if !tm.skipTopicUpdates {
-		_, errs = applyTopicThrottles(tm.reassigningBrokers.throttledReplicas, tm.zk)
+		_, errs = tm.applyTopicThrottles(tm.reassigningBrokers.throttledReplicas)
 		for _, e := range errs {
 			log.Println(e)
 		}
@@ -217,7 +217,7 @@ func (tm *ThrottleManager) updateOverrideThrottles() error {
 
 	// Set topic throttle configs.
 	if !tm.skipOverrideTopicUpdates {
-		_, errs = applyTopicThrottles(tm.overrideThrottleLists, tm.zk)
+		_, errs = tm.applyTopicThrottles(tm.overrideThrottleLists)
 		for _, e := range errs {
 			log.Println(e)
 		}
@@ -378,7 +378,7 @@ func (tm *ThrottleManager) applyBrokerThrottles(bs map[int]struct{}, capacities 
 // TODO(jamie) review whether the throttled replicas list changes as replication
 // finishes; each time the list changes here, we probably update the config then
 // propagate a watch to all the brokers in the cluster.
-func applyTopicThrottles(throttled topicThrottledReplicas, zk kafkazk.Handler) (chan string, []string) {
+func (tm *ThrottleManager) applyTopicThrottles(throttled topicThrottledReplicas) (chan string, []string) {
 	events := make(chan string, len(throttled))
 	var errs []string
 
@@ -408,7 +408,7 @@ func applyTopicThrottles(throttled topicThrottledReplicas, zk kafkazk.Handler) (
 		}
 
 		// Write the config.
-		changes, err := zk.UpdateKafkaConfig(config)
+		changes, err := tm.zk.UpdateKafkaConfig(config)
 		if err != nil {
 			errs = append(errs, fmt.Sprintf("Error setting throttle list on topic %s: %s\n", t, err))
 		}
