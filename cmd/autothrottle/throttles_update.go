@@ -7,7 +7,6 @@ import (
 	"log"
 	"math"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/DataDog/kafka-kit/v3/cmd/autothrottle/internal/api"
@@ -276,37 +275,39 @@ func (tm *ThrottleManager) purgeOverrideThrottles() []error {
 	return errs
 }
 
-// applyBrokerThrottles takes a set of brokers, a replication throttle rate
-// string, rate, map for tracking applied throttles, and zk kafkazk.Handler
-// zookeeper client. For each broker, the throttle rate is applied and if
-// successful, the rate is stored in the throttles map for future reference.
-// A channel of events and []string of errors is returned.
-func (tm *ThrottleManager) applyBrokerThrottles(bs map[int]struct{}, capacities replicationCapacityByBroker) (chan brokerChangeEvent, []string) {
-	events := make(chan brokerChangeEvent, len(bs)*2)
-	var errs []string
+// applyBrokerThrottles applies broker throttle configs.
+func (tm *ThrottleManager) applyBrokerThrottles(bs map[int]struct{}, capacities replicationCapacityByBroker) (chan brokerChangeEvent, []error) {
+	var configs = kafkaadmin.SetThrottleConfig{Brokers: map[int]kafkaadmin.BrokerThrottleConfig{}}
+	var legacyConfigs map[int]kafkazk.KafkaConfig
 
-	// Set the throttle config for all reassigning brokers.
+	// Set the throttle config for all reassigning brokers. We currently populate
+	// both the Kafka native and legacy configs, conditionally applying whichever
+	// is configured after all rates are calculated.
 	for ID := range bs {
-		brokerConfig := kafkazk.KafkaConfig{
+
+		legacyBrokerConfig := kafkazk.KafkaConfig{
 			Type:    "broker",
 			Name:    strconv.Itoa(ID),
 			Configs: []kafkazk.KafkaConfigKV{},
 		}
+
+		brokerConfig := kafkaadmin.BrokerThrottleConfig{}
 
 		// Check if a rate was determined for each role (leader, follower) type.
 		for i, rate := range capacities[ID] {
 			if rate == nil {
 				continue
 			}
-
 			role := roleFromIndex(i)
 
+			// Get the previously set throttle rate.
 			prevRate := tm.previouslySetThrottles[ID][i]
 			if prevRate == nil {
 				v := 0.00
 				prevRate = &v
 			}
 
+			// Get the maximum utilization value for logging purposes.
 			var max float64
 			switch role {
 			case "leader":
@@ -328,52 +329,90 @@ func (tm *ThrottleManager) applyBrokerThrottles(bs map[int]struct{}, capacities 
 				continue
 			}
 
-			rateBytesString := fmt.Sprintf("%.0f", *rate*1000000.00)
+			rateBytes := *rate * 1000000.00
+			rateBytesString := fmt.Sprintf("%.0f", rateBytes)
 
-			// Append config.
+			// Add config.
+			switch role {
+			case "leader":
+				brokerConfig.OutboundLimitBytes = int(math.Round(rateBytes))
+			case "follower":
+				brokerConfig.InboundLimitBytes = int(math.Round(rateBytes))
+			}
+
+			// Add legacy config.
 			c := kafkazk.KafkaConfigKV{fmt.Sprintf("%s.replication.throttled.rate", role), rateBytesString}
-			brokerConfig.Configs = append(brokerConfig.Configs, c)
+			legacyBrokerConfig.Configs = append(legacyBrokerConfig.Configs, c)
 		}
 
-		// Write the throttle config.
-		changes, err := tm.zk.UpdateKafkaConfig(brokerConfig)
+		// Populate each configuration collection.
+		configs.Brokers[ID] = brokerConfig
+		legacyConfigs[ID] = legacyBrokerConfig
+	}
+
+	// Write the throttle configs.
+
+	if !tm.kafkaNativeMode {
+		// Use the direct ZooKeeper config update method.
+		return tm.legacyApplyBrokerThrottles(legacyConfigs, capacities)
+	}
+
+	return tm.applyBrokerThrottlesSequential(configs, capacities)
+}
+
+// KafkaAdmin applies these sequentially under the hood, but from an API perspective
+// it's a single batch job: if one fails, a single error is returned. We break
+// these into sequential KafkaAdmin SetThrottle calls so that we can individually
+// report errors/successes.
+func (tm *ThrottleManager) applyBrokerThrottlesSequential(configs kafkaadmin.SetThrottleConfig, capacities replicationCapacityByBroker) (chan brokerChangeEvent, []error) {
+	events := make(chan brokerChangeEvent, len(configs.Brokers)*2)
+	var errs []error
+
+	// For each broker, create a new config that only holds that broker and apply it.
+	for id, config := range configs.Brokers {
+		cfg := kafkaadmin.SetThrottleConfig{
+			Brokers: map[int]kafkaadmin.BrokerThrottleConfig{
+				id: config,
+			}}
+
+		ctx, cancelFn := tm.kafkaRequestContext()
+		defer cancelFn()
+
+		// Apply.
+		err := tm.ka.SetThrottle(ctx, cfg)
 		if err != nil {
-			errs = append(errs, fmt.Sprintf("Error setting throttle on broker %d: %s", ID, err))
+			errs = append(errs, fmt.Errorf("Error setting throttle on broker %d: %s", id, err))
+			// Continue to the next broker if we encounter an error.
+			continue
 		}
 
-		for i, changed := range changes {
-			if changed {
-				// This will be either "leader.replication.throttled.rate" or
-				// "follower.replication.throttled.rate".
-				throttleConfigString := brokerConfig.Configs[i][0]
-				// Split on ".", get "leader" or "follower" string.
-				role := strings.Split(throttleConfigString, ".")[0]
+		// Store the configured rates in the previously set throttles map.
 
-				log.Printf("Updated throttle on broker %d [%s]\n", ID, role)
+		// Store and log leader configs, if any.
+		if cfg.Brokers[id].OutboundLimitBytes != 0 {
+			rate := capacities[id][0]
+			tm.previouslySetThrottles.storeLeaderCapacity(id, *rate)
 
-				var rate *float64
-
-				// Store the configured rate.
-				switch role {
-				case "leader":
-					rate = capacities[ID][0]
-					tm.previouslySetThrottles.storeLeaderCapacity(ID, *rate)
-				case "follower":
-					rate = capacities[ID][1]
-					tm.previouslySetThrottles.storeFollowerCapacity(ID, *rate)
-				}
-
-				events <- brokerChangeEvent{
-					id:   ID,
-					role: role,
-					rate: *rate,
-				}
+			log.Printf("Updated throttle on broker %d [leader]\n", id)
+			events <- brokerChangeEvent{
+				id:   id,
+				role: "leader",
+				rate: *rate,
 			}
 		}
 
-		// Hard coded sleep to reduce
-		// ZK load.
-		time.Sleep(250 * time.Millisecond)
+		// Store and log follower configs, if any.
+		if cfg.Brokers[id].InboundLimitBytes != 0 {
+			rate := capacities[id][1]
+			tm.previouslySetThrottles.storeFollowerCapacity(id, *rate)
+
+			log.Printf("Updated throttle on broker %d [follower]\n", id)
+			events <- brokerChangeEvent{
+				id:   id,
+				role: "follower",
+				rate: *rate,
+			}
+		}
 	}
 
 	close(events)
