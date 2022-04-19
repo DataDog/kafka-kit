@@ -136,13 +136,7 @@ func (tm *ThrottleManager) updateReplicationThrottle() error {
 	}
 
 	// Set broker throttle configs.
-	events, errs := applyBrokerThrottles(
-		tm.reassigningBrokers.all,
-		capacities,
-		tm.previouslySetThrottles,
-		tm.limits,
-		tm.zk,
-	)
+	events, errs := tm.applyBrokerThrottles(tm.reassigningBrokers.all, capacities)
 
 	for _, e := range errs {
 		// TODO(jamie): revisit whether we should actually be returning rather than
@@ -215,12 +209,7 @@ func (tm *ThrottleManager) updateOverrideThrottles() error {
 	}
 
 	// Set broker throttle configs.
-	events, errs := applyBrokerThrottles(toAssign,
-		capacities,
-		tm.previouslySetThrottles,
-		tm.limits,
-		tm.zk,
-	)
+	events, errs := tm.applyBrokerThrottles(toAssign, capacities)
 
 	for _, e := range errs {
 		log.Println(e)
@@ -284,7 +273,7 @@ func (tm *ThrottleManager) purgeOverrideThrottles() []error {
 // zookeeper client. For each broker, the throttle rate is applied and if
 // successful, the rate is stored in the throttles map for future reference.
 // A channel of events and []string of errors is returned.
-func applyBrokerThrottles(bs map[int]struct{}, capacities, prevThrottles replicationCapacityByBroker, l Limits, zk kafkazk.Handler) (chan brokerChangeEvent, []string) {
+func (tm *ThrottleManager) applyBrokerThrottles(bs map[int]struct{}, capacities replicationCapacityByBroker) (chan brokerChangeEvent, []string) {
 	events := make(chan brokerChangeEvent, len(bs)*2)
 	var errs []string
 
@@ -304,7 +293,7 @@ func applyBrokerThrottles(bs map[int]struct{}, capacities, prevThrottles replica
 
 			role := roleFromIndex(i)
 
-			prevRate := prevThrottles[ID][i]
+			prevRate := tm.previouslySetThrottles[ID][i]
 			if prevRate == nil {
 				v := 0.00
 				prevRate = &v
@@ -313,9 +302,9 @@ func applyBrokerThrottles(bs map[int]struct{}, capacities, prevThrottles replica
 			var max float64
 			switch role {
 			case "leader":
-				max = l["srcMax"]
+				max = tm.limits["srcMax"]
 			case "follower":
-				max = l["dstMax"]
+				max = tm.limits["dstMax"]
 			}
 
 			log.Printf("Replication throttle rate for broker %d [%s] (based on a %.0f%% max free capacity utilization): %0.2fMB/s\n",
@@ -339,7 +328,7 @@ func applyBrokerThrottles(bs map[int]struct{}, capacities, prevThrottles replica
 		}
 
 		// Write the throttle config.
-		changes, err := zk.UpdateKafkaConfig(brokerConfig)
+		changes, err := tm.zk.UpdateKafkaConfig(brokerConfig)
 		if err != nil {
 			errs = append(errs, fmt.Sprintf("Error setting throttle on broker %d: %s", ID, err))
 		}
@@ -360,10 +349,10 @@ func applyBrokerThrottles(bs map[int]struct{}, capacities, prevThrottles replica
 				switch role {
 				case "leader":
 					rate = capacities[ID][0]
-					prevThrottles.storeLeaderCapacity(ID, *rate)
+					tm.previouslySetThrottles.storeLeaderCapacity(ID, *rate)
 				case "follower":
 					rate = capacities[ID][1]
-					prevThrottles.storeFollowerCapacity(ID, *rate)
+					tm.previouslySetThrottles.storeFollowerCapacity(ID, *rate)
 				}
 
 				events <- brokerChangeEvent{
