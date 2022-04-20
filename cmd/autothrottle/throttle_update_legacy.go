@@ -100,7 +100,12 @@ func (tm *ThrottleManager) legacyApplyTopicThrottles(throttled topicThrottledRep
 	return nil
 }
 
-func (tm *ThrottleManager) legacyRemoveTopicThrottles(topics []string) error {
+func (tm *ThrottleManager) legacyRemoveTopicThrottles() error {
+	topics, err := tm.zk.GetTopics(topicsRegex)
+	if err != nil {
+		return err
+	}
+
 	var errTopics []string
 
 	for _, topic := range topics {

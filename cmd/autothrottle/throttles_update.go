@@ -461,19 +461,27 @@ func (tm *ThrottleManager) removeAllThrottles() error {
 
 // removeTopicThrottles removes all topic throttle configs.
 func (tm *ThrottleManager) removeTopicThrottles() error {
-	// Get all topics.
-	// TODO(jamie): switch this to a KafkaAdmin topic fetch.
-	topics, err := tm.zk.GetTopics(topicsRegex)
+	// ZooKeeper method.
+	if !tm.kafkaNativeMode {
+		return tm.legacyRemoveTopicThrottles()
+	}
+
+	// Get all topic states.
+	ctx, cancel := tm.kafkaRequestContext()
+	defer cancel()
+
+	tstates, err := tm.ka.DescribeTopics(ctx, []string{".*"})
 	if err != nil {
 		return err
 	}
 
-	// ZooKeeper method.
-	if !tm.kafkaNativeMode {
-		return tm.legacyRemoveTopicThrottles(topics)
+	// States to []string of names.
+	var topics []string
+	for name := range tstates {
+		topics = append(topics, name)
 	}
 
-	ctx, cancel := tm.kafkaRequestContext()
+	ctx, cancel = tm.kafkaRequestContext()
 	defer cancel()
 
 	cfg := kafkaadmin.RemoveThrottleConfig{
