@@ -501,6 +501,24 @@ func (tm *ThrottleManager) removeBrokerThrottlesByID(ids map[int]struct{}) error
 		return tm.legacyRemoveBrokerThrottlesByID(ids)
 	}
 
+	// Set to list.
+	var brokers []int
+	for id := range ids {
+		brokers = append(brokers, id)
+	}
+
+	ctx, cancel := tm.kafkaRequestContext()
+	defer cancel()
+
+	cfg := kafkaadmin.RemoveThrottleConfig{
+		Brokers: brokers,
+	}
+
+	// Issue the remove.
+	if err := tm.ka.RemoveThrottle(ctx, cfg); err != nil {
+		return err
+	}
+
 	return nil
 }
 
