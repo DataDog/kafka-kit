@@ -168,6 +168,9 @@ func (tm *ThrottleManager) legacyRemoveBrokerThrottlesByID(ids map[int]struct{})
 		if changed[0] || changed[1] {
 			unthrottledBrokers = append(unthrottledBrokers, b)
 			log.Printf("Throttle removed on broker %d\n", b)
+
+			// Unset the previously stored throttle rate.
+			tm.previouslySetThrottles[b] = [2]*float64{}
 		}
 
 		// Hardcoded sleep to reduce ZK load.
@@ -184,11 +187,6 @@ func (tm *ThrottleManager) legacyRemoveBrokerThrottlesByID(ids map[int]struct{})
 	// Lazily check if any errors were encountered, return a generic error.
 	if errorEncountered {
 		return errors.New("one or more throttles were not cleared")
-	}
-
-	// Unset all stored throttle rates.
-	for ID := range tm.previouslySetThrottles {
-		tm.previouslySetThrottles[ID] = [2]*float64{}
 	}
 
 	return nil
