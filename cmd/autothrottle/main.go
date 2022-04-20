@@ -328,7 +328,7 @@ func main() {
 			// have also have a reassignment? We're discovering topics here by
 			// reverse lookup of brokers that are not reassignment participants.
 			var err error
-			ThrottleManager.overrideThrottleLists, err = getTopicsWithThrottledBrokers(ThrottleManager)
+			ThrottleManager.overrideThrottleLists, err = ThrottleManager.getTopicsWithThrottledBrokers()
 			if err != nil {
 				log.Printf("Error fetching topic states: %s\n", err)
 			}

@@ -101,15 +101,15 @@ func (t TopicStates) Filter(fn TopicStatesFilterFn) TopicStates {
 // getTopicsWithThrottledBrokers returns a topicThrottledReplicas that includes
 // any topics that have partitions assigned to brokers with a static throttle
 // rate set.
-func getTopicsWithThrottledBrokers(params *ThrottleManager) (topicThrottledReplicas, error) {
+func (tm *ThrottleManager) getTopicsWithThrottledBrokers() (topicThrottledReplicas, error) {
 	// Fetch all topic states.
-	states, err := getAllTopicStates(params.zk)
+	states, err := tm.getAllTopicStates()
 	if err != nil {
 		return nil, err
 	}
 
 	// Lookup brokers with overrides set that are not a reassignment participant.
-	throttledBrokers := params.brokerOverrides.Filter(notReassignmentParticipant)
+	throttledBrokers := tm.brokerOverrides.Filter(notReassignmentParticipant)
 
 	// Construct a topicThrottledReplicas that includes any topics with replicas
 	// assigned to brokers with overrides. The throttled list only includes brokers
@@ -143,18 +143,18 @@ func getTopicsWithThrottledBrokers(params *ThrottleManager) (topicThrottledRepli
 }
 
 // getAllTopicStates returns a TopicStates for all topics in Kafka.
-func getAllTopicStates(zk kafkazk.Handler) (TopicStates, error) {
+func (tm *ThrottleManager) getAllTopicStates() (TopicStates, error) {
 	var states = make(TopicStates)
 
 	// Get all topics.
-	topics, err := zk.GetTopics(topicsRegex)
+	topics, err := tm.zk.GetTopics(topicsRegex)
 	if err != nil {
 		return nil, err
 	}
 
 	// Fetch state for each topic.
 	for _, topic := range topics {
-		state, err := zk.GetTopicState(topic)
+		state, err := tm.zk.GetTopicState(topic)
 		if err != nil {
 			return nil, err
 		}
