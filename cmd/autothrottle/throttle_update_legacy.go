@@ -2,9 +2,11 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -61,7 +63,6 @@ func (tm *ThrottleManager) legacyApplyBrokerThrottles(configs map[int]kafkazk.Ka
 	return events, errs
 }
 
-// legacyApplyTopicThrottles performs config updates directly through ZooKeeper.
 func (tm *ThrottleManager) legacyApplyTopicThrottles(throttled topicThrottledReplicas) []error {
 	var errs []error
 
@@ -130,6 +131,64 @@ func (tm *ThrottleManager) legacyRemoveTopicThrottles() error {
 	if errTopics != nil {
 		names := strings.Join(errTopics, ", ")
 		return fmt.Errorf("Error removing throttle config on topics: %s\n", names)
+	}
+
+	return nil
+}
+
+func (tm *ThrottleManager) legacyRemoveBrokerThrottlesByID(ids map[int]struct{}) error {
+	var unthrottledBrokers []int
+	var errorEncountered bool
+
+	// Unset throttles.
+	for b := range ids {
+		config := kafkazk.KafkaConfig{
+			Type: "broker",
+			Name: strconv.Itoa(b),
+			Configs: []kafkazk.KafkaConfigKV{
+				{"leader.replication.throttled.rate", ""},
+				{"follower.replication.throttled.rate", ""},
+			},
+		}
+
+		changed, err := tm.zk.UpdateKafkaConfig(config)
+		switch err.(type) {
+		case nil:
+		case kafkazk.ErrNoNode:
+			// We'd get an ErrNoNode here only if the parent path for dynamic broker
+			// configs (/config/brokers) if it doesn't exist, which can happen in
+			// new clusters that have never had dynamic configs applied. Rather than
+			// creating that znode, we'll just ignore errors here; if the znodes
+			// don't exist, there's not even config to remove.
+		default:
+			errorEncountered = true
+			log.Printf("Error removing throttle on broker %d: %s\n", b, err)
+		}
+
+		if changed[0] || changed[1] {
+			unthrottledBrokers = append(unthrottledBrokers, b)
+			log.Printf("Throttle removed on broker %d\n", b)
+		}
+
+		// Hardcoded sleep to reduce ZK load.
+		time.Sleep(250 * time.Millisecond)
+	}
+
+	// Write event.
+	if len(unthrottledBrokers) > 0 {
+		m := fmt.Sprintf("Replication throttle removed on the following brokers: %v",
+			unthrottledBrokers)
+		tm.events.Write("Broker replication throttle removed", m)
+	}
+
+	// Lazily check if any errors were encountered, return a generic error.
+	if errorEncountered {
+		return errors.New("one or more throttles were not cleared")
+	}
+
+	// Unset all stored throttle rates.
+	for ID := range tm.previouslySetThrottles {
+		tm.previouslySetThrottles[ID] = [2]*float64{}
 	}
 
 	return nil
