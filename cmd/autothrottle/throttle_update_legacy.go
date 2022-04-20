@@ -99,3 +99,33 @@ func (tm *ThrottleManager) legacyApplyTopicThrottles(throttled topicThrottledRep
 
 	return nil
 }
+
+func (tm *ThrottleManager) legacyRemoveTopicThrottles(topics []string) error {
+	var errTopics []string
+
+	for _, topic := range topics {
+		config := kafkazk.KafkaConfig{
+			Type: "topic",
+			Name: topic,
+			Configs: []kafkazk.KafkaConfigKV{
+				{"leader.replication.throttled.replicas", ""},
+				{"follower.replication.throttled.replicas", ""},
+			},
+		}
+
+		// Update the config.
+		_, err := tm.zk.UpdateKafkaConfig(config)
+		if err != nil {
+			errTopics = append(errTopics, topic)
+		}
+
+		time.Sleep(250 * time.Millisecond)
+	}
+
+	if errTopics != nil {
+		names := strings.Join(errTopics, ", ")
+		return fmt.Errorf("Error removing throttle config on topics: %s\n", names)
+	}
+
+	return nil
+}

@@ -462,28 +462,27 @@ func (tm *ThrottleManager) removeAllThrottles() error {
 // removeTopicThrottles removes all topic throttle configs.
 func (tm *ThrottleManager) removeTopicThrottles() error {
 	// Get all topics.
+	// TODO(jamie): switch this to a KafkaAdmin topic fetch.
 	topics, err := tm.zk.GetTopics(topicsRegex)
 	if err != nil {
 		return err
 	}
 
-	for _, topic := range topics {
-		config := kafkazk.KafkaConfig{
-			Type: "topic",
-			Name: topic,
-			Configs: []kafkazk.KafkaConfigKV{
-				{"leader.replication.throttled.replicas", ""},
-				{"follower.replication.throttled.replicas", ""},
-			},
-		}
+	// ZooKeeper method.
+	if !tm.kafkaNativeMode {
+		return tm.legacyRemoveTopicThrottles(topics)
+	}
 
-		// Update the config.
-		_, err := tm.zk.UpdateKafkaConfig(config)
-		if err != nil {
-			log.Printf("Error removing throttle config on topic %s: %s\n", topic, err)
-		}
+	ctx, cancel := tm.kafkaRequestContext()
+	defer cancel()
 
-		time.Sleep(250 * time.Millisecond)
+	cfg := kafkaadmin.RemoveThrottleConfig{
+		Topics: topics,
+	}
+
+	// Issue the remove.
+	if err := tm.ka.RemoveThrottle(ctx, cfg); err != nil {
+		return err
 	}
 
 	return nil
