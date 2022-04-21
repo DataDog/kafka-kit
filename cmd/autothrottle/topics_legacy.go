@@ -2,7 +2,12 @@ package main
 
 import (
 	"strconv"
+
+	"github.com/DataDog/kafka-kit/v3/kafkazk"
 )
+
+// TopicStates is a map of topic names to kafakzk.TopicState.
+type TopicStates map[string]kafkazk.TopicState
 
 // legacyGetTopicsWithThrottledBrokers returns a topicThrottledReplicas that
 // includes any topics that have partitions assigned to brokers with a static

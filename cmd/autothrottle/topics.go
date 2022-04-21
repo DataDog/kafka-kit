@@ -3,8 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
-
-	"github.com/DataDog/kafka-kit/v3/kafkazk"
+	"strconv"
 )
 
 var (
@@ -78,9 +77,6 @@ func (ttr topicThrottledReplicas) addReplica(topic topic, partn string, role rep
 	return nil
 }
 
-// TopicStates is a map of topic names to kafakzk.TopicState.
-type TopicStates map[string]kafkazk.TopicState
-
 // getTopicsWithThrottledBrokers returns a topicThrottledReplicas that includes
 // any topics that have partitions assigned to brokers with a static throttle
 // rate set.
@@ -90,10 +86,46 @@ func (tm *ThrottleManager) getTopicsWithThrottledBrokers() (topicThrottledReplic
 		return tm.legacyGetTopicsWithThrottledBrokers()
 	}
 
+	// Lookup brokers with overrides set that are not a reassignment participant.
+	throttledBrokers := tm.brokerOverrides.Filter(notReassignmentParticipant)
+
 	// Construct a topicThrottledReplicas that includes any topics with replicas
 	// assigned to brokers with overrides. The throttled list only includes brokers
 	// with throttles set rather than all configured replicas.
 	var throttleLists = make(topicThrottledReplicas)
+
+	ctx, cancelFn := tm.kafkaRequestContext()
+	defer cancelFn()
+
+	// Get topic states.
+	states, err := tm.ka.DescribeTopics(ctx, []string{".*"})
+	if err != nil {
+		return nil, err
+	}
+
+	// For each topic, check the replica assignment for all partitions. If any
+	// partition has an assigned broker with a static throttle rate set, append it
+	// to the throttleLists.
+	for topicName, state := range states {
+		// TODO(jamie): make this configurable.
+		if topicName == "__consumer_offsets" {
+			continue
+		}
+		for partition, partitionState := range state.PartitionStates {
+			for _, brokerID := range partitionState.Replicas {
+				// Look up the broker in the throttled brokers set.
+				if _, hasThrottle := throttledBrokers[int(brokerID)]; hasThrottle {
+					// Add it to the throttleLists.
+					throttleLists.addReplica(
+						topic(topicName),
+						strconv.Itoa(partition),
+						replicaType("followers"),
+						strconv.Itoa(int(brokerID)),
+					)
+				}
+			}
+		}
+	}
 
 	return throttleLists, nil
 }
