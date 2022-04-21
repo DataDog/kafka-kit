@@ -69,3 +69,25 @@ func (tm *ThrottleManager) legacyGetAllTopicStates() (TopicStates, error) {
 
 	return states, nil
 }
+
+/*
+
+	This code isn't currently accessed, but holding it as a comment until we
+	remove all the deprecated bits.
+
+// TopicStatesFilterFn specifies a filter function.
+type TopicStatesFilterFn func(kafkazk.TopicState) bool
+
+// Filter takes a TopicStatesFilterFn and returns a TopicStates where
+// all elements return true as an input to the filter func.
+func (t TopicStates) Filter(fn TopicStatesFilterFn) TopicStates {
+	var ts = make(TopicStates)
+	for name, state := range t {
+		if fn(state) {
+			ts[name] = state
+		}
+	}
+
+	return ts
+}
+*/

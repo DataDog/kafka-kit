@@ -59,3 +59,41 @@ func TestLegacyGetTopicsWithThrottledBrokers(t *testing.T) {
 		}
 	}
 }
+
+/*
+func TestFilter(t *testing.T) {
+	zk := &kafkazk.Stub{}
+	state, _ := zk.GetTopicState("test_topic")
+
+	topicStates := make(TopicStates)
+	topicStates["test_topic"] = *state
+
+	matchID := 1000
+
+	// Our filter func. returns any topic that includes matchID as a replica.
+	fn := func(ts kafkazk.TopicState) bool {
+		// The stub partition state here is []int{1000,1001}.
+		for _, id := range ts.Partitions["0"] {
+			if id == matchID {
+				return true
+			}
+		}
+		return false
+	}
+
+	// We should get back one topic.
+	filtered := topicStates.Filter(fn)
+	_, match := filtered["test_topic"]
+	if len(filtered) != 1 && !match {
+		t.Errorf("Expected key 'test_topic'")
+	}
+
+	matchID = 9999
+
+	// We should now have no matched topics.
+	filtered = topicStates.Filter(fn)
+	if len(filtered) != 0 {
+		t.Errorf("Expected nil filtered result")
+	}
+}
+*/

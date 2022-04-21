@@ -81,22 +81,6 @@ func (ttr topicThrottledReplicas) addReplica(topic topic, partn string, role rep
 // TopicStates is a map of topic names to kafakzk.TopicState.
 type TopicStates map[string]kafkazk.TopicState
 
-// TopicStatesFilterFn specifies a filter function.
-type TopicStatesFilterFn func(kafkazk.TopicState) bool
-
-// Filter takes a TopicStatesFilterFn and returns a TopicStates where
-// all elements return true as an input to the filter func.
-func (t TopicStates) Filter(fn TopicStatesFilterFn) TopicStates {
-	var ts = make(TopicStates)
-	for name, state := range t {
-		if fn(state) {
-			ts[name] = state
-		}
-	}
-
-	return ts
-}
-
 // getTopicsWithThrottledBrokers returns a topicThrottledReplicas that includes
 // any topics that have partitions assigned to brokers with a static throttle
 // rate set.
