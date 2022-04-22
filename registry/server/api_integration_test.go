@@ -110,12 +110,23 @@ func TestCreateTaggedTopic(t *testing.T) {
 			Topic:            &pb.Topic{Name: "many_partitions", Partitions: 24, Replication: 3},
 			TargetBrokerTags: []string{"key:value"},
 		},
+		3: {
+			Topic:            &pb.Topic{Name: "new_topic4", Partitions: 1, Replication: 1},
+			TargetBrokerTags: []string{"key:value"},
+			TargetBrokerIds:  []uint32{1001},
+		},
+		4: {
+			Topic:           &pb.Topic{Name: "new_topic5", Partitions: 1, Replication: 1},
+			TargetBrokerIds: []uint32{1001},
+		},
 	}
 
 	expectedErrors := map[int]error{
 		0: nil,
 		1: ErrInsufficientBrokers,
 		2: ErrInsufficientBrokers,
+		3: nil,
+		4: nil,
 	}
 
 	for i := 0; i < len(tests); i++ {

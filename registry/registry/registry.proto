@@ -235,6 +235,7 @@ message TopicRequest {
 message CreateTopicRequest {
   Topic topic = 1;
   repeated string target_broker_tags = 2;
+  repeated uint32 target_broker_ids = 3;
 }
 
 message TopicResponse {

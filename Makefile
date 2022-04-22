@@ -16,7 +16,7 @@ compose-build:
 
 # Build the Kafka-Kit image.
 build-image:
-	docker build -t kafka-kit -f Dockerfile .
+	docker buildx build --platform linux/amd64 -t kafka-kit -f Dockerfile .
 
 # Run unit tests.
 test:
