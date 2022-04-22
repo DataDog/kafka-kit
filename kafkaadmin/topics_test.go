@@ -11,7 +11,7 @@ func TestTopicStatesFromMetadata(t *testing.T) {
 	// Mock metadata.
 	md := fakeKafkaMetadata()
 	// Get a TopicStates.
-	ts, err := topicStatesFromMetadata(md)
+	ts, err := TopicStatesFromMetadata(md)
 	assert.Nil(t, err)
 
 	// Expected results.
