@@ -1,18 +1,24 @@
 package main
 
 import (
+	"context"
+	"time"
+
 	"github.com/DataDog/kafka-kit/v3/cmd/autothrottle/internal/throttlestore"
+	"github.com/DataDog/kafka-kit/v3/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v3/kafkametrics"
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
 )
 
-// ThrottleManager holds all the data needed to call
-// updateReplicationThrottle.
+// ThrottleManager manages Kafka throttle rates.
 type ThrottleManager struct {
-	reassignments kafkazk.Reassignments
-	zk            kafkazk.Handler
-	km            kafkametrics.Handler
-	overrideRate  int
+	reassignments          kafkazk.Reassignments
+	zk                     kafkazk.Handler
+	km                     kafkametrics.Handler
+	ka                     kafkaadmin.KafkaAdmin
+	overrideRate           int
+	kafkaNativeMode        bool
+	kafkaAPIRequestTimeout int
 	// The following three fields are for brokers with static overrides set
 	// and a topicThrottledReplicas for topics where those brokers are assigned.
 	brokerOverrides          throttlestore.BrokerOverrides
@@ -25,6 +31,19 @@ type ThrottleManager struct {
 	failureThreshold         int
 	failures                 int
 	skipTopicUpdates         bool
+}
+
+// InitKafkaAdmin takes a csv Kafka broker list and initializes a kafkaadmin
+// client.
+func (tm *ThrottleManager) InitKafkaAdmin(brokers string) error {
+	cfg := kafkaadmin.Config{BootstrapServers: brokers}
+	ka, err := kafkaadmin.NewClient(cfg)
+	if err != nil {
+		return err
+	}
+
+	tm.ka = ka
+	return nil
 }
 
 func hasActiveOverride(bto throttlestore.BrokerThrottleOverride) bool {
@@ -48,31 +67,40 @@ func (r *ThrottleManager) Failure() bool {
 }
 
 // ResetFailures resets the failures count.
-func (r *ThrottleManager) ResetFailures() {
-	r.failures = 0
+func (tm *ThrottleManager) ResetFailures() {
+	tm.failures = 0
 }
 
 // DisableTopicUpdates prevents topic throttled replica lists from being
 // updated in ZooKeeper.
-func (r *ThrottleManager) DisableTopicUpdates() {
-	r.skipTopicUpdates = true
+func (tm *ThrottleManager) DisableTopicUpdates() {
+	tm.skipTopicUpdates = true
 }
 
 // DisableTopicUpdates allows topic throttled replica lists updates in ZooKeeper.
-func (r *ThrottleManager) EnableTopicUpdates() {
-	r.skipTopicUpdates = false
+func (tm *ThrottleManager) EnableTopicUpdates() {
+	tm.skipTopicUpdates = false
 }
 
 // DisableOverrideTopicUpdates prevents topic throttled replica lists for
 // topics assigned to override brokers from being updated in ZooKeeper.
-func (r *ThrottleManager) DisableOverrideTopicUpdates() {
-	r.skipOverrideTopicUpdates = true
+func (tm *ThrottleManager) DisableOverrideTopicUpdates() {
+	tm.skipOverrideTopicUpdates = true
 }
 
 // EnableOverrideTopicUpdates allows topic throttled replica lists for
 // topics assigned to override brokers to be updated in ZooKeeper.
-func (r *ThrottleManager) EnableOverrideTopicUpdates() {
-	r.skipOverrideTopicUpdates = false
+func (tm *ThrottleManager) EnableOverrideTopicUpdates() {
+	tm.skipOverrideTopicUpdates = false
+}
+
+// kafkaRequestContext returns a context and cancel func with the default
+// ThrottleManager Kafka API request timeout.
+func (tm *ThrottleManager) kafkaRequestContext() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(
+		context.Background(),
+		time.Duration(tm.kafkaAPIRequestTimeout)*time.Second,
+	)
 }
 
 // ThrottledBrokers is a list of brokers with a throttle applied

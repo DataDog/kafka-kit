@@ -109,7 +109,7 @@ func (c Client) DescribeTopics(ctx context.Context, topics []string) (TopicState
 
 	filterMatches(md, topicNamesRegex)
 
-	return topicStatesFromMetadata(md)
+	return TopicStatesFromMetadata(md)
 }
 
 func filterMatches(md *kafka.Metadata, re []*regexp.Regexp) {
@@ -126,7 +126,7 @@ func filterMatches(md *kafka.Metadata, re []*regexp.Regexp) {
 	}
 }
 
-func topicStatesFromMetadata(md *kafka.Metadata) (TopicStates, error) {
+func TopicStatesFromMetadata(md *kafka.Metadata) (TopicStates, error) {
 	if len(md.Topics) == 0 {
 		return nil, ErrNoData
 	}

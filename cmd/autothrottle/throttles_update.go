@@ -2,17 +2,14 @@ package main
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"log"
 	"math"
-	"sort"
 	"strconv"
-	"strings"
-	"time"
 
 	"github.com/DataDog/kafka-kit/v3/cmd/autothrottle/internal/api"
 	"github.com/DataDog/kafka-kit/v3/cmd/autothrottle/internal/throttlestore"
+	"github.com/DataDog/kafka-kit/v3/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v3/kafkametrics"
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
 )
@@ -33,7 +30,11 @@ type brokerChangeEvent struct {
 // that static value is used instead of a dynamically determined value.
 // Additionally, broker-specific overrides may be specified, which take precedence
 // over the global override.
-// TODO(jamie): this function is absolute Mad Max. Fix.
+// TODO(jamie): This function is a masssively messy artifact from autothrottle
+// quickly growing in complexity from an originally flat, simple program. A
+// considerable amount of shared data needs to be better encapsulated so we can
+// deconstruct these functions that hold too much of the general autothrottle logic.
+// WIP on doing so.
 func (tm *ThrottleManager) updateReplicationThrottle() error {
 	// Creates lists from maps.
 	srcBrokers, dstBrokers, allBrokers := tm.reassigningBrokers.lists()
@@ -132,13 +133,7 @@ func (tm *ThrottleManager) updateReplicationThrottle() error {
 	}
 
 	// Set broker throttle configs.
-	events, errs := applyBrokerThrottles(
-		tm.reassigningBrokers.all,
-		capacities,
-		tm.previouslySetThrottles,
-		tm.limits,
-		tm.zk,
-	)
+	events, errs := tm.applyBrokerThrottles(tm.reassigningBrokers.all, capacities)
 
 	for _, e := range errs {
 		// TODO(jamie): revisit whether we should actually be returning rather than
@@ -160,9 +155,13 @@ func (tm *ThrottleManager) updateReplicationThrottle() error {
 
 	// Set topic throttle configs.
 	if !tm.skipTopicUpdates {
-		_, errs = applyTopicThrottles(tm.reassigningBrokers.throttledReplicas, tm.zk)
+		errs := tm.applyTopicThrottles(tm.reassigningBrokers.throttledReplicas)
 		for _, e := range errs {
 			log.Println(e)
+		}
+		if errs == nil {
+			topics := tm.reassigningBrokers.throttledReplicas.topics()
+			log.Printf("updated the throttle replicas configs for topics: %v\n", topics)
 		}
 	}
 
@@ -211,12 +210,7 @@ func (tm *ThrottleManager) updateOverrideThrottles() error {
 	}
 
 	// Set broker throttle configs.
-	events, errs := applyBrokerThrottles(toAssign,
-		capacities,
-		tm.previouslySetThrottles,
-		tm.limits,
-		tm.zk,
-	)
+	events, errs := tm.applyBrokerThrottles(toAssign, capacities)
 
 	for _, e := range errs {
 		log.Println(e)
@@ -224,9 +218,13 @@ func (tm *ThrottleManager) updateOverrideThrottles() error {
 
 	// Set topic throttle configs.
 	if !tm.skipOverrideTopicUpdates {
-		_, errs = applyTopicThrottles(tm.overrideThrottleLists, tm.zk)
+		errs := tm.applyTopicThrottles(tm.overrideThrottleLists)
 		for _, e := range errs {
 			log.Println(e)
+		}
+		if errs == nil {
+			topics := tm.overrideThrottleLists.topics()
+			log.Printf("updated the throttle replicas configs for topics: %v\n", topics)
 		}
 	}
 
@@ -275,43 +273,45 @@ func (tm *ThrottleManager) purgeOverrideThrottles() []error {
 	return errs
 }
 
-// applyBrokerThrottles takes a set of brokers, a replication throttle rate
-// string, rate, map for tracking applied throttles, and zk kafkazk.Handler
-// zookeeper client. For each broker, the throttle rate is applied and if
-// successful, the rate is stored in the throttles map for future reference.
-// A channel of events and []string of errors is returned.
-func applyBrokerThrottles(bs map[int]struct{}, capacities, prevThrottles replicationCapacityByBroker, l Limits, zk kafkazk.Handler) (chan brokerChangeEvent, []string) {
-	events := make(chan brokerChangeEvent, len(bs)*2)
-	var errs []string
+// applyBrokerThrottles applies broker throttle configs.
+func (tm *ThrottleManager) applyBrokerThrottles(bs map[int]struct{}, capacities replicationCapacityByBroker) (chan brokerChangeEvent, []error) {
+	var configs = kafkaadmin.SetThrottleConfig{Brokers: map[int]kafkaadmin.BrokerThrottleConfig{}}
+	var legacyConfigs map[int]kafkazk.KafkaConfig
 
-	// Set the throttle config for all reassigning brokers.
+	// Set the throttle config for all reassigning brokers. We currently populate
+	// both the Kafka native and legacy configs, conditionally applying whichever
+	// is configured after all rates are calculated.
 	for ID := range bs {
-		brokerConfig := kafkazk.KafkaConfig{
+
+		legacyBrokerConfig := kafkazk.KafkaConfig{
 			Type:    "broker",
 			Name:    strconv.Itoa(ID),
 			Configs: []kafkazk.KafkaConfigKV{},
 		}
+
+		brokerConfig := kafkaadmin.BrokerThrottleConfig{}
 
 		// Check if a rate was determined for each role (leader, follower) type.
 		for i, rate := range capacities[ID] {
 			if rate == nil {
 				continue
 			}
-
 			role := roleFromIndex(i)
 
-			prevRate := prevThrottles[ID][i]
+			// Get the previously set throttle rate.
+			prevRate := tm.previouslySetThrottles[ID][i]
 			if prevRate == nil {
 				v := 0.00
 				prevRate = &v
 			}
 
+			// Get the maximum utilization value for logging purposes.
 			var max float64
 			switch role {
 			case "leader":
-				max = l["srcMax"]
+				max = tm.limits["srcMax"]
 			case "follower":
-				max = l["dstMax"]
+				max = tm.limits["dstMax"]
 			}
 
 			log.Printf("Replication throttle rate for broker %d [%s] (based on a %.0f%% max free capacity utilization): %0.2fMB/s\n",
@@ -327,52 +327,90 @@ func applyBrokerThrottles(bs map[int]struct{}, capacities, prevThrottles replica
 				continue
 			}
 
-			rateBytesString := fmt.Sprintf("%.0f", *rate*1000000.00)
+			rateBytes := *rate * 1000000.00
+			rateBytesString := fmt.Sprintf("%.0f", rateBytes)
 
-			// Append config.
+			// Add config.
+			switch role {
+			case "leader":
+				brokerConfig.OutboundLimitBytes = int(math.Round(rateBytes))
+			case "follower":
+				brokerConfig.InboundLimitBytes = int(math.Round(rateBytes))
+			}
+
+			// Add legacy config.
 			c := kafkazk.KafkaConfigKV{fmt.Sprintf("%s.replication.throttled.rate", role), rateBytesString}
-			brokerConfig.Configs = append(brokerConfig.Configs, c)
+			legacyBrokerConfig.Configs = append(legacyBrokerConfig.Configs, c)
 		}
 
-		// Write the throttle config.
-		changes, err := zk.UpdateKafkaConfig(brokerConfig)
+		// Populate each configuration collection.
+		configs.Brokers[ID] = brokerConfig
+		legacyConfigs[ID] = legacyBrokerConfig
+	}
+
+	// Write the throttle configs.
+
+	if !tm.kafkaNativeMode {
+		// Use the direct ZooKeeper config update method.
+		return tm.legacyApplyBrokerThrottles(legacyConfigs, capacities)
+	}
+
+	return tm.applyBrokerThrottlesSequential(configs, capacities)
+}
+
+// KafkaAdmin applies these sequentially under the hood, but from an API perspective
+// it's a single batch job: if one fails, a single error is returned. We break
+// these into sequential KafkaAdmin SetThrottle calls so that we can individually
+// report errors/successes.
+func (tm *ThrottleManager) applyBrokerThrottlesSequential(configs kafkaadmin.SetThrottleConfig, capacities replicationCapacityByBroker) (chan brokerChangeEvent, []error) {
+	events := make(chan brokerChangeEvent, len(configs.Brokers)*2)
+	var errs []error
+
+	// For each broker, create a new config that only holds that broker and apply it.
+	for id, config := range configs.Brokers {
+		cfg := kafkaadmin.SetThrottleConfig{
+			Brokers: map[int]kafkaadmin.BrokerThrottleConfig{
+				id: config,
+			}}
+
+		ctx, cancelFn := tm.kafkaRequestContext()
+		defer cancelFn()
+
+		// Apply.
+		err := tm.ka.SetThrottle(ctx, cfg)
 		if err != nil {
-			errs = append(errs, fmt.Sprintf("Error setting throttle on broker %d: %s", ID, err))
+			errs = append(errs, fmt.Errorf("Error setting throttle on broker %d: %s", id, err))
+			// Continue to the next broker if we encounter an error.
+			continue
 		}
 
-		for i, changed := range changes {
-			if changed {
-				// This will be either "leader.replication.throttled.rate" or
-				// "follower.replication.throttled.rate".
-				throttleConfigString := brokerConfig.Configs[i][0]
-				// Split on ".", get "leader" or "follower" string.
-				role := strings.Split(throttleConfigString, ".")[0]
+		// Store the configured rates in the previously set throttles map.
 
-				log.Printf("Updated throttle on broker %d [%s]\n", ID, role)
+		// Store and log leader configs, if any.
+		if cfg.Brokers[id].OutboundLimitBytes != 0 {
+			rate := capacities[id][0]
+			tm.previouslySetThrottles.storeLeaderCapacity(id, *rate)
 
-				var rate *float64
-
-				// Store the configured rate.
-				switch role {
-				case "leader":
-					rate = capacities[ID][0]
-					prevThrottles.storeLeaderCapacity(ID, *rate)
-				case "follower":
-					rate = capacities[ID][1]
-					prevThrottles.storeFollowerCapacity(ID, *rate)
-				}
-
-				events <- brokerChangeEvent{
-					id:   ID,
-					role: role,
-					rate: *rate,
-				}
+			log.Printf("Updated throttle on broker %d [leader]\n", id)
+			events <- brokerChangeEvent{
+				id:   id,
+				role: "leader",
+				rate: *rate,
 			}
 		}
 
-		// Hard coded sleep to reduce
-		// ZK load.
-		time.Sleep(250 * time.Millisecond)
+		// Store and log follower configs, if any.
+		if cfg.Brokers[id].InboundLimitBytes != 0 {
+			rate := capacities[id][1]
+			tm.previouslySetThrottles.storeFollowerCapacity(id, *rate)
+
+			log.Printf("Updated throttle on broker %d [follower]\n", id)
+			events <- brokerChangeEvent{
+				id:   id,
+				role: "follower",
+				rate: *rate,
+			}
+		}
 	}
 
 	close(events)
@@ -381,62 +419,28 @@ func applyBrokerThrottles(bs map[int]struct{}, capacities, prevThrottles replica
 }
 
 // applyTopicThrottles updates a throttledReplicas for all topics undergoing
-// replication, returning a channel of events and []string of errors.
+// replication.
 // TODO(jamie) review whether the throttled replicas list changes as replication
 // finishes; each time the list changes here, we probably update the config then
 // propagate a watch to all the brokers in the cluster.
-func applyTopicThrottles(throttled topicThrottledReplicas, zk kafkazk.Handler) (chan string, []string) {
-	events := make(chan string, len(throttled))
-	var errs []string
-
-	for t := range throttled {
-		// Generate config.
-		config := kafkazk.KafkaConfig{
-			Type:    "topic",
-			Name:    string(t),
-			Configs: []kafkazk.KafkaConfigKV{},
-		}
-
-		// The sort is important; it avoids unecessary config updates due to the same
-		// data but in different orders.
-		sort.Strings(throttled[t]["leaders"])
-		sort.Strings(throttled[t]["followers"])
-
-		leaderList := strings.Join(throttled[t]["leaders"], ",")
-		if leaderList != "" {
-			c := kafkazk.KafkaConfigKV{"leader.replication.throttled.replicas", leaderList}
-			config.Configs = append(config.Configs, c)
-		}
-
-		followerList := strings.Join(throttled[t]["followers"], ",")
-		if followerList != "" {
-			c := kafkazk.KafkaConfigKV{"follower.replication.throttled.replicas", followerList}
-			config.Configs = append(config.Configs, c)
-		}
-
-		// Write the config.
-		changes, err := zk.UpdateKafkaConfig(config)
-		if err != nil {
-			errs = append(errs, fmt.Sprintf("Error setting throttle list on topic %s: %s\n", t, err))
-		}
-
-		var anyChanges bool
-		for _, changed := range changes {
-			if changed {
-				anyChanges = true
-			}
-		}
-
-		if anyChanges {
-			// TODO(jamie): we don't use these events yet, but this probably isn't
-			// actually the format we want anyway.
-			events <- fmt.Sprintf("updated throttled brokers list for %s", string(t))
-		}
+func (tm *ThrottleManager) applyTopicThrottles(throttledTopics topicThrottledReplicas) []error {
+	if !tm.kafkaNativeMode {
+		// Use the direct ZooKeeper config update method.
+		return tm.legacyApplyTopicThrottles(throttledTopics)
 	}
 
-	close(events)
+	// Populate the config with all topics named in the topicThrottledReplicas.
+	ctx, cancel := tm.kafkaRequestContext()
+	defer cancel()
 
-	return events, errs
+	var throttleCfg = kafkaadmin.SetThrottleConfig{Topics: throttledTopics.topics()}
+
+	// Apply the config.
+	if err := tm.ka.SetThrottle(ctx, throttleCfg); err != nil {
+		return []error{err}
+	}
+
+	return nil
 }
 
 // removeAllThrottles calls removeTopicThrottles and removeBrokerThrottles in sequence.
@@ -455,29 +459,36 @@ func (tm *ThrottleManager) removeAllThrottles() error {
 
 // removeTopicThrottles removes all topic throttle configs.
 func (tm *ThrottleManager) removeTopicThrottles() error {
-	// Get all topics.
-	topics, err := tm.zk.GetTopics(topicsRegex)
+	// ZooKeeper method.
+	if !tm.kafkaNativeMode {
+		return tm.legacyRemoveTopicThrottles()
+	}
+
+	// Get all topic states.
+	ctx, cancel := tm.kafkaRequestContext()
+	defer cancel()
+
+	tstates, err := tm.ka.DescribeTopics(ctx, []string{".*"})
 	if err != nil {
 		return err
 	}
 
-	for _, topic := range topics {
-		config := kafkazk.KafkaConfig{
-			Type: "topic",
-			Name: topic,
-			Configs: []kafkazk.KafkaConfigKV{
-				{"leader.replication.throttled.replicas", ""},
-				{"follower.replication.throttled.replicas", ""},
-			},
-		}
+	// States to []string of names.
+	var topics []string
+	for name := range tstates {
+		topics = append(topics, name)
+	}
 
-		// Update the config.
-		_, err := tm.zk.UpdateKafkaConfig(config)
-		if err != nil {
-			log.Printf("Error removing throttle config on topic %s: %s\n", topic, err)
-		}
+	ctx, cancel = tm.kafkaRequestContext()
+	defer cancel()
 
-		time.Sleep(250 * time.Millisecond)
+	cfg := kafkaadmin.RemoveThrottleConfig{
+		Topics: topics,
+	}
+
+	// Issue the remove.
+	if err := tm.ka.RemoveThrottle(ctx, cfg); err != nil {
+		return err
 	}
 
 	return nil
@@ -485,58 +496,27 @@ func (tm *ThrottleManager) removeTopicThrottles() error {
 
 // removeBrokerThrottlesByID removes broker throttle configs for the specified IDs.
 func (tm *ThrottleManager) removeBrokerThrottlesByID(ids map[int]struct{}) error {
-	var unthrottledBrokers []int
-	var errorEncountered bool
-
-	// Unset throttles.
-	for b := range ids {
-		config := kafkazk.KafkaConfig{
-			Type: "broker",
-			Name: strconv.Itoa(b),
-			Configs: []kafkazk.KafkaConfigKV{
-				{"leader.replication.throttled.rate", ""},
-				{"follower.replication.throttled.rate", ""},
-			},
-		}
-
-		changed, err := tm.zk.UpdateKafkaConfig(config)
-		switch err.(type) {
-		case nil:
-		case kafkazk.ErrNoNode:
-			// We'd get an ErrNoNode here only if the parent path for dynamic broker
-			// configs (/config/brokers) if it doesn't exist, which can happen in
-			// new clusters that have never had dynamic configs applied. Rather than
-			// creating that znode, we'll just ignore errors here; if the znodes
-			// don't exist, there's not even config to remove.
-		default:
-			errorEncountered = true
-			log.Printf("Error removing throttle on broker %d: %s\n", b, err)
-		}
-
-		if changed[0] || changed[1] {
-			unthrottledBrokers = append(unthrottledBrokers, b)
-			log.Printf("Throttle removed on broker %d\n", b)
-		}
-
-		// Hardcoded sleep to reduce ZK load.
-		time.Sleep(250 * time.Millisecond)
+	// ZooKeeper method.
+	if !tm.kafkaNativeMode {
+		return tm.legacyRemoveBrokerThrottlesByID(ids)
 	}
 
-	// Write event.
-	if len(unthrottledBrokers) > 0 {
-		m := fmt.Sprintf("Replication throttle removed on the following brokers: %v",
-			unthrottledBrokers)
-		tm.events.Write("Broker replication throttle removed", m)
+	// Set to list.
+	var brokers []int
+	for id := range ids {
+		brokers = append(brokers, id)
 	}
 
-	// Lazily check if any errors were encountered, return a generic error.
-	if errorEncountered {
-		return errors.New("one or more throttles were not cleared")
+	ctx, cancel := tm.kafkaRequestContext()
+	defer cancel()
+
+	cfg := kafkaadmin.RemoveThrottleConfig{
+		Brokers: brokers,
 	}
 
-	// Unset all stored throttle rates.
-	for ID := range tm.previouslySetThrottles {
-		tm.previouslySetThrottles[ID] = [2]*float64{}
+	// Issue the remove.
+	if err := tm.ka.RemoveThrottle(ctx, cfg); err != nil {
+		return err
 	}
 
 	return nil
@@ -545,6 +525,7 @@ func (tm *ThrottleManager) removeBrokerThrottlesByID(ids map[int]struct{}) error
 // removeBrokerThrottles removes all broker throttle configs.
 func (tm *ThrottleManager) removeBrokerThrottles() error {
 	// Fetch brokers.
+	// TODO(jamie): Switch this to a KafkaAdmin lookup.
 	brokers, errs := tm.zk.GetAllBrokerMeta(false)
 	if errs != nil {
 		return errs[0]

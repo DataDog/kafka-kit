@@ -24,31 +24,31 @@ var (
 	// This can be set with -ldflags "-X main.version=x.x.x"
 	version = "0.0.0"
 
-	// Config holds configuration
-	// parameters.
+	// Config holds configuration parameters.
 	Config struct {
-		KafkaNativeMode    bool
-		APIKey             string
-		AppKey             string
-		NetworkTXQuery     string
-		NetworkRXQuery     string
-		BrokerIDTag        string
-		InstanceTypeTag    string
-		MetricsWindow      int
-		BootstrapServers   []string
-		ZKAddr             string
-		ZKPrefix           string
-		Interval           int
-		APIListen          string
-		ConfigZKPrefix     string
-		DDEventTags        string
-		MinRate            float64
-		SourceMaxRate      float64
-		DestinationMaxRate float64
-		ChangeThreshold    float64
-		FailureThreshold   int
-		CapMap             map[string]float64
-		CleanupAfter       int64
+		KafkaNativeMode        bool
+		KafkaAPIRequestTimeout int
+		APIKey                 string
+		AppKey                 string
+		NetworkTXQuery         string
+		NetworkRXQuery         string
+		BrokerIDTag            string
+		InstanceTypeTag        string
+		MetricsWindow          int
+		BootstrapServers       string
+		ZKAddr                 string
+		ZKPrefix               string
+		Interval               int
+		APIListen              string
+		ConfigZKPrefix         string
+		DDEventTags            string
+		MinRate                float64
+		SourceMaxRate          float64
+		DestinationMaxRate     float64
+		ChangeThreshold        float64
+		FailureThreshold       int
+		CapMap                 map[string]float64
+		CleanupAfter           int64
 	}
 
 	// Misc.
@@ -58,6 +58,7 @@ var (
 func main() {
 	v := flag.Bool("version", false, "version")
 	flag.BoolVar(&Config.KafkaNativeMode, "kafka-native-mode", false, "Favor native Kafka RPCs over ZooKeeper metadata access")
+	flag.IntVar(&Config.KafkaAPIRequestTimeout, "kafka-api-request-timeout", 15, "Kafka API request timeout (seconds)")
 	flag.StringVar(&Config.APIKey, "api-key", "", "Datadog API key")
 	flag.StringVar(&Config.AppKey, "app-key", "", "Datadog app key")
 	flag.StringVar(&Config.NetworkTXQuery, "net-tx-query", "avg:system.net.bytes_sent{service:kafka} by {host}", "Datadog query for broker outbound bandwidth by host")
@@ -65,7 +66,7 @@ func main() {
 	flag.StringVar(&Config.BrokerIDTag, "broker-id-tag", "broker_id", "Datadog host tag for broker ID")
 	flag.StringVar(&Config.InstanceTypeTag, "instance-type-tag", "instance-type", "Datadog tag for instance type")
 	flag.IntVar(&Config.MetricsWindow, "metrics-window", 120, "Time span of metrics required (seconds)")
-	bss := flag.String("bootstrap-servers", "localhost:9092", "Kafka bootstrap servers")
+	flag.StringVar(&Config.BootstrapServers, "bootstrap-servers", "localhost:9092", "Kafka bootstrap servers")
 	flag.StringVar(&Config.ZKAddr, "zk-addr", "localhost:2181", "ZooKeeper connect string (for broker metadata or rebuild-topic lookups)")
 	flag.StringVar(&Config.ZKPrefix, "zk-prefix", "", "ZooKeeper namespace prefix")
 	flag.IntVar(&Config.Interval, "interval", 180, "Autothrottle check interval (seconds)")
@@ -88,8 +89,6 @@ func main() {
 		os.Exit(0)
 	}
 
-	Config.BootstrapServers = strings.Split(*bss, ",")
-
 	// Deserialize instance-type capacity map.
 	Config.CapMap = map[string]float64{}
 	if len(*m) > 0 {
@@ -101,8 +100,7 @@ func main() {
 	}
 
 	log.Println("Autothrottle Running")
-	// Lazily prevent a tight restart
-	// loop from thrashing ZK.
+	// Lazily prevent a tight restart loop from thrashing ZK.
 	time.Sleep(1 * time.Second)
 
 	// Init ZK.
@@ -187,10 +185,16 @@ func main() {
 	ThrottleManager := &ThrottleManager{
 		zk:                     zk,
 		km:                     km,
+		kafkaNativeMode:        Config.KafkaNativeMode,
+		kafkaAPIRequestTimeout: Config.KafkaAPIRequestTimeout,
 		events:                 events,
 		previouslySetThrottles: make(replicationCapacityByBroker),
 		limits:                 lim,
 		failureThreshold:       Config.FailureThreshold,
+	}
+
+	if err := ThrottleManager.InitKafkaAdmin(Config.BootstrapServers); err != nil {
+		log.Fatal(err)
 	}
 
 	// Run.
@@ -324,7 +328,7 @@ func main() {
 			// have also have a reassignment? We're discovering topics here by
 			// reverse lookup of brokers that are not reassignment participants.
 			var err error
-			ThrottleManager.overrideThrottleLists, err = getTopicsWithThrottledBrokers(ThrottleManager)
+			ThrottleManager.overrideThrottleLists, err = ThrottleManager.getTopicsWithThrottledBrokers()
 			if err != nil {
 				log.Printf("Error fetching topic states: %s\n", err)
 			}
