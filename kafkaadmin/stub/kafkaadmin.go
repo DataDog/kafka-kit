@@ -20,7 +20,7 @@ func (s Client) DeleteTopic(context.Context, string) error {
 	return nil
 }
 func (s Client) DescribeTopics(context.Context, []string) (kafkaadmin.TopicStates, error) {
-	return nil, nil
+	return kafkaadmin.TopicStatesFromMetadata(fakeKafkaMetadata())
 }
 
 func (s Client) SetThrottle(context.Context, kafkaadmin.SetThrottleConfig) error {
