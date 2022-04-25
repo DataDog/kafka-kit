@@ -276,7 +276,7 @@ func (tm *ThrottleManager) purgeOverrideThrottles() []error {
 // applyBrokerThrottles applies broker throttle configs.
 func (tm *ThrottleManager) applyBrokerThrottles(bs map[int]struct{}, capacities replicationCapacityByBroker) (chan brokerChangeEvent, []error) {
 	var configs = kafkaadmin.SetThrottleConfig{Brokers: map[int]kafkaadmin.BrokerThrottleConfig{}}
-	var legacyConfigs map[int]kafkazk.KafkaConfig
+	var legacyConfigs = make(map[int]kafkazk.KafkaConfig)
 
 	// Set the throttle config for all reassigning brokers. We currently populate
 	// both the Kafka native and legacy configs, conditionally applying whichever
