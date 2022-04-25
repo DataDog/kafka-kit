@@ -261,14 +261,18 @@ func populateBrokerThrottleConfigs(brokers map[int]BrokerThrottleConfig, configs
 		txRate := fmt.Sprintf("%d", throttleRates.OutboundLimitBytes)
 		rxRate := fmt.Sprintf("%d", throttleRates.InboundLimitBytes)
 
-		// Write configs.
-		err = configs.AddConfig(id, brokerTXThrottleCfgName, txRate)
-		if err != nil {
-			return err
+		// Write configs. We skip any zero configs which are interpreted as unset.
+		if throttleRates.OutboundLimitBytes != 0 {
+			err = configs.AddConfig(id, brokerTXThrottleCfgName, txRate)
+			if err != nil {
+				return err
+			}
 		}
-		err = configs.AddConfig(id, brokerRXThrottleCfgName, rxRate)
-		if err != nil {
-			return err
+		if throttleRates.InboundLimitBytes != 0 {
+			err = configs.AddConfig(id, brokerRXThrottleCfgName, rxRate)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
