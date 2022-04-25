@@ -193,8 +193,12 @@ func main() {
 		failureThreshold:       Config.FailureThreshold,
 	}
 
-	if err := ThrottleManager.InitKafkaAdmin(Config.BootstrapServers); err != nil {
-		log.Fatal(err)
+	// Init a KafkaAdmin Client if needed.
+	if Config.KafkaNativeMode {
+		if err := ThrottleManager.InitKafkaAdmin(Config.BootstrapServers); err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("Connected to Kafka: %s\n", Config.BootstrapServers)
 	}
 
 	// Run.
