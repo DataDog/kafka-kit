@@ -6,6 +6,7 @@ import (
 	"log"
 	"math"
 	"strconv"
+	"strings"
 
 	"github.com/DataDog/kafka-kit/v3/cmd/autothrottle/internal/api"
 	"github.com/DataDog/kafka-kit/v3/cmd/autothrottle/internal/throttlestore"
@@ -516,8 +517,11 @@ func (tm *ThrottleManager) removeBrokerThrottlesByID(ids map[int]struct{}) error
 
 	// Issue the remove.
 	if err := tm.ka.RemoveThrottle(ctx, cfg); err != nil {
-		return err
+		return fmt.Errorf("Error removing broker throttles: %s", err)
 	}
+
+	listStr := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(brokers)), ", "), "[]")
+	log.Printf("Throttles removed on brokers: %s\n", listStr)
 
 	return nil
 }
