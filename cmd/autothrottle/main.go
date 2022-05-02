@@ -215,11 +215,10 @@ func main() {
 		} else {
 			// KIP-455 compatible reassignments lookup.
 			reassignments, err = zk.ListReassignments()
-		}
-
-		if err != nil {
-			fmt.Printf("error fetching reassignments: %s\n", err)
-			continue
+			if err != nil {
+				fmt.Printf("error fetching reassignments: %s\n", err)
+				continue
+			}
 		}
 
 		topicsReplicatingNow = newSet()
