@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/DataDog/kafka-kit/v3/kafkaadmin"
@@ -166,7 +167,7 @@ func main() {
 
 	// Graceful shutdown on SIGINT.
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-c
 		cancel()
