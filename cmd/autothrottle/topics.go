@@ -4,8 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-
-	"github.com/DataDog/kafka-kit/v3/kafkazk"
 )
 
 var (
@@ -33,6 +31,15 @@ type brokerIDs []string
 var acceptedReplicaTypes = map[replicaType]struct{}{
 	"leaders":   {},
 	"followers": {},
+}
+
+// topics returns the topic names held in the topicThrottledReplicas.
+func (ttr topicThrottledReplicas) topics() []string {
+	var names []string
+	for topic := range ttr {
+		names = append(names, string(topic))
+	}
+	return names
 }
 
 // addReplica takes a topic, partition number, role (leader, follower), and
@@ -70,87 +77,55 @@ func (ttr topicThrottledReplicas) addReplica(topic topic, partn string, role rep
 	return nil
 }
 
-// TopicStates is a map of topic names to kafakzk.TopicState.
-type TopicStates map[string]kafkazk.TopicState
-
-// TopicStatesFilterFn specifies a filter function.
-type TopicStatesFilterFn func(kafkazk.TopicState) bool
-
-// Filter takes a TopicStatesFilterFn and returns a TopicStates where
-// all elements return true as an input to the filter func.
-func (t TopicStates) Filter(fn TopicStatesFilterFn) TopicStates {
-	var ts = make(TopicStates)
-	for name, state := range t {
-		if fn(state) {
-			ts[name] = state
-		}
-	}
-
-	return ts
-}
-
 // getTopicsWithThrottledBrokers returns a topicThrottledReplicas that includes
 // any topics that have partitions assigned to brokers with a static throttle
 // rate set.
-func getTopicsWithThrottledBrokers(params *ReplicationThrottleConfigs) (topicThrottledReplicas, error) {
-	// Fetch all topic states.
-	states, err := getAllTopicStates(params.zk)
-	if err != nil {
-		return nil, err
+func (tm *ThrottleManager) getTopicsWithThrottledBrokers() (topicThrottledReplicas, error) {
+	if !tm.kafkaNativeMode {
+		// Use the direct ZooKeeper config update method.
+		return tm.legacyGetTopicsWithThrottledBrokers()
 	}
 
 	// Lookup brokers with overrides set that are not a reassignment participant.
-	throttledBrokers := params.brokerOverrides.Filter(notReassignmentParticipant)
+	throttledBrokers := tm.brokerOverrides.Filter(notReassignmentParticipant)
 
 	// Construct a topicThrottledReplicas that includes any topics with replicas
 	// assigned to brokers with overrides. The throttled list only includes brokers
 	// with throttles set rather than all configured replicas.
 	var throttleLists = make(topicThrottledReplicas)
 
-	// For each topic...
+	ctx, cancelFn := tm.kafkaRequestContext()
+	defer cancelFn()
+
+	// Get topic states.
+	states, err := tm.ka.DescribeTopics(ctx, []string{".*"})
+	if err != nil {
+		return nil, err
+	}
+
+	// For each topic, check the replica assignment for all partitions. If any
+	// partition has an assigned broker with a static throttle rate set, append it
+	// to the throttleLists.
 	for topicName, state := range states {
 		// TODO(jamie): make this configurable.
 		if topicName == "__consumer_offsets" {
 			continue
 		}
-		// For each partition...
-		for partn, replicas := range state.Partitions {
-			// For each replica assignment...
-			for _, assignedID := range replicas {
-				// If the replica is a throttled broker, append that broker to the
-				// throttled list for this {topic, partition}.
-				if _, exists := throttledBrokers[assignedID]; exists {
+		for partition, partitionState := range state.PartitionStates {
+			for _, brokerID := range partitionState.Replicas {
+				// Look up the broker in the throttled brokers set.
+				if _, hasThrottle := throttledBrokers[int(brokerID)]; hasThrottle {
+					// Add it to the throttleLists.
 					throttleLists.addReplica(
 						topic(topicName),
-						partn,
+						strconv.Itoa(partition),
 						replicaType("followers"),
-						strconv.Itoa(assignedID))
+						strconv.Itoa(int(brokerID)),
+					)
 				}
 			}
 		}
 	}
 
 	return throttleLists, nil
-}
-
-// getAllTopicStates returns a TopicStates for all topics in Kafka.
-func getAllTopicStates(zk kafkazk.Handler) (TopicStates, error) {
-	var states = make(TopicStates)
-
-	// Get all topics.
-	topics, err := zk.GetTopics(topicsRegex)
-	if err != nil {
-		return nil, err
-	}
-
-	// Fetch state for each topic.
-	for _, topic := range topics {
-		state, err := zk.GetTopicState(topic)
-		if err != nil {
-			return nil, err
-		}
-		states[topic] = *state
-	}
-
-	return states, nil
 }

@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"fmt"
@@ -150,7 +150,7 @@ func TestRemoveBrokerThrottle(t *testing.T) {
 func TestRemoveAllBrokerThrottle(t *testing.T) {
 	// GIVEN
 	overrideRateZnode = "override_rate"
-	overrideRateZnodePath = fmt.Sprintf("%s/%s", "zkChroot", overrideRateZnode)
+	OverrideRateZnodePath = fmt.Sprintf("%s/%s", "zkChroot", overrideRateZnode)
 	zk := kafkazk.NewZooKeeperStub()
 
 	setReq, err := http.NewRequest("POST", "/throttle/123?rate=5&autoremove=false", nil)

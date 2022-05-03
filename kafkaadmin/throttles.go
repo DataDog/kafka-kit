@@ -173,9 +173,13 @@ func (c Client) RemoveThrottle(ctx context.Context, cfg RemoveThrottleConfig) er
 		}
 	}
 
-	if len(throttleConfigs) > 0 {
-		// Apply the configs.
-		if _, err = c.c.AlterConfigs(ctx, throttleConfigs); err != nil {
+	// Apply the configs in sequence.
+	for _, config := range throttleConfigs {
+		// TODO(jamie) perform these in batch once the 'Only one ConfigResource of
+		// type BROKER is allowed per call' error is no longer encountered.
+		// TODO(jamie) review whether the kafka.SetAdminIncremental AlterConfigsAdminOption
+		// actually works here.
+		if _, err = c.c.AlterConfigs(ctx, []kafka.ConfigResource{config}); err != nil {
 			return ErrRemoveThrottle{Message: err.Error()}
 		}
 	}
@@ -261,14 +265,18 @@ func populateBrokerThrottleConfigs(brokers map[int]BrokerThrottleConfig, configs
 		txRate := fmt.Sprintf("%d", throttleRates.OutboundLimitBytes)
 		rxRate := fmt.Sprintf("%d", throttleRates.InboundLimitBytes)
 
-		// Write configs.
-		err = configs.AddConfig(id, brokerTXThrottleCfgName, txRate)
-		if err != nil {
-			return err
+		// Write configs. We skip any zero configs which are interpreted as unset.
+		if throttleRates.OutboundLimitBytes != 0 {
+			err = configs.AddConfig(id, brokerTXThrottleCfgName, txRate)
+			if err != nil {
+				return err
+			}
 		}
-		err = configs.AddConfig(id, brokerRXThrottleCfgName, rxRate)
-		if err != nil {
-			return err
+		if throttleRates.InboundLimitBytes != 0 {
+			err = configs.AddConfig(id, brokerRXThrottleCfgName, rxRate)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
