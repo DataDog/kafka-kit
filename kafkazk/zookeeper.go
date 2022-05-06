@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DataDog/kafka-kit/v3/mapper"
+
 	zkclient "github.com/go-zookeeper/zk"
 )
 
@@ -21,7 +23,7 @@ import (
 // configuration methods.
 type Handler interface {
 	SimpleZooKeeperClient
-	GetTopicState(string) (*TopicState, error)
+	GetTopicState(string) (*mapper.TopicState, error)
 	GetTopicStateISR(string) (TopicStateISR, error)
 	UpdateKafkaConfig(KafkaConfig) ([]bool, error)
 	GetReassignments() Reassignments
@@ -31,10 +33,10 @@ type Handler interface {
 	GetTopics([]*regexp.Regexp) ([]string, error)
 	GetTopicConfig(string) (*TopicConfig, error)
 	GetTopicMetadata(string) (TopicMetadata, error)
-	GetAllBrokerMeta(bool) (BrokerMetaMap, []error)
-	GetAllPartitionMeta() (PartitionMetaMap, error)
+	GetAllBrokerMeta(bool) (mapper.BrokerMetaMap, []error)
+	GetAllPartitionMeta() (mapper.PartitionMetaMap, error)
 	MaxMetaAge() (time.Duration, error)
-	GetPartitionMap(string) (*PartitionMap, error)
+	GetPartitionMap(string) (*mapper.PartitionMap, error)
 }
 
 // SimpleZooKeeperClient is an interface that wraps a real ZooKeeper client,
@@ -366,9 +368,9 @@ func (z *ZKHandler) GetTopicConfig(t string) (*TopicConfig, error) {
 }
 
 // GetAllBrokerMeta looks up all registered Kafka brokers and returns their
-// metadata as a BrokerMetaMap. A withMetrics bool param determines whether
+// metadata as a mapper.BrokerMetaMap. A withMetrics bool param determines whether
 // we additionally want to fetch stored broker metrics.
-func (z *ZKHandler) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, []error) {
+func (z *ZKHandler) GetAllBrokerMeta(withMetrics bool) (mapper.BrokerMetaMap, []error) {
 	var errs []error
 	path := z.getPath("/brokers/ids")
 
@@ -378,11 +380,11 @@ func (z *ZKHandler) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, []error) 
 		return nil, []error{err}
 	}
 
-	bmm := BrokerMetaMap{}
+	bmm := mapper.BrokerMetaMap{}
 
 	// Map each broker.
 	for _, b := range entries {
-		bm := &BrokerMeta{}
+		bm := &mapper.BrokerMeta{}
 		// In case we encounter non-ints (broker IDs) for whatever reason, just
 		// continue.
 		bid, err := strconv.Atoi(b)
@@ -431,7 +433,7 @@ func (z *ZKHandler) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, []error) 
 
 // GetBrokerMetrics fetches broker metrics stored in ZooKeeper and returns a
 // BrokerMetricsMap and an error if encountered.
-func (z *ZKHandler) getBrokerMetrics() (BrokerMetricsMap, error) {
+func (z *ZKHandler) getBrokerMetrics() (mapper.BrokerMetricsMap, error) {
 	path := z.getMetricsPath("/brokermetrics")
 
 	// Fetch the metrics object.
@@ -445,7 +447,7 @@ func (z *ZKHandler) getBrokerMetrics() (BrokerMetricsMap, error) {
 		data = out
 	}
 
-	bmm := BrokerMetricsMap{}
+	bmm := mapper.BrokerMetricsMap{}
 	err = json.Unmarshal(data, &bmm)
 	if err != nil {
 		return nil, fmt.Errorf("Error unmarshalling broker metrics: %s", err.Error())
@@ -455,7 +457,7 @@ func (z *ZKHandler) getBrokerMetrics() (BrokerMetricsMap, error) {
 }
 
 // GetAllPartitionMeta fetches partition metadata stored in Zookeeper.
-func (z *ZKHandler) GetAllPartitionMeta() (PartitionMetaMap, error) {
+func (z *ZKHandler) GetAllPartitionMeta() (mapper.PartitionMetaMap, error) {
 	path := z.getMetricsPath("/partitionmeta")
 
 	// Fetch the metrics object.
@@ -473,7 +475,7 @@ func (z *ZKHandler) GetAllPartitionMeta() (PartitionMetaMap, error) {
 		data = out
 	}
 
-	pmm := NewPartitionMetaMap()
+	pmm := mapper.NewPartitionMetaMap()
 	err = json.Unmarshal(data, &pmm)
 	if err != nil {
 		return nil, fmt.Errorf("Error unmarshalling partition meta: %s", err.Error())
@@ -530,12 +532,12 @@ func (z *ZKHandler) oldestMetaTs() (int64, error) {
 }
 
 // GetTopicState takes a topic name. If the topic exists,  the topic state is
-// returned as a *TopicState.
-func (z *ZKHandler) GetTopicState(t string) (*TopicState, error) {
+// returned as a *mapper.TopicState.
+func (z *ZKHandler) GetTopicState(t string) (*mapper.TopicState, error) {
 	path := z.getPath("/brokers/topics/" + t)
 
 	// Fetch topic data from z.
-	ts := &TopicState{}
+	ts := &mapper.TopicState{}
 	data, err := z.Get(path)
 	if err != nil {
 		return nil, err
@@ -629,7 +631,7 @@ func (z *ZKHandler) GetTopicStateISR(t string) (TopicStateISR, error) {
 
 // GetPartitionMap takes a topic name. If the topic exists, the state of the
 // topic is fetched and returned as a *PartitionMap.
-func (z *ZKHandler) GetPartitionMap(t string) (*PartitionMap, error) {
+func (z *ZKHandler) GetPartitionMap(t string) (*mapper.PartitionMap, error) {
 	// Get current topic state.
 	ts, err := z.GetTopicState(t)
 	if err != nil {
@@ -654,12 +656,12 @@ func (z *ZKHandler) GetPartitionMap(t string) (*PartitionMap, error) {
 	}
 
 	// Map TopicState to a PartitionMap.
-	pm := NewPartitionMap()
-	pl := PartitionList{}
+	pm := mapper.NewPartitionMap()
+	pl := mapper.PartitionList{}
 
 	for partition, replicas := range ts.Partitions {
 		i, _ := strconv.Atoi(partition)
-		pl = append(pl, Partition{
+		pl = append(pl, mapper.Partition{
 			Topic:     t,
 			Partition: i,
 			Replicas:  replicas,
@@ -670,6 +672,38 @@ func (z *ZKHandler) GetPartitionMap(t string) (*PartitionMap, error) {
 	sort.Sort(pm.Partitions)
 
 	return pm, nil
+}
+
+// PartitionMapFromZK takes a slice of regexp and finds all matching topics for
+// each. A merged *PartitionMap of all matching topic maps is returned.
+func PartitionMapFromZK(t []*regexp.Regexp, zk Handler) (*mapper.PartitionMap, error) {
+	// Get a list of topic names from Handler
+	// matching the provided list.
+	topicsToRebuild, err := zk.GetTopics(t)
+	if err != nil {
+		return nil, err
+	}
+
+	// Err if no matching topics were found.
+	if len(topicsToRebuild) == 0 {
+		return nil, fmt.Errorf("No topics found matching: %s", t)
+	}
+
+	// Get a partition map for each topic.
+	pmapMerged := mapper.NewPartitionMap()
+	for _, t := range topicsToRebuild {
+		pmap, err := zk.GetPartitionMap(t)
+		if err != nil {
+			return nil, err
+		}
+
+		// Merge multiple maps.
+		pmapMerged.Partitions = append(pmapMerged.Partitions, pmap.Partitions...)
+	}
+
+	sort.Sort(pmapMerged.Partitions)
+
+	return pmapMerged, nil
 }
 
 // UpdateKafkaConfig takes a KafkaConfig with key value pairs of

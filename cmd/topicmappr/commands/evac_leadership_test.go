@@ -1,15 +1,16 @@
 package commands
 
 import (
-	"github.com/DataDog/kafka-kit/v3/kafkazk"
 	"testing"
+
+	"github.com/DataDog/kafka-kit/v3/mapper"
 )
 
 var topic = "testTopic"
-var pMapIn = kafkazk.PartitionMap{
+var pMapIn = mapper.PartitionMap{
 	Version: 1,
-	Partitions: kafkazk.PartitionList{
-		kafkazk.Partition{
+	Partitions: mapper.PartitionList{
+		mapper.Partition{
 			Topic:     topic,
 			Partition: 0,
 			Replicas: []int{
@@ -17,7 +18,7 @@ var pMapIn = kafkazk.PartitionMap{
 				10002,
 				10003},
 		},
-		kafkazk.Partition{
+		mapper.Partition{
 			Topic:     topic,
 			Partition: 1,
 			Replicas: []int{
@@ -26,7 +27,7 @@ var pMapIn = kafkazk.PartitionMap{
 				10003,
 			},
 		},
-		kafkazk.Partition{
+		mapper.Partition{
 			Topic:     topic,
 			Partition: 3,
 			Replicas: []int{
@@ -76,10 +77,10 @@ func TestNoMatchingTopicToEvac(t *testing.T) {
 
 // TODO: This test currently fails because the error case calls os.Exit(1). Better way to test, or better error handling.
 //func TestEvacAllBrokersForPartitionFails(t *testing.T) {
-//	problemBrokers := kafkazk.BrokerMap{}
-//	problemBrokers[10001] = &kafkazk.Broker{}
-//	problemBrokers[10002] = &kafkazk.Broker{}
-//	problemBrokers[10003] = &kafkazk.Broker{}
+//	problemBrokers := mapper.BrokerMap{}
+//	problemBrokers[10001] = &mapper.Broker{}
+//	problemBrokers[10002] = &mapper.Broker{}
+//	problemBrokers[10003] = &mapper.Broker{}
 //
 //	evacuateLeadership(pMapIn, problemBrokers)
 //

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
+	"github.com/DataDog/kafka-kit/v3/mapper"
 )
 
 func TestRemoveTopics(t *testing.T) {
@@ -51,8 +52,8 @@ func TestRemoveTopics(t *testing.T) {
 	}
 }
 
-func mergePartitionMaps(pms ...*kafkazk.PartitionMap) *kafkazk.PartitionMap {
-	pm := kafkazk.NewPartitionMap()
+func mergePartitionMaps(pms ...*mapper.PartitionMap) *mapper.PartitionMap {
+	pm := mapper.NewPartitionMap()
 
 	for _, p := range pms {
 		pm.Partitions = append(pm.Partitions, p.Partitions...)

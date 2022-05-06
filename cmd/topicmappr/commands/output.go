@@ -7,7 +7,7 @@ import (
 	"os"
 	"sort"
 
-	"github.com/DataDog/kafka-kit/v3/kafkazk"
+	"github.com/DataDog/kafka-kit/v3/mapper"
 
 	"github.com/spf13/cobra"
 )
@@ -20,7 +20,7 @@ func (e errors) Swap(i, j int)      { e[i], e[j] = e[j], e[i] }
 
 // printTopics takes a partition map and prints out the names of all topics
 // referenced in the map.
-func printTopics(pm *kafkazk.PartitionMap) {
+func printTopics(pm *mapper.PartitionMap) {
 	topics := pm.Topics()
 
 	fmt.Printf("\nTopics:\n")
@@ -49,7 +49,7 @@ func printExcludedTopics(p []string, e []string) {
 
 // printMapChanges takes the original input PartitionMap and the final output
 // PartitionMap and prints what's changed.
-func printMapChanges(pm1, pm2 *kafkazk.PartitionMap) {
+func printMapChanges(pm1, pm2 *mapper.PartitionMap) {
 	// Ensure the topic name and partition order match.
 	for i := range pm1.Partitions {
 		t1, t2 := pm1.Partitions[i].Topic, pm2.Partitions[i].Topic
@@ -79,7 +79,7 @@ func printMapChanges(pm1, pm2 *kafkazk.PartitionMap) {
 // printBrokerAssignmentStats prints before and after broker usage stats,
 // such as leadership counts, total partitions owned, degree distribution,
 // and changes in storage usage.
-func printBrokerAssignmentStats(pm1, pm2 *kafkazk.PartitionMap, bm1, bm2 kafkazk.BrokerMap, storageBased bool, partitionSizeFactor float64) errors {
+func printBrokerAssignmentStats(pm1, pm2 *mapper.PartitionMap, bm1, bm2 mapper.BrokerMap, storageBased bool, partitionSizeFactor float64) errors {
 	var errs errors
 
 	fmt.Println("\nBroker distribution:")
@@ -115,7 +115,7 @@ func printBrokerAssignmentStats(pm1, pm2 *kafkazk.PartitionMap, bm1, bm2 kafkazk
 		// input and wasn't marked for replacement (generally, users are doing storage placements
 		// particularly to balance out the storage of the input broker list).
 
-		mb1, mb2 := bm1.Filter(pm1.BrokersIn()), bm2.Filter(kafkazk.NotReplacedBrokersFn)
+		mb1, mb2 := bm1.Filter(pm1.BrokersIn()), bm2.Filter(mapper.NotReplacedBrokersFn)
 
 		// Range before/after.
 		r1, r2 := mb1.StorageRange(), mb2.StorageRange()
@@ -175,9 +175,9 @@ func printBrokerAssignmentStats(pm1, pm2 *kafkazk.PartitionMap, bm1, bm2 kafkazk
 
 // skipReassignmentNoOps removes no-op partition map changes
 // from the input and final output PartitionMap
-func skipReassignmentNoOps(pm1, pm2 *kafkazk.PartitionMap) (*kafkazk.PartitionMap, *kafkazk.PartitionMap) {
-	prunedInputPartitionMap := kafkazk.NewPartitionMap()
-	prunedOutputPartitionMap := kafkazk.NewPartitionMap()
+func skipReassignmentNoOps(pm1, pm2 *mapper.PartitionMap) (*mapper.PartitionMap, *mapper.PartitionMap) {
+	prunedInputPartitionMap := mapper.NewPartitionMap()
+	prunedOutputPartitionMap := mapper.NewPartitionMap()
 	for i := range pm1.Partitions {
 		p1, p2 := pm1.Partitions[i], pm2.Partitions[i]
 		if !p1.Equal(p2) {
@@ -190,7 +190,7 @@ func skipReassignmentNoOps(pm1, pm2 *kafkazk.PartitionMap) (*kafkazk.PartitionMa
 }
 
 // writeMaps takes a PartitionMap and writes out files.
-func writeMaps(outPath, outFile string, pms []*kafkazk.PartitionMap) {
+func writeMaps(outPath, outFile string, pms []*mapper.PartitionMap) {
 	if len(pms) == 0 || len(pms[0].Partitions) == 0 {
 		fmt.Println("\nNo partition reassignments, skipping map generation")
 		return
@@ -205,7 +205,7 @@ func writeMaps(outPath, outFile string, pms []*kafkazk.PartitionMap) {
 	}
 
 	// Break map up by topic.
-	tm := map[string]*kafkazk.PartitionMap{}
+	tm := map[string]*mapper.PartitionMap{}
 
 	// For each map type, create per-topic maps.
 	for i, m := range pms {
@@ -214,7 +214,7 @@ func writeMaps(outPath, outFile string, pms []*kafkazk.PartitionMap) {
 		for _, p := range m.Partitions {
 			mapName := fmt.Sprintf("%s%s", p.Topic, suffix(i))
 			if tm[mapName] == nil {
-				tm[mapName] = kafkazk.NewPartitionMap()
+				tm[mapName] = mapper.NewPartitionMap()
 			}
 			tm[mapName].Partitions = append(tm[mapName].Partitions, p)
 		}
@@ -226,7 +226,7 @@ func writeMaps(outPath, outFile string, pms []*kafkazk.PartitionMap) {
 	if outFile != "" {
 		for i, m := range pms {
 			fullPath := fmt.Sprintf("%s%s%s", outPath, outFile, suffix(i))
-			err := kafkazk.WriteMap(m, fullPath)
+			err := mapper.WriteMap(m, fullPath)
 			if err != nil {
 				fmt.Printf("%s%s", indent, err)
 			} else {
@@ -237,7 +237,7 @@ func writeMaps(outPath, outFile string, pms []*kafkazk.PartitionMap) {
 
 	// Write per-topic maps.
 	for t := range tm {
-		err := kafkazk.WriteMap(tm[t], outPath+t)
+		err := mapper.WriteMap(tm[t], outPath+t)
 		if err != nil {
 			fmt.Printf("%s%s", indent, err)
 		} else {
@@ -246,7 +246,7 @@ func writeMaps(outPath, outFile string, pms []*kafkazk.PartitionMap) {
 	}
 }
 
-func printReassignmentParams(params reassignParams, results []reassignmentBundle, brokers kafkazk.BrokerMap, tol float64) {
+func printReassignmentParams(params reassignParams, results []reassignmentBundle, brokers mapper.BrokerMap, tol float64) {
 	fmt.Printf("\nReassignment parameters:\n")
 
 	mean, hMean := brokers.Mean(), brokers.HMean()
@@ -274,7 +274,7 @@ func printReassignmentParams(params reassignParams, results []reassignmentBundle
 	}
 }
 
-func printPlannedRelocations(targets []int, relos map[int][]relocation, pmm kafkazk.PartitionMetaMap) {
+func printPlannedRelocations(targets []int, relos map[int][]relocation, pmm mapper.PartitionMetaMap) {
 	var total float64
 
 	for _, id := range targets {

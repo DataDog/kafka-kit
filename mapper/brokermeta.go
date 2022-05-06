@@ -1,4 +1,4 @@
-package kafkazk
+package mapper
 
 // BrokerMetaMap is a map of broker IDs to BrokerMeta
 // metadata fetched from ZooKeeper. Currently, just

@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
+	"github.com/DataDog/kafka-kit/v3/mapper"
 	pb "github.com/DataDog/kafka-kit/v3/registry/registry"
 )
 
@@ -103,7 +104,7 @@ func TestListTopics(t *testing.T) {
 			// we need to add a bunch of unused brokers to underlying Kafka/ZK stub
 			// to ensure that test cases 3 and 4 fail to return the same results as
 			// 1 and 2.
-			brokers := map[int]kafkazk.BrokerMeta{
+			brokers := map[int]mapper.BrokerMeta{
 				1008: {},
 				1009: {},
 				1010: {},
