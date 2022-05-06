@@ -1,4 +1,4 @@
-package kafkazk
+package mapper
 
 import (
 	"encoding/json"
@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/rand"
-	"regexp"
 	"sort"
 )
 
@@ -610,38 +609,6 @@ func PartitionMapFromString(s string) (*PartitionMap, error) {
 	sort.Sort(pm.Partitions)
 
 	return pm, nil
-}
-
-// PartitionMapFromZK takes a slice of regexp and finds all matching topics for
-// each. A merged *PartitionMap of all matching topic maps is returned.
-func PartitionMapFromZK(t []*regexp.Regexp, zk Handler) (*PartitionMap, error) {
-	// Get a list of topic names from Handler
-	// matching the provided list.
-	topicsToRebuild, err := zk.GetTopics(t)
-	if err != nil {
-		return nil, err
-	}
-
-	// Err if no matching topics were found.
-	if len(topicsToRebuild) == 0 {
-		return nil, fmt.Errorf("No topics found matching: %s", t)
-	}
-
-	// Get a partition map for each topic.
-	pmapMerged := NewPartitionMap()
-	for _, t := range topicsToRebuild {
-		pmap, err := zk.GetPartitionMap(t)
-		if err != nil {
-			return nil, err
-		}
-
-		// Merge multiple maps.
-		pmapMerged.Partitions = append(pmapMerged.Partitions, pmap.Partitions...)
-	}
-
-	sort.Sort(pmapMerged.Partitions)
-
-	return pmapMerged, nil
 }
 
 // SetReplication ensures that replica sets is reset to the replication

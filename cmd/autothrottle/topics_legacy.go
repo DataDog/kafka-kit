@@ -3,11 +3,11 @@ package main
 import (
 	"strconv"
 
-	"github.com/DataDog/kafka-kit/v3/kafkazk"
+	"github.com/DataDog/kafka-kit/v3/mapper"
 )
 
 // TopicStates is a map of topic names to kafakzk.TopicState.
-type TopicStates map[string]kafkazk.TopicState
+type TopicStates map[string]mapper.TopicState
 
 // legacyGetTopicsWithThrottledBrokers returns a topicThrottledReplicas that
 // includes any topics that have partitions assigned to brokers with a static
@@ -81,7 +81,7 @@ func (tm *ThrottleManager) legacyGetAllTopicStates() (TopicStates, error) {
 	remove all the deprecated bits.
 
 // TopicStatesFilterFn specifies a filter function.
-type TopicStatesFilterFn func(kafkazk.TopicState) bool
+type TopicStatesFilterFn func(mapper.TopicState) bool
 
 // Filter takes a TopicStatesFilterFn and returns a TopicStates where
 // all elements return true as an input to the filter func.

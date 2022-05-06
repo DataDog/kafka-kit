@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/DataDog/kafka-kit/v3/kafkazk"
+	"github.com/DataDog/kafka-kit/v3/mapper"
 )
 
 // checkMetaAge checks the age of the stored partition and broker storage
@@ -25,18 +26,18 @@ func checkMetaAge(zk kafkazk.Handler, maxAge int) error {
 // getBrokerMeta returns a map of brokers and broker metadata for those
 // registered in ZooKeeper. Optionally, metrics metadata persisted in ZooKeeper
 // (via an external mechanism*) can be merged into the metadata.
-func getBrokerMeta(zk kafkazk.Handler, m bool) (kafkazk.BrokerMetaMap, []error) {
+func getBrokerMeta(zk kafkazk.Handler, m bool) (mapper.BrokerMetaMap, []error) {
 	return zk.GetAllBrokerMeta(m)
 }
 
 // ensureBrokerMetrics takes a map of reference brokers and a map of discovered
 // broker metadata. Any non-missing brokers in the broker map must be present
 // in the broker metadata map and have a non-true MetricsIncomplete value.
-func ensureBrokerMetrics(bm kafkazk.BrokerMap, bmm kafkazk.BrokerMetaMap) []error {
+func ensureBrokerMetrics(bm mapper.BrokerMap, bmm mapper.BrokerMetaMap) []error {
 	errs := []error{}
 	for id, b := range bm {
 		// Missing brokers won't be found in the brokerMeta.
-		if !b.Missing && id != kafkazk.StubBrokerID && bmm[id].MetricsIncomplete {
+		if !b.Missing && id != mapper.StubBrokerID && bmm[id].MetricsIncomplete {
 			errs = append(errs, fmt.Errorf("Metrics not found for broker %d\n", id))
 		}
 	}
@@ -46,14 +47,14 @@ func ensureBrokerMetrics(bm kafkazk.BrokerMap, bmm kafkazk.BrokerMetaMap) []erro
 // getPartitionMeta returns a map of topic, partition metadata persisted in
 // ZooKeeper (via an external mechanism*). This is primarily partition size
 // metrics data used for the storage placement strategy.
-func getPartitionMeta(zk kafkazk.Handler) (kafkazk.PartitionMetaMap, error) {
+func getPartitionMeta(zk kafkazk.Handler) (mapper.PartitionMetaMap, error) {
 	return zk.GetAllPartitionMeta()
 }
 
 // stripPendingDeletes takes a partition map and zk handler. It looks up any
 // topics in a pending delete state and removes them from the provided partition
 // map, returning a list of topics removed.
-func stripPendingDeletes(pm *kafkazk.PartitionMap, zk kafkazk.Handler) ([]string, error) {
+func stripPendingDeletes(pm *mapper.PartitionMap, zk kafkazk.Handler) ([]string, error) {
 	// Get pending deletions.
 	pd, err := zk.GetPendingDeletion()
 
@@ -75,7 +76,7 @@ func stripPendingDeletes(pm *kafkazk.PartitionMap, zk kafkazk.Handler) ([]string
 // removeTopics takes a PartitionMap and []*regexp.Regexp of topic name patters.
 // Any topic names that match any provided pattern will be removed from the
 // PartitionMap and a []string of topics that were found and removed is returned.
-func removeTopics(pm *kafkazk.PartitionMap, r []*regexp.Regexp) []string {
+func removeTopics(pm *mapper.PartitionMap, r []*regexp.Regexp) []string {
 	var removedNames []string
 
 	if len(r) == 0 {
@@ -84,7 +85,7 @@ func removeTopics(pm *kafkazk.PartitionMap, r []*regexp.Regexp) []string {
 
 	// Create a new PartitionList, populate non-removed topics, substitute the
 	// existing PartitionList in the PartitionMap.
-	newPL := kafkazk.PartitionList{}
+	newPL := mapper.PartitionList{}
 
 	// Track what's removed.
 	removed := map[string]struct{}{}

@@ -14,8 +14,9 @@ import (
 	"testing"
 	"time"
 
-	zkclient "github.com/go-zookeeper/zk"
+	"github.com/DataDog/kafka-kit/v3/mapper"
 
+	zkclient "github.com/go-zookeeper/zk"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -135,7 +136,7 @@ func TestSetup(t *testing.T) {
 	}
 
 	// Create topics.
-	partitionMeta := NewPartitionMetaMap()
+	partitionMeta := mapper.NewPartitionMetaMap()
 	data := []byte(`{"version":1,"partitions":{"0":[1001,1002],"1":[1002,1001],"2":[1003,1004],"3":[1004,1003]}}`)
 
 	for i := 0; i < 5; i++ {
@@ -148,7 +149,7 @@ func TestSetup(t *testing.T) {
 		}
 
 		// Create partition meta.
-		partitionMeta[topic] = map[int]*PartitionMeta{
+		partitionMeta[topic] = map[int]*mapper.PartitionMeta{
 			0: {Size: 1000.00},
 			1: {Size: 2000.00},
 			2: {Size: 3000.00},
@@ -796,13 +797,13 @@ func TestGetPartitionMap(t *testing.T) {
 		t.Error(err)
 	}
 
-	expected := &PartitionMap{
+	expected := &mapper.PartitionMap{
 		Version: 1,
-		Partitions: PartitionList{
-			Partition{Topic: "topic0", Partition: 0, Replicas: []int{1003, 1004}}, // Via the stub reassign_partitions data.
-			Partition{Topic: "topic0", Partition: 1, Replicas: []int{1002, 1001}},
-			Partition{Topic: "topic0", Partition: 2, Replicas: []int{1003, 1004}},
-			Partition{Topic: "topic0", Partition: 3, Replicas: []int{1004, 1003}},
+		Partitions: mapper.PartitionList{
+			mapper.Partition{Topic: "topic0", Partition: 0, Replicas: []int{1003, 1004}}, // Via the stub reassign_partitions data.
+			mapper.Partition{Topic: "topic0", Partition: 1, Replicas: []int{1002, 1001}},
+			mapper.Partition{Topic: "topic0", Partition: 2, Replicas: []int{1003, 1004}},
+			mapper.Partition{Topic: "topic0", Partition: 3, Replicas: []int{1004, 1003}},
 		},
 	}
 

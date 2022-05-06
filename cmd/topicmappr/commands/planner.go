@@ -3,12 +3,12 @@ package commands
 import (
 	"fmt"
 
-	"github.com/DataDog/kafka-kit/v3/kafkazk"
+	"github.com/DataDog/kafka-kit/v3/mapper"
 )
 
 // Relocation is a kafakzk.Partition to destination broker ID.
 type relocation struct {
-	partition   kafkazk.Partition
+	partition   mapper.Partition
 	destination int
 }
 
@@ -16,9 +16,9 @@ type relocation struct {
 // source brokers to destination brokers.
 type planRelocationsForBrokerParams struct {
 	relos                  map[int][]relocation
-	mappings               kafkazk.Mappings
-	brokers                kafkazk.BrokerMap
-	partitionMeta          kafkazk.PartitionMetaMap
+	mappings               mapper.Mappings
+	brokers                mapper.BrokerMap
+	partitionMeta          mapper.PartitionMetaMap
 	plan                   relocationPlan
 	topPartitionsLimit     int
 	partitionSizeThreshold int
@@ -35,9 +35,9 @@ type planRelocationsForBrokerParams struct {
 // series of source and destination brokers to relocate a partition to and from.
 type relocationPlan map[string]map[int][][2]int
 
-// add takes a kafkazk.Partition and a [2]int pair of source and destination
+// add takes a mapper.Partition and a [2]int pair of source and destination
 // broker IDs which the partition is scheduled to relocate from and to.
-func (r relocationPlan) add(p kafkazk.Partition, ids [2]int) {
+func (r relocationPlan) add(p mapper.Partition, ids [2]int) {
 	if _, exist := r[p.Topic]; !exist {
 		r[p.Topic] = make(map[int][][2]int)
 	}
@@ -45,10 +45,10 @@ func (r relocationPlan) add(p kafkazk.Partition, ids [2]int) {
 	r[p.Topic][p.Partition] = append(r[p.Topic][p.Partition], ids)
 }
 
-// isPlanned takes a kafkazk.Partition and returns whether a relocation is
+// isPlanned takes a mapper.Partition and returns whether a relocation is
 // planned for the partition, along with the [][2]int list of source and
 // destination broker ID pairs.
-func (r relocationPlan) isPlanned(p kafkazk.Partition) ([][2]int, bool) {
+func (r relocationPlan) isPlanned(p mapper.Partition) ([][2]int, bool) {
 	var pairs [][2]int
 
 	if _, exist := r[p.Topic]; !exist {
@@ -117,7 +117,7 @@ func planRelocationsForBroker(params planRelocationsForBrokerParams) int {
 		pSize, _ := partitionMeta.Size(partn)
 
 		// Find a destination broker.
-		var dest *kafkazk.Broker
+		var dest *mapper.Broker
 
 		// Whether or not the destination broker should have the same rack.id as the
 		// target. If so, choose the least utilized broker in same locality. If not,
@@ -140,7 +140,7 @@ func planRelocationsForBroker(params planRelocationsForBrokerParams) int {
 		case false:
 			// Get constraints for all brokers in the partition replica set, excluding
 			// the sourceID broker.
-			replicaSet := kafkazk.BrokerList{}
+			replicaSet := mapper.BrokerList{}
 			for _, id := range partn.Replicas {
 				if id != sourceID {
 					replicaSet = append(replicaSet, brokers[id])
@@ -154,12 +154,12 @@ func planRelocationsForBroker(params planRelocationsForBrokerParams) int {
 				}
 			}
 
-			c := kafkazk.MergeConstraints(replicaSet)
+			c := mapper.MergeConstraints(replicaSet)
 
 			// Add all offload targets to the constraints. We're populating empty
 			// Brokers using just the IDs so that the rack IDs aren't excluded.
 			for id := range offloadTargetsMap {
-				c.Add(&kafkazk.Broker{ID: id})
+				c.Add(&mapper.Broker{ID: id})
 			}
 
 			// Select the best candidate by storage.
@@ -242,7 +242,7 @@ func planRelocationsForBroker(params planRelocationsForBrokerParams) int {
 	return reloCount
 }
 
-func applyRelocationPlan(pm *kafkazk.PartitionMap, plan relocationPlan) {
+func applyRelocationPlan(pm *mapper.PartitionMap, plan relocationPlan) {
 	// Traverse the partition list.
 	for _, partn := range pm.Partitions {
 		// If a relocation is planned for the partition, replace the source ID with
@@ -262,7 +262,7 @@ func applyRelocationPlan(pm *kafkazk.PartitionMap, plan relocationPlan) {
 // Sort offload targets by size.
 type offloadTargetsBySize struct {
 	t  []int
-	bm kafkazk.BrokerMap
+	bm mapper.BrokerMap
 }
 
 // We work with storage free, so a sort by utilization descending requires an

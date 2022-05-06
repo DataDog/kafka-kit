@@ -1,4 +1,4 @@
-package kafkazk
+package mapper
 
 import (
 	"math"
