@@ -1,12 +1,9 @@
 package mapper
 
-// BrokerMetaMap is a map of broker IDs to BrokerMeta
-// metadata fetched from ZooKeeper. Currently, just
-// the rack field is retrieved.
+// BrokerMetaMap is a map of broker IDs to BrokerMeta.
 type BrokerMetaMap map[int]*BrokerMeta
 
-// BrokerMeta holds metadata that describes a broker,
-// used in satisfying constraints.
+// BrokerMeta holds metadata that describes a broker.
 type BrokerMeta struct {
 	StorageFree       float64 // In bytes.
 	MetricsIncomplete bool

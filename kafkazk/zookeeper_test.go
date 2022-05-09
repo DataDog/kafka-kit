@@ -15,10 +15,8 @@ func TestPartitionMapFromZK(t *testing.T) {
 	r = append(r, regexp.MustCompile("/^null$/"))
 	pm, err := PartitionMapFromZK(r, zk)
 
-	// This should fail because we're passing
-	// a regex that the stub call to GetTopics()
-	// from PartitionMapFromZK doesn't have
-	// any matches.
+	// This should fail because we're passing a regex that the stub call to
+	// GetTopics() from PartitionMapFromZK doesn't have any matches.
 	if pm != nil || err.Error() != "No topics found matching: [/^null$/]" {
 		t.Error("Expected topic lookup failure")
 	}
@@ -26,12 +24,10 @@ func TestPartitionMapFromZK(t *testing.T) {
 	r = r[:0]
 	r = append(r, regexp.MustCompile("test"))
 
-	// This is going to match both "test_topic"
-	// and "test_topic2" from the stub.
+	// This is going to match both "test_topic" and "test_topic2" from the stub.
 	pm, _ = PartitionMapFromZK(r, zk)
 
-	// Build a merged map of these for
-	// equality testing.
+	// Build a merged map of these for equality testing.
 	pm2 := mapper.NewPartitionMap()
 	for _, t := range []string{"test_topic", "test_topic2"} {
 		pmap, _ := mapper.PartitionMapFromString(testGetMapString(t))

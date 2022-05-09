@@ -6,14 +6,13 @@ import (
 	"sort"
 )
 
-// SubstitutionAffinities is a mapping of an ID belonging
-// to a *Broker marked for replacement and a replacement
-// *Broker that will fill all previously filled replica
-// slots held by the *Broker being replaced.
+// SubstitutionAffinities is a mapping of an ID belonging to a *Broker marked for
+// replacement and a replacement *Broker that will fill all previously filled
+// replica slots held by the *Broker being replaced.
 type SubstitutionAffinities map[int]*Broker
 
-// Get takes a broker ID and returns a *Broker
-// if one was set as a substitution affinity.
+// Get takes a broker ID and returns a *Broker if one was set as a substitution
+// affinity.
 func (sa SubstitutionAffinities) Get(id int) *Broker {
 	if b, exists := sa[id]; exists {
 		b.Used++
@@ -23,14 +22,13 @@ func (sa SubstitutionAffinities) Get(id int) *Broker {
 	return nil
 }
 
-// SubstitutionAffinities finds all brokers marked for replacement and for
-// each broker, it creates an exclusive association with a newly provided broker.
-// In the rebuild stage, each to-be-replaced broker will be only replaced with
-// the affinity it's associated with. A given new broker can only be an affinity
-// for a single outgoing broker. An error is returned if a complete
-// mapping of affinities cannot be constructed (e.g. two brokers are
-// marked for replacement but only one new replacement was provided
-// and substitution affinities is enabled).
+// SubstitutionAffinities finds all brokers marked for replacement and foeach
+// broker, it creates an exclusive association with a newly provided brokerIn the
+// rebuild stage, each to-be-replaced broker will be only replaced witthe affinity
+// it's associated with. A given new broker can only be an affinitfor a single
+// outgoing broker. An error is returned if a completmapping of affinities cannot
+// be constructed (e.g. two brokers armarked for replacement but only one new
+// replacement was provideand substitution affinities is enabled).
 func (b BrokerMap) SubstitutionAffinities(pm *PartitionMap) (SubstitutionAffinities, error) {
 	replace := map[*Broker]struct{}{}
 	missing := map[*Broker]struct{}{}
@@ -51,36 +49,29 @@ func (b BrokerMap) SubstitutionAffinities(pm *PartitionMap) (SubstitutionAffinit
 		}
 	}
 
-	// Check if we have enough new nodes
-	// to cover replacements.
+	// Check if we have enough new nodes to cover replacements.
 	if len(new) < len(replace)+len(missing) {
 		return nil, errors.New("Insufficient number of new brokers")
 	}
 
-	// Missing brokers are no longer registered in
-	// ZooKeeper, thus have no rack ID metadata to
-	// reference. Therefore, it must be inferred.
+	// Missing brokers are no longer registered in ZooKeeper, thus have no rack ID
+	// metadata to reference. Therefore, it must be inferred.
 
-	// For each missing broker, get a list of all replica
-	// sets it was in. From this, build a list of rack ID
-	// values occupied by remaining brokers in the replicas
-	// list plus a list of all rack ID values seen. We will
-	// assume that a suitable substitution is any broker that has
-	// a rack ID value that has't been used by any of the
-	// remaining brokers in the ISRs that the missing
-	// broker dropped out from.
-	// This assertion is ultimately tested in the rebuild stage
-	// where constraints checking is done.
-	// TODO we should guarantee this will pass in the rebuild stage
-	// by accounting for other brokers that are being replaced and
-	// will coexist in a replica set with an affinity determined here.
+	// For each missing broker, get a list of all replica sets it was in. From this,
+	// build a list of rack ID values occupied by remaining brokers in the replicas
+	// list plus a list of all rack ID values seen. We will assume that a suitable
+	// substitution is any broker that has a rack ID value that has't been used by
+	// any of the remaining brokers in the ISRs that the missing broker dropped
+	// out from. This assertion is ultimately tested in the rebuild stage where
+	// constraints checking is done.
+	// TODO we should guarantee this will pass in the rebuild stage by accounting
+	// for other brokers that are being replaced and will coexist in a replica set
+	// with an affinity determined here.
 	for broker := range missing {
-		// Get localities that a substitution
-		// could reside in.
+		// Get localities that a substitution could reside in.
 		localities := pm.LocalitiesAvailable(b, broker)
-		// Find the first broker available
-		// that resides in one of the
-		// available localities.
+		// Find the first broker available  that resides in one of the available
+		// localities.
 		var match *Broker
 		for _, locality := range localities {
 			var err error
@@ -100,8 +91,7 @@ func (b BrokerMap) SubstitutionAffinities(pm *PartitionMap) (SubstitutionAffinit
 		}
 	}
 
-	// For each broker being replaced, find
-	// replacement with the same Rack ID.
+	// For each broker being replaced, find replacement with the same Rack ID.
 	for broker := range replace {
 		match, err := constraintsMatch(broker, new)
 		if err != nil {
@@ -114,10 +104,10 @@ func (b BrokerMap) SubstitutionAffinities(pm *PartitionMap) (SubstitutionAffinit
 	return affinities, nil
 }
 
-// constraintsMatch takes a *Broker and a map[*Broker]struct{}.
-// The map is traversed for a broker that matches the constraints
-// of the provided broker. If one is available, it's removed from
-// the map and returned. Otherwise, an error is returned.
+// constraintsMatch takes a *Broker and a map[*Broker]struct{}. The map is
+// traversed for a broker that matches the constraints of the provided broker.
+// If one is available, it's removed from the map and returned. Otherwise, an
+// error is returned.
 func constraintsMatch(b *Broker, bm map[*Broker]struct{}) (*Broker, error) {
 	// Need a predictable selection.
 	brokers := BrokerList{}

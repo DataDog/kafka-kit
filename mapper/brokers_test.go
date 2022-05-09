@@ -124,16 +124,12 @@ func TestUpdate(t *testing.T) {
 	zk := NewZooKeeperStub()
 	bmm, _ := zk.GetAllBrokerMeta(false)
 	bm := newStubBrokerMap()
-	// 1001 isn't in the list, should
-	// add to the Missing count.
+	// 1001 isn't in the list, should add to the Missing count.
 	delete(bmm, 1001)
-	// 1002 will be in the list but
-	// missing, should add to the
-	// OldMissing count.
+	// 1002 will be in the list but missing, should add to the OldMissing count.
 	delete(bmm, 1002)
 
-	// 1006 doesn't exist in the meta map.
-	// This should also add to the missing.
+	// 1006 doesn't exist in the meta map. This should also add to the missing.
 	stat, _ := bm.Update([]int{1002, 1003, 1005, 1006, 1007}, bmm)
 
 	if stat.New != 2 {
@@ -148,8 +144,8 @@ func TestUpdate(t *testing.T) {
 	if stat.Replace != 2 {
 		t.Errorf("Expected Replace count of 2, got %d", stat.Replace)
 	}
-	// 1003 does not have rack defined
-	// 1007 (new broker) also does not have rack defined
+	// 1003 does not have rack defined. 1007 (new broker) also does not have rack
+	// defined.
 	if stat.RackMissing != 2 {
 		t.Errorf("Expected Rack missing count of 2, got %d", stat.RackMissing)
 	}
@@ -161,8 +157,7 @@ func TestUpdate(t *testing.T) {
 		}
 	}
 
-	// Test that brokers have appropriately
-	// updated fields.
+	// Test that brokers have appropriately updated fields.
 
 	if !bm[1001].Missing {
 		t.Error("Expected ID 1001 Missing == true")
