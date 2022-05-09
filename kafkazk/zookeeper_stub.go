@@ -243,7 +243,7 @@ func (zk *Stub) NextInt(p string) (int32, error) {
 	return v, nil
 }
 
-// Getmapper.TopicState stubs Getmapper.TopicState.
+// GetTopicState stubs GetTopicState.
 func (zk *Stub) GetTopicState(t string) (*mapper.TopicState, error) {
 	_ = t
 
@@ -260,7 +260,7 @@ func (zk *Stub) GetTopicState(t string) (*mapper.TopicState, error) {
 	return ts, nil
 }
 
-// TopicStateISR stubs TopicStateISR.
+// GetTopicStateISR stubs GetTopicStateISR.
 func (zk *Stub) GetTopicStateISR(t string) (TopicStateISR, error) {
 	_ = t
 

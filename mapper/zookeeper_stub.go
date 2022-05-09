@@ -1,5 +1,5 @@
-// This file is entirely for tests, but isn't defined as a _test file due to
-// use of the stubs in other packages.
+// This file is entirely for tests, but isn't defined as a _test file due to use
+// of the stubs in other packages.
 
 package mapper
 

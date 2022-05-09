@@ -25,8 +25,8 @@ type PartitionMap struct {
 	Partitions PartitionList `json:"partitions"`
 }
 
-// NewPartitionMap returns an empty *PartitionMap with optionally
-// provided PartitionMapOpts.
+// NewPartitionMap returns an empty *PartitionMap with optionally provided
+// PartitionMapOpts.
 func NewPartitionMap(opts ...PartitionMapOpt) *PartitionMap {
 	p := &PartitionMap{Version: 1}
 
@@ -37,12 +37,12 @@ func NewPartitionMap(opts ...PartitionMapOpt) *PartitionMap {
 	return p
 }
 
-// PartitionMapOpt is a function that configures a *PartitionMap
-// at instantiation time.
+// PartitionMapOpt is a function that configures a *PartitionMap at instantiation
+// time.
 type PartitionMapOpt func(*PartitionMap)
 
-// Populate takes a name, partition count and replication factor
-// and returns a PartitionMapOpt.
+// Populate takes a name, partition count and replication factor and returns a
+// PartitionMapOpt.
 func Populate(s string, n, r int) PartitionMapOpt {
 	return func(p *PartitionMap) {
 		for i := 0; i < n; i++ {
@@ -100,14 +100,14 @@ func (p partitionsBySize) Less(i, j int) bool {
 	return p.pl[i].Partition < p.pl[j].Partition
 }
 
-// SortBySize takes a PartitionMetaMap and sorts the PartitionList
-// by partition size.
+// SortBySize takes a PartitionMetaMap and sorts the PartitionList by partition
+// size.
 func (p PartitionList) SortBySize(m PartitionMetaMap) {
 	sort.Sort(partitionsBySize{pl: p, pm: m})
 }
 
-// replicasByLeaderFollowerRatio is used to shuffle replica
-// sets according to the broker leader to follower ratio.
+// replicasByLeaderFollowerRatio is used to shuffle replica sets according to the
+// broker leader to follower ratio.
 type replicasByLeaderFollowerRatio struct {
 	replicas []int
 	stats    BrokerUseStatsMap
@@ -124,8 +124,7 @@ func (r replicasByLeaderFollowerRatio) Less(i, j int) bool {
 	id2 := r.replicas[j]
 
 	switch {
-	// Neither broker holds follower positions, compare
-	// leadership counts.
+	// Neither broker holds follower positions, compare leadership counts.
 	case r.stats[id1].Follower == 0 && r.stats[id2].Follower == 0:
 		return r.stats[id1].Leader < r.stats[id2].Leader
 	// i ratio == ∞
@@ -155,13 +154,13 @@ func NewPartitionMetaMap() PartitionMetaMap {
 	return map[string]map[int]*PartitionMeta{}
 }
 
-// ReplicaSets is a mapping of partition number to Partition.Replicas.
-// Take note that there is no topic identifier and that partition
-// numbers from two different topics can overwrite one another.
+// ReplicaSets is a mapping of partition number to Partition.Replicas. Take note
+// that there is no topic identifier and that partition numbers from two different
+// topics can overwrite one another.
 type ReplicaSets map[int][]int
 
-// Size takes a Partition and returns the size. An error is returned if
-// the partition isn't in the PartitionMetaMap.
+// Size takes a Partition and returns the size. An error is returned if the
+// partition isn't in the PartitionMetaMap.
 func (pmm PartitionMetaMap) Size(p Partition) (float64, error) {
 	// Check for the topic.
 	t, exists := pmm[p.Topic]
@@ -178,8 +177,8 @@ func (pmm PartitionMetaMap) Size(p Partition) (float64, error) {
 	return partn.Size, nil
 }
 
-// RebuildParams holds required parameters to call the Rebuild
-// method on a *PartitionMap.
+// RebuildParams holds required parameters to call the Rebuild method on a
+// *PartitionMap.
 type RebuildParams struct {
 	pm               *PartitionMap
 	PMM              PartitionMetaMap
@@ -198,12 +197,11 @@ func NewRebuildParams() RebuildParams {
 	}
 }
 
-// OptimizeLeaderFollower is a simple leadership optimization algorithm
-// that iterates over each partition's replica set and sorts brokers
-// according to their leader/follower position ratio, ascending. The idea
-// is that if a broker has a high leader/follower ratio, it should
-// go further down the replica list. This ratio is recalculated at each
-// replica set visited to avoid extreme skew.
+// OptimizeLeaderFollower is a simple leadership optimization algorithm that
+// iterates over each partition's replica set and sorts brokers according to
+// their leader/follower position ratio, ascending. The idea is that if a broker
+// has a high leader/follower ratio, it should go further down the replica list.
+// This ratio is recalculated at each replica set visited to avoid extreme skew.
 func (pm *PartitionMap) OptimizeLeaderFollower() {
 	for i := 0; i < len(pm.Partitions[0].Replicas); i++ {
 		for _, partn := range pm.Partitions {
@@ -217,8 +215,8 @@ func (pm *PartitionMap) OptimizeLeaderFollower() {
 
 // Rebuild takes a BrokerMap and rebuild strategy. It then traverses the
 // partition map, replacing brokers marked removal with the best available
-// candidate based on the selected rebuild strategy. A rebuilt *PartitionMap
-// and []error of errors is returned.
+// candidate based on the selected rebuild strategy. A rebuilt *PartitionMap and
+// []error of errors is returned.
 func (pm *PartitionMap) Rebuild(params RebuildParams) (*PartitionMap, []error) {
 	var newMap *PartitionMap
 	var errs []error
@@ -238,8 +236,8 @@ func (pm *PartitionMap) Rebuild(params RebuildParams) (*PartitionMap, []error) {
 			pm: params.PMM,
 		}
 		sort.Sort(partitionsBySize(s))
-		// Perform placements. The placement method
-		// depends on the choosen optimization param.
+		// Perform placements. The placement method depends on the choosen
+		// optimization param.
 		switch params.Optimization {
 		case "distribution":
 			newMap, errs = placeByPosition(params)
@@ -248,8 +246,8 @@ func (pm *PartitionMap) Rebuild(params RebuildParams) (*PartitionMap, []error) {
 			// Shuffle replica sets. placeByPartition suffers from suboptimal
 			// leadership distribution because of the requirement to choose all
 			// brokers for each partition at a time (in contrast to placeByPosition).
-			// Shuffling has proven so far to distribute leadership even though
-			// it's purely by probability. Eventually, write a real optimizer.
+			// Shuffling has proven so far to distribute leadership even though it's
+			// purely by probability. Eventually, we should write a real optimizer.
 			newMap.shuffle(func(_ Partition) bool { return true })
 		// Invalid optimization.
 		default:
@@ -266,8 +264,7 @@ func (pm *PartitionMap) Rebuild(params RebuildParams) (*PartitionMap, []error) {
 	return newMap, errs
 }
 
-// BrokersIn returns a BrokerFilterFn that filters for brokers in the
-// PartitionMap
+// BrokersIn returns a BrokerFilterFn that filters for brokers in the PartitionMap.
 func (pm PartitionMap) BrokersIn() BrokerFilterFn {
 	mappedIDs := map[int]struct{}{}
 	for _, partn := range pm.Partitions {
@@ -284,67 +281,57 @@ func (pm PartitionMap) BrokersIn() BrokerFilterFn {
 	}
 }
 
-// placeByPosition builds a PartitionMap by doing placements for all
-// partitions, one broker index at a time. For instance, if all partitions
-// required a broker set length of 3 (aka a replication factor of 3), we'd
-// do all placements in 3 passes. The first pass would be leaders for all
-// partitions, the second pass would be the first follower, and the third
-// pass would be the second follower. This placement pattern is optimal
-// for the count strategy.
+// placeByPosition builds a PartitionMap by doing placements for all partitions,
+// one broker index at a time. For instance, if all partitions required a broker
+// set length of 3 (aka a replication factor of 3), we'd do all placements in 3
+// passes. The first pass would be leaders for all partitions, the second pass
+// would be the first follower, and the third pass would be the second follower.
+// This placement pattern is optimal for the count strategy.
 func placeByPosition(params RebuildParams) (*PartitionMap, []error) {
 	newMap := NewPartitionMap()
 
-	// We need a filtered list for usage sorting and exclusion
-	// of nodes marked for removal.
+	// We need a filtered list for usage sorting and exclusion of nodes marked for
+	// removal.
 	bl := params.BM.Filter(NotReplacedBrokersFn).List()
 
 	var errs []error
 	var pass int
 
-	// Check if we need more passes.
-	// If we've just counted as many skips
-	// as there are partitions to handle,
-	// we have nothing left to do.
+	// Check if we need more passes. If we've just counted as many skips as there
+	// are partitions to handle, we have nothing left to do.
 	for skipped := 0; skipped < len(params.pm.Partitions); {
 		for n, partn := range params.pm.Partitions {
-			// If this is the first pass, create
-			// the new partition.
+			// If this is the first pass, create the new partition.
 			if pass == 0 {
 				newPartn := Partition{Partition: partn.Partition, Topic: partn.Topic}
 				newMap.Partitions = append(newMap.Partitions, newPartn)
 			}
 
-			// The number of needed passes may vary;
-			// e.g. if most replica sets have a len
-			// of 2 and a few with a len of 3, we have
-			// to do 3 passes while skipping some
-			// on final passes.
+			// The number of needed passes may vary; e.g. if most replica sets have a
+			// len of 2 and a few with a len of 3, we have to do 3 passes while
+			// skipping some on final passes.
 			if pass > len(partn.Replicas)-1 {
 				skipped++
 				continue
 			}
 
-			// Get the current Broker ID
-			// for the current pass.
+			// Get the current Broker ID for the current pass.
 			bid := partn.Replicas[pass]
 
-			// If the current broker isn't
-			// marked for removal, just add it
-			// to the same position in the new map.
+			// If the current broker isn't marked for removal, just add it to the same
+			// position in the new map.
 			if !params.BM[bid].Replace {
 				newMap.Partitions[n].Replicas = append(newMap.Partitions[n].Replicas, bid)
 			} else {
 				// Otherwise, we need to find a replacement.
 
-				// Build a BrokerList from the
-				// IDs in the old replica set to
-				// get a *constraints.
+				// Build a BrokerList from the IDs in the old replica set to  get a
+				// *constraints.
 				replicaSet := BrokerList{}
 				for _, bid := range partn.Replicas {
 					replicaSet = append(replicaSet, params.BM[bid])
 				}
-				// Add existing brokers in the
-				// new replica set as well.
+				// Add existing brokers in the new replica set as well.
 				for _, bid := range newMap.Partitions[n].Replicas {
 					replicaSet = append(replicaSet, params.BM[bid])
 				}
@@ -357,8 +344,7 @@ func placeByPosition(params RebuildParams) (*PartitionMap, []error) {
 				}
 				constraints.MergeConstraints(replicaSet)
 
-				// Add any necessary meta from current partition
-				// to the constraints.
+				// Add any necessary meta from current partition to the constraints.
 				if params.Strategy == "storage" {
 					s, err := params.PMM.Size(partn)
 					if err != nil {
@@ -374,24 +360,21 @@ func placeByPosition(params RebuildParams) (*PartitionMap, []error) {
 				var replacement *Broker
 				var err error
 
-				// If we're using the count method, check if a
-				// substitution affinity is set for this broker.
+				// If we're using the count method, check if a substitution affinity is set for this broker.
 				affinity := params.Affinities.Get(bid)
 				if params.Strategy == "count" && affinity != nil {
 					replacement = affinity
-					// Ensure the replacement passes constraints.
-					// This is usually checked at the time of building
-					// a substitution affinities map, but in scenarios
-					// where the replacement broker was completely missing
-					// from ZooKeeper, its rack ID is unknown and a suitable
-					// sub has to be inferred. We're checking that it passes
-					// here in case the inference logic is faulty.
+					// Ensure the replacement passes constraints. This is usually checked
+					// at the time of building a substitution affinities map, but in
+					// scenarios where the replacement broker was completely missing from
+					// the cluster, its rack ID is unknown and a suitable sub has to be
+					// inferred. We're checking that it passes here in case the inference
+					// logic is faulty.
 					if passes := constraints.passesWithParams(replacement, constraintsParams); !passes {
 						err = ErrNoBrokers
 					}
 				} else {
-					// Otherwise, use the standard
-					// constraints based selector.
+					// Otherwise, use the standard constraints based selector.
 					constraintsParams.SeedVal = int64(pass*n + 1)
 					replacement, err = constraints.SelectBroker(bl, constraintsParams)
 				}
@@ -413,8 +396,7 @@ func placeByPosition(params RebuildParams) (*PartitionMap, []error) {
 
 	}
 
-	// Final check to ensure that no
-	// replica sets were somehow set to 0.
+	// Final check to ensure that no replica sets were somehow set to 0.
 	for _, partn := range newMap.Partitions {
 		if len(partn.Replicas) == 0 {
 			e := fmt.Errorf("%s p%d: configured to zero replicas", partn.Topic, partn.Partition)
@@ -429,39 +411,33 @@ func placeByPosition(params RebuildParams) (*PartitionMap, []error) {
 func placeByPartition(params RebuildParams) (*PartitionMap, []error) {
 	newMap := NewPartitionMap()
 
-	// We need a filtered list for usage sorting and exclusion
-	// of nodes marked for removal.
+	// We need a filtered list for usage sorting and exclusion of nodes marked for
+	// removal.
 	bl := params.BM.Filter(NotReplacedBrokersFn).List()
 
 	var errs []error
 
 	for _, partn := range params.pm.Partitions {
-		// Create the partition in
-		// the new map.
+		// Create the partition in the new map.
 		newPartn := Partition{Partition: partn.Partition, Topic: partn.Topic}
 
-		// Map over each broker from the original
-		// partition replica list to the new,
-		// selecting replacemnt for those marked
-		// for replacement.
+		// Map over each broker from the original  partition replica list to the new,
+		// selecting replacemnt for those marked for replacement.
 		for _, bid := range partn.Replicas {
-			// If the current broker isn't
-			// marked for removal, just add it
-			// to the same position in the new map.
+			// If the current broker isn't marked for removal, just add it to the same
+			// position in the new map.
 			if !params.BM[bid].Replace {
 				newPartn.Replicas = append(newPartn.Replicas, bid)
 			} else {
 				// Otherwise, we need to find a replacement.
 
-				// Build a BrokerList from the
-				// IDs in the old replica set to
-				// get a *constraints.
+				// Build a BrokerList from the IDs in the old replica set to get a
+				// *constraints.
 				replicaSet := BrokerList{}
 				for _, bid := range partn.Replicas {
 					replicaSet = append(replicaSet, params.BM[bid])
 				}
-				// Add existing brokers in the
-				// new replica set as well.
+				// Add existing brokers in the new replica set as well.
 				for _, bid := range newPartn.Replicas {
 					replicaSet = append(replicaSet, params.BM[bid])
 				}
@@ -475,8 +451,7 @@ func placeByPartition(params RebuildParams) (*PartitionMap, []error) {
 				}
 				constraints.MergeConstraints(replicaSet)
 
-				// Add any necessary meta from current partition
-				// to the constraints.
+				// Add any necessary meta from current partition to the constraints.
 				if params.Strategy == "storage" {
 					s, err := params.PMM.Size(partn)
 					if err != nil {
@@ -502,13 +477,11 @@ func placeByPartition(params RebuildParams) (*PartitionMap, []error) {
 			}
 		}
 
-		// Add the partition to the
-		// new map.
+		// Add the partition to the new map.
 		newMap.Partitions = append(newMap.Partitions, newPartn)
 	}
 
-	// Final check to ensure that no
-	// replica sets were somehow set to 0.
+	// Final check to ensure that no replica sets were somehow set to 0.
 	for _, partn := range newMap.Partitions {
 		if len(partn.Replicas) == 0 {
 			e := fmt.Errorf("%s p%d: configured to zero replicas", partn.Topic, partn.Partition)
@@ -524,29 +497,25 @@ func placeByPartition(params RebuildParams) (*PartitionMap, []error) {
 // of localities that are unused by any of the brokers in any replica sets that
 // the reference broker was found in. This is done by building a set of all
 // localities observed across all replica sets and a set of all localities
-// observed in replica sets containing the reference broker,
-// then returning the diff.
+// observed in replica sets containing the reference broker, then returning the
+// diff.
 func (pm *PartitionMap) LocalitiesAvailable(bm BrokerMap, b *Broker) []string {
 	all := map[string]struct{}{}
 	reference := map[string]struct{}{}
 
-	// Traverse the partition map and
-	// gather localities.
+	// Traverse the partition map and gather localities.
 	for _, partn := range pm.Partitions {
 
 		localities := map[string]struct{}{}
 		var containsRef bool
 
 		for _, replica := range partn.Replicas {
-			// Check if this is a replica set
-			// that contains the reference
+			// Check if this is a replica set that contains the reference
 			if replica == b.ID {
 				containsRef = true
-				// We shouldn't have the reference
-				// broker's locality since it's
-				// missing; the purpose of this
-				// entire method is to infer it
-				// or a compatible locality. Skip.
+				// We shouldn't have the reference broker's locality since it's missing;
+				// the purpose of this entire method is to infer it or a compatible
+				// locality. Skip.
 				continue
 			}
 
@@ -557,8 +526,7 @@ func (pm *PartitionMap) LocalitiesAvailable(bm BrokerMap, b *Broker) []string {
 			}
 		}
 
-		// Populate into the appropriate
-		// set.
+		// Populate into the appropriate set.
 		if containsRef {
 			for k := range localities {
 				reference[k] = struct{}{}
@@ -570,8 +538,7 @@ func (pm *PartitionMap) LocalitiesAvailable(bm BrokerMap, b *Broker) []string {
 		}
 	}
 
-	// Get the diff between the all set
-	// and the reference set.
+	// Get the diff between the all set and the reference set.
 	diff := []string{}
 	for l := range all {
 		if _, used := reference[l]; !used {
@@ -611,9 +578,8 @@ func PartitionMapFromString(s string) (*PartitionMap, error) {
 	return pm, nil
 }
 
-// SetReplication ensures that replica sets is reset to the replication
-// factor r. Sets exceeding r are truncated, sets below r are extended
-// with stub brokers.
+// SetReplication ensures that replica sets is reset to the replication factor
+// r. Sets exceeding r are truncated, sets below r are extended with stub brokers.
 func (pm *PartitionMap) SetReplication(r int) {
 	// 0 is a no-op.
 	if r == 0 {
@@ -689,8 +655,8 @@ func (pm *PartitionMap) Copy() *PartitionMap {
 	return cpy
 }
 
-// Equal checks the ity betwee two partition maps. Equality requires
-// that the total order is exactly the same.
+// Equal checks the ity betwee two partition maps. Equality requires that the
+// total order is exactly the same.
 func (pm *PartitionMap) Equal(pm2 *PartitionMap) (bool, error) {
 	// Crude checks.
 	switch {
@@ -722,15 +688,15 @@ func (pm *PartitionMap) Equal(pm2 *PartitionMap) (bool, error) {
 	return true, nil
 }
 
-// Strip takes a PartitionMap and returns a copy where all broker ID
-// references are replaced with the stub broker (ID == StubBrokerID) with
-// the replace field is set to true. This ensures that the entire map is
-// rebuilt, even if the provided broker list matches what's already in the map.
+// Strip takes a PartitionMap and returns a copy where all broker ID references
+// are replaced with the stub broker (ID == StubBrokerID) with the replace field
+// is set to true. This ensures that the entire map is rebuilt, even if the
+// provided broker list matches what's already in the map.
 func (pm *PartitionMap) Strip() *PartitionMap {
 	Stripped := NewPartitionMap()
 
-	// Copy each partition sans the replicas list.
-	// The new replica list is all stub brokers.
+	// Copy each partition sans the replicas list. The new replica list is all
+	// stub brokers.
 	for _, p := range pm.Partitions {
 		var stubs = make([]int, len(p.Replicas))
 		for i := range stubs {
@@ -749,8 +715,7 @@ func (pm *PartitionMap) Strip() *PartitionMap {
 	return Stripped
 }
 
-// WriteMap takes a *PartitionMap and writes a JSON
-// text file to the provided path.
+// WriteMap takes a *PartitionMap and writes a JSON text file to the provided path.
 func WriteMap(pm *PartitionMap, path string) error {
 	// Marshal.
 	out, err := json.Marshal(pm)
@@ -769,8 +734,8 @@ func WriteMap(pm *PartitionMap, path string) error {
 	return nil
 }
 
-// UseStats returns a map of broker IDs to BrokerUseStats; each
-// contains a count of leader and follower partition assignments.
+// UseStats returns a map of broker IDs to BrokerUseStats; each contains a count
+// of leader and follower partition assignments.
 func (pm *PartitionMap) UseStats() BrokerUseStatsMap {
 	var statsMap = make(BrokerUseStatsMap)
 	// Get counts.
@@ -781,8 +746,7 @@ func (pm *PartitionMap) UseStats() BrokerUseStatsMap {
 					ID: b,
 				}
 			}
-			// Idx 0 for each replica set
-			// is a leader assignment.
+			// Idx 0 for each replica set is a leader assignment.
 			if i == 0 {
 				statsMap[b].Leader++
 			} else {
@@ -794,8 +758,8 @@ func (pm *PartitionMap) UseStats() BrokerUseStatsMap {
 	return statsMap
 }
 
-// Equal defines equalty between two Partition objects
-// as an equality of topic, partition and replicas.
+// Equal defines equalty between two Partition objects as an equality of topic,
+// partition and replicas.
 func (p Partition) Equal(p2 Partition) bool {
 	switch {
 	case p.Topic != p2.Topic:

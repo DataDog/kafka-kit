@@ -7,11 +7,10 @@ import (
 
 // DegreeDistribution counts broker to broker relationships.
 type DegreeDistribution struct {
-	// Relationships is a an adjacency list
-	// where an edge between brokers is defined as
-	// a common occupancy in at least one replica set.
-	// For instance, given the replica set [1001,1002,1003],
-	// ID 1002 has a relationship with 1001 and 1003.
+	// Relationships is a an adjacency list where an edge between brokers is
+	// defined as a common occupancy in at least one replica set. For instance,
+	// given the replica set [1001,1002,1003], ID 1002 has a relationship with
+	// 1001 and 1003.
 	Relationships map[int]map[int]struct{}
 }
 
@@ -22,9 +21,8 @@ func NewDegreeDistribution() DegreeDistribution {
 	}
 }
 
-// Add takes a []int of broker IDs representing a
-// replica set and updates the adjacency lists for
-// each broker in the set.
+// Add takes a []int of broker IDs representing a replica set and updates the
+// adjacency lists for each broker in the set.
 func (dd DegreeDistribution) Add(nodes []int) {
 	for _, node := range nodes {
 		if _, exists := dd.Relationships[node]; !exists {
@@ -49,8 +47,8 @@ func (dd DegreeDistribution) Count(n int) int {
 	return len(c)
 }
 
-// DegreeDistributionStats holds general statistical
-// information describing the DegreeDistribution counts.
+// DegreeDistributionStats holds general statistical information describing the
+// DegreeDistribution counts.
 type DegreeDistributionStats struct {
 	Min float64
 	Max float64
@@ -94,8 +92,8 @@ func (pm *PartitionMap) DegreeDistribution() DegreeDistribution {
 	return d
 }
 
-// StorageDiff takes two BrokerMaps and returns a per broker ID
-// diff in storage as a [2]float64: [absolute, percentage] diff.
+// StorageDiff takes two BrokerMaps and returns a per broker ID diff in storage
+// as a [2]float64: [absolute, percentage] diff.
 func (b BrokerMap) StorageDiff(b2 BrokerMap) map[int][2]float64 {
 	d := map[int][2]float64{}
 
@@ -116,16 +114,16 @@ func (b BrokerMap) StorageDiff(b2 BrokerMap) map[int][2]float64 {
 	return d
 }
 
-// StorageRangeSpread returns the range spread
-// of free storage for all brokers in the BrokerMap.
+// StorageRangeSpread returns the range spread of free storage for all brokers
+// in the BrokerMap.
 func (b BrokerMap) StorageRangeSpread() float64 {
 	l, h := b.MinMax()
 	// Return range spread.
 	return (h - l) / l * 100
 }
 
-// StorageRange returns the range of free
-// storage for all brokers in the BrokerMap.
+// StorageRange returns the range of free storage for all brokers in the
+// BrokerMap.
 func (b BrokerMap) StorageRange() float64 {
 	l, h := b.MinMax()
 	// Return range.
@@ -156,8 +154,8 @@ func (b BrokerMap) MinMax() (float64, float64) {
 	return l, h
 }
 
-// StorageStdDev returns the standard deviation
-// of free storage for all brokers in the BrokerMap.
+// StorageStdDev returns the standard deviation of free storage for all brokers
+// in the BrokerMap.
 func (b BrokerMap) StorageStdDev() float64 {
 	var m float64
 	var t float64
@@ -223,8 +221,8 @@ func AboveMeanFn(d float64, f func() float64) BrokerFilterFn {
 	return func(b *Broker) bool { return (b.StorageFree-m)/m > d }
 }
 
-// AboveMean returns a sorted []int of broker IDs that are above the mean
-// by d percent (0.00 < d). The mean type is provided as a function f.
+// AboveMean returns a sorted []int of broker IDs that are above the mean by d
+// percent (0.00 < d). The mean type is provided as a function f.
 func (b BrokerMap) AboveMean(d float64, f func() float64) []int {
 	var ids []int
 
@@ -250,8 +248,8 @@ func BelowMeanFn(d float64, f func() float64) BrokerFilterFn {
 	return func(b *Broker) bool { return (m-b.StorageFree)/m > d }
 }
 
-// BelowMean returns a sorted []int of broker IDs that are below the mean
-// by d percent (0.00 < d). The mean type is provided as a function f.
+// BelowMean returns a sorted []int of broker IDs that are below the mean by d
+// percent (0.00 < d). The mean type is provided as a function f.
 func (b BrokerMap) BelowMean(d float64, f func() float64) []int {
 	var ids []int
 

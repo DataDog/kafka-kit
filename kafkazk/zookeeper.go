@@ -63,11 +63,10 @@ type ZKHandler struct {
 	MetricsPrefix string
 }
 
-// Config holds initialization paramaters for a Handler. Connect
-// is a ZooKeeper connect string. Prefix should reflect any prefix
-// used for Kafka on the reference ZooKeeper cluster (excluding slashes).
-// MetricsPrefix is the prefix used for broker metrics metadata persisted
-// in ZooKeeper.
+// Config holds initialization paramaters for a Handler. Connect is a ZooKeeper
+// connect string. Prefix should reflect any prefix used for Kafka on the
+// reference ZooKeeper cluster (excluding slashes). MetricsPrefix is the prefix
+// used for broker metrics metadata persisted in ZooKeeper.
 type Config struct {
 	Connect       string
 	Prefix        string
@@ -102,8 +101,8 @@ func (z *ZKHandler) Ready() bool {
 	}
 }
 
-// Close calls close on the *ZKHandler. Any additional shutdown cleanup or
-// other tasks should be performed here.
+// Close calls close on the *ZKHandler. Any additional shutdown cleanup or other
+// tasks should be performed here.
 func (z *ZKHandler) Close() {
 	z.client.Close()
 }
@@ -484,8 +483,8 @@ func (z *ZKHandler) GetAllPartitionMeta() (mapper.PartitionMetaMap, error) {
 	return pmm, nil
 }
 
-// MaxMetaAge returns the greatest age between the partitionmeta and
-// brokermetrics stuctures.
+// MaxMetaAge returns the greatest age between the partitionmeta and brokermetrics
+// stuctures.
 func (z *ZKHandler) MaxMetaAge() (time.Duration, error) {
 	t, err := z.oldestMetaTs()
 	if err != nil {
@@ -592,11 +591,11 @@ func (z *ZKHandler) GetUnderReplicated() ([]string, error) {
 	return underReplicated, nil
 }
 
-// GetTopicStateISR takes a topic name. If the topic exists, the topic state
-// is returned as a TopicStateISR. GetTopicStateCurrentISR differs from
-// GetTopicState in that the actual, current broker IDs in the ISR are
-// returned for each partition. This method is more expensive due to the
-// need for a call per partition to ZK.
+// GetTopicStateISR takes a topic name. If the topic exists, the topic state is
+// returned as a TopicStateISR. GetTopicStateCurrentISR differs from GetTopicState
+// in that the actual, current broker IDs in the ISR are returned for each
+// partition. This method is more expensive due to the need for a call per
+// partition to ZK.
 func (z *ZKHandler) GetTopicStateISR(t string) (TopicStateISR, error) {
 	path := z.getPath(fmt.Sprintf("/brokers/topics/%s/partitions", t))
 
@@ -646,8 +645,8 @@ func (z *ZKHandler) GetPartitionMap(t string) (*mapper.PartitionMap, error) {
 	// {"version":1,"partitions":[{"topic":"myTopic","partition":14,"replicas":[1039,1044]}]}
 	// But retrieved this in /brokers/topics/myTopic:
 	// {"version":1,"partitions":{"14":[1039,1044,1041,1071]}}.
-	// The latter will be in ts if we're undergoing a partition move, so we
-	// need to overwrite it with what's intended (the former).
+	// The latter will be in ts if we're undergoing a partition move, so we need to
+	// overwrite it with what's intended (the former).
 	if re[t] != nil {
 		for p, replicas := range re[t] {
 			pn := strconv.Itoa(p)
@@ -706,15 +705,14 @@ func PartitionMapFromZK(t []*regexp.Regexp, zk Handler) (*mapper.PartitionMap, e
 	return pmapMerged, nil
 }
 
-// UpdateKafkaConfig takes a KafkaConfig with key value pairs of
-// entity config. If the config is changed, a persistent sequential
-// znode is also written to propagate changes (via watches) to all
-// Kafka brokers. This is a Kafka specific behavior; further references
-// are available from the Kafka codebase. A []bool is returned indicating
-// whether the config of the respective index was changed (if a config is
-// updated to the existing value, 'false' is returned) along with any errors
-// encountered. If a config value is set to an empty string (""), the entire
-// config key itself is deleted. This was a convenient method to combine
+// UpdateKafkaConfig takes a KafkaConfig with key value pairs of entity config.
+// If the config is changed, a persistent sequential znode is also written to
+// propagate changes (via watches) to all Kafka brokers. This is a Kafka specific
+// behavior; further references are available from the Kafka codebase. A []bool
+// is returned indicating whether the config of the respective index was changed
+// (if a config is updated to the existing value, 'false' is returned) along with
+// any errors encountered. If a config value is set to an empty string (""), the
+// entire config key itself is deleted. This was a convenient method to combine
 // update/delete into a single func.
 func (z *ZKHandler) UpdateKafkaConfig(c KafkaConfig) ([]bool, error) {
 	var changed = make([]bool, len(c.Configs))
