@@ -776,7 +776,7 @@ func (z *ZKHandler) getPath(p string) string {
 }
 
 func (z *ZKHandler) getMetricsPath(p string) string {
-	if z.Prefix != "" {
+	if z.MetricsPrefix != "" {
 		return fmt.Sprintf("/%s/%s", z.MetricsPrefix, strings.TrimLeft(p, "/"))
 	}
 
