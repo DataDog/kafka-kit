@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/DataDog/kafka-kit/v3/kafkaadmin"
-	pb "github.com/DataDog/kafka-kit/v3/registry/registry"
+	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
+	pb "github.com/DataDog/kafka-kit/v4/registry/registry"
 )
 
 func TestCreateTopic(t *testing.T) {

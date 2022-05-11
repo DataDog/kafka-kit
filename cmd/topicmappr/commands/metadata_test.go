@@ -5,8 +5,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/DataDog/kafka-kit/v3/kafkazk"
-	"github.com/DataDog/kafka-kit/v3/mapper"
+	"github.com/DataDog/kafka-kit/v4/kafkazk"
+	"github.com/DataDog/kafka-kit/v4/mapper"
 )
 
 func TestRemoveTopics(t *testing.T) {

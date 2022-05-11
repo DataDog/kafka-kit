@@ -3,7 +3,7 @@ package main
 import (
 	"strconv"
 
-	"github.com/DataDog/kafka-kit/v3/mapper"
+	"github.com/DataDog/kafka-kit/v4/mapper"
 )
 
 // TopicStates is a map of topic names to kafakzk.TopicState.

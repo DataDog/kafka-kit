@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/DataDog/kafka-kit/v3/kafkametrics"
-	"github.com/DataDog/kafka-kit/v3/kafkazk"
+	"github.com/DataDog/kafka-kit/v4/kafkametrics"
+	"github.com/DataDog/kafka-kit/v4/kafkazk"
 )
 
 // reassigningBrokers holds several sets of brokers participating

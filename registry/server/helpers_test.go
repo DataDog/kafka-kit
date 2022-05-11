@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/DataDog/kafka-kit/v3/kafkaadmin"
-	"github.com/DataDog/kafka-kit/v3/kafkazk"
+	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
+	"github.com/DataDog/kafka-kit/v4/kafkazk"
 )
 
 var (

@@ -8,8 +8,8 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/DataDog/kafka-kit/v3/mapper"
-	pb "github.com/DataDog/kafka-kit/v3/registry/registry"
+	"github.com/DataDog/kafka-kit/v4/mapper"
+	pb "github.com/DataDog/kafka-kit/v4/registry/registry"
 )
 
 var (

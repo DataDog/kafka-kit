@@ -8,11 +8,11 @@ import (
 	"sort"
 	"strconv"
 
-	zklocking "github.com/DataDog/kafka-kit/v3/cluster/zookeeper"
-	"github.com/DataDog/kafka-kit/v3/kafkaadmin"
-	"github.com/DataDog/kafka-kit/v3/kafkazk"
-	"github.com/DataDog/kafka-kit/v3/mapper"
-	pb "github.com/DataDog/kafka-kit/v3/registry/registry"
+	zklocking "github.com/DataDog/kafka-kit/v4/cluster/zookeeper"
+	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
+	"github.com/DataDog/kafka-kit/v4/kafkazk"
+	"github.com/DataDog/kafka-kit/v4/mapper"
+	pb "github.com/DataDog/kafka-kit/v4/registry/registry"
 )
 
 var (

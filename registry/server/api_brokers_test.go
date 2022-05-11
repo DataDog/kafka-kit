@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	pb "github.com/DataDog/kafka-kit/v3/registry/registry"
+	pb "github.com/DataDog/kafka-kit/v4/registry/registry"
 )
 
 func TestGetBrokers(t *testing.T) {

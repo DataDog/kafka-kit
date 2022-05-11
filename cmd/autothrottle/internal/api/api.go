@@ -9,8 +9,8 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/DataDog/kafka-kit/v3/cmd/autothrottle/internal/throttlestore"
-	"github.com/DataDog/kafka-kit/v3/kafkazk"
+	"github.com/DataDog/kafka-kit/v4/cmd/autothrottle/internal/throttlestore"
+	"github.com/DataDog/kafka-kit/v4/kafkazk"
 )
 
 // APIConfig holds configuration params for the admin API.

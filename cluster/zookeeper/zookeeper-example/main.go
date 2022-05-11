@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	zklocking "github.com/DataDog/kafka-kit/v3/cluster/zookeeper"
+	zklocking "github.com/DataDog/kafka-kit/v4/cluster/zookeeper"
 )
 
 func main() {

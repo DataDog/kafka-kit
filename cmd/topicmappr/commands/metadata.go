@@ -5,8 +5,8 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/DataDog/kafka-kit/v3/kafkazk"
-	"github.com/DataDog/kafka-kit/v3/mapper"
+	"github.com/DataDog/kafka-kit/v4/kafkazk"
+	"github.com/DataDog/kafka-kit/v4/mapper"
 )
 
 // checkMetaAge checks the age of the stored partition and broker storage
