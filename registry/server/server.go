@@ -13,11 +13,11 @@ import (
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 
-	"github.com/DataDog/kafka-kit/v3/cluster"
-	zklocking "github.com/DataDog/kafka-kit/v3/cluster/zookeeper"
-	"github.com/DataDog/kafka-kit/v3/kafkaadmin"
-	"github.com/DataDog/kafka-kit/v3/kafkazk"
-	pb "github.com/DataDog/kafka-kit/v3/registry/registry"
+	"github.com/DataDog/kafka-kit/v4/cluster"
+	zklocking "github.com/DataDog/kafka-kit/v4/cluster/zookeeper"
+	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
+	"github.com/DataDog/kafka-kit/v4/kafkazk"
+	pb "github.com/DataDog/kafka-kit/v4/registry/registry"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"google.golang.org/grpc"

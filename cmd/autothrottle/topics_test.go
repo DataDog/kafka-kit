@@ -3,8 +3,8 @@ package main
 import (
 	"testing"
 
-	"github.com/DataDog/kafka-kit/v3/cmd/autothrottle/internal/throttlestore"
-	"github.com/DataDog/kafka-kit/v3/kafkaadmin/stub"
+	"github.com/DataDog/kafka-kit/v4/cmd/autothrottle/internal/throttlestore"
+	"github.com/DataDog/kafka-kit/v4/kafkaadmin/stub"
 )
 
 func TestAddReplica(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 	"os"
 	"sort"
 
-	"github.com/DataDog/kafka-kit/v3/mapper"
+	"github.com/DataDog/kafka-kit/v4/mapper"
 
 	"github.com/spf13/cobra"
 )

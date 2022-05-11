@@ -3,7 +3,7 @@ package commands
 import (
 	"fmt"
 
-	"github.com/DataDog/kafka-kit/v3/mapper"
+	"github.com/DataDog/kafka-kit/v4/mapper"
 )
 
 // Relocation is a kafakzk.Partition to destination broker ID.

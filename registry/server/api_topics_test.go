@@ -6,9 +6,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/DataDog/kafka-kit/v3/kafkazk"
-	"github.com/DataDog/kafka-kit/v3/mapper"
-	pb "github.com/DataDog/kafka-kit/v3/registry/registry"
+	"github.com/DataDog/kafka-kit/v4/kafkazk"
+	"github.com/DataDog/kafka-kit/v4/mapper"
+	pb "github.com/DataDog/kafka-kit/v4/registry/registry"
 )
 
 func TestGetTopics(t *testing.T) {

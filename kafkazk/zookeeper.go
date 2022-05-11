@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DataDog/kafka-kit/v3/mapper"
+	"github.com/DataDog/kafka-kit/v4/mapper"
 
 	zkclient "github.com/go-zookeeper/zk"
 )

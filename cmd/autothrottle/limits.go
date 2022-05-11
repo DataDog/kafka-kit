@@ -4,7 +4,7 @@ import (
 	"errors"
 	"math"
 
-	"github.com/DataDog/kafka-kit/v3/kafkametrics"
+	"github.com/DataDog/kafka-kit/v4/kafkametrics"
 )
 
 // Limits is a map of instance-type to network bandwidth limits.

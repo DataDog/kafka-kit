@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/DataDog/kafka-kit/v3/kafkazk"
+	"github.com/DataDog/kafka-kit/v4/kafkazk"
 )
 
 func TestBrokerReplicationCapacities(t *testing.T) {
