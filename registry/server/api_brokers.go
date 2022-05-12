@@ -19,6 +19,8 @@ var (
 	ErrBrokerNotExist = errors.New("broker does not exist")
 	// ErrBrokerIDEmpty error.
 	ErrBrokerIDEmpty = errors.New("broker Id field must be specified")
+	// ErrBrokerIDsEmpty error.
+	ErrBrokerIDsEmpty = errors.New("broker Ids field must be specified")
 )
 
 // BrokerSet is a mapping of broker IDs to *pb.Broker.
@@ -308,6 +310,54 @@ func (s *Server) TagBroker(ctx context.Context, req *pb.BrokerRequest) (*pb.TagR
 	}
 
 	return &pb.TagResponse{Message: "success"}, nil
+}
+
+// TagBrokers sets custom tags for the specified brokers. Any previously existing
+// tags that were not specified in the request remain unmodified.
+func (s *Server) TagBrokers(ctx context.Context, req *pb.TagBrokersRequest) (*pb.TagBrokersResponse, error) {
+	ctx, cancel, err := s.ValidateRequest(ctx, req, writeRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	if cancel != nil {
+		defer cancel()
+	}
+
+	if err := s.Locking.Lock(ctx); err != nil {
+		return nil, err
+	}
+	defer s.Locking.UnlockLogError(ctx)
+
+	if len(req.Ids) == 0 {
+		return nil, ErrBrokerIDsEmpty
+	}
+
+	if len(req.Tags) == 0 {
+		return nil, ErrNilTags
+	}
+
+	// Get a TagSet from the supplied tags.
+	ts, err := Tags(req.Tags).TagSet()
+	if err != nil {
+		return nil, err
+	}
+
+	ids := req.Ids
+	sort.Slice(ids, func(i, j int) bool {
+		return ids[i] < ids[j]
+	})
+
+	// Set the tags.
+	for _, id := range ids {
+		sid := fmt.Sprintf("%d", id)
+		err = s.Tags.Store.SetTags(KafkaObject{Type: "broker", ID: sid}, ts)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.TagBrokersResponse{}, nil
 }
 
 //DeleteBrokerTags deletes custom tags for the specified broker.

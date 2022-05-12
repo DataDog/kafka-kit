@@ -97,6 +97,10 @@ type RegistryClient interface {
 	// tags for the named broker. Any existing tags that are
 	// not specified in the request are left unmodified.
 	TagBroker(ctx context.Context, in *BrokerRequest, opts ...grpc.CallOption) (*TagResponse, error)
+	// TagBrokers takes a TagBrokersRequest and sets any specified tags for the
+	// brokers. Any existing tags that are not specified in the request are left
+	// unmodified.
+	TagBrokers(ctx context.Context, in *TagBrokersRequest, opts ...grpc.CallOption) (*TagBrokersResponse, error)
 	// DeleteBrokerTags takes a BrokerRequest and deletes any
 	// specified tags for the named broker. Tags must be provided
 	// as key names only; "key:value" will not target the tag "key".
@@ -244,6 +248,15 @@ func (c *registryClient) TagBroker(ctx context.Context, in *BrokerRequest, opts 
 	return out, nil
 }
 
+func (c *registryClient) TagBrokers(ctx context.Context, in *TagBrokersRequest, opts ...grpc.CallOption) (*TagBrokersResponse, error) {
+	out := new(TagBrokersResponse)
+	err := c.cc.Invoke(ctx, "/registry.Registry/TagBrokers", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *registryClient) DeleteBrokerTags(ctx context.Context, in *BrokerRequest, opts ...grpc.CallOption) (*TagResponse, error) {
 	out := new(TagResponse)
 	err := c.cc.Invoke(ctx, "/registry.Registry/DeleteBrokerTags", in, out, opts...)
@@ -345,6 +358,10 @@ type RegistryServer interface {
 	// tags for the named broker. Any existing tags that are
 	// not specified in the request are left unmodified.
 	TagBroker(context.Context, *BrokerRequest) (*TagResponse, error)
+	// TagBrokers takes a TagBrokersRequest and sets any specified tags for the
+	// brokers. Any existing tags that are not specified in the request are left
+	// unmodified.
+	TagBrokers(context.Context, *TagBrokersRequest) (*TagBrokersResponse, error)
 	// DeleteBrokerTags takes a BrokerRequest and deletes any
 	// specified tags for the named broker. Tags must be provided
 	// as key names only; "key:value" will not target the tag "key".
@@ -404,6 +421,9 @@ func (UnimplementedRegistryServer) DeleteTopicTags(context.Context, *TopicReques
 }
 func (UnimplementedRegistryServer) TagBroker(context.Context, *BrokerRequest) (*TagResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method TagBroker not implemented")
+}
+func (UnimplementedRegistryServer) TagBrokers(context.Context, *TagBrokersRequest) (*TagBrokersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method TagBrokers not implemented")
 }
 func (UnimplementedRegistryServer) DeleteBrokerTags(context.Context, *BrokerRequest) (*TagResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteBrokerTags not implemented")
@@ -676,6 +696,24 @@ func _Registry_TagBroker_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Registry_TagBrokers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TagBrokersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RegistryServer).TagBrokers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/registry.Registry/TagBrokers",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RegistryServer).TagBrokers(ctx, req.(*TagBrokersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Registry_DeleteBrokerTags_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(BrokerRequest)
 	if err := dec(in); err != nil {
@@ -774,6 +812,10 @@ var Registry_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "TagBroker",
 			Handler:    _Registry_TagBroker_Handler,
+		},
+		{
+			MethodName: "TagBrokers",
+			Handler:    _Registry_TagBrokers_Handler,
 		},
 		{
 			MethodName: "DeleteBrokerTags",

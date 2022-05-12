@@ -162,6 +162,16 @@ service Registry {
     };
   }
 
+  // TagBrokers takes a TagBrokersRequest and sets any specified tags for the
+  // brokers. Any existing tags that are not specified in the request are left
+  // unmodified.
+  rpc TagBrokers (TagBrokersRequest) returns (TagBrokersResponse) {
+    option (google.api.http) = {
+      post: "/v2/brokers/tag"
+      body: "*"
+    };
+  }
+
   // DeleteBrokerTags takes a BrokerRequest and deletes any
   // specified tags for the named broker. Tags must be provided
   // as key names only; "key:value" will not target the tag "key".
@@ -220,6 +230,13 @@ message Broker {
   uint32 port = 12;
   uint32 version = 13;
 }
+
+message TagBrokersRequest {
+	repeated string tags = 1;
+	repeated uint32 ids = 2;
+}
+
+message TagBrokersResponse { }
 
 /*********
 * Topics *
