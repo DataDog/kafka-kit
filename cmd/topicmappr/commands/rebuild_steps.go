@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/DataDog/kafka-kit/v3/kafkazk"
+	"github.com/DataDog/kafka-kit/v4/kafkazk"
+	"github.com/DataDog/kafka-kit/v4/mapper"
 )
 
-func runRebuild(params rebuildParams, zk kafkazk.Handler) ([]*kafkazk.PartitionMap, []error) {
+func runRebuild(params rebuildParams, zk kafkazk.Handler) ([]*mapper.PartitionMap, []error) {
 	// General flow:
 	// 1) A PartitionMap is formed (either unmarshaled from the literal
 	//   map input via --rebuild-map or generated from ZooKeeper Metadata
@@ -43,7 +44,7 @@ func runRebuild(params rebuildParams, zk kafkazk.Handler) ([]*kafkazk.PartitionM
 		withMetrics = true
 	}
 
-	var brokerMeta kafkazk.BrokerMetaMap
+	var brokerMeta mapper.BrokerMetaMap
 	var errs []error
 	if params.useMetadata {
 		if brokerMeta, errs = getBrokerMeta(zk, withMetrics); errs != nil && brokerMeta == nil {
@@ -55,7 +56,7 @@ func runRebuild(params rebuildParams, zk kafkazk.Handler) ([]*kafkazk.PartitionM
 	}
 
 	// Fetch partition metadata.
-	var partitionMeta kafkazk.PartitionMetaMap
+	var partitionMeta mapper.PartitionMetaMap
 	if params.placement == "storage" {
 		if partitionMeta, err = getPartitionMeta(zk); err != nil {
 			fmt.Println(err)
@@ -127,7 +128,7 @@ func runRebuild(params rebuildParams, zk kafkazk.Handler) ([]*kafkazk.PartitionM
 		)
 	}
 
-	var outputMaps []*kafkazk.PartitionMap
+	var outputMaps []*mapper.PartitionMap
 	// Generate phased map if enabled.
 	if params.phasedReassignment {
 		outputMaps = append(outputMaps, phasedReassignment(originalMap, partitionMapOut))
@@ -174,13 +175,13 @@ func runRebuild(params rebuildParams, zk kafkazk.Handler) ([]*kafkazk.PartitionM
 // via the --topics flag. Two []string are returned; topics excluded due to
 // pending deletion and topics explicitly excluded (via the --topics-exclude
 // flag), respectively.
-func getPartitionMap(params rebuildParams, zk kafkazk.Handler) (*kafkazk.PartitionMap, []string, []string) {
+func getPartitionMap(params rebuildParams, zk kafkazk.Handler) (*mapper.PartitionMap, []string, []string) {
 
 	switch {
 	// The map was provided as text.
 	case params.mapString != "":
 		// Get a deserialized map.
-		pm, err := kafkazk.PartitionMapFromString(params.mapString)
+		pm, err := mapper.PartitionMapFromString(params.mapString)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -213,8 +214,8 @@ func getPartitionMap(params rebuildParams, zk kafkazk.Handler) (*kafkazk.Partiti
 
 // getSubAffinities, if enabled via --sub-affinity, takes reference broker maps
 // and a partition map and attempts to return a complete SubstitutionAffinities.
-func getSubAffinities(params rebuildParams, bm kafkazk.BrokerMap, bmo kafkazk.BrokerMap, pm *kafkazk.PartitionMap) kafkazk.SubstitutionAffinities {
-	var affinities kafkazk.SubstitutionAffinities
+func getSubAffinities(params rebuildParams, bm mapper.BrokerMap, bmo mapper.BrokerMap, pm *mapper.PartitionMap) mapper.SubstitutionAffinities {
+	var affinities mapper.SubstitutionAffinities
 
 	if params.subAffinity && !params.forceRebuild {
 		var err error
@@ -248,12 +249,12 @@ func getSubAffinities(params rebuildParams, bm kafkazk.BrokerMap, bmo kafkazk.Br
 //   brokers were discovered or newly provided (i.e. specified in the --brokers flag but
 //   not previously holding any partitions for any partitions of the referenced topics
 //   being rebuilt by topicmappr)
-func getBrokers(params rebuildParams, pm *kafkazk.PartitionMap, bm kafkazk.BrokerMetaMap) (kafkazk.BrokerMap, *kafkazk.BrokerStatus) {
+func getBrokers(params rebuildParams, pm *mapper.PartitionMap, bm mapper.BrokerMetaMap) (mapper.BrokerMap, *mapper.BrokerStatus) {
 	fmt.Printf("\nBroker change summary:\n")
 
 	// Get a broker map of the brokers in the current partition map.
 	// If meta data isn't being looked up, brokerMeta will be empty.
-	brokers := kafkazk.BrokerMapFromPartitionMap(pm, bm, params.forceRebuild)
+	brokers := mapper.BrokerMapFromPartitionMap(pm, bm, params.forceRebuild)
 
 	// Update the currentBrokers list with the provided broker list.
 	bs, msgs := brokers.Update(params.brokers, bm)
@@ -266,7 +267,7 @@ func getBrokers(params rebuildParams, pm *kafkazk.PartitionMap, bm kafkazk.Broke
 
 // printChangesActions takes a BrokerStatus and prints out information output
 // describing changes in broker counts and liveness.
-func printChangesActions(params rebuildParams, bs *kafkazk.BrokerStatus) {
+func printChangesActions(params rebuildParams, bs *mapper.BrokerStatus) {
 	change := bs.New - bs.Replace
 
 	// Print broker change summary.
@@ -317,7 +318,7 @@ func printChangesActions(params rebuildParams, bs *kafkazk.BrokerStatus) {
 
 // updateReplicationFactor takes a PartitionMap and normalizes the replica set
 // length to an optionally provided value.
-func updateReplicationFactor(params rebuildParams, pm *kafkazk.PartitionMap) {
+func updateReplicationFactor(params rebuildParams, pm *mapper.PartitionMap) {
 	// If the replication factor is changed, the partition map input needs to have
 	// stub brokers appended (r factor increase) or existing brokers removed
 	// (r factor decrease).
@@ -329,8 +330,8 @@ func updateReplicationFactor(params rebuildParams, pm *kafkazk.PartitionMap) {
 // buildMap takes an input PartitionMap, rebuild parameters, and all partition/broker
 // metadata structures required to generate the output PartitionMap. A []string of
 // warnings / advisories is returned if any are encountered.
-func buildMap(params rebuildParams, pm *kafkazk.PartitionMap, pmm kafkazk.PartitionMetaMap, bm kafkazk.BrokerMap, af kafkazk.SubstitutionAffinities) (*kafkazk.PartitionMap, errors) {
-	rebuildParams := kafkazk.RebuildParams{
+func buildMap(params rebuildParams, pm *mapper.PartitionMap, pmm mapper.PartitionMetaMap, bm mapper.BrokerMap, af mapper.SubstitutionAffinities) (*mapper.PartitionMap, errors) {
+	rebuildParams := mapper.RebuildParams{
 		PMM:              pmm,
 		BM:               bm,
 		Strategy:         params.placement,
@@ -361,7 +362,7 @@ func buildMap(params rebuildParams, pm *kafkazk.PartitionMap, pmm kafkazk.Partit
 		// If the storage placement strategy is being used,
 		// update the broker StorageFree values.
 		if params.placement == "storage" {
-			err := rebuildParams.BM.SubStorage(pm, pmm, kafkazk.AllBrokersFn)
+			err := rebuildParams.BM.SubStorage(pm, pmm, mapper.AllBrokersFn)
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(1)
@@ -374,7 +375,7 @@ func buildMap(params rebuildParams, pm *kafkazk.PartitionMap, pmm kafkazk.Partit
 
 	// Update the StorageFree only on brokers marked for replacement.
 	if params.placement == "storage" {
-		err := rebuildParams.BM.SubStorage(pm, pmm, kafkazk.ReplacedBrokersFn)
+		err := rebuildParams.BM.SubStorage(pm, pmm, mapper.ReplacedBrokersFn)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -388,7 +389,7 @@ func buildMap(params rebuildParams, pm *kafkazk.PartitionMap, pmm kafkazk.Partit
 // phasedReassignment takes the input map (the current ISR states) and the
 // output map (the results of the topicmappr input parameters / computation)
 // and prepends the current leaders as the leaders of the output map.
-func phasedReassignment(pm1, pm2 *kafkazk.PartitionMap) *kafkazk.PartitionMap {
+func phasedReassignment(pm1, pm2 *mapper.PartitionMap) *mapper.PartitionMap {
 	// Get topics from output partition map.
 	topics := pm2.Topics()
 
@@ -432,7 +433,7 @@ func notInReplicaSet(id int, rs []int) bool {
 // evacuateLeadership For the given set of topics, makes sure that the given brokers are not
 // leaders of any partitions. If we have any partitions that only have replicas from the
 // evac broker list, we will fail.
-func evacuateLeadership(partitionMapIn kafkazk.PartitionMap, evacBrokers []int, evacTopics []string) *kafkazk.PartitionMap {
+func evacuateLeadership(partitionMapIn mapper.PartitionMap, evacBrokers []int, evacTopics []string) *mapper.PartitionMap {
 	// evacuation algo starts here
 	partitionMapOut := partitionMapIn.Copy()
 

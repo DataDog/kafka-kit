@@ -3,8 +3,8 @@ package main
 import (
 	"testing"
 
-	"github.com/DataDog/kafka-kit/v3/cmd/autothrottle/internal/throttlestore"
-	"github.com/DataDog/kafka-kit/v3/kafkazk"
+	"github.com/DataDog/kafka-kit/v4/cmd/autothrottle/internal/throttlestore"
+	"github.com/DataDog/kafka-kit/v4/kafkazk"
 )
 
 func TestLegacyGetTopicsWithThrottledBrokers(t *testing.T) {
@@ -71,7 +71,7 @@ func TestFilter(t *testing.T) {
 	matchID := 1000
 
 	// Our filter func. returns any topic that includes matchID as a replica.
-	fn := func(ts kafkazk.TopicState) bool {
+	fn := func(ts mapper.TopicState) bool {
 		// The stub partition state here is []int{1000,1001}.
 		for _, id := range ts.Partitions["0"] {
 			if id == matchID {

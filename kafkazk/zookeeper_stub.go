@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/DataDog/kafka-kit/v4/mapper"
 )
 
 var (
@@ -16,7 +18,7 @@ var (
 
 // Stub stubs the Handler interface.
 type Stub struct {
-	bmm  BrokerMetaMap
+	bmm  mapper.BrokerMetaMap
 	data map[string]*StubZnode
 }
 
@@ -30,19 +32,19 @@ type StubZnode struct {
 // NewZooKeeperStub returns a stub ZooKeeper.
 func NewZooKeeperStub() *Stub {
 	return &Stub{
-		bmm: BrokerMetaMap{
-			1001: &BrokerMeta{Rack: "a"},
-			1002: &BrokerMeta{Rack: "b"},
-			1003: &BrokerMeta{Rack: ""},
-			1004: &BrokerMeta{Rack: "a"},
-			1005: &BrokerMeta{Rack: "b"},
-			1007: &BrokerMeta{Rack: ""},
+		bmm: mapper.BrokerMetaMap{
+			1001: &mapper.BrokerMeta{Rack: "a"},
+			1002: &mapper.BrokerMeta{Rack: "b"},
+			1003: &mapper.BrokerMeta{Rack: ""},
+			1004: &mapper.BrokerMeta{Rack: "a"},
+			1005: &mapper.BrokerMeta{Rack: "b"},
+			1007: &mapper.BrokerMeta{Rack: ""},
 		},
 		data: map[string]*StubZnode{},
 	}
 }
 
-// RemoveBrokers removes the specified IDs from the BrokerMetaMap. This can be
+// RemoveBrokers removes the specified IDs from the mapper.BrokerMetaMap. This can be
 // used in testing to simulate brokers leaving the cluster.
 func (zk *Stub) RemoveBrokers(ids []int) {
 	for _, id := range ids {
@@ -51,8 +53,8 @@ func (zk *Stub) RemoveBrokers(ids []int) {
 }
 
 // AddBrokers takes a map of broker ID to BrokerMeta and adds it to the Stub
-// BrokerMetaMap.
-func (zk *Stub) AddBrokers(b map[int]BrokerMeta) {
+// mapper.BrokerMetaMap.
+func (zk *Stub) AddBrokers(b map[int]mapper.BrokerMeta) {
 	for id, meta := range b {
 		zk.bmm[id] = &meta
 	}
@@ -242,10 +244,10 @@ func (zk *Stub) NextInt(p string) (int32, error) {
 }
 
 // GetTopicState stubs GetTopicState.
-func (zk *Stub) GetTopicState(t string) (*TopicState, error) {
+func (zk *Stub) GetTopicState(t string) (*mapper.TopicState, error) {
 	_ = t
 
-	ts := &TopicState{
+	ts := &mapper.TopicState{
 		Partitions: map[string][]int{
 			"0": {1000, 1001},
 			"1": {1002, 1003},
@@ -343,7 +345,7 @@ func (zk *Stub) GetTopicConfig(t string) (*TopicConfig, error) {
 }
 
 // GetAllBrokerMeta stubs GetAllBrokerMeta.
-func (zk *Stub) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, []error) {
+func (zk *Stub) GetAllBrokerMeta(withMetrics bool) (mapper.BrokerMetaMap, []error) {
 	b := zk.bmm.Copy()
 
 	if withMetrics {
@@ -358,43 +360,43 @@ func (zk *Stub) GetAllBrokerMeta(withMetrics bool) (BrokerMetaMap, []error) {
 }
 
 // GetBrokerMetrics stubs GetBrokerMetrics.
-func (zk *Stub) GetBrokerMetrics() (BrokerMetricsMap, error) {
-	bm := BrokerMetricsMap{
-		1001: &BrokerMetrics{StorageFree: 2000.00},
-		1002: &BrokerMetrics{StorageFree: 4000.00},
-		1003: &BrokerMetrics{StorageFree: 6000.00},
-		1004: &BrokerMetrics{StorageFree: 8000.00},
-		1005: &BrokerMetrics{StorageFree: 10000.00},
-		1007: &BrokerMetrics{StorageFree: 12000.00},
+func (zk *Stub) GetBrokerMetrics() (mapper.BrokerMetricsMap, error) {
+	bm := mapper.BrokerMetricsMap{
+		1001: &mapper.BrokerMetrics{StorageFree: 2000.00},
+		1002: &mapper.BrokerMetrics{StorageFree: 4000.00},
+		1003: &mapper.BrokerMetrics{StorageFree: 6000.00},
+		1004: &mapper.BrokerMetrics{StorageFree: 8000.00},
+		1005: &mapper.BrokerMetrics{StorageFree: 10000.00},
+		1007: &mapper.BrokerMetrics{StorageFree: 12000.00},
 	}
 
 	return bm, nil
 }
 
 // GetAllPartitionMeta stubs GetAllPartitionMeta.
-func (zk *Stub) GetAllPartitionMeta() (PartitionMetaMap, error) {
-	pm := NewPartitionMetaMap()
-	pm["test_topic"] = map[int]*PartitionMeta{}
+func (zk *Stub) GetAllPartitionMeta() (mapper.PartitionMetaMap, error) {
+	pm := mapper.NewPartitionMetaMap()
+	pm["test_topic"] = map[int]*mapper.PartitionMeta{}
 
-	pm["test_topic"][0] = &PartitionMeta{Size: 1000.00}
-	pm["test_topic"][1] = &PartitionMeta{Size: 1500.00}
-	pm["test_topic"][2] = &PartitionMeta{Size: 2000.00}
-	pm["test_topic"][3] = &PartitionMeta{Size: 2500.00}
-	pm["test_topic"][4] = &PartitionMeta{Size: 2200.00}
-	pm["test_topic"][5] = &PartitionMeta{Size: 4000.00}
+	pm["test_topic"][0] = &mapper.PartitionMeta{Size: 1000.00}
+	pm["test_topic"][1] = &mapper.PartitionMeta{Size: 1500.00}
+	pm["test_topic"][2] = &mapper.PartitionMeta{Size: 2000.00}
+	pm["test_topic"][3] = &mapper.PartitionMeta{Size: 2500.00}
+	pm["test_topic"][4] = &mapper.PartitionMeta{Size: 2200.00}
+	pm["test_topic"][5] = &mapper.PartitionMeta{Size: 4000.00}
 
 	return pm, nil
 }
 
-// GetPartitionMap stubs GetPartitionMap.
-func (zk *Stub) GetPartitionMap(t string) (*PartitionMap, error) {
-	p := &PartitionMap{
+// GetPartitionMap stubs Getmapper.PartitionMap.
+func (zk *Stub) GetPartitionMap(t string) (*mapper.PartitionMap, error) {
+	p := &mapper.PartitionMap{
 		Version: 1,
-		Partitions: PartitionList{
-			Partition{Topic: t, Partition: 0, Replicas: []int{1001, 1002}},
-			Partition{Topic: t, Partition: 1, Replicas: []int{1002, 1001}},
-			Partition{Topic: t, Partition: 2, Replicas: []int{1003, 1004, 1001}},
-			Partition{Topic: t, Partition: 3, Replicas: []int{1004, 1003, 1002}},
+		Partitions: mapper.PartitionList{
+			mapper.Partition{Topic: t, Partition: 0, Replicas: []int{1001, 1002}},
+			mapper.Partition{Topic: t, Partition: 1, Replicas: []int{1002, 1001}},
+			mapper.Partition{Topic: t, Partition: 2, Replicas: []int{1003, 1004, 1001}},
+			mapper.Partition{Topic: t, Partition: 3, Replicas: []int{1004, 1003, 1002}},
 		},
 	}
 

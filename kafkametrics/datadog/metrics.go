@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/DataDog/kafka-kit/v3/kafkametrics"
+	"github.com/DataDog/kafka-kit/v4/kafkametrics"
 
 	dd "github.com/zorkian/go-datadog-api"
 )

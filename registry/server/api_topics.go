@@ -8,10 +8,11 @@ import (
 	"sort"
 	"strconv"
 
-	zklocking "github.com/DataDog/kafka-kit/v3/cluster/zookeeper"
-	"github.com/DataDog/kafka-kit/v3/kafkaadmin"
-	"github.com/DataDog/kafka-kit/v3/kafkazk"
-	pb "github.com/DataDog/kafka-kit/v3/registry/registry"
+	zklocking "github.com/DataDog/kafka-kit/v4/cluster/zookeeper"
+	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
+	"github.com/DataDog/kafka-kit/v4/kafkazk"
+	"github.com/DataDog/kafka-kit/v4/mapper"
+	pb "github.com/DataDog/kafka-kit/v4/registry/registry"
 )
 
 var (
@@ -189,12 +190,12 @@ func (s *Server) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*
 	var assignment kafkaadmin.ReplicaAssignment
 	if req.TargetBrokerTags != nil || req.TargetBrokerIds != nil {
 		// Create a stub map with the provided request dimensions.
-		opts := kafkazk.Populate(
+		opts := mapper.Populate(
 			req.Topic.Name,
 			int(req.Topic.Partitions),
 			int(req.Topic.Replication),
 		)
-		pMap := kafkazk.NewPartitionMap(opts)
+		pMap := mapper.NewPartitionMap(opts)
 		// Fetch brokers by tag. If no tag was specified, this will return all the brokers:
 		reqParams := &pb.BrokerRequest{Tag: req.TargetBrokerTags}
 		resp, err := s.ListBrokers(ctx, reqParams)
@@ -241,7 +242,7 @@ func (s *Server) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*
 		}
 
 		// Create a stub BrokerMap.
-		bMap := kafkazk.NewBrokerMap()
+		bMap := mapper.NewBrokerMap()
 
 		// Get the live broker metadata.
 		brokerState, errs := s.ZK.GetAllBrokerMeta(false)
@@ -258,7 +259,7 @@ func (s *Server) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*
 		bMap.Update(targetBrokerIDs, brokerState)
 
 		// Rebuild the stub map with the discovered target broker list.
-		rebuildParams := kafkazk.RebuildParams{
+		rebuildParams := mapper.RebuildParams{
 			BM:       bMap,
 			Strategy: "count",
 		}
@@ -354,7 +355,7 @@ func (s *Server) TopicMappings(ctx context.Context, req *pb.TopicRequest) (*pb.B
 		return nil, ErrTopicNameEmpty
 	}
 
-	// Get a kafkazk.PartitionMap for the topic.
+	// Get a mapper.PartitionMap for the topic.
 	pm, err := s.ZK.GetPartitionMap(req.Name)
 	if err != nil {
 		switch err.(type) {
@@ -365,11 +366,11 @@ func (s *Server) TopicMappings(ctx context.Context, req *pb.TopicRequest) (*pb.B
 		}
 	}
 
-	// Get a kafkazk.BrokerMap from the PartitionMap.
-	bm := kafkazk.BrokerMapFromPartitionMap(pm, nil, false)
+	// Get a mapper.BrokerMap from the PartitionMap.
+	bm := mapper.BrokerMapFromPartitionMap(pm, nil, false)
 
 	// Get all brokers as a []int of IDs.
-	allf := func(*kafkazk.Broker) bool { return true }
+	allf := func(*mapper.Broker) bool { return true }
 	bl := bm.Filter(allf).List()
 	bl.SortByID()
 
@@ -605,9 +606,9 @@ type fetchTopicSetParams struct {
 	withReplicas bool
 }
 
-// PartitionMapToReplicaAssignment takes a *kafkazk.PartitionMap and
+// PartitionMapToReplicaAssignment takes a *mapper.PartitionMap and
 // transforms it into an admin.ReplicaAssignment.
-func PartitionMapToReplicaAssignment(pm *kafkazk.PartitionMap) kafkaadmin.ReplicaAssignment {
+func PartitionMapToReplicaAssignment(pm *mapper.PartitionMap) kafkaadmin.ReplicaAssignment {
 	ra := make(kafkaadmin.ReplicaAssignment, len(pm.Partitions))
 
 	// Map partition replica sets from the PartitionMap

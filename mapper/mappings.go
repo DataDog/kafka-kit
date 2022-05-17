@@ -1,11 +1,11 @@
-package kafkazk
+package mapper
 
 import (
 	"fmt"
 )
 
-// Mappings is a mapping of broker IDs to currently held
-// partition as a PartitionList.
+// Mappings is a mapping of broker IDs to currently held partition as a
+// PartitionList.
 type Mappings map[int]map[string]PartitionList
 
 // NewMappings returns a new Mappings.
@@ -51,9 +51,8 @@ func (pm *PartitionMap) Mappings() Mappings {
 	return m
 }
 
-// LargestPartitions takes a broker ID and PartitionMetaMap and
-// returns a PartitionList with the top k partitions by size for
-// the provided broker ID.
+// LargestPartitions takes a broker ID and PartitionMetaMap and returns a
+// PartitionList with the top k partitions by size for the provided broker ID.
 func (m Mappings) LargestPartitions(id int, k int, pm PartitionMetaMap) (PartitionList, error) {
 	var allBySize PartitionList
 
@@ -77,8 +76,7 @@ func (m Mappings) LargestPartitions(id int, k int, pm PartitionMetaMap) (Partiti
 	return pl, nil
 }
 
-// Remove takes a broker ID and partition and
-// removes the mapping association.
+// Remove takes a broker ID and partition and removes the mapping association.
 func (m Mappings) Remove(id int, p Partition) error {
 	if _, exist := m[id]; !exist {
 		return NoMappingForBroker{id: id}

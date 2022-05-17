@@ -3,24 +3,25 @@ package commands
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/DataDog/kafka-kit/v3/kafkazk"
 	"io/ioutil"
 	"testing"
+
+	"github.com/DataDog/kafka-kit/v4/mapper"
 )
 
 func TestBasicChunkedDownscale(t *testing.T) {
 	var inMap = readTestPartitionMap("nine_brokers.json")
 	var finalMap = readTestPartitionMap("three_brokers.json")
-	var chunks = getPartitionMapChunks(&finalMap, &inMap, kafkazk.BrokerList{
-		&kafkazk.Broker{ID: 10000},
-		&kafkazk.Broker{ID: 10001},
-		&kafkazk.Broker{ID: 10002},
-		&kafkazk.Broker{ID: 10003},
-		&kafkazk.Broker{ID: 10004},
-		&kafkazk.Broker{ID: 10005},
-		&kafkazk.Broker{ID: 10006},
-		&kafkazk.Broker{ID: 10007},
-		&kafkazk.Broker{ID: 10008}}, 3)
+	var chunks = getPartitionMapChunks(&finalMap, &inMap, mapper.BrokerList{
+		&mapper.Broker{ID: 10000},
+		&mapper.Broker{ID: 10001},
+		&mapper.Broker{ID: 10002},
+		&mapper.Broker{ID: 10003},
+		&mapper.Broker{ID: 10004},
+		&mapper.Broker{ID: 10005},
+		&mapper.Broker{ID: 10006},
+		&mapper.Broker{ID: 10007},
+		&mapper.Broker{ID: 10008}}, 3)
 
 	validateFinalChunk(t, chunks, finalMap)
 	validateMapDoesNotContainBrokers(t, chunks[0], []int{10008, 10007, 10006})
@@ -33,16 +34,16 @@ func TestBasicChunkedDownscale(t *testing.T) {
 func TestIgnoresNoop(t *testing.T) {
 	var inMap = readTestPartitionMap("nine_brokers.json")
 	var finalMap = readTestPartitionMap("nine_brokers.json")
-	var chunks = getPartitionMapChunks(&finalMap, &inMap, kafkazk.BrokerList{
-		&kafkazk.Broker{ID: 10000},
-		&kafkazk.Broker{ID: 10001},
-		&kafkazk.Broker{ID: 10002},
-		&kafkazk.Broker{ID: 10003},
-		&kafkazk.Broker{ID: 10004},
-		&kafkazk.Broker{ID: 10005},
-		&kafkazk.Broker{ID: 10006},
-		&kafkazk.Broker{ID: 10007},
-		&kafkazk.Broker{ID: 10008}}, 3)
+	var chunks = getPartitionMapChunks(&finalMap, &inMap, mapper.BrokerList{
+		&mapper.Broker{ID: 10000},
+		&mapper.Broker{ID: 10001},
+		&mapper.Broker{ID: 10002},
+		&mapper.Broker{ID: 10003},
+		&mapper.Broker{ID: 10004},
+		&mapper.Broker{ID: 10005},
+		&mapper.Broker{ID: 10006},
+		&mapper.Broker{ID: 10007},
+		&mapper.Broker{ID: 10008}}, 3)
 
 	if len(chunks) != 0 {
 		t.Errorf("Noop should result in no chunks generated.")
@@ -52,16 +53,16 @@ func TestIgnoresNoop(t *testing.T) {
 func TestBasicChunkedDownscaleStepSizeOne(t *testing.T) {
 	var inMap = readTestPartitionMap("nine_brokers.json")
 	var finalMap = readTestPartitionMap("three_brokers.json")
-	var chunks = getPartitionMapChunks(&finalMap, &inMap, kafkazk.BrokerList{
-		&kafkazk.Broker{ID: 10000},
-		&kafkazk.Broker{ID: 10001},
-		&kafkazk.Broker{ID: 10002},
-		&kafkazk.Broker{ID: 10003},
-		&kafkazk.Broker{ID: 10004},
-		&kafkazk.Broker{ID: 10005},
-		&kafkazk.Broker{ID: 10006},
-		&kafkazk.Broker{ID: 10007},
-		&kafkazk.Broker{ID: 10008}}, 1)
+	var chunks = getPartitionMapChunks(&finalMap, &inMap, mapper.BrokerList{
+		&mapper.Broker{ID: 10000},
+		&mapper.Broker{ID: 10001},
+		&mapper.Broker{ID: 10002},
+		&mapper.Broker{ID: 10003},
+		&mapper.Broker{ID: 10004},
+		&mapper.Broker{ID: 10005},
+		&mapper.Broker{ID: 10006},
+		&mapper.Broker{ID: 10007},
+		&mapper.Broker{ID: 10008}}, 1)
 
 	validateFinalChunk(t, chunks, finalMap)
 	validateMapDoesNotContainBrokers(t, chunks[0], []int{10008})
@@ -78,16 +79,16 @@ func TestBasicChunkedDownscaleStepSizeOne(t *testing.T) {
 func TestChunksGeneratedWithConsistentOrdering(t *testing.T) {
 	var inMap = readTestPartitionMap("nine_brokers.json")
 	var finalMap = readTestPartitionMap("three_brokers.json")
-	var chunks = getPartitionMapChunks(&finalMap, &inMap, kafkazk.BrokerList{
-		&kafkazk.Broker{ID: 10001},
-		&kafkazk.Broker{ID: 10000},
-		&kafkazk.Broker{ID: 10006},
-		&kafkazk.Broker{ID: 10005},
-		&kafkazk.Broker{ID: 10002},
-		&kafkazk.Broker{ID: 10007},
-		&kafkazk.Broker{ID: 10004},
-		&kafkazk.Broker{ID: 10003},
-		&kafkazk.Broker{ID: 10008}}, 1)
+	var chunks = getPartitionMapChunks(&finalMap, &inMap, mapper.BrokerList{
+		&mapper.Broker{ID: 10001},
+		&mapper.Broker{ID: 10000},
+		&mapper.Broker{ID: 10006},
+		&mapper.Broker{ID: 10005},
+		&mapper.Broker{ID: 10002},
+		&mapper.Broker{ID: 10007},
+		&mapper.Broker{ID: 10004},
+		&mapper.Broker{ID: 10003},
+		&mapper.Broker{ID: 10008}}, 1)
 
 	validateFinalChunk(t, chunks, finalMap)
 	validateMapDoesNotContainBrokers(t, chunks[0], []int{10008})
@@ -104,16 +105,16 @@ func TestChunksGeneratedWithConsistentOrdering(t *testing.T) {
 func TestUnevenBrokersForStepSize(t *testing.T) {
 	var inMap = readTestPartitionMap("nine_brokers.json")
 	var finalMap = readTestPartitionMap("three_brokers.json")
-	var chunks = getPartitionMapChunks(&finalMap, &inMap, kafkazk.BrokerList{
-		&kafkazk.Broker{ID: 10000},
-		&kafkazk.Broker{ID: 10001},
-		&kafkazk.Broker{ID: 10002},
-		&kafkazk.Broker{ID: 10003},
-		&kafkazk.Broker{ID: 10004},
-		&kafkazk.Broker{ID: 10005},
-		&kafkazk.Broker{ID: 10006},
-		&kafkazk.Broker{ID: 10007},
-		&kafkazk.Broker{ID: 10008}}, 4)
+	var chunks = getPartitionMapChunks(&finalMap, &inMap, mapper.BrokerList{
+		&mapper.Broker{ID: 10000},
+		&mapper.Broker{ID: 10001},
+		&mapper.Broker{ID: 10002},
+		&mapper.Broker{ID: 10003},
+		&mapper.Broker{ID: 10004},
+		&mapper.Broker{ID: 10005},
+		&mapper.Broker{ID: 10006},
+		&mapper.Broker{ID: 10007},
+		&mapper.Broker{ID: 10008}}, 4)
 
 	validateFinalChunk(t, chunks, finalMap)
 	validateMapDoesNotContainBrokers(t, chunks[0], []int{10005, 10006, 10007, 10008})
@@ -126,16 +127,16 @@ func TestUnevenBrokersForStepSize(t *testing.T) {
 func TestChunkSizeBiggerThanAvailableBrokers(t *testing.T) {
 	var inMap = readTestPartitionMap("nine_brokers.json")
 	var finalMap = readTestPartitionMap("three_brokers.json")
-	var chunks = getPartitionMapChunks(&finalMap, &inMap, kafkazk.BrokerList{
-		&kafkazk.Broker{ID: 10000},
-		&kafkazk.Broker{ID: 10001},
-		&kafkazk.Broker{ID: 10002},
-		&kafkazk.Broker{ID: 10003},
-		&kafkazk.Broker{ID: 10004},
-		&kafkazk.Broker{ID: 10005},
-		&kafkazk.Broker{ID: 10006},
-		&kafkazk.Broker{ID: 10007},
-		&kafkazk.Broker{ID: 10008}}, 12)
+	var chunks = getPartitionMapChunks(&finalMap, &inMap, mapper.BrokerList{
+		&mapper.Broker{ID: 10000},
+		&mapper.Broker{ID: 10001},
+		&mapper.Broker{ID: 10002},
+		&mapper.Broker{ID: 10003},
+		&mapper.Broker{ID: 10004},
+		&mapper.Broker{ID: 10005},
+		&mapper.Broker{ID: 10006},
+		&mapper.Broker{ID: 10007},
+		&mapper.Broker{ID: 10008}}, 12)
 
 	validateFinalChunk(t, chunks, finalMap)
 	validateMapDoesNotContainBrokers(t, chunks[0], []int{10003, 10004, 10005, 10006, 10007, 10008})
@@ -144,13 +145,13 @@ func TestChunkSizeBiggerThanAvailableBrokers(t *testing.T) {
 	}
 }
 
-func validateFinalChunk(t *testing.T, chunks []*kafkazk.PartitionMap, finalMap kafkazk.PartitionMap) {
+func validateFinalChunk(t *testing.T, chunks []*mapper.PartitionMap, finalMap mapper.PartitionMap) {
 	if equals, _ := chunks[len(chunks)-1].Equal(&finalMap); !equals {
 		t.Errorf("Final chunk should be equal to the desired map.")
 	}
 }
 
-func validateMapDoesNotContainBrokers(t *testing.T, m *kafkazk.PartitionMap, brokers []int) {
+func validateMapDoesNotContainBrokers(t *testing.T, m *mapper.PartitionMap, brokers []int) {
 	for _, p := range m.Partitions {
 		for _, r := range p.Replicas {
 			for _, b := range brokers {
@@ -162,9 +163,9 @@ func validateMapDoesNotContainBrokers(t *testing.T, m *kafkazk.PartitionMap, bro
 	}
 }
 
-func readTestPartitionMap(filename string) kafkazk.PartitionMap {
+func readTestPartitionMap(filename string) mapper.PartitionMap {
 	file, _ := ioutil.ReadFile(fmt.Sprintf("../test_resources/%s", filename))
-	data := kafkazk.PartitionMap{}
+	data := mapper.PartitionMap{}
 	_ = json.Unmarshal(file, &data)
 	return data
 }

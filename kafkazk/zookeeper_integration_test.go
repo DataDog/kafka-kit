@@ -14,8 +14,9 @@ import (
 	"testing"
 	"time"
 
-	zkclient "github.com/go-zookeeper/zk"
+	"github.com/DataDog/kafka-kit/v4/mapper"
 
+	zkclient "github.com/go-zookeeper/zk"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -56,8 +57,8 @@ func (a byLen) Len() int           { return len(a) }
 func (a byLen) Less(i, j int) bool { return len(a[i]) > len(a[j]) }
 func (a byLen) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
-// rawHandler is used for testing unexported ZKHandler
-// methods that are not part of the Handler interface.
+// rawHandler is used for testing unexported ZKHandler methods that are not part
+// of the Handler interface.
 func rawHandler(c *Config) (*ZKHandler, error) {
 	z := &ZKHandler{
 		Connect:       c.Connect,
@@ -74,18 +75,17 @@ func rawHandler(c *Config) (*ZKHandler, error) {
 	return z, nil
 }
 
-// TestSetup is used for long tests that rely on a blank ZooKeeper
-// server listening on localhost:2181. A direct ZooKeeper client
-// is initialized to write test data into ZooKeeper that a Handler
-// interface implementation may be tested against. Any Handler to be
-// tested should also be instantiated here. A usable setup can be done
-// with the official ZooKeeper docker image:
+// TestSetup is used for long tests that rely on a blank ZooKeepe server
+// listening on localhost:2181. A direct ZooKeeper clien is initialized to write
+// test data into ZooKeeper that a Handle interface implementation may be tested
+// against. Any Handler to b tested should also be instantiated here. A usable
+// setup can be don with the official ZooKeeper docker image:
 // - $ docker pull zookeeper
 // - $ docker run --rm -d -p 2181:2181 zookeeper
-// While the long tests perform a teardown, it's preferable to run the
-// container with --rm and just using starting a new one for each test
-// run. The removal logic in TestTearDown is quite rudimentary. If any
-// steps fail, subsequent test runs will likely produce errors.
+// While the long tests perform a teardown, it's preferable to run the container
+// with --rm and just using starting a new one for each test run. The removal
+// logic in TestTearDown is quite rudimentary. If any steps fail, subsequent test
+// runs will likely produce errors.
 func TestSetup(t *testing.T) {
 	overrideZKAddr := os.Getenv("TEST_ZK_ADDR")
 	if overrideZKAddr != "" {
@@ -135,7 +135,7 @@ func TestSetup(t *testing.T) {
 	}
 
 	// Create topics.
-	partitionMeta := NewPartitionMetaMap()
+	partitionMeta := mapper.NewPartitionMetaMap()
 	data := []byte(`{"version":1,"partitions":{"0":[1001,1002],"1":[1002,1001],"2":[1003,1004],"3":[1004,1003]}}`)
 
 	for i := 0; i < 5; i++ {
@@ -148,7 +148,7 @@ func TestSetup(t *testing.T) {
 		}
 
 		// Create partition meta.
-		partitionMeta[topic] = map[int]*PartitionMeta{
+		partitionMeta[topic] = map[int]*mapper.PartitionMeta{
 			0: {Size: 1000.00},
 			1: {Size: 2000.00},
 			2: {Size: 3000.00},
@@ -192,8 +192,8 @@ func TestSetup(t *testing.T) {
 			`{"controller_epoch":1,"leader":1004,"version":1,"leader_epoch":1,"isr":[1004,1003]}`,
 		}
 
-		// We need at least one topic/partition to appear as under-replicated to
-		// test some functions.
+		// We need at least one topic/partition to appear as under-replicated to test
+		// some functions.
 		if i == 2 {
 			states[0] = `{"controller_epoch":1,"leader":1002,"version":1,"leader_epoch":2,"isr":[1002]}`
 		}
@@ -796,13 +796,14 @@ func TestGetPartitionMap(t *testing.T) {
 		t.Error(err)
 	}
 
-	expected := &PartitionMap{
+	expected := &mapper.PartitionMap{
 		Version: 1,
-		Partitions: PartitionList{
-			Partition{Topic: "topic0", Partition: 0, Replicas: []int{1003, 1004}}, // Via the stub reassign_partitions data.
-			Partition{Topic: "topic0", Partition: 1, Replicas: []int{1002, 1001}},
-			Partition{Topic: "topic0", Partition: 2, Replicas: []int{1003, 1004}},
-			Partition{Topic: "topic0", Partition: 3, Replicas: []int{1004, 1003}},
+		Partitions: mapper.PartitionList{
+			// Via the stub reassign_partitions data.
+			mapper.Partition{Topic: "topic0", Partition: 0, Replicas: []int{1003, 1004}},
+			mapper.Partition{Topic: "topic0", Partition: 1, Replicas: []int{1002, 1001}},
+			mapper.Partition{Topic: "topic0", Partition: 2, Replicas: []int{1003, 1004}},
+			mapper.Partition{Topic: "topic0", Partition: 3, Replicas: []int{1004, 1003}},
 		},
 	}
 
@@ -826,8 +827,7 @@ func TestUpdateKafkaConfigBroker(t *testing.T) {
 		t.Error(err)
 	}
 
-	// Re-running the same config should
-	// be a no-op.
+	// Re-running the same config should be a no-op.
 	changes, err := zki.UpdateKafkaConfig(c)
 	if err != nil {
 		t.Error(err)
@@ -876,8 +876,7 @@ func TestUpdateKafkaConfigTopic(t *testing.T) {
 		t.Error(err)
 	}
 
-	// Re-running the same config should
-	// be a no-op.
+	// Re-running the same config should  be a no-op.
 	changes, err := zki.UpdateKafkaConfig(c)
 	if err != nil {
 		t.Error(err)

@@ -1,4 +1,4 @@
-package kafkazk
+package mapper
 
 import (
 	"testing"
@@ -21,8 +21,7 @@ func TestSelectBrokerByCount(t *testing.T) {
 	c := NewConstraints()
 	// Removes ID 1000 as a candidate.
 	c.id[1000] = true
-	// Removes any brokers with locality
-	// "b" as candidates.
+	// Removes any brokers with locality "b" as candidates.
 	c.locality["b"] = true
 
 	p := ConstraintsParams{
@@ -63,8 +62,7 @@ func TestSelectBrokerByStorage(t *testing.T) {
 	}
 
 	c := NewConstraints()
-	// Removes any brokers with locality
-	// "b" as candidates.
+	// Removes any brokers with locality "b" as candidates.
 	c.locality["c"] = true
 
 	p := ConstraintsParams{
@@ -79,8 +77,7 @@ func TestSelectBrokerByStorage(t *testing.T) {
 		t.Errorf("Expected candidate with ID 1003, got %d", b.ID)
 	}
 
-	// Ensure that the request size was deducted
-	// from the broker storage.
+	// Ensure that the request size was deducted from the broker storage.
 	if b.StorageFree != 2000.00 {
 		t.Errorf("Expected StorageFree of 2000.00, got %2.f", b.StorageFree)
 	}
@@ -118,8 +115,7 @@ func TestBestCandidateByCount(t *testing.T) {
 	c := NewConstraints()
 	// Removes ID 1000 as a candidate.
 	c.id[1000] = true
-	// Removes any brokers with locality
-	// "b" as candidates.
+	// Removes any brokers with locality "b" as candidates.
 	c.locality["b"] = true
 
 	b, _ := bl.BestCandidate(c, "count", 1)
@@ -156,8 +152,7 @@ func TestBestCandidateByStorage(t *testing.T) {
 	}
 
 	c := NewConstraints()
-	// Removes any brokers with locality
-	// "b" as candidates.
+	// Removes any brokers with locality "b" as candidates.
 	c.locality["c"] = true
 	// Sets request size.
 	c.requestSize = 1000.00
@@ -169,8 +164,7 @@ func TestBestCandidateByStorage(t *testing.T) {
 		t.Errorf("Expected candidate with ID 1003, got %d", b.ID)
 	}
 
-	// Ensure that the request size was deducted
-	// from the broker storage.
+	// Ensure that the request size was deducted from the broker storage.
 	if b.StorageFree != 2000.00 {
 		t.Errorf("Expected StorageFree of 2000.00, got %2.f", b.StorageFree)
 	}
@@ -314,8 +308,7 @@ func TestMergeConstraints(t *testing.T) {
 			Locality: localities[i%3],
 		}
 
-		// Brokers marked for replacement
-		// don't get merged in.
+		// Brokers marked for replacement don't get merged in.
 		if i == 4 {
 			b.Replace = true
 		}
@@ -356,8 +349,7 @@ func TestMergeConstraintsX(t *testing.T) {
 			Locality: localities[i%3],
 		}
 
-		// Brokers marked for replacement
-		// don't get merged in.
+		// Brokers marked for replacement don't get merged in.
 		if i == 4 {
 			b.Replace = true
 		}

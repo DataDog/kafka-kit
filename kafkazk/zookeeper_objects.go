@@ -44,8 +44,8 @@ type TopicMetadata struct {
 	RemovingReplicas map[int][]int `json:"removing_replicas"`
 }
 
-// KafkaConfig is used to issue configuration updates to either
-// topics or brokers in ZooKeeper.
+// KafkaConfig is used to issue configuration updates to either topics or brokers
+// in ZooKeeper.
 type KafkaConfig struct {
 	Type    string          // Topic or broker.
 	Name    string          // Entity name.
@@ -55,8 +55,8 @@ type KafkaConfig struct {
 // KafkaConfigKV is a [2]string{key, value} representing a Kafka configuration.
 type KafkaConfigKV [2]string
 
-// KafkaConfigData is used for unmarshalling /config/<type>/<name> data
-// from ZooKeeper.
+// KafkaConfigData is used for unmarshalling /config/<type>/<name> data from
+// ZooKeeper.
 type KafkaConfigData struct {
 	Version int               `json:"version"`
 	Config  map[string]string `json:"config"`

@@ -8,8 +8,8 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/DataDog/kafka-kit/v3/kafkazk"
-	pb "github.com/DataDog/kafka-kit/v3/registry/registry"
+	"github.com/DataDog/kafka-kit/v4/mapper"
+	pb "github.com/DataDog/kafka-kit/v4/registry/registry"
 )
 
 var (
@@ -101,7 +101,7 @@ func (s *Server) UnmappedBrokers(ctx context.Context, req *pb.UnmappedBrokersReq
 		exclude[e] = struct{}{}
 	}
 
-	// Get a kafkazk.BrokerMetaMap.
+	// Get a mapper.BrokerMetaMap.
 	bm, errs := s.ZK.GetAllBrokerMeta(false)
 	if errs != nil {
 		return nil, ErrFetchingBrokers
@@ -121,8 +121,8 @@ func (s *Server) UnmappedBrokers(ctx context.Context, req *pb.UnmappedBrokersReq
 		}
 	}
 
-	// Get a kafkazk.PartitionMap for each topic.
-	var pms []*kafkazk.PartitionMap
+	// Get a mapper.PartitionMap for each topic.
+	var pms []*mapper.PartitionMap
 	for _, name := range topics {
 		pm, err := s.ZK.GetPartitionMap(name)
 		if err != nil {
@@ -181,7 +181,7 @@ func (s *Server) BrokerMappings(ctx context.Context, req *pb.BrokerRequest) (*pb
 		return nil, ErrBrokerIDEmpty
 	}
 
-	// Get a kafkazk.BrokerMetaMap.
+	// Get a mapper.BrokerMetaMap.
 	bm, errs := s.ZK.GetAllBrokerMeta(false)
 	if errs != nil {
 		return nil, ErrFetchingBrokers
@@ -198,8 +198,8 @@ func (s *Server) BrokerMappings(ctx context.Context, req *pb.BrokerRequest) (*pb
 		return nil, ErrFetchingTopics
 	}
 
-	// Get a kafkazk.PartitionMap for each topic.
-	var pms []*kafkazk.PartitionMap
+	// Get a mapper.PartitionMap for each topic.
+	var pms []*mapper.PartitionMap
 	for _, p := range ts {
 		pm, err := s.ZK.GetPartitionMap(p)
 		if err != nil {
@@ -213,8 +213,8 @@ func (s *Server) BrokerMappings(ctx context.Context, req *pb.BrokerRequest) (*pb
 	var bmapping = make(map[int]map[string]struct{})
 
 	for _, pm := range pms {
-		// For each PartitionMap, get a kafkazk.BrokerMap.
-		bm := kafkazk.BrokerMapFromPartitionMap(pm, nil, false)
+		// For each PartitionMap, get a mapper.BrokerMap.
+		bm := mapper.BrokerMapFromPartitionMap(pm, nil, false)
 
 		// Add the topic name to each broker's topic set.
 		name := pm.Partitions[0].Topic
@@ -424,7 +424,7 @@ func (s idList) Len() int           { return len(s) }
 func (s idList) Less(i, j int) bool { return s[i] < s[j] }
 func (s idList) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
-func pbBrokerFromMeta(id uint32, b *kafkazk.BrokerMeta) *pb.Broker {
+func pbBrokerFromMeta(id uint32, b *mapper.BrokerMeta) *pb.Broker {
 	ts, _ := strconv.ParseInt(b.Timestamp, 10, 64)
 
 	return &pb.Broker{

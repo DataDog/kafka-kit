@@ -1,4 +1,4 @@
-package kafkazk
+package mapper
 
 import (
 	"sort"
@@ -25,8 +25,7 @@ func TestConstraintsMatch(t *testing.T) {
 		t.Errorf("Expected broker ID 1004, got %d", b.ID)
 	}
 
-	//  Check that 1004 has been
-	// removed from the map.
+	//  Check that 1004 has been removed from the map.
 	if _, exists := m[b]; exists {
 		t.Error("Broker 1004 unexpectedly exists in map")
 	}
@@ -55,16 +54,13 @@ func TestSubstitutionAffinities(t *testing.T) {
 	bm := newStubBrokerMap()
 	bm[1001].Replace = true
 
-	// Should error because no
-	// broker is available marked as new.
+	// Should error because no broker is available marked as new.
 	_, err := bm.SubstitutionAffinities(pm)
 	if err == nil {
 		t.Error("Expected error")
 	}
 
-	// Should still fail since
-	// 1002 doesn't satisfy
-	// constraints as an affinity.
+	// Should still fail since 1002 doesn't satisfy  constraints as an affinity.
 	bm[1002].New = true
 	_, err = bm.SubstitutionAffinities(pm)
 	if err == nil {
@@ -81,9 +77,7 @@ func TestSubstitutionAffinities(t *testing.T) {
 		t.Error("Expected substitution affinity 1001->1004")
 	}
 
-	// Should fail. We have two
-	// replacements but only 1
-	// new broker available.
+	// Should fail. We have two replacements but only 1 new broker available.
 	bm[1002].Replace = true
 	bm[1002].New = false
 

@@ -8,7 +8,9 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/DataDog/kafka-kit/v3/kafkazk"
+	"github.com/DataDog/kafka-kit/v4/kafkazk"
+	"github.com/DataDog/kafka-kit/v4/mapper"
+
 	"github.com/spf13/cobra"
 )
 
@@ -23,11 +25,11 @@ type reassignmentBundle struct {
 	// The tolerance value used in the storage based partition reassignment.
 	tolerance float64
 	// The reassignment PartitionMap.
-	partitionMap *kafkazk.PartitionMap
+	partitionMap *mapper.PartitionMap
 	// Partition relocations that constitute the reassignment.
 	relocations map[int][]relocation
 	// The brokers that the PartitionMap is assigning brokers to.
-	brokers kafkazk.BrokerMap
+	brokers mapper.BrokerMap
 }
 
 type reassignParams struct {
@@ -76,7 +78,7 @@ func reassignParamsFromCmd(cmd *cobra.Command) (params reassignParams) {
 	return params
 }
 
-func reassign(params reassignParams, zk kafkazk.Handler) ([]*kafkazk.PartitionMap, []error) {
+func reassign(params reassignParams, zk kafkazk.Handler) ([]*mapper.PartitionMap, []error) {
 	// Get broker and partition metadata.
 	if err := checkMetaAge(zk, params.maxMetadataAge); err != nil {
 		fmt.Println(err)
@@ -118,7 +120,7 @@ func reassign(params reassignParams, zk kafkazk.Handler) ([]*kafkazk.PartitionMa
 	printExcludedTopics(pending, excluded)
 
 	// Get a broker map.
-	brokersIn := kafkazk.BrokerMapFromPartitionMap(partitionMapIn, brokerMeta, false)
+	brokersIn := mapper.BrokerMapFromPartitionMap(partitionMapIn, brokerMeta, false)
 
 	// Validate all broker params, get a copy of the broker IDs targeted for
 	// partition offloading.
@@ -186,7 +188,7 @@ func reassign(params reassignParams, zk kafkazk.Handler) ([]*kafkazk.PartitionMa
 	// Ignore no-ops; rebalances will naturally have a high percentage of these.
 	partitionMapIn, partitionMapOut = skipReassignmentNoOps(partitionMapIn, partitionMapOut)
 
-	return []*kafkazk.PartitionMap{partitionMapOut}, errs
+	return []*mapper.PartitionMap{partitionMapOut}, errs
 
 }
 
@@ -197,9 +199,9 @@ func reassign(params reassignParams, zk kafkazk.Handler) ([]*kafkazk.PartitionMa
 // interval values. When generating a series, the results are computed in parallel.
 func computeReassignmentBundles(
 	params reassignParams,
-	partitionMap *kafkazk.PartitionMap,
-	partitionMeta kafkazk.PartitionMetaMap,
-	brokerMap kafkazk.BrokerMap,
+	partitionMap *mapper.PartitionMap,
+	partitionMeta mapper.PartitionMetaMap,
+	brokerMap mapper.BrokerMap,
 	offloadTargets []int,
 ) chan reassignmentBundle {
 	otm := map[int]struct{}{}
@@ -297,9 +299,9 @@ partitions are only moved to replicas in the desired final state.
 The original design was intended for downscaling operations, to remove partitions from one (or three) brokers at a time,
 without overwhelming whatever brokers are remaining in the cluster.
 */
-func getPartitionMapChunks(finalMap *kafkazk.PartitionMap, initialMap *kafkazk.PartitionMap, brokerIds kafkazk.BrokerList, chunkStepSize int) []*kafkazk.PartitionMap {
+func getPartitionMapChunks(finalMap *mapper.PartitionMap, initialMap *mapper.PartitionMap, brokerIds mapper.BrokerList, chunkStepSize int) []*mapper.PartitionMap {
 	var intermediateMap = initialMap.Copy()
-	var out []*kafkazk.PartitionMap
+	var out []*mapper.PartitionMap
 	brokerIds.SortByIDDesc()
 
 	for i := 0; i < len(brokerIds); i += chunkStepSize {
@@ -341,8 +343,8 @@ func getPartitionMapChunks(finalMap *kafkazk.PartitionMap, initialMap *kafkazk.P
 
 func validateBrokers(
 	newBrokers []int,
-	currentBrokers kafkazk.BrokerMap,
-	bm kafkazk.BrokerMetaMap,
+	currentBrokers mapper.BrokerMap,
+	bm mapper.BrokerMetaMap,
 	newBrokersRequired bool,
 ) []error {
 	// No broker changes are permitted in rebalance other than new broker additions.
@@ -378,7 +380,7 @@ func validateBrokers(
 	return nil
 }
 
-func determineOffloadTargets(params reassignParams, brokers kafkazk.BrokerMap) []int {
+func determineOffloadTargets(params reassignParams, brokers mapper.BrokerMap) []int {
 	var offloadTargets []int
 
 	var selectorMethod bytes.Buffer
@@ -386,12 +388,12 @@ func determineOffloadTargets(params reassignParams, brokers kafkazk.BrokerMap) [
 
 	// Switch on the target selection method. If a storage threshold in gigabytes
 	// is specified, prefer this. Otherwise, use the percentage below mean threshold.
-	var f kafkazk.BrokerFilterFn
+	var f mapper.BrokerFilterFn
 	if params.storageThresholdGB > 0.00 {
 		selectorMethod.WriteString(fmt.Sprintf("(< %.2fGB storage free)", params.storageThresholdGB))
 
 		// Get all non-new brokers with a StorageFree below the storage threshold in GB.
-		f = func(b *kafkazk.Broker) bool {
+		f = func(b *mapper.Broker) bool {
 			if !b.New && b.StorageFree < params.storageThresholdGB*div {
 				return true
 			}
@@ -401,10 +403,10 @@ func determineOffloadTargets(params reassignParams, brokers kafkazk.BrokerMap) [
 	} else if params.storageThreshold > 0.00 {
 		// Find brokers where the storage free is t % below the harmonic mean.
 		selectorMethod.WriteString(fmt.Sprintf("(>= %.2f%% threshold below hmean)", params.storageThreshold*100))
-		f = kafkazk.BelowMeanFn(params.storageThreshold, brokers.HMean)
+		f = mapper.BelowMeanFn(params.storageThreshold, brokers.HMean)
 	} else {
 		// Specifying 0 targets all non-new brokers, this is a scale up
-		f = func(b *kafkazk.Broker) bool { return !b.New }
+		f = func(b *mapper.Broker) bool { return !b.New }
 	}
 
 	matches := brokers.Filter(f)

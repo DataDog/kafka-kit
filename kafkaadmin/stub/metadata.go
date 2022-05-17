@@ -1,7 +1,7 @@
 package stub
 
 import (
-	"github.com/DataDog/kafka-kit/v3/kafkaadmin"
+	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 )

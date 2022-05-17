@@ -11,11 +11,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DataDog/kafka-kit/v3/cmd/autothrottle/internal/api"
-	"github.com/DataDog/kafka-kit/v3/cmd/autothrottle/internal/throttlestore"
-	"github.com/DataDog/kafka-kit/v3/kafkametrics"
-	"github.com/DataDog/kafka-kit/v3/kafkametrics/datadog"
-	"github.com/DataDog/kafka-kit/v3/kafkazk"
+	"github.com/DataDog/kafka-kit/v4/cmd/autothrottle/internal/api"
+	"github.com/DataDog/kafka-kit/v4/cmd/autothrottle/internal/throttlestore"
+	"github.com/DataDog/kafka-kit/v4/kafkametrics"
+	"github.com/DataDog/kafka-kit/v4/kafkametrics/datadog"
+	"github.com/DataDog/kafka-kit/v4/kafkazk"
 
 	"github.com/jamiealquiza/envy"
 )

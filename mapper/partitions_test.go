@@ -1,17 +1,15 @@
-package kafkazk
+package mapper
 
 import (
 	"fmt"
 	"io/ioutil"
-	"regexp"
 	"testing"
 )
 
 func TestNewPartitionMap(t *testing.T) {
 	p := NewPartitionMap()
 
-	// Provided no PartitionMapOpts, the partitions
-	// list should be empty.
+	// Provided no PartitionMapOpts, the partitions list should be empty.
 	if len(p.Partitions) != 0 {
 		t.Error("Expected empty Partitions field")
 	}
@@ -251,8 +249,7 @@ func TestPartitionMapCopy(t *testing.T) {
 		t.Error("Unexpected inequality")
 	}
 
-	// After modifying the partitions list,
-	// we expect inequality.
+	// After modifying the partitions list, we expect inequality.
 	pm.Partitions = pm.Partitions[:2]
 	if same, _ := pm.Equal(pm2); same {
 		t.Error("Unexpected equality")
@@ -268,43 +265,6 @@ func TestPartitionMapFromString(t *testing.T) {
 	if same, _ := pm.Equal(pm2); !same {
 		t.Error("Unexpected inequality")
 	}
-}
-
-func TestPartitionMapFromZK(t *testing.T) {
-	zk := NewZooKeeperStub()
-
-	r := []*regexp.Regexp{}
-	r = append(r, regexp.MustCompile("/^null$/"))
-	pm, err := PartitionMapFromZK(r, zk)
-
-	// This should fail because we're passing
-	// a regex that the stub call to GetTopics()
-	// from PartitionMapFromZK doesn't have
-	// any matches.
-	if pm != nil || err.Error() != "No topics found matching: [/^null$/]" {
-		t.Error("Expected topic lookup failure")
-	}
-
-	r = r[:0]
-	r = append(r, regexp.MustCompile("test"))
-
-	// This is going to match both "test_topic"
-	// and "test_topic2" from the stub.
-	pm, _ = PartitionMapFromZK(r, zk)
-
-	// Build a merged map of these for
-	// equality testing.
-	pm2 := NewPartitionMap()
-	for _, t := range []string{"test_topic", "test_topic2"} {
-		pmap, _ := PartitionMapFromString(testGetMapString(t))
-		pm2.Partitions = append(pm2.Partitions, pmap.Partitions...)
-	}
-
-	// Compare.
-	if same, err := pm.Equal(pm2); !same {
-		t.Errorf("Unexpected inequality: %s", err)
-	}
-
 }
 
 func TestSetReplication(t *testing.T) {
@@ -417,9 +377,8 @@ func TestRebuildByCount(t *testing.T) {
 		t.Errorf("Unexpected error(s): %s", errs)
 	}
 
-	// This rebuild should be a no-op since
-	// all brokers already in the map were provided,
-	// none marked as replace.
+	// This rebuild should be a no-op since all brokers already in the map were
+	// provided, none marked as replace.
 	if same, _ := pm.Equal(out); !same {
 		t.Error("Expected no-op, partition map changed")
 	}
@@ -442,8 +401,7 @@ func TestRebuildByCount(t *testing.T) {
 		t.Errorf("Unexpected inequality after broker replacement: %s", err)
 	}
 
-	// Test a rebuild with a change in
-	// replication factor.
+	// Test a rebuild with a change in replication factor.
 	pm.SetReplication(2)
 	expected.SetReplication(2)
 
@@ -487,8 +445,8 @@ func TestRebuildByCountSA(t *testing.T) {
 	delete(bm, 1002)
 
 	pm, _ := PartitionMapFromString(testGetMapString4("test_topic"))
-	// Until https://github.com/DataDog/kafka-kit/issues/187 is closed,
-	// we need to pretend another broker with rack b was present.
+	// Until https://github.com/DataDog/kafka-kit/issues/187 is closed, we need to
+	// pretend another broker with rack b was present.
 	pm.Partitions[2].Replicas = []int{1001, 1005}
 
 	pmm := NewPartitionMetaMap()
@@ -541,8 +499,7 @@ func TestRebuildByStorageDistribution(t *testing.T) {
 	pm, _ := PartitionMapFromString(testGetMapString4("test_topic"))
 	pmm, _ := zk.GetAllPartitionMeta()
 
-	// We need to reduce the test partition sizes
-	// for more accurate tests here.
+	// We need to reduce the test partition sizes for more accurate tests here.
 	for _, partn := range pmm["test_topic"] {
 		partn.Size = partn.Size / 3
 	}
@@ -553,9 +510,8 @@ func TestRebuildByStorageDistribution(t *testing.T) {
 	allBrokers := func(b *Broker) bool { return true }
 	_ = brokers.SubStorage(pm, pmm, allBrokers)
 
-	// Normalize storage. The stub broker storage
-	// free vs stub partition sizes would actually
-	// represent brokers with varying storage sizes.
+	// Normalize storage. The stub broker storage free vs stub partition sizes
+	// would actually represent brokers with varying storage sizes.
 	for _, b := range brokers {
 		b.StorageFree = 6000.00
 	}
@@ -597,8 +553,7 @@ func TestRebuildByStorageStorage(t *testing.T) {
 	pm, _ := PartitionMapFromString(testGetMapString4("test_topic"))
 	pmm, _ := zk.GetAllPartitionMeta()
 
-	// We need to reduce the test partition sizes
-	// for more accurate tests here.
+	// We need to reduce the test partition sizes for more accurate tests here.
 	for _, partn := range pmm["test_topic"] {
 		partn.Size = partn.Size / 3
 	}
@@ -609,9 +564,8 @@ func TestRebuildByStorageStorage(t *testing.T) {
 	allBrokers := func(b *Broker) bool { return true }
 	_ = brokers.SubStorage(pm, pmm, allBrokers)
 
-	// Normalize storage. The stub broker storage
-	// free vs stub partition sizes would actually
-	// represent brokers with varying storage sizes.
+	// Normalize storage. The stub broker storage free vs stub partition sizes
+	// would actually represent brokers with varying storage sizes.
 	for _, b := range brokers {
 		b.StorageFree = 6000.00
 	}

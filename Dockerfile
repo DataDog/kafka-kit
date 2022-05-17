@@ -45,6 +45,7 @@ COPY cluster cluster
 COPY kafkaadmin kafkaadmin
 COPY kafkametrics kafkametrics
 COPY kafkazk kafkazk
+COPY mapper mapper
 COPY registry registry
 
 # Codegen
