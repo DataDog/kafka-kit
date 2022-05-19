@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"regexp"
 	"sort"
@@ -13,23 +12,26 @@ import (
 	"github.com/DataDog/kafka-kit/v4/kafkazk"
 	"github.com/DataDog/kafka-kit/v4/mapper"
 	pb "github.com/DataDog/kafka-kit/v4/registry/registry"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var (
 	// ErrFetchingTopics error.
-	ErrFetchingTopics = errors.New("error fetching topics")
+	ErrFetchingTopics = status.Error(codes.Internal, "error fetching topics")
 	// ErrTopicNotExist error.
-	ErrTopicNotExist = errors.New("topic does not exist")
+	ErrTopicNotExist = status.Error(codes.NotFound, "topic does not exist")
 	// ErrTopicNameEmpty error.
-	ErrTopicNameEmpty = errors.New("topic Name field must be specified")
+	ErrTopicNameEmpty = status.Error(codes.InvalidArgument, "topic Name field must be specified")
 	// ErrTopicFieldMissing error.
-	ErrTopicFieldMissing = errors.New("topic field missing in request body")
+	ErrTopicFieldMissing = status.Error(codes.InvalidArgument, "topic field missing in request body")
 	// ErrTopicAlreadyExists error.
-	ErrTopicAlreadyExists = errors.New("topic already exists")
+	ErrTopicAlreadyExists = status.Error(codes.AlreadyExists, "topic already exists")
 	// ErrInsufficientBrokers error.
-	ErrInsufficientBrokers = errors.New("insufficient number of brokers")
+	ErrInsufficientBrokers = status.Error(codes.FailedPrecondition, "insufficient number of brokers")
 	// ErrInvalidBrokerId error.
-	ErrInvalidBrokerId = errors.New("invalid broker id")
+	ErrInvalidBrokerId = status.Error(codes.FailedPrecondition, "invalid broker id")
 	// Misc.
 	allTopicsRegex = regexp.MustCompile(".*")
 )

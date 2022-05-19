@@ -3,18 +3,20 @@ package server
 import (
 	"context"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"log"
 	"time"
 
 	pb "github.com/DataDog/kafka-kit/v4/registry/registry"
+
 	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var (
 	// ErrGroupIDEmpty error.
-	ErrGroupIDEmpty = errors.New("GroupId field must be specified")
+	ErrGroupIDEmpty = status.Error(codes.InvalidArgument, "GroupId field must be specified")
 )
 
 const (
