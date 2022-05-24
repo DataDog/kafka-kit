@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"regexp"
 	"sort"
@@ -10,17 +9,20 @@ import (
 
 	"github.com/DataDog/kafka-kit/v4/mapper"
 	pb "github.com/DataDog/kafka-kit/v4/registry/registry"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var (
 	// ErrFetchingBrokers error.
-	ErrFetchingBrokers = errors.New("error fetching brokers")
+	ErrFetchingBrokers = status.Error(codes.Internal, "error fetching brokers")
 	// ErrBrokerNotExist error.
-	ErrBrokerNotExist = errors.New("broker does not exist")
+	ErrBrokerNotExist = status.Error(codes.FailedPrecondition, "broker does not exist")
 	// ErrBrokerIDEmpty error.
-	ErrBrokerIDEmpty = errors.New("broker Id field must be specified")
+	ErrBrokerIDEmpty = status.Error(codes.InvalidArgument, "broker Id field must be specified")
 	// ErrBrokerIDsEmpty error.
-	ErrBrokerIDsEmpty = errors.New("broker Ids field must be specified")
+	ErrBrokerIDsEmpty = status.Error(codes.InvalidArgument, "broker Ids field must be specified")
 )
 
 // BrokerSet is a mapping of broker IDs to *pb.Broker.
