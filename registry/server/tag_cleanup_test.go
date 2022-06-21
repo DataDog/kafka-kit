@@ -134,3 +134,35 @@ func TestKafkaObjectComesBack(t *testing.T) {
 		t.Errorf("Expected mark for topic %s to be removed.", topic)
 	}
 }
+
+func TestMarkedObjectStaysMarked(t *testing.T) {
+	// GIVEN
+	bt := TagSet{"foo": "bar", TagMarkTimeKey: "12345"}   // pretend this broker was marked for tag deletion previously
+	broker := KafkaObject{Type: "broker", ID: "20000001"} // and it still doesn't exist (20000001 isn't in the default ZK stub)
+
+	tt := TagSet{"bing": "baz", TagMarkTimeKey: "12345"} // same for a topic.
+	topic := KafkaObject{Type: "topic", ID: "not_found_topic"}
+
+	zk := kafkazk.NewZooKeeperStub()
+	th := testTagHandler()
+
+	s := testServer()
+	s.Tags = th
+	s.ZK = zk
+
+	// WHEN
+	th.Store.SetTags(broker, bt)
+	th.Store.SetTags(topic, tt)
+	s.MarkForDeletion(context.Background(), time.Now)
+
+	// THEN
+	btags, _ := th.Store.GetTags(broker)
+	if _, exists := btags[TagMarkTimeKey]; !exists {
+		t.Errorf("Expected mark for broker %s to not be removed.", broker)
+	}
+
+	ttags, _ := th.Store.GetTags(topic)
+	if _, exists := ttags[TagMarkTimeKey]; !exists {
+		t.Errorf("Expected mark for topic %s to not be removed.", topic)
+	}
+}
