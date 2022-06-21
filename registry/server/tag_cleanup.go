@@ -117,7 +117,8 @@ func (s *Server) MarkForDeletion(ctx context.Context, now func() time.Time) erro
 
 // DeleteStaleTags deletes any tags that have not had a kafka resource associated with them.
 func (s *Server) DeleteStaleTags(ctx context.Context, now func() time.Time, c Config) error {
-	sweepTime := now().Unix()
+	sweepTimeSeconds := now().Unix()
+	stalenessSeconds := int64(c.TagAllowedStalenessMinutes * 60)
 
 	// Lock.
 	if err := s.Locking.Lock(ctx); err != nil {
@@ -133,13 +134,13 @@ func (s *Server) DeleteStaleTags(ctx context.Context, now func() time.Time, c Co
 			continue
 		}
 
-		markTime, err := strconv.Atoi(markTag)
+		markTimeSeconds, err := strconv.Atoi(markTag)
 		if err != nil {
 			log.Printf("found non timestamp tag %s in stale tag marker\n", markTag)
 		}
 
-		log.Printf("evaluating clean up of %s:%s marked at %d\n", kafkaObject.Type, kafkaObject.ID, markTime)
-		if sweepTime-int64(markTime) > int64(c.TagAllowedStalenessMinutes*60) {
+		log.Printf("evaluating clean up of %s:%s marked at %d\n", kafkaObject.Type, kafkaObject.ID, markTimeSeconds)
+		if sweepTimeSeconds-int64(markTimeSeconds) > stalenessSeconds {
 			keys := tags.Keys()
 			s.Tags.Store.DeleteTags(kafkaObject, keys)
 
