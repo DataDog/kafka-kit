@@ -21,12 +21,15 @@ func (tc *TagCleaner) RunTagCleanup(s *Server, ctx context.Context, c Config) {
 	tc.running = true
 
 	// Interval timer.
-	t := time.NewTicker(time.Duration(c.TagCleanupFrequencyMinutes) * time.Minute)
+	tickerPeriod := time.Duration(c.TagCleanupFrequencyMinutes) * time.Minute
+	log.Printf("Setting up tag clean up to run every %d seconds\n", tickerPeriod)
+	t := time.NewTicker(tickerPeriod)
 	defer t.Stop()
 
 	for tc.running {
 		<-t.C
 
+		log.Println("running tag cleanup")
 		if err := s.MarkForDeletion(ctx, time.Now); err != nil {
 			log.Println("error marking tags for deletion: ", err)
 			continue
@@ -91,6 +94,7 @@ func (s *Server) MarkForDeletion(ctx context.Context, now func() time.Time) erro
 
 		// If the object doesn't exist and hasn't already been marked, do so.
 		if !objectExists && !marked {
+			log.Printf("marking %s:%s for cleanup\n", kafkaObject.Type, kafkaObject.ID)
 			tagSet[TagMarkTimeKey] = markTimeMinutes
 			if err := s.Tags.Store.SetTags(kafkaObject, tagSet); err != nil {
 				log.Printf("failed to update TagSet for %s %s: %s\n", kafkaObject.Type, kafkaObject.ID, err)
@@ -101,6 +105,7 @@ func (s *Server) MarkForDeletion(ctx context.Context, now func() time.Time) erro
 		// Otherwise, the object exists and we should remove the marker if it were
 		// previously set.
 		if marked {
+			log.Printf("unmarking existing %s:%s to avoid cleanup\n", kafkaObject.Type, kafkaObject.ID)
 			if err := s.Tags.Store.DeleteTags(kafkaObject, []string{TagMarkTimeKey}); err != nil {
 				log.Printf("failed to remove TagMarkTimeKey tag for %s %s: %s\n", kafkaObject.Type, kafkaObject.ID, err)
 			}
@@ -133,6 +138,7 @@ func (s *Server) DeleteStaleTags(ctx context.Context, now func() time.Time, c Co
 			log.Printf("found non timestamp tag %s in stale tag marker\n", markTag)
 		}
 
+		log.Printf("evaluating clean up of %s:%s marked at %d\n", kafkaObject.Type, kafkaObject.ID, markTime)
 		if sweepTime-int64(markTime) > int64(c.TagAllowedStalenessMinutes*60) {
 			keys := tags.Keys()
 			s.Tags.Store.DeleteTags(kafkaObject, keys)
