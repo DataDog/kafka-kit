@@ -26,8 +26,7 @@ func (tc *TagCleaner) RunTagCleanup(s *Server, ctx context.Context, c Config) {
 	t := time.NewTicker(tickerPeriod)
 	defer t.Stop()
 
-	for tc.running {
-		<-t.C
+	for ; tc.running; <-t.C {
 
 		log.Println("running tag cleanup")
 		if err := s.MarkForDeletion(ctx, time.Now); err != nil {
