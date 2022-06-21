@@ -44,7 +44,7 @@ func (tc *TagCleaner) RunTagCleanup(s *Server, ctx context.Context, c Config) {
 // MarkForDeletion marks stored tags that have been stranded without an associated
 // kafka resource.
 func (s *Server) MarkForDeletion(ctx context.Context, now func() time.Time) error {
-	markTimeMinutes := fmt.Sprint(now().Unix())
+	markTimeSeconds := fmt.Sprint(now().Unix())
 
 	// Get all brokers from ZK.
 	brokers, errs := s.ZK.GetAllBrokerMeta(false)
@@ -95,7 +95,7 @@ func (s *Server) MarkForDeletion(ctx context.Context, now func() time.Time) erro
 		// If the object doesn't exist and hasn't already been marked, do so.
 		if !objectExists && !marked {
 			log.Printf("marking %s:%s for cleanup\n", kafkaObject.Type, kafkaObject.ID)
-			tagSet[TagMarkTimeKey] = markTimeMinutes
+			tagSet[TagMarkTimeKey] = markTimeSeconds
 			if err := s.Tags.Store.SetTags(kafkaObject, tagSet); err != nil {
 				log.Printf("failed to update TagSet for %s %s: %s\n", kafkaObject.Type, kafkaObject.ID, err)
 			}
