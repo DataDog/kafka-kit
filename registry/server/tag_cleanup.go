@@ -22,7 +22,7 @@ func (tc *TagCleaner) RunTagCleanup(s *Server, ctx context.Context, c Config) {
 
 	// Interval timer.
 	tickerPeriod := time.Duration(c.TagCleanupFrequencyMinutes) * time.Minute
-	log.Printf("Setting up tag clean up to run every %d seconds\n", tickerPeriod)
+	log.Printf("Setting up tag clean up to run every %d minutes\n", c.TagCleanupFrequencyMinutes)
 	t := time.NewTicker(tickerPeriod)
 	defer t.Stop()
 
