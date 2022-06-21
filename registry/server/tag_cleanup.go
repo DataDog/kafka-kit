@@ -101,13 +101,13 @@ func (s *Server) MarkForDeletion(ctx context.Context, now func() time.Time) erro
 			continue
 		}
 
-		// Otherwise, the object exists and we should remove the marker if it were
-		// previously set.
-		if marked {
+		// If the object exists but has been marked, remove the mark.
+		if objectExists && marked {
 			log.Printf("unmarking existing %s:%s to avoid cleanup\n", kafkaObject.Type, kafkaObject.ID)
 			if err := s.Tags.Store.DeleteTags(kafkaObject, []string{TagMarkTimeKey}); err != nil {
 				log.Printf("failed to remove %s tag for %s %s: %s\n", TagMarkTimeKey, kafkaObject.Type, kafkaObject.ID, err)
 			}
+			continue
 		}
 	}
 
