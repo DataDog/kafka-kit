@@ -107,7 +107,7 @@ func (s *Server) MarkForDeletion(ctx context.Context, now func() time.Time) erro
 		if marked {
 			log.Printf("unmarking existing %s:%s to avoid cleanup\n", kafkaObject.Type, kafkaObject.ID)
 			if err := s.Tags.Store.DeleteTags(kafkaObject, []string{TagMarkTimeKey}); err != nil {
-				log.Printf("failed to remove TagMarkTimeKey tag for %s %s: %s\n", kafkaObject.Type, kafkaObject.ID, err)
+				log.Printf("failed to remove %s tag for %s %s: %s\n", TagMarkTimeKey, kafkaObject.Type, kafkaObject.ID, err)
 			}
 		}
 	}
