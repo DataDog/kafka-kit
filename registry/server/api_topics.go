@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"log"
 	"regexp"
 	"sort"
 	"strconv"
@@ -530,7 +531,17 @@ func (s *Server) fetchTopicSet(params fetchTopicSetParams) (TopicSet, error) {
 	// Populate all topics with state/config data.
 	for _, t := range topics {
 		// Get the topic state.
-		st, _ := s.ZK.GetTopicState(t)
+		st, err := s.ZK.GetTopicState(t)
+		if err != nil {
+			switch err.(type) {
+			case kafkazk.ErrNoNode:
+				log.Printf("Topic %s was deleted between list and state fetch\n", t)
+				continue
+			default:
+				return nil, err
+			}
+		}
+
 		// Get the topic configurations.
 		c, err := s.ZK.GetTopicConfig(t)
 		if err != nil {
