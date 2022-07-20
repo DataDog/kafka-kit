@@ -19,6 +19,13 @@ func (c Client) GetDynamicConfigs(ctx context.Context, kind string, names []stri
 	return c.getConfigs(ctx, kind, names, true)
 }
 
+// GetConfigs takes a kafka resource type (ie topic, broker) and list of names
+// and returns a ResourceConfigs for all configurations discovered for each
+// resource by name. Nil configs are excluded.
+func (c Client) GetConfigs(ctx context.Context, kind string, names []string) (ResourceConfigs, error) {
+	return c.getConfigs(ctx, kind, names, false)
+}
+
 func (c Client) getConfigs(ctx context.Context, kind string, names []string, onlyDynamic bool) (ResourceConfigs, error) {
 	var ckgType kafka.ResourceType
 	switch kind {

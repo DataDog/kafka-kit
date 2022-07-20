@@ -15,5 +15,6 @@ type KafkaAdmin interface {
 	// Cluster.
 	SetThrottle(context.Context, SetThrottleConfig) error
 	RemoveThrottle(context.Context, RemoveThrottleConfig) error
+	GetConfigs(context.Context, string, []string) (ResourceConfigs, error)
 	GetDynamicConfigs(context.Context, string, []string) (ResourceConfigs, error)
 }
