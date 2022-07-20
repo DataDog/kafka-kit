@@ -104,12 +104,16 @@ func (rc ResourceConfigs) AddConfig(name, key, value string) error {
 // kafka.ConfigEntryResult. It populates the kafka.ConfigEntryResult in the
 // ResourceConfigs keyed by the provided resource name.
 func (rc ResourceConfigs) AddConfigEntry(name string, config kafka.ConfigEntryResult) error {
-	if _, ok := rc[name]; !ok {
-		rc[name] = make(map[string]string)
-	}
-
 	if config.Name == "" {
 		return fmt.Errorf("empty ConfigEntryResult name")
+	}
+
+	if config.Value == "" {
+		return fmt.Errorf("empty ConfigEntryResult value")
+	}
+
+	if _, ok := rc[name]; !ok {
+		rc[name] = make(map[string]string)
 	}
 
 	rc[name][config.Name] = config.Value
