@@ -16,6 +16,10 @@ var (
 // list of names and returns a ResourceConfigs for all dynamic configurations
 // discovered for each resource by name.
 func (c Client) GetDynamicConfigs(ctx context.Context, kind string, names []string) (ResourceConfigs, error) {
+	return c.getConfigs(ctx, kind, names, true)
+}
+
+func (c Client) getConfigs(ctx context.Context, kind string, names []string, onlyDynamic bool) (ResourceConfigs, error) {
 	var ckgType kafka.ResourceType
 	switch kind {
 	case "topic":
@@ -51,8 +55,14 @@ func (c Client) GetDynamicConfigs(ctx context.Context, kind string, names []stri
 		// Populate results.
 		for _, config := range resourceConfigs {
 			for _, v := range config.Config {
-				// Only return dynamic configs.
-				if v.Source == kafka.ConfigSourceDynamicTopic || v.Source == kafka.ConfigSourceDynamicBroker {
+				switch onlyDynamic {
+				// We need to populate only configs that are dynamic.
+				case true:
+					if v.Source == kafka.ConfigSourceDynamicTopic || v.Source == kafka.ConfigSourceDynamicBroker {
+						results.AddConfigEntry(config.Name, v)
+					}
+				// Otherwise we populate all configs.
+				default:
 					results.AddConfigEntry(config.Name, v)
 				}
 			}
