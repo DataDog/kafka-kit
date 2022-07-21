@@ -61,7 +61,7 @@ func (c Client) getConfigs(ctx context.Context, kind string, names []string, onl
 		// Request.
 		resourceConfigs, err := c.c.DescribeConfigs(ctx, []kafka.ConfigResource{cr})
 		if err != nil {
-			return nil, err
+			return nil, ErrorFetchingMetadata{err.Error()}
 		}
 
 		// Populate results.
