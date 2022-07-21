@@ -14,6 +14,7 @@ type KafkaAdmin interface {
 	DescribeTopics(context.Context, []string) (TopicStates, error)
 	// Brokers.
 	ListBrokers(context.Context) ([]int, error)
+	GetBrokerMetadata(context.Context, []int) (BrokerMetadataMap, error)
 	// Cluster.
 	SetThrottle(context.Context, SetThrottleConfig) error
 	RemoveThrottle(context.Context, RemoveThrottleConfig) error
