@@ -15,9 +15,11 @@ type BrokerMetadata struct {
 	StorageFree       float64 // Bytes.
 	MetricsIncomplete bool
 	// Key metadata from the Kafka cluster state.
-	Host string
-	Port int
-	Rack string
+	Host                       string
+	Port                       int
+	Rack                       string // broker.rack
+	LogMessageFormat           string // log.message.format.version
+	InterBrokerProtocolVersion string // inter.broker.protocol.version
 	// All metadata.
 	FullData map[string]string
 }
@@ -74,9 +76,11 @@ func (c Client) GetBrokerMetadata(ctx context.Context, fullData bool) (BrokerMet
 
 		// Populate key data.
 		b := bmm[id]
-		b.Rack = md[strID]["rack.id"]
+		b.Rack = md[strID]["broker.rack"]
+		b.LogMessageFormat = md[strID]["log.message.format.version"]
+		b.InterBrokerProtocolVersion = md[strID]["inter.broker.protocol.version"]
 
-		// Populate full data is configured.
+		// Populate full data if configured.
 		if fullData {
 			b.FullData = data
 		}
