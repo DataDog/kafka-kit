@@ -12,6 +12,8 @@ type KafkaAdmin interface {
 	CreateTopic(context.Context, CreateTopicConfig) error
 	DeleteTopic(context.Context, string) error
 	DescribeTopics(context.Context, []string) (TopicStates, error)
+	// Brokers.
+	ListBrokers(context.Context) ([]int, error)
 	// Cluster.
 	SetThrottle(context.Context, SetThrottleConfig) error
 	RemoveThrottle(context.Context, RemoveThrottleConfig) error

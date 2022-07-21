@@ -12,6 +12,11 @@ var (
 	brokerResourceType, _ = kafka.ResourceTypeFromString("broker")
 )
 
+// ResourceConfigs is a map of resource name to a map of configuration name
+// and configuration value
+// Example: map["my_topic"]map["retention.ms"] = "4000000"
+type ResourceConfigs map[string]map[string]string
+
 // GetDynamicConfigs takes a kafka resource type (ie topic, broker) and
 // list of names and returns a ResourceConfigs for all dynamic configurations
 // discovered for each resource by name.
@@ -78,11 +83,6 @@ func (c Client) getConfigs(ctx context.Context, kind string, names []string, onl
 
 	return results, nil
 }
-
-// ResourceConfigs is a map of resource name to a map of configuration name
-// and configuration value
-// Example: map["my_topic"]map["retention.ms"] = "4000000"
-type ResourceConfigs map[string]map[string]string
 
 // AddConfig takes a resource name and populates the config key to the specified
 // value.
