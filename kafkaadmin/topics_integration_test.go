@@ -3,6 +3,7 @@
 package kafkaadmin
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -72,4 +73,40 @@ func TestCreateTopic(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Equal(t, "1234", topicConfigs[testIntegrationTestTopicName]["flush.ms"])
+}
+
+func TestDeleteTopic(t *testing.T) {
+	ctx, ka := testKafkaAdminClient(t)
+
+	topic := fmt.Sprintf("%s-to-delete", testIntegrationTestTopicName)
+
+	// Create a temp topic.
+	// This assumes CreateTopic works.
+
+	cfg := CreateTopicConfig{
+		Name:              topic,
+		Partitions:        1,
+		ReplicationFactor: 2,
+	}
+
+	err := ka.CreateTopic(ctx, cfg)
+	assert.Nil(t, err)
+
+	time.Sleep(250 * time.Millisecond)
+
+	// Make sure it was creatd.
+	ts, err := ka.DescribeTopics(ctx, []string{topic})
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(ts))
+
+	// Delete the topic.
+	err = ka.DeleteTopic(ctx, topic)
+	assert.Nil(t, err)
+
+	time.Sleep(250 * time.Millisecond)
+
+	// Check that the topic is gone.
+	ts, err = ka.DescribeTopics(ctx, []string{topic})
+	assert.Equal(t, "no data returned", err.Error())
+	assert.Equal(t, 0, len(ts))
 }
