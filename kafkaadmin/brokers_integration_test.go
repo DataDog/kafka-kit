@@ -3,30 +3,32 @@
 package kafkaadmin
 
 import (
-	"context"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
 
-var (
-	testKafkaBootstrapServers = "kafka:9092"
-	//testKafkaBootstrapServers = "localhost:60536"
-	testKafkaAdminTimeoutMS = time.Duration(5000)
-)
+func TestGetBrokerMetadata(t *testing.T) {
+	ctx, ka := testKafkaAdminClient(t)
 
-func TestKafkaAdminClient(t *testing.T) (context.Context, KafkaAdmin) {
-	ctx, _ := context.WithTimeout(context.Background(), testKafkaAdminTimeoutMS*time.Millisecond)
-	ka, err := NewClient(Config{
-		BootstrapServers: testKafkaBootstrapServers,
-	})
-	if err != nil {
-		t.Logf("failed to initialize client: %s", err)
-		t.FailNow()
-	}
+	md, err := ka.GetBrokerMetadata(ctx, false)
+	assert.Nil(t, err)
 
-	return ctx, ka
+	// It's expected that the metadata will evolve over time; rather than managing
+	// complete data fixtures, we'll just spot check that we're approximately
+	// fetching the data that we're looking for and for the correct number of brokers.
+
+	assert.Len(t, md, 3, "unexpected number of brokers in the BrokerMetadataMap")
+	assert.Equal(t, 9094, md[1001].Port, "unexpected value")
+	assert.Equal(t, "1a", md[1002].Rack, "unexpected value")
+	assert.Nil(t, md[1001].FullData)
+
+	// Fetch with full metadata.
+	md, err = ka.GetBrokerMetadata(ctx, true)
+	assert.Nil(t, err)
+
+	// Check a random value.
+	assert.Equal(t, "true", md[1002].FullData["auto.leader.rebalance.enable"], "unexpected value")
 }
 
 func TestListBrokers(t *testing.T) {
