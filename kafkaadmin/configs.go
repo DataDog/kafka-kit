@@ -101,8 +101,8 @@ func (rc ResourceConfigs) AddConfig(name, key, value string) error {
 }
 
 // AddConfigEntry takes a resource name (ie a broker ID or topic name) and a
-// kafka.ConfigEntryResult. It populates the kafka.ConfigEntryResult in the
-// ResourceConfigs keyed by the provided resource name.
+// kafka.ConfigEntryResult. It populates ResourceConfigs with the provided
+// ConfigEntryResult for the respective resource by name.
 func (rc ResourceConfigs) AddConfigEntry(name string, config kafka.ConfigEntryResult) error {
 	if config.Name == "" {
 		return fmt.Errorf("empty ConfigEntryResult name")

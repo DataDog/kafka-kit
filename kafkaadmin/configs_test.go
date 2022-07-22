@@ -3,6 +3,7 @@ package kafkaadmin
 import (
 	"testing"
 
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -28,4 +29,16 @@ func TestAddConfig(t *testing.T) {
 	assert.Equal(t, "config-value", rc["test-entry"]["config-key"], "unexpected value")
 }
 
-//func TestAddConfigEntry(t *testing.T) {}
+func TestAddConfigEntry(t *testing.T) {
+	rc := ResourceConfigs{}
+
+	ce := kafka.ConfigEntryResult{
+		Name:  "config-key",
+		Value: "config-value",
+	}
+
+	err := rc.AddConfigEntry("test-entry", ce)
+	assert.Nil(t, err)
+
+	assert.Equal(t, "config-value", rc["test-entry"]["config-key"], "unexpected value")
+}
