@@ -4,8 +4,13 @@ package kafkaadmin
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+)
+
+var (
+	testIntegrationTestTopicName = "integration-test-topic"
 )
 
 func TestDescribeTopicsSingle(t *testing.T) {
@@ -18,6 +23,7 @@ func TestDescribeTopicsSingle(t *testing.T) {
 	assert.Equal(t, "test1", ts["test1"].Name)
 	assert.Equal(t, int32(1), ts["test1"].Partitions)
 	assert.Equal(t, int32(3), ts["test1"].ReplicationFactor)
+
 	// The partition states of an automatically created topic are non-deterministic,
 	// so we'll just spot check that the data approximately exists.
 	pLen := len(ts["test1"].PartitionStates[0].Replicas)
@@ -33,4 +39,37 @@ func TestDescribeTopicsMulti(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Greater(t, len(ts), 1, "expected multiple topics in TopicStates")
+}
+
+func TestCreateTopic(t *testing.T) {
+	ctx, ka := testKafkaAdminClient(t)
+
+	// Configs.
+	cfg := CreateTopicConfig{
+		Name:              testIntegrationTestTopicName,
+		Partitions:        2,
+		ReplicationFactor: 2,
+		Config:            map[string]string{"flush.ms": "1234"},
+	}
+
+	err := ka.CreateTopic(ctx, cfg)
+	assert.Nil(t, err)
+
+	time.Sleep(250 * time.Millisecond)
+
+	// This assumes that DescribeTopics works.
+	ts, err := ka.DescribeTopics(ctx, []string{testIntegrationTestTopicName})
+	assert.Nil(t, err)
+
+	// Test that configs were applied.
+	assert.Equal(t, testIntegrationTestTopicName, ts[testIntegrationTestTopicName].Name)
+	assert.Equal(t, int32(2), ts[testIntegrationTestTopicName].Partitions)
+	assert.Equal(t, int32(2), ts[testIntegrationTestTopicName].ReplicationFactor)
+
+	// Check configs.
+	// This assumes that GetConfigs works.
+	topicConfigs, err := ka.GetConfigs(ctx, "topic", []string{testIntegrationTestTopicName})
+	assert.Nil(t, err)
+
+	assert.Equal(t, "1234", topicConfigs[testIntegrationTestTopicName]["flush.ms"])
 }
