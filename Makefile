@@ -23,7 +23,7 @@ test:
 	go test -v ./...
 
 # Run all tests.
-integration-test: compose-build
+integration-test: stop-compose compose-build run-compose
 	docker-compose run --rm --name integration-test registry go test -timeout 30s --tags=integration ./...
 
 # Generate proto code outputs.
