@@ -22,5 +22,15 @@ func TestDescribeTopicsSingle(t *testing.T) {
 	// so we'll just spot check that the data approximately exists.
 	pLen := len(ts["test1"].PartitionStates[0].Replicas)
 	assert.Equal(t, 3, pLen, "unexpected replicas len")
-	assert.Less(t, 1, int(ts["test1"].PartitionStates[0].Leader), "unexpected leader ID")
+	assert.Greater(t, int(ts["test1"].PartitionStates[0].Leader), 1, "unexpected leader ID")
+}
+
+func TestDescribeTopicsMulti(t *testing.T) {
+	ctx, ka := testKafkaAdminClient(t)
+
+	// Fetch the topic automatically created by docker compose.
+	ts, err := ka.DescribeTopics(ctx, []string{".*"})
+	assert.Nil(t, err)
+
+	assert.Greater(t, len(ts), 1, "expected multiple topics in TopicStates")
 }
