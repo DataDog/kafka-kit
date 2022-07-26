@@ -6,7 +6,6 @@ import (
 	"log"
 	"regexp"
 	"sort"
-	"strconv"
 
 	zklocking "github.com/DataDog/kafka-kit/v4/cluster/zookeeper"
 	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
@@ -33,8 +32,6 @@ var (
 	ErrInsufficientBrokers = status.Error(codes.FailedPrecondition, "insufficient number of brokers")
 	// ErrInvalidBrokerId error.
 	ErrInvalidBrokerId = status.Error(codes.FailedPrecondition, "invalid broker id")
-	// Misc.
-	allTopicsRegex = regexp.MustCompile(".*")
 )
 
 // TopicSet is a mapping of topic name to *pb.Topic.
@@ -500,105 +497,91 @@ func (s *Server) DeleteTopicTags(ctx context.Context, req *pb.TopicRequest) (*pb
 
 // fetchTopicSet fetches metadata for all topics.
 func (s *Server) fetchTopicSet(ctx context.Context, params fetchTopicSetParams) (TopicSet, error) {
-	var topicRegex = []*regexp.Regexp{}
+	var topicRegexStrings = []string{}
 
 	// Check if a specific topic is being fetched.
 	if params.name != "" {
-		r := regexp.MustCompile(fmt.Sprintf("^%s$", params.name))
-		topicRegex = append(topicRegex, r)
+		r := fmt.Sprintf("^%s$", params.name)
+		topicRegexStrings = append(topicRegexStrings, r)
 	} else {
-		topicRegex = []*regexp.Regexp{allTopicsRegex}
+		topicRegexStrings = []string{".*"}
 	}
 
-	// Fetch all topics from ZK.
-	topics, errs := s.ZK.GetTopics(topicRegex)
+	// Fetch topic(s) from cluster.
+	topics, errs := s.kafkaadmin.DescribeTopics(ctx, topicRegexStrings)
 	if errs != nil {
+		log.Printf("fetchTopicSet: %s\n", errs)
 		return nil, ErrFetchingTopics
 	}
 
-	matched := TopicSet{}
+	results := TopicSet{}
 
 	// Certain state-based topic requests will need broker info.
 	var liveBrokers []uint32
 	if params.spanning {
 		brokers, err := s.fetchBrokerSet(ctx, &pb.BrokerRequest{})
 		if err != nil {
+			log.Printf("fetchTopicSet: %s\n", err)
 			return nil, ErrFetchingTopics
 		}
 		liveBrokers = brokers.IDs()
 	}
 
+	// Get topic dynamic configs.
+	configs, err := s.kafkaadmin.GetDynamicConfigs(ctx, "topics", topics.List())
+	if err != nil {
+		log.Printf("fetchTopicSet: %s\n", err)
+		return nil, ErrFetchingTopics
+	}
+
 	// Populate all topics with state/config data.
-	for _, t := range topics {
-		// Get the topic state.
-		st, err := s.ZK.GetTopicState(t)
-		if err != nil {
-			switch err.(type) {
-			case kafkazk.ErrNoNode:
-				log.Printf("Topic %s was deleted between list and state fetch\n", t)
-				continue
-			default:
-				return nil, err
-			}
-		}
-
-		// Get the topic configurations.
-		c, err := s.ZK.GetTopicConfig(t)
-		if err != nil {
-			switch err.(type) {
-			// ErrNoNode cases for a topic that exists just means that there hasn't been
-			// non-default config specified for the topic.
-			case kafkazk.ErrNoNode:
-				c = &kafkazk.TopicConfig{}
-				c.Config = map[string]string{}
-			default:
-				return nil, err
-			}
-		}
-
-		// If we're filtering for "spanning" topics, now is a good time to check
-		// since the full topic state is visible here.
+	for topic, topicState := range topics {
+		// Check if we're filtering for spanning topics.
 		if params.spanning {
 			// A simple check as to whether a topic satisfies the spanning property
 			// is to request the set of brokers hosting its partitions; if the len
 			// is not equal to the number of brokers in the cluster, it cannot be
 			// considered spanning.
-			if len(st.Brokers()) < len(liveBrokers) {
+			if len(topicState.Brokers()) < len(liveBrokers) {
 				continue
 			}
 		}
 
+		// If requested, fetch assigned partition replicas.
 		replicaMap := make(map[uint32]*pb.Replicas)
 		if params.withReplicas {
-			for id, iReplicas := range st.Partitions {
-				replicas := []uint32{}
-				for _, r := range iReplicas {
+			for _, partnState := range topicState.PartitionStates {
+				var replicas []uint32
+				for _, r := range partnState.Replicas {
 					replicas = append(replicas, uint32(r))
 				}
-				// assuming that the data in zookeeper will be well-formated, ignoring error
-				parsedId, _ := strconv.ParseUint(id, 10, 32)
-				replicaMap[uint32(parsedId)] = &pb.Replicas{
+				replicaMap[uint32(partnState.ID)] = &pb.Replicas{
 					Ids: replicas,
 				}
 			}
 		}
 
+		var topicConfigs = map[string]string{}
+		if cfg, exist := configs[topic]; exist {
+			topicConfigs = cfg
+		}
+
 		// Add the topic to the TopicSet.
-		matched[t] = &pb.Topic{
-			Name:       t,
-			Partitions: uint32(len(st.Partitions)),
+		results[topic] = &pb.Topic{
+			Name:       topic,
+			Partitions: uint32(topicState.Partitions),
 			// TODO more sophisticated check than the
 			// first partition len.
-			Replication: uint32(len(st.Partitions["0"])),
-			Configs:     c.Config,
-
-			Replicas: replicaMap,
+			Replication: uint32(topicState.ReplicationFactor),
+			Configs:     topicConfigs,
+			Replicas:    replicaMap,
 		}
 	}
 
 	// Returned filtered results by tag.
-	filtered, err := s.Tags.FilterTopics(matched, params.tags)
+	filtered, err := s.Tags.FilterTopics(results, params.tags)
 	if err != nil {
+		log.Printf("fetchTopicSet: %s\n", err)
 		return nil, err
 	}
 
