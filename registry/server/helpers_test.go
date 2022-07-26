@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
+	"github.com/DataDog/kafka-kit/v4/kafkaadmin/stub"
 	"github.com/DataDog/kafka-kit/v4/kafkazk"
 )
 
@@ -31,6 +32,7 @@ func testServer() *Server {
 		test:                  true,
 	})
 
+	s.kafkaadmin = stub.NewClient()
 	s.ZK = kafkazk.NewZooKeeperStub()
 	s.Tags.Store = newzkTagStorageStub()
 
