@@ -32,7 +32,7 @@ func (s Client) RemoveThrottle(context.Context, kafkaadmin.RemoveThrottleConfig)
 func (s Client) ListBrokers(context.Context) ([]int, error) {
 	return nil, nil
 }
-func (s Client) GetBrokerMetadata(context.Context, bool) (kafkaadmin.BrokerMetadataMap, error) {
+func (s Client) DescribeBrokers(context.Context, bool) (kafkaadmin.BrokerStates, error) {
 	return nil, nil
 }
 func (s Client) GetConfigs(context.Context, string, []string) (kafkaadmin.ResourceConfigs, error) {

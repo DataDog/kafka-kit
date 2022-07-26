@@ -10,7 +10,7 @@ import (
 )
 
 // BrokerMeta holds metadata that describes a broker.
-type BrokerMetadata struct {
+type BrokerState struct {
 	// Key metadata from the Kafka cluster state.
 	Host                       string
 	Port                       int
@@ -21,21 +21,21 @@ type BrokerMetadata struct {
 	FullData map[string]string
 }
 
-// BrokerMetaMap is a map of broker IDs to BrokerMetadata.
-type BrokerMetadataMap map[int]BrokerMetadata
+// BrokerStates is a map of broker IDs to BrokerState.
+type BrokerStates map[int]BrokerState
 
-// NewBrokerMetadataMap returns a BrokerMetadataMap.
-func NewBrokerMetadataMap() BrokerMetadataMap {
-	return BrokerMetadataMap{}
+// NewBrokerStates returns a BrokerStates.
+func NewBrokerStates() BrokerStates {
+	return BrokerStates{}
 }
 
-// GetBrokerMetadata returns a BrokerMetadataMap for all live brokers. By default,
-// key metadata is populated for each broker's BrokerMetadata entry. If the
+// DescribeBrokers returns a BrokerStates for all live brokers. By default,
+// key metadata is populated for each broker's BrokerState entry. If the
 // fullData bool is set to True, complete metadata will be included in the
-// BrokerMetadata.FullData field. This includes all broker configs found in
+// BrokerState.FullData field. This includes all broker configs found in
 // the cluster state including dynamic configs.
-func (c Client) GetBrokerMetadata(ctx context.Context, fullData bool) (BrokerMetadataMap, error) {
-	var bmm = NewBrokerMetadataMap()
+func (c Client) DescribeBrokers(ctx context.Context, fullData bool) (BrokerStates, error) {
+	var bmm = NewBrokerStates()
 
 	// Fetch live brokers.
 	brokers, err := c.fetchBrokers(ctx)
@@ -45,9 +45,9 @@ func (c Client) GetBrokerMetadata(ctx context.Context, fullData bool) (BrokerMet
 
 	var idStrings []string
 
-	// Pre-populate the BrokerMetaMap.
+	// Pre-populate the BrokerStates.
 	for _, b := range brokers {
-		bmm[int(b.ID)] = BrokerMetadata{
+		bmm[int(b.ID)] = BrokerState{
 			Host: b.Host,
 			Port: b.Port,
 		}
@@ -62,7 +62,7 @@ func (c Client) GetBrokerMetadata(ctx context.Context, fullData bool) (BrokerMet
 		return nil, err
 	}
 
-	// Populate the BrokerMetaMap.
+	// Populate the BrokerStates.
 	for strID, data := range md {
 		id, _ := strconv.Atoi(strID)
 
