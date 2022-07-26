@@ -11,9 +11,6 @@ import (
 
 // BrokerMeta holds metadata that describes a broker.
 type BrokerMetadata struct {
-	// Internally provided/tracked metadata.
-	StorageFree       float64 // Bytes.
-	MetricsIncomplete bool
 	// Key metadata from the Kafka cluster state.
 	Host                       string
 	Port                       int
