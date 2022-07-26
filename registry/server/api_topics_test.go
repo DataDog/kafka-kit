@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,63 +13,68 @@ import (
 )
 
 func TestGetTopics(t *testing.T) {
-	s := testServer()
-
 	tests := map[int]*pb.TopicRequest{
 		0: {},
-		1: {Name: "test_topic"},
-		2: {Tag: []string{"partitions:5"}},
+		1: {Name: "test1"},
+		2: {Tag: []string{"partitions:2"}},
 		3: {WithReplicas: true},
 	}
 
 	// pb.TopicResponse{Topics: topics}
 	expectedNames := map[int][]string{
-		0: {"test_topic", "test_topic2"},
-		1: {"test_topic"},
-		2: {"test_topic", "test_topic2"},
-		3: {"test_topic", "test_topic2"},
+		0: {"test1", "test2"},
+		1: {"test1"},
+		2: {"test1", "test2"},
+		3: {"test1", "test2"},
 	}
 
-	expectedReplicas := map[int]map[uint32]pb.Replicas{
+	expectedReplicas := map[int]map[string]map[uint32]pb.Replicas{
 		3: {
-			0: {Ids: []uint32{1000, 1001}},
-			1: {Ids: []uint32{1002, 1003}},
-			2: {Ids: []uint32{1004, 1005}},
-			3: {Ids: []uint32{1006, 1007}},
-			4: {Ids: []uint32{1008, 1009}},
+			"test1": {
+				0: {Ids: []uint32{1001, 1002}},
+				1: {Ids: []uint32{1002}},
+			},
+			"test2": {
+				0: {Ids: []uint32{1003, 1002}},
+				1: {Ids: []uint32{1002, 1003}},
+			},
 		},
 	}
 
 	for i, req := range tests {
+		s := testServer()
+
 		resp, err := s.GetTopics(context.Background(), req)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		if resp.Topics == nil {
-			t.Errorf("Expected a non-nil TopicResponse.Topics field")
+			t.Errorf("[case %d] Expected a non-nil TopicResponse.Topics field", i)
 		}
 
 		topics := TopicSet(resp.Topics).Names()
 
 		if !stringsEqual(expectedNames[i], topics) {
-			t.Errorf("Expected Topic list %s, got %s", expectedNames[i], topics)
+			t.Errorf("[case %d] Expected Topic list %s, got %s", i, expectedNames[i], topics)
 		}
 
 		for _, topic := range resp.Topics {
 			v, exist := topic.Configs["retention.ms"]
 			if !exist {
-				t.Error("Expected 'retention.ms' config key to exist")
+				t.Errorf("[case %d] Expected 'retention.ms' config key to exist", i)
 			}
 			if v != "172800000" {
-				t.Errorf("Expected config value '172800000', got '%s'", v)
+				t.Errorf("[case %d] Expected config value '172800000', got '%s'", i, v)
 			}
 		}
+
 		if exp, ok := expectedReplicas[i]; ok {
 			full := resp.Topics
 			for _, topic := range topics {
 				for partition, replicas := range full[topic].Replicas {
-					assert.ElementsMatch(t, replicas.Ids, exp[partition].Ids, "Unexpected partitions")
+					msg := fmt.Sprintf("[case %d] Unexpected partitions", i)
+					assert.ElementsMatch(t, replicas.Ids, exp[topic][partition].Ids, msg)
 				}
 			}
 		}
