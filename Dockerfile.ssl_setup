@@ -1,4 +1,4 @@
-from ubuntu:18.04
+from ubuntu:22.04
 
 RUN apt-get update >/dev/null
 RUN apt-get install -y openjdk-8-jdk openssl >/dev/null

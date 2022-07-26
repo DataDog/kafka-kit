@@ -1,9 +1,9 @@
-FROM ubuntu:21.04
+FROM ubuntu:22.04
 
 # Install pre-reqs
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt update >/dev/null
-RUN apt install -y jq build-essential unzip curl git pkg-config software-properties-common apt-transport-https ca-certificates >/dev/null
+RUN apt install -y apt-utils jq build-essential unzip curl git pkg-config software-properties-common apt-transport-https ca-certificates >/dev/null
 
 WORKDIR /root
 

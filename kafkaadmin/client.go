@@ -23,7 +23,8 @@ type FactoryFunc func(conf *kafka.ConfigMap) (*kafka.AdminClient, error)
 
 // Client implements a KafkaAdmin.
 type Client struct {
-	c *kafka.AdminClient
+	c                *kafka.AdminClient
+	DefaultTimeoutMs int
 }
 
 // Config holds Client configuration parameters.
@@ -31,6 +32,7 @@ type Config struct {
 	// Required.
 	BootstrapServers string
 	// Misc.
+	DefaultTimeoutMs int
 	GroupId          string
 	SSLCALocation    string
 	SecurityProtocol string
@@ -96,7 +98,13 @@ func cfgToConfigMap(cfg Config) (*kafka.ConfigMap, error) {
 }
 
 func newClient(cfg Config, factory FactoryFunc) (*Client, error) {
-	c := &Client{}
+	c := &Client{
+		DefaultTimeoutMs: cfg.DefaultTimeoutMs,
+	}
+
+	if c.DefaultTimeoutMs == 0 {
+		c.DefaultTimeoutMs = 5000
+	}
 
 	kafkaCfg, err := cfgToConfigMap(cfg)
 	if err != nil {

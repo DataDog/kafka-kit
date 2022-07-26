@@ -29,6 +29,15 @@ func (s Client) SetThrottle(context.Context, kafkaadmin.SetThrottleConfig) error
 func (s Client) RemoveThrottle(context.Context, kafkaadmin.RemoveThrottleConfig) error {
 	return nil
 }
+func (s Client) ListBrokers(context.Context) ([]int, error) {
+	return nil, nil
+}
+func (s Client) DescribeBrokers(context.Context, bool) (kafkaadmin.BrokerStates, error) {
+	return nil, nil
+}
+func (s Client) GetConfigs(context.Context, string, []string) (kafkaadmin.ResourceConfigs, error) {
+	return nil, nil
+}
 func (s Client) GetDynamicConfigs(context.Context, string, []string) (kafkaadmin.ResourceConfigs, error) {
 	return nil, nil
 }
