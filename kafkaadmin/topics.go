@@ -168,3 +168,30 @@ func TopicStatesFromMetadata(md *kafka.Metadata) (TopicStates, error) {
 
 	return topicStates, nil
 }
+
+// List returns a []string of all topic names in the TopicStates.
+func (t TopicStates) List() []string {
+	var names []string
+	for n := range t {
+		names = append(names, n)
+	}
+	return names
+}
+
+// Brokers returns a list of all brokers assigned to any partition in the
+// TopicState.
+func (t TopicState) Brokers() []int {
+	var brokers []int
+	var seen = map[int32]struct{}{}
+
+	for _, partn := range t.PartitionStates {
+		for _, id := range partn.Replicas {
+			if _, exists := seen[id]; !exists {
+				seen[id] = struct{}{}
+				brokers = append(brokers, int(id))
+			}
+		}
+	}
+
+	return brokers
+}
