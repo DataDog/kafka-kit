@@ -62,7 +62,7 @@ func (s *Server) GetTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topic
 		withReplicas: req.WithReplicas,
 	}
 
-	topics, err := s.fetchTopicSet(fetchParams)
+	topics, err := s.fetchTopicSet(ctx, fetchParams)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +95,7 @@ func (s *Server) ListTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topi
 		withReplicas: req.WithReplicas,
 	}
 
-	topics, err := s.fetchTopicSet(fetchParams)
+	topics, err := s.fetchTopicSet(ctx, fetchParams)
 	if err != nil {
 		return nil, err
 	}
@@ -499,7 +499,7 @@ func (s *Server) DeleteTopicTags(ctx context.Context, req *pb.TopicRequest) (*pb
 }
 
 // fetchTopicSet fetches metadata for all topics.
-func (s *Server) fetchTopicSet(params fetchTopicSetParams) (TopicSet, error) {
+func (s *Server) fetchTopicSet(ctx context.Context, params fetchTopicSetParams) (TopicSet, error) {
 	var topicRegex = []*regexp.Regexp{}
 
 	// Check if a specific topic is being fetched.
@@ -521,7 +521,7 @@ func (s *Server) fetchTopicSet(params fetchTopicSetParams) (TopicSet, error) {
 	// Certain state-based topic requests will need broker info.
 	var liveBrokers []uint32
 	if params.spanning {
-		brokers, err := s.fetchBrokerSet(&pb.BrokerRequest{})
+		brokers, err := s.fetchBrokerSet(ctx, &pb.BrokerRequest{})
 		if err != nil {
 			return nil, ErrFetchingTopics
 		}
