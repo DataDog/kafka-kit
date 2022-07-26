@@ -6,9 +6,6 @@ import (
 	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
 )
 
-// StubClient is a stubbed implementation of KafkaAdminClient.
-type Client struct{}
-
 func (s Client) Close() {
 	return
 }
@@ -32,9 +29,11 @@ func (s Client) RemoveThrottle(context.Context, kafkaadmin.RemoveThrottleConfig)
 func (s Client) ListBrokers(context.Context) ([]int, error) {
 	return nil, nil
 }
+
 func (s Client) DescribeBrokers(context.Context, bool) (kafkaadmin.BrokerStates, error) {
-	return nil, nil
+	return s.brokerStates, nil
 }
+
 func (s Client) GetConfigs(context.Context, string, []string) (kafkaadmin.ResourceConfigs, error) {
 	return nil, nil
 }
