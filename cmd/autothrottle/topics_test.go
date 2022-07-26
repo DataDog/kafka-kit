@@ -43,7 +43,7 @@ func TestAddReplica(t *testing.T) {
 func TestGetTopicsWithThrottledBrokers(t *testing.T) {
 	rtf := &ThrottleManager{
 		kafkaNativeMode: true,
-		ka:              stub.Client{},
+		ka:              stub.NewClient(),
 	}
 
 	// Minimally populate the ThrottleManager.

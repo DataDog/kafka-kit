@@ -2,11 +2,13 @@ package stub
 
 import (
 	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
 // StubClient is a stubbed implementation of KafkaAdminClient.
 type Client struct {
 	brokerStates kafkaadmin.BrokerStates
+	metadata     kafka.Metadata
 }
 
 func NewClient() Client {
@@ -43,6 +45,7 @@ func NewClient() Client {
 				Rack: "",
 			},
 		},
+		metadata: fakeKafkaMetadata(),
 	}
 }
 
@@ -50,4 +53,8 @@ func (c Client) AddBrokers(bs kafkaadmin.BrokerStates) {
 	for id, s := range bs {
 		c.brokerStates[id] = s
 	}
+}
+
+func (c Client) LoadMetadata(md kafka.Metadata) {
+	c.metadata = md
 }
