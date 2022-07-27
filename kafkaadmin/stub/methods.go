@@ -5,6 +5,8 @@ import (
 	"regexp"
 
 	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
+
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
 func (s Client) Close() {
@@ -18,25 +20,23 @@ func (s Client) DeleteTopic(context.Context, string) error {
 	return nil
 }
 func (s Client) DescribeTopics(_ context.Context, names []string) (kafkaadmin.TopicStates, error) {
-	md := s.metadata
+	md := s.DumpMetadata()
 
 	re := []*regexp.Regexp{}
 	for _, name := range names {
 		re = append(re, regexp.MustCompile(name))
 	}
 
-	for topic := range md.Topics {
-		var keep bool
+	topics := map[string]kafka.TopicMetadata{}
+	for name, data := range md.Topics {
 		for _, r := range re {
-			if r.MatchString(topic) {
-				keep = true
+			if r.MatchString(name) {
+				topics[name] = data
 			}
-		}
-		if !keep {
-			delete(md.Topics, topic)
 		}
 	}
 
+	md.Topics = topics
 	return kafkaadmin.TopicStatesFromMetadata(&md)
 }
 

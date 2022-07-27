@@ -2,6 +2,7 @@ package stub
 
 import (
 	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
+
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
@@ -57,4 +58,16 @@ func (c Client) AddBrokers(bs kafkaadmin.BrokerStates) {
 
 func (c Client) LoadMetadata(md kafka.Metadata) {
 	c.metadata = md
+}
+
+func (c Client) DumpMetadata() kafka.Metadata {
+	return c.metadata
+}
+
+func (c Client) LoadBrokerstates(bs kafkaadmin.BrokerStates) {
+	c.brokerStates = bs
+}
+
+func (c Client) DumpBrokerstates() kafkaadmin.BrokerStates {
+	return c.brokerStates
 }

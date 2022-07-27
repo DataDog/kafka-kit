@@ -84,21 +84,29 @@ func TestGetTopics(t *testing.T) {
 func TestListTopics(t *testing.T) {
 	s := testServer()
 
+	// Update the stub for metadata specific to this test.
+
+	bs := s.kafkaadmin.(stub.Client).DumpBrokerstates()
+	for i := 1003; i <= 1007; i++ {
+		delete(bs, i)
+	}
+	s.kafkaadmin.(stub.Client).LoadBrokerstates(bs)
+
 	tests := map[int]*pb.TopicRequest{
 		0: {},
-		1: {Spanning: true, Name: "test_topic"},
-		2: {Spanning: true, Tag: []string{"partitions:5"}},
+		1: {Spanning: true, Name: "test1"},
+		2: {Spanning: true, Tag: []string{"partitions:2"}},
 		// These should now fail; it's the same test as the last two cases, but
 		// the increase in brokers should cause these topics to fail to satisfy
 		// the spanning property.
-		3: {Spanning: true, Tag: []string{"partitions:5"}},
-		4: {Spanning: true, Tag: []string{"partitions:5"}},
+		3: {Spanning: true, Name: "test1"},
+		4: {Spanning: true, Tag: []string{"partitions:2"}},
 	}
 
 	expected := map[int][]string{
-		0: {"test_topic", "test_topic2"},
-		1: {"test_topic"},
-		2: {"test_topic", "test_topic2"},
+		0: {"test1", "test2"},
+		1: {"test1"},
+		2: {"test1", "test2"},
 		3: {},
 		4: {},
 	}
@@ -124,17 +132,17 @@ func TestListTopics(t *testing.T) {
 
 		resp, err := s.ListTopics(context.Background(), req)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("[case %d] %s", i, err)
 		}
 
 		if resp.Names == nil {
-			t.Errorf("Expected a non-nil TopicResponse.Topics field")
+			t.Errorf("[case %d] Expected a non-nil TopicResponse.Topics field", i)
 		}
 
 		topics := resp.Names
 
 		if !stringsEqual(expected[i], topics) {
-			t.Errorf("Expected topic list %s, got %s", expected[i], topics)
+			t.Errorf("[case %d] Expected topic list %s, got %s", i, expected[i], topics)
 		}
 	}
 }
