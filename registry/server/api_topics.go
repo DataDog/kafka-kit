@@ -424,18 +424,12 @@ func (s *Server) TagTopic(ctx context.Context, req *pb.TopicRequest) (*pb.TagRes
 	}
 
 	// Ensure the topic exists.
-
-	// Get topics from ZK.
-	r := regexp.MustCompile(fmt.Sprintf("^%s$", req.Name))
-	tr := []*regexp.Regexp{r}
-
-	topics, errs := s.ZK.GetTopics(tr)
-	if errs != nil {
-		return nil, ErrFetchingTopics
-	}
-
-	if len(topics) == 0 {
+	_, err = s.kafkaadmin.DescribeTopics(ctx, []string{req.Name})
+	switch err {
+	case kafkaadmin.ErrNoData:
 		return nil, ErrTopicNotExist
+	default:
+		return nil, err
 	}
 
 	// Set the tags.

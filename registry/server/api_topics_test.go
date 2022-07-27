@@ -177,12 +177,12 @@ func TestCustomTagTopicFilter(t *testing.T) {
 	s := testServer()
 
 	s.Tags.Store.SetTags(
-		KafkaObject{Type: "topic", ID: "test_topic"},
+		KafkaObject{Type: "topic", ID: "test1"},
 		TagSet{"customtag": "customvalue"},
 	)
 
 	s.Tags.Store.SetTags(
-		KafkaObject{Type: "topic", ID: "test_topic2"},
+		KafkaObject{Type: "topic", ID: "test2"},
 		TagSet{
 			"customtag":  "customvalue",
 			"customtag2": "customvalue2",
@@ -196,8 +196,8 @@ func TestCustomTagTopicFilter(t *testing.T) {
 	}
 
 	expected := map[int][]string{
-		0: {"test_topic", "test_topic2"},
-		1: {"test_topic2"},
+		0: {"test1", "test2"},
+		1: {"test2"},
 		2: {},
 	}
 
@@ -208,13 +208,13 @@ func TestCustomTagTopicFilter(t *testing.T) {
 		}
 
 		if resp.Names == nil {
-			t.Errorf("Expected a non-nil TopicResponse.Topics field")
+			t.Errorf("[case %d] Expected a non-nil TopicResponse.Topics field", i)
 		}
 
 		topics := resp.Names
 
 		if !stringsEqual(expected[i], topics) {
-			t.Errorf("Expected Topic list %s, got %s", expected[i], topics)
+			t.Errorf("[case %d] Expected Topic list %s, got %s", i, expected[i], topics)
 		}
 	}
 }
@@ -223,10 +223,10 @@ func TestTagTopic(t *testing.T) {
 	s := testServer()
 
 	tests := map[int]*pb.TopicRequest{
-		0: {Name: "test_topic", Tag: []string{"k:v"}},
+		0: {Name: "test1", Tag: []string{"k:v"}},
 		1: {Tag: []string{"k:v"}},
-		2: {Name: "test_topic", Tag: []string{}},
-		3: {Name: "test_topic"},
+		2: {Name: "test1", Tag: []string{}},
+		3: {Name: "test1"},
 		4: {Name: "test_topic20", Tag: []string{"k:v"}},
 	}
 
