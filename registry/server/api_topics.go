@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"regexp"
 	"sort"
 
 	zklocking "github.com/DataDog/kafka-kit/v4/cluster/zookeeper"
@@ -426,6 +425,7 @@ func (s *Server) TagTopic(ctx context.Context, req *pb.TopicRequest) (*pb.TagRes
 	// Ensure the topic exists.
 	_, err = s.kafkaadmin.DescribeTopics(ctx, []string{req.Name})
 	switch err {
+	case nil:
 	case kafkaadmin.ErrNoData:
 		return nil, ErrTopicNotExist
 	default:
@@ -466,18 +466,13 @@ func (s *Server) DeleteTopicTags(ctx context.Context, req *pb.TopicRequest) (*pb
 	}
 
 	// Ensure the topic exists.
-
-	// Get topics from ZK.
-	r := regexp.MustCompile(fmt.Sprintf("^%s$", req.Name))
-	tr := []*regexp.Regexp{r}
-
-	topics, errs := s.ZK.GetTopics(tr)
-	if errs != nil {
-		return nil, ErrFetchingTopics
-	}
-
-	if len(topics) == 0 {
+	_, err = s.kafkaadmin.DescribeTopics(ctx, []string{req.Name})
+	switch err {
+	case nil:
+	case kafkaadmin.ErrNoData:
 		return nil, ErrTopicNotExist
+	default:
+		return nil, err
 	}
 
 	// Delete the tags.
@@ -562,17 +557,16 @@ func (s *Server) fetchTopicSet(ctx context.Context, params fetchTopicSetParams) 
 
 		// Add the topic to the TopicSet.
 		results[topic] = &pb.Topic{
-			Name:       topic,
-			Partitions: uint32(topicState.Partitions),
-			// TODO more sophisticated check than the
-			// first partition len.
+			Name:        topic,
+			Partitions:  uint32(topicState.Partitions),
 			Replication: uint32(topicState.ReplicationFactor),
 			Configs:     topicConfigs,
 			Replicas:    replicaMap,
 		}
 	}
 
-	// Returned filtered results by tag.
+	// Returned filtered results by tag. Note that tag population is also
+	// handled here.
 	filtered, err := s.Tags.FilterTopics(results, params.tags)
 	if err != nil {
 		log.Printf("fetchTopicSet: %s\n", err)

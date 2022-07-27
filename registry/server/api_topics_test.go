@@ -251,7 +251,7 @@ func TestDeleteTopicTags(t *testing.T) {
 
 	// Set tags.
 	req := &pb.TopicRequest{
-		Name: "test_topic",
+		Name: "test1",
 		Tag:  []string{"k:v", "k2:v2", "k3:v3"},
 	}
 
@@ -262,7 +262,7 @@ func TestDeleteTopicTags(t *testing.T) {
 
 	// Delete two tags.
 	req = &pb.TopicRequest{
-		Name: "test_topic",
+		Name: "test1",
 		Tag:  []string{"k", "k2"},
 	}
 
@@ -272,14 +272,14 @@ func TestDeleteTopicTags(t *testing.T) {
 	}
 
 	// Fetch tags.
-	req = &pb.TopicRequest{Name: "test_topic"}
+	req = &pb.TopicRequest{Name: "test1"}
 	resp, err := s.GetTopics(context.Background(), req)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	expected := TagSet{"k3": "v3"}
-	got := resp.Topics["test_topic"].Tags
+	got := resp.Topics["test1"].Tags
 	if !expected.Equal(got) {
 		t.Errorf("Expected TagSet %v, got %v", expected, got)
 	}
