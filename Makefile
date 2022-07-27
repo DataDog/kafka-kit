@@ -8,7 +8,7 @@ run-compose: compose-build
 
 # Tear down the Docker compose environment.
 stop-compose:
-	docker-compose down
+	docker-compose kill
 
 # Ensure any local images used by compose are up to date.
 compose-build:
