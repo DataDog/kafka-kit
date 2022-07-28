@@ -1,5 +1,4 @@
 //go:build integration
-// +build integration
 
 package server
 
@@ -304,4 +303,16 @@ func TestTearDown(t *testing.T) {
 	}
 
 	store.ZK.Close()
+}
+
+// Recursive search.
+func allChildren(p string) []string {
+	paths := []string{p}
+
+	children, _ := store.ZK.Children(p)
+	for _, c := range children {
+		paths = append(paths, allChildren(fmt.Sprintf("%s/%s", p, c))...)
+	}
+
+	return paths
 }

@@ -497,10 +497,13 @@ func (s *Server) fetchTopicSet(ctx context.Context, params fetchTopicSetParams) 
 	}
 
 	// Fetch topic(s) from cluster.
-	topics, errs := s.kafkaadmin.DescribeTopics(ctx, topicRegexStrings)
-	if errs != nil {
-		log.Printf("fetchTopicSet: %s\n", errs)
-		return nil, ErrFetchingTopics
+	topics, err := s.kafkaadmin.DescribeTopics(ctx, topicRegexStrings)
+	switch err {
+	case nil:
+	case kafkaadmin.ErrNoData:
+		return TopicSet{}, nil
+	default:
+		return nil, err
 	}
 
 	results := TopicSet{}
@@ -517,7 +520,7 @@ func (s *Server) fetchTopicSet(ctx context.Context, params fetchTopicSetParams) 
 	}
 
 	// Get topic dynamic configs.
-	configs, err := s.kafkaadmin.GetDynamicConfigs(ctx, "topics", topics.List())
+	configs, err := s.kafkaadmin.GetDynamicConfigs(ctx, "topic", topics.List())
 	if err != nil {
 		log.Printf("fetchTopicSet: %s\n", err)
 		return nil, ErrFetchingTopics

@@ -95,6 +95,8 @@ services:
       REGISTRY_KAFKA_SASL_MECHANISM: PLAIN
       REGISTRY_KAFKA_SASL_USERNAME: registry
       REGISTRY_KAFKA_SASL_PASSWORD: registry-secret
+      REGISTRY_WRITE_RATE_LIMIT: 60
+      REGISTRY_READ_RATE_LIMIT: 60
 
     volumes:
       - "ssl-store:/etc/kafka/config"

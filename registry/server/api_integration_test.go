@@ -1,5 +1,4 @@
 //go:build integration
-// +build integration
 
 package server
 
@@ -8,29 +7,14 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
 	pb "github.com/DataDog/kafka-kit/v4/registry/registry"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCreateTopic(t *testing.T) {
-	s, err := testIntegrationServer()
+	reg, err := RegistryClient()
 	if err != nil {
-		t.Fatal(err)
-	}
-
-	ka, err := kafkaAdminClient()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Pre-create a topic.
-	topicConfig := kafkaadmin.CreateTopicConfig{
-		Name:              "exists",
-		Partitions:        1,
-		ReplicationFactor: 1,
-	}
-
-	if err := ka.CreateTopic(context.Background(), topicConfig); err != nil {
 		t.Fatal(err)
 	}
 
@@ -41,7 +25,7 @@ func TestCreateTopic(t *testing.T) {
 		},
 		// This should fail because we're trying to create an existing topic.
 		1: {
-			Topic: &pb.Topic{Name: "exists", Partitions: 1, Replication: 1},
+			Topic: &pb.Topic{Name: "new_topic", Partitions: 1, Replication: 1},
 		},
 		// This should fail; incomplete request params.
 		2: {
@@ -59,31 +43,24 @@ func TestCreateTopic(t *testing.T) {
 	}
 
 	for i := 0; i < len(tests); i++ {
-		_, err := s.CreateTopic(context.Background(), tests[i])
-		if err != expectedErrors[i] {
-			t.Errorf("Expected error '%s' for test %d, got '%s'", expectedErrors[i], i, err)
-		}
+		_, err := reg.CreateTopic(context.Background(), tests[i])
+		assert.Equal(t, expectedErrors[i], err, fmt.Sprintf("test %d", i))
 	}
 
 	// Cleanup.
 	for _, topic := range []string{"new_topic", "exists"} {
-		ka.DeleteTopic(context.Background(), topic)
+		reg.DeleteTopic(context.Background(), &pb.TopicRequest{Name: topic})
 	}
 }
 
 func TestCreateTaggedTopic(t *testing.T) {
-	s, err := testIntegrationServer()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	ka, err := kafkaAdminClient()
+	reg, err := RegistryClient()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Tag a broker so we can test partition mapping by tag.
-	_, err = s.TagBroker(context.Background(), &pb.BrokerRequest{Id: 1001, Tag: []string{"key:value"}})
+	_, err = reg.TagBroker(context.Background(), &pb.BrokerRequest{Id: 1001, Tag: []string{"key:value"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,37 +107,28 @@ func TestCreateTaggedTopic(t *testing.T) {
 	}
 
 	for i := 0; i < len(tests); i++ {
-		_, err := s.CreateTopic(context.Background(), tests[i])
-		if err != expectedErrors[i] {
-			t.Errorf("Expected error '%s' for test %d, got '%s'", expectedErrors[i], i, err)
-		}
+		_, err := reg.CreateTopic(context.Background(), tests[i])
+		assert.Equal(t, expectedErrors[i], err, fmt.Sprintf("test %d", i))
 	}
 
 	// Cleanup.
 	for _, topic := range []string{"new_topic2"} {
-		ka.DeleteTopic(context.Background(), topic)
+		reg.DeleteTopic(context.Background(), &pb.TopicRequest{Name: topic})
 	}
 }
 
 func TestDeleteTopic(t *testing.T) {
-	s, err := testIntegrationServer()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	ka, err := kafkaAdminClient()
+	reg, err := RegistryClient()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Pre-create a topic.
-	topicConfig := kafkaadmin.CreateTopicConfig{
-		Name:              "topic_for_delete",
-		Partitions:        1,
-		ReplicationFactor: 1,
+	topicConfig := &pb.CreateTopicRequest{
+		Topic: &pb.Topic{Name: "topic_for_delete", Partitions: 1, Replication: 1},
 	}
 
-	if err := ka.CreateTopic(context.Background(), topicConfig); err != nil {
+	if _, err := reg.CreateTopic(context.Background(), topicConfig); err != nil {
 		t.Fatal(err)
 	}
 
@@ -183,21 +151,7 @@ func TestDeleteTopic(t *testing.T) {
 	}
 
 	for i := 0; i < len(tests); i++ {
-		_, err := s.DeleteTopic(context.Background(), tests[i])
-		if err != expectedErrors[i] {
-			t.Errorf("Expected error '%s' for test %d, got '%s'", expectedErrors[i], i, err)
-		}
+		_, err := reg.DeleteTopic(context.Background(), tests[i])
+		assert.Equal(t, expectedErrors[i], err, fmt.Sprintf("test %d", i))
 	}
-}
-
-// Recursive search.
-func allChildren(p string) []string {
-	paths := []string{p}
-
-	children, _ := store.ZK.Children(p)
-	for _, c := range children {
-		paths = append(paths, allChildren(fmt.Sprintf("%s/%s", p, c))...)
-	}
-
-	return paths
 }
