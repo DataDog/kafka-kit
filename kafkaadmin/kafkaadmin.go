@@ -12,6 +12,7 @@ type KafkaAdmin interface {
 	CreateTopic(context.Context, CreateTopicConfig) error
 	DeleteTopic(context.Context, string) error
 	DescribeTopics(context.Context, []string) (TopicStates, error)
+	//UnderReplicatedTopics(context.Context) (TopicStates, error)
 	// Brokers.
 	ListBrokers(context.Context) ([]int, error)
 	DescribeBrokers(context.Context, bool) (BrokerStates, error)

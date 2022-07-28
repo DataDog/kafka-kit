@@ -86,6 +86,25 @@ func (c Client) DeleteTopic(ctx context.Context, name string) error {
 // DescribeTopics takes a []string of topic names. Topic names can be name literals
 // or optional regex. A TopicStates is returned for all matching topics.
 func (c Client) DescribeTopics(ctx context.Context, topics []string) (TopicStates, error) {
+	md, err := c.getMetadata(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Strip topics that don't match any of the specified names.
+	topicNamesRegex, err := stringsToRegex(topics)
+	if err != nil {
+		return nil, err
+	}
+
+	filterMatches(md, topicNamesRegex)
+
+	return TopicStatesFromMetadata(md)
+}
+
+//func (c Client) UnderReplicatedTopics(ctx context.Context) (TopicStates, error) {}
+
+func (c Client) getMetadata(ctx context.Context) (*kafka.Metadata, error) {
 	// Use the context deadline remaining budget if set, otherwise use the default
 	// timeout value.
 	var timeout time.Duration
@@ -101,15 +120,7 @@ func (c Client) DescribeTopics(ctx context.Context, topics []string) (TopicState
 		return nil, ErrorFetchingMetadata{Message: err.Error()}
 	}
 
-	// Strip topics that don't match any of the specified names.
-	topicNamesRegex, err := stringsToRegex(topics)
-	if err != nil {
-		return nil, err
-	}
-
-	filterMatches(md, topicNamesRegex)
-
-	return TopicStatesFromMetadata(md)
+	return md, nil
 }
 
 func filterMatches(md *kafka.Metadata, re []*regexp.Regexp) {
