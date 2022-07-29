@@ -102,7 +102,38 @@ func (c Client) DescribeTopics(ctx context.Context, topics []string) (TopicState
 	return TopicStatesFromMetadata(md)
 }
 
-//func (c Client) UnderReplicatedTopics(ctx context.Context) (TopicStates, error) {}
+// UnderReplicatedTopics returns a TopicStates that only includes under-replicated
+// topics.
+func (c Client) UnderReplicatedTopics(ctx context.Context) (TopicStates, error) {
+	// Fetch all topics.
+	topicStates, err := c.DescribeTopics(ctx, []string{".*"})
+	if err != nil {
+		return nil, err
+	}
+
+	// Loop through all topics.
+	for topic, state := range topicStates {
+		// As of writing, the underlying confluent-kafka-go library returns the
+		// following PartitionMetadata for an under-replicated topic:
+		// {ID:0 Error:Success Leader:1001 Replicas:[1001 1002 1003] Isrs:[1001 1003]}
+		// Since the Error field is in a non-error state, the best inference we have
+		// as to whether a partition (and therefore its parent topic) is under-replicated
+		// is looking for those where len(ISR) < len(Replicas), which will include
+		// reassigning partitions.
+		var underReplicated bool
+		for _, partnState := range state.PartitionStates {
+			if len(partnState.ISR) < len(partnState.Replicas) {
+				underReplicated = true
+				break
+			}
+		}
+		if !underReplicated {
+			delete(topicStates, topic)
+		}
+	}
+
+	return topicStates, nil
+}
 
 func (c Client) getMetadata(ctx context.Context) (*kafka.Metadata, error) {
 	// Use the context deadline remaining budget if set, otherwise use the default
