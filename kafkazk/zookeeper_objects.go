@@ -118,6 +118,15 @@ func (tm TopicMetadata) Reassignments() Reassignments {
 	return reassignments
 }
 
+// List returns a []string of topic names held in the Reassignments.
+func (r Reassignments) List() []string {
+	var names []string
+	for name := range r {
+		names = append(names, name)
+	}
+	return names
+}
+
 func inIntSlice(i int, s []int) bool {
 	for _, e := range s {
 		if i == e {
