@@ -136,12 +136,12 @@ func (s *Server) UnderReplicatedTopics(ctx context.Context, _ *pb.Empty) (*pb.To
 		defer cancel()
 	}
 
-	reassigning, err := s.ZK.GetUnderReplicated()
+	underReplicated, err := s.kafkaadmin.UnderReplicatedTopics(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return &pb.TopicResponse{Names: reassigning}, nil
+	return &pb.TopicResponse{Names: underReplicated.List()}, nil
 }
 
 // CreateTopic creates a topic if it doesn't exist. Topic tags can optionally
