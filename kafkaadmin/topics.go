@@ -22,38 +22,6 @@ type CreateTopicConfig struct {
 // for the reference topic), the inner slice is an []int32 of broker assignments.
 type ReplicaAssignment [][]int32
 
-// TopicStates is a map of topic names to TopicState.
-type TopicStates map[string]TopicState
-
-// TopicState describes the current state of a topic.
-type TopicState struct {
-	Name              string
-	Partitions        int32
-	ReplicationFactor int32
-	PartitionStates   map[int]PartitionState
-}
-
-// PartitionState describes the state of a partition.
-type PartitionState struct {
-	ID       int32
-	Leader   int32
-	Replicas []int32
-	ISR      []int32
-}
-
-// NewTopicStates initializes a TopicStates.
-func NewTopicStates() TopicStates {
-	return make(map[string]TopicState)
-}
-
-// NewTopicState initializes a TopicState.
-func NewTopicState(name string) TopicState {
-	return TopicState{
-		Name:            name,
-		PartitionStates: make(map[int]PartitionState),
-	}
-}
-
 // CreateTopic creates a topic.
 func (c Client) CreateTopic(ctx context.Context, cfg CreateTopicConfig) error {
 	spec := kafka.TopicSpecification{
@@ -111,28 +79,7 @@ func (c Client) UnderReplicatedTopics(ctx context.Context) (TopicStates, error) 
 		return nil, err
 	}
 
-	// Loop through all topics.
-	for topic, state := range topicStates {
-		// As of writing, the underlying confluent-kafka-go library returns the
-		// following PartitionMetadata for an under-replicated topic:
-		// {ID:0 Error:Success Leader:1001 Replicas:[1001 1002 1003] Isrs:[1001 1003]}
-		// Since the Error field is in a non-error state, the best inference we have
-		// as to whether a partition (and therefore its parent topic) is under-replicated
-		// is looking for those where len(ISR) < len(Replicas), which will include
-		// reassigning partitions.
-		var underReplicated bool
-		for _, partnState := range state.PartitionStates {
-			if len(partnState.ISR) < len(partnState.Replicas) {
-				underReplicated = true
-				break
-			}
-		}
-		if !underReplicated {
-			delete(topicStates, topic)
-		}
-	}
-
-	return topicStates, nil
+	return topicStates.UnderReplicated(), nil
 }
 
 func (c Client) getMetadata(ctx context.Context) (*kafka.Metadata, error) {
