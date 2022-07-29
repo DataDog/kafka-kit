@@ -247,8 +247,13 @@ func (s *Server) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*
 		bMap := mapper.NewBrokerMap()
 
 		// Get the live broker metadata.
-		brokerState, errs := s.ZK.GetAllBrokerMeta(false)
-		if errs != nil {
+		brokerStates, err := s.kafkaadmin.DescribeBrokers(ctx, false)
+		if err != nil {
+			return empty, ErrFetchingBrokers
+		}
+
+		bmm, err := mapper.BrokerMetaMapFromStates(brokerStates)
+		if err != nil {
 			return empty, ErrFetchingBrokers
 		}
 
@@ -258,7 +263,7 @@ func (s *Server) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*
 		// only ever using brokers we just fetched from the cluster
 		// state as opposed to user provided lists. Other scenarios
 		// may need to be covered, however.
-		bMap.Update(targetBrokerIDs, brokerState)
+		bMap.Update(targetBrokerIDs, bmm)
 
 		// Rebuild the stub map with the discovered target broker list.
 		rebuildParams := mapper.RebuildParams{
