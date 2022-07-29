@@ -114,6 +114,9 @@ func (s *Server) ReassigningTopics(ctx context.Context, _ *pb.Empty) (*pb.TopicR
 		defer cancel()
 	}
 
+	// XXX(jamie): this is still read from ZooKeeper because the underlying
+	// confluent-kafka-go client cannot differentiate reassigning and under-replicated
+	// topics. See the kafkaadmin package UnderReplicatedTopics method comments.
 	reassigning := s.ZK.GetReassignments()
 	var names []string
 
