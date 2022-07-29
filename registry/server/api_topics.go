@@ -8,7 +8,6 @@ import (
 
 	zklocking "github.com/DataDog/kafka-kit/v4/cluster/zookeeper"
 	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
-	"github.com/DataDog/kafka-kit/v4/kafkazk"
 	"github.com/DataDog/kafka-kit/v4/mapper"
 	pb "github.com/DataDog/kafka-kit/v4/registry/registry"
 
@@ -362,16 +361,18 @@ func (s *Server) TopicMappings(ctx context.Context, req *pb.TopicRequest) (*pb.B
 		return nil, ErrTopicNameEmpty
 	}
 
-	// Get a mapper.PartitionMap for the topic.
-	pm, err := s.ZK.GetPartitionMap(req.Name)
-	if err != nil {
-		switch err.(type) {
-		case kafkazk.ErrNoNode:
-			return nil, ErrTopicNotExist
-		default:
-			return nil, err
-		}
+	// Get the topic state.
+	tState, err := s.kafkaadmin.DescribeTopics(ctx, []string{req.Name})
+	switch err {
+	case nil:
+	case kafkaadmin.ErrNoData:
+		return nil, ErrTopicNotExist
+	default:
+		return nil, err
 	}
+
+	// Translate it to a mapper object.
+	pm, _ := mapper.PartitionMapFromTopicStates(tState)
 
 	// Get a mapper.BrokerMap from the PartitionMap.
 	bm := mapper.BrokerMapFromPartitionMap(pm, nil, false)

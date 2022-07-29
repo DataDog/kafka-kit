@@ -288,11 +288,11 @@ func TestTopicMappings(t *testing.T) {
 	s := testServer()
 
 	tests := map[int]*pb.TopicRequest{
-		0: {Name: "test_topic"},
+		0: {Name: "test2"},
 	}
 
 	expected := map[int][]uint32{
-		0: {1001, 1002, 1003, 1004},
+		0: {1002, 1003},
 	}
 
 	for i, req := range tests {
