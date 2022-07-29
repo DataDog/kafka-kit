@@ -16,9 +16,11 @@ func (s Client) Close() {
 func (s Client) CreateTopic(context.Context, kafkaadmin.CreateTopicConfig) error {
 	return nil
 }
+
 func (s Client) DeleteTopic(context.Context, string) error {
 	return nil
 }
+
 func (s Client) DescribeTopics(_ context.Context, names []string) (kafkaadmin.TopicStates, error) {
 	md := s.DumpMetadata()
 
@@ -40,12 +42,18 @@ func (s Client) DescribeTopics(_ context.Context, names []string) (kafkaadmin.To
 	return kafkaadmin.TopicStatesFromMetadata(&md)
 }
 
+func (s Client) UnderReplicatedTopics(ctx context.Context) (kafkaadmin.TopicStates, error) {
+	return nil, nil
+}
+
 func (s Client) SetThrottle(context.Context, kafkaadmin.SetThrottleConfig) error {
 	return nil
 }
+
 func (s Client) RemoveThrottle(context.Context, kafkaadmin.RemoveThrottleConfig) error {
 	return nil
 }
+
 func (s Client) ListBrokers(context.Context) ([]int, error) {
 	return nil, nil
 }

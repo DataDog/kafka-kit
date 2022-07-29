@@ -147,32 +147,6 @@ func TestListTopics(t *testing.T) {
 	}
 }
 
-func TestReassigningTopics(t *testing.T) {
-	s := testServer()
-
-	out, err := s.ReassigningTopics(context.Background(), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(out.Names) != 1 || out.Names[0] != "reassigning_topic" {
-		t.Errorf("Unexpected reassigning topic output")
-	}
-}
-
-func TestUnderReplicated(t *testing.T) {
-	s := testServer()
-
-	out, err := s.UnderReplicatedTopics(context.Background(), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(out.Names) != 1 || out.Names[0] != "underreplicated_topic" {
-		t.Errorf("Unexpected under replicated topic output")
-	}
-}
-
 func TestCustomTagTopicFilter(t *testing.T) {
 	s := testServer()
 
