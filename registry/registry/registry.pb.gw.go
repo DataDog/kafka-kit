@@ -889,12 +889,13 @@ func RegisterRegistryHandlerServer(ctx context.Context, mux *runtime.ServeMux, s
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/registry.Registry/GetBrokers", runtime.WithHTTPPathPattern("/v1/brokers"))
+		var err error
+		ctx, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/registry.Registry/GetBrokers", runtime.WithHTTPPathPattern("/v1/brokers"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_Registry_GetBrokers_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_Registry_GetBrokers_0(ctx, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
@@ -912,12 +913,13 @@ func RegisterRegistryHandlerServer(ctx context.Context, mux *runtime.ServeMux, s
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/registry.Registry/ListBrokers", runtime.WithHTTPPathPattern("/v1/brokers/list"))
+		var err error
+		ctx, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/registry.Registry/ListBrokers", runtime.WithHTTPPathPattern("/v1/brokers/list"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_Registry_ListBrokers_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_Registry_ListBrokers_0(ctx, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
@@ -935,12 +937,13 @@ func RegisterRegistryHandlerServer(ctx context.Context, mux *runtime.ServeMux, s
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/registry.Registry/UnmappedBrokers", runtime.WithHTTPPathPattern("/v1/brokers/unmapped"))
+		var err error
+		ctx, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/registry.Registry/UnmappedBrokers", runtime.WithHTTPPathPattern("/v1/brokers/unmapped"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_Registry_UnmappedBrokers_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_Registry_UnmappedBrokers_0(ctx, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
@@ -958,12 +961,13 @@ func RegisterRegistryHandlerServer(ctx context.Context, mux *runtime.ServeMux, s
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/registry.Registry/GetTopics", runtime.WithHTTPPathPattern("/v1/topics"))
+		var err error
+		ctx, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/registry.Registry/GetTopics", runtime.WithHTTPPathPattern("/v1/topics"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_Registry_GetTopics_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_Registry_GetTopics_0(ctx, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
@@ -981,12 +985,13 @@ func RegisterRegistryHandlerServer(ctx context.Context, mux *runtime.ServeMux, s
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/registry.Registry/ListTopics", runtime.WithHTTPPathPattern("/v1/topics/list"))
+		var err error
+		ctx, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/registry.Registry/ListTopics", runtime.WithHTTPPathPattern("/v1/topics/list"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_Registry_ListTopics_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_Registry_ListTopics_0(ctx, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
@@ -1004,12 +1009,13 @@ func RegisterRegistryHandlerServer(ctx context.Context, mux *runtime.ServeMux, s
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/registry.Registry/CreateTopic", runtime.WithHTTPPathPattern("/v1/topics/create"))
+		var err error
+		ctx, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/registry.Registry/CreateTopic", runtime.WithHTTPPathPattern("/v1/topics/create"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_Registry_CreateTopic_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_Registry_CreateTopic_0(ctx, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
@@ -1027,12 +1033,13 @@ func RegisterRegistryHandlerServer(ctx context.Context, mux *runtime.ServeMux, s
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/registry.Registry/DeleteTopic", runtime.WithHTTPPathPattern("/v1/topics/{name}"))
+		var err error
+		ctx, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/registry.Registry/DeleteTopic", runtime.WithHTTPPathPattern("/v1/topics/{name}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_Registry_DeleteTopic_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_Registry_DeleteTopic_0(ctx, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
@@ -1050,12 +1057,13 @@ func RegisterRegistryHandlerServer(ctx context.Context, mux *runtime.ServeMux, s
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/registry.Registry/ReassigningTopics", runtime.WithHTTPPathPattern("/v1/topics/reassigning"))
+		var err error
+		ctx, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/registry.Registry/ReassigningTopics", runtime.WithHTTPPathPattern("/v1/topics/reassigning"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_Registry_ReassigningTopics_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_Registry_ReassigningTopics_0(ctx, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
@@ -1073,12 +1081,13 @@ func RegisterRegistryHandlerServer(ctx context.Context, mux *runtime.ServeMux, s
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/registry.Registry/UnderReplicatedTopics", runtime.WithHTTPPathPattern("/v1/topics/underreplicated"))
+		var err error
+		ctx, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/registry.Registry/UnderReplicatedTopics", runtime.WithHTTPPathPattern("/v1/topics/underreplicated"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_Registry_UnderReplicatedTopics_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_Registry_UnderReplicatedTopics_0(ctx, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
@@ -1096,12 +1105,13 @@ func RegisterRegistryHandlerServer(ctx context.Context, mux *runtime.ServeMux, s
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/registry.Registry/TopicMappings", runtime.WithHTTPPathPattern("/v1/mappings/topic/{name}"))
+		var err error
+		ctx, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/registry.Registry/TopicMappings", runtime.WithHTTPPathPattern("/v1/mappings/topic/{name}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_Registry_TopicMappings_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_Registry_TopicMappings_0(ctx, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
@@ -1119,12 +1129,13 @@ func RegisterRegistryHandlerServer(ctx context.Context, mux *runtime.ServeMux, s
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/registry.Registry/BrokerMappings", runtime.WithHTTPPathPattern("/v1/mappings/broker/{id}"))
+		var err error
+		ctx, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/registry.Registry/BrokerMappings", runtime.WithHTTPPathPattern("/v1/mappings/broker/{id}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_Registry_BrokerMappings_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_Registry_BrokerMappings_0(ctx, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
@@ -1142,12 +1153,13 @@ func RegisterRegistryHandlerServer(ctx context.Context, mux *runtime.ServeMux, s
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/registry.Registry/TagTopic", runtime.WithHTTPPathPattern("/v1/topics/tag/{name}"))
+		var err error
+		ctx, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/registry.Registry/TagTopic", runtime.WithHTTPPathPattern("/v1/topics/tag/{name}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_Registry_TagTopic_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_Registry_TagTopic_0(ctx, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
@@ -1165,12 +1177,13 @@ func RegisterRegistryHandlerServer(ctx context.Context, mux *runtime.ServeMux, s
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/registry.Registry/DeleteTopicTags", runtime.WithHTTPPathPattern("/v1/topics/tag/{name}"))
+		var err error
+		ctx, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/registry.Registry/DeleteTopicTags", runtime.WithHTTPPathPattern("/v1/topics/tag/{name}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_Registry_DeleteTopicTags_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_Registry_DeleteTopicTags_0(ctx, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
@@ -1188,12 +1201,13 @@ func RegisterRegistryHandlerServer(ctx context.Context, mux *runtime.ServeMux, s
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/registry.Registry/TagBroker", runtime.WithHTTPPathPattern("/v1/brokers/tag/{id}"))
+		var err error
+		ctx, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/registry.Registry/TagBroker", runtime.WithHTTPPathPattern("/v1/brokers/tag/{id}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_Registry_TagBroker_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_Registry_TagBroker_0(ctx, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
@@ -1211,12 +1225,13 @@ func RegisterRegistryHandlerServer(ctx context.Context, mux *runtime.ServeMux, s
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/registry.Registry/TagBrokers", runtime.WithHTTPPathPattern("/v2/brokers/tag"))
+		var err error
+		ctx, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/registry.Registry/TagBrokers", runtime.WithHTTPPathPattern("/v2/brokers/tag"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_Registry_TagBrokers_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_Registry_TagBrokers_0(ctx, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
@@ -1234,12 +1249,13 @@ func RegisterRegistryHandlerServer(ctx context.Context, mux *runtime.ServeMux, s
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/registry.Registry/DeleteBrokerTags", runtime.WithHTTPPathPattern("/v1/brokers/tag/{id}"))
+		var err error
+		ctx, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/registry.Registry/DeleteBrokerTags", runtime.WithHTTPPathPattern("/v1/brokers/tag/{id}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_Registry_DeleteBrokerTags_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_Registry_DeleteBrokerTags_0(ctx, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
@@ -1257,12 +1273,13 @@ func RegisterRegistryHandlerServer(ctx context.Context, mux *runtime.ServeMux, s
 		var stream runtime.ServerTransportStream
 		ctx = grpc.NewContextWithServerTransportStream(ctx, &stream)
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req, "/registry.Registry/TranslateOffsets", runtime.WithHTTPPathPattern("/v1/translate-offsets/{remote_cluster_alias}/{group_id}"))
+		var err error
+		ctx, err = runtime.AnnotateIncomingContext(ctx, mux, req, "/registry.Registry/TranslateOffsets", runtime.WithHTTPPathPattern("/v1/translate-offsets/{remote_cluster_alias}/{group_id}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_Registry_TranslateOffsets_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_Registry_TranslateOffsets_0(ctx, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
@@ -1319,12 +1336,13 @@ func RegisterRegistryHandlerClient(ctx context.Context, mux *runtime.ServeMux, c
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/registry.Registry/GetBrokers", runtime.WithHTTPPathPattern("/v1/brokers"))
+		var err error
+		ctx, err = runtime.AnnotateContext(ctx, mux, req, "/registry.Registry/GetBrokers", runtime.WithHTTPPathPattern("/v1/brokers"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_Registry_GetBrokers_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_Registry_GetBrokers_0(ctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -1339,12 +1357,13 @@ func RegisterRegistryHandlerClient(ctx context.Context, mux *runtime.ServeMux, c
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/registry.Registry/ListBrokers", runtime.WithHTTPPathPattern("/v1/brokers/list"))
+		var err error
+		ctx, err = runtime.AnnotateContext(ctx, mux, req, "/registry.Registry/ListBrokers", runtime.WithHTTPPathPattern("/v1/brokers/list"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_Registry_ListBrokers_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_Registry_ListBrokers_0(ctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -1359,12 +1378,13 @@ func RegisterRegistryHandlerClient(ctx context.Context, mux *runtime.ServeMux, c
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/registry.Registry/UnmappedBrokers", runtime.WithHTTPPathPattern("/v1/brokers/unmapped"))
+		var err error
+		ctx, err = runtime.AnnotateContext(ctx, mux, req, "/registry.Registry/UnmappedBrokers", runtime.WithHTTPPathPattern("/v1/brokers/unmapped"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_Registry_UnmappedBrokers_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_Registry_UnmappedBrokers_0(ctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -1379,12 +1399,13 @@ func RegisterRegistryHandlerClient(ctx context.Context, mux *runtime.ServeMux, c
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/registry.Registry/GetTopics", runtime.WithHTTPPathPattern("/v1/topics"))
+		var err error
+		ctx, err = runtime.AnnotateContext(ctx, mux, req, "/registry.Registry/GetTopics", runtime.WithHTTPPathPattern("/v1/topics"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_Registry_GetTopics_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_Registry_GetTopics_0(ctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -1399,12 +1420,13 @@ func RegisterRegistryHandlerClient(ctx context.Context, mux *runtime.ServeMux, c
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/registry.Registry/ListTopics", runtime.WithHTTPPathPattern("/v1/topics/list"))
+		var err error
+		ctx, err = runtime.AnnotateContext(ctx, mux, req, "/registry.Registry/ListTopics", runtime.WithHTTPPathPattern("/v1/topics/list"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_Registry_ListTopics_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_Registry_ListTopics_0(ctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -1419,12 +1441,13 @@ func RegisterRegistryHandlerClient(ctx context.Context, mux *runtime.ServeMux, c
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/registry.Registry/CreateTopic", runtime.WithHTTPPathPattern("/v1/topics/create"))
+		var err error
+		ctx, err = runtime.AnnotateContext(ctx, mux, req, "/registry.Registry/CreateTopic", runtime.WithHTTPPathPattern("/v1/topics/create"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_Registry_CreateTopic_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_Registry_CreateTopic_0(ctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -1439,12 +1462,13 @@ func RegisterRegistryHandlerClient(ctx context.Context, mux *runtime.ServeMux, c
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/registry.Registry/DeleteTopic", runtime.WithHTTPPathPattern("/v1/topics/{name}"))
+		var err error
+		ctx, err = runtime.AnnotateContext(ctx, mux, req, "/registry.Registry/DeleteTopic", runtime.WithHTTPPathPattern("/v1/topics/{name}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_Registry_DeleteTopic_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_Registry_DeleteTopic_0(ctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -1459,12 +1483,13 @@ func RegisterRegistryHandlerClient(ctx context.Context, mux *runtime.ServeMux, c
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/registry.Registry/ReassigningTopics", runtime.WithHTTPPathPattern("/v1/topics/reassigning"))
+		var err error
+		ctx, err = runtime.AnnotateContext(ctx, mux, req, "/registry.Registry/ReassigningTopics", runtime.WithHTTPPathPattern("/v1/topics/reassigning"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_Registry_ReassigningTopics_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_Registry_ReassigningTopics_0(ctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -1479,12 +1504,13 @@ func RegisterRegistryHandlerClient(ctx context.Context, mux *runtime.ServeMux, c
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/registry.Registry/UnderReplicatedTopics", runtime.WithHTTPPathPattern("/v1/topics/underreplicated"))
+		var err error
+		ctx, err = runtime.AnnotateContext(ctx, mux, req, "/registry.Registry/UnderReplicatedTopics", runtime.WithHTTPPathPattern("/v1/topics/underreplicated"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_Registry_UnderReplicatedTopics_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_Registry_UnderReplicatedTopics_0(ctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -1499,12 +1525,13 @@ func RegisterRegistryHandlerClient(ctx context.Context, mux *runtime.ServeMux, c
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/registry.Registry/TopicMappings", runtime.WithHTTPPathPattern("/v1/mappings/topic/{name}"))
+		var err error
+		ctx, err = runtime.AnnotateContext(ctx, mux, req, "/registry.Registry/TopicMappings", runtime.WithHTTPPathPattern("/v1/mappings/topic/{name}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_Registry_TopicMappings_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_Registry_TopicMappings_0(ctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -1519,12 +1546,13 @@ func RegisterRegistryHandlerClient(ctx context.Context, mux *runtime.ServeMux, c
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/registry.Registry/BrokerMappings", runtime.WithHTTPPathPattern("/v1/mappings/broker/{id}"))
+		var err error
+		ctx, err = runtime.AnnotateContext(ctx, mux, req, "/registry.Registry/BrokerMappings", runtime.WithHTTPPathPattern("/v1/mappings/broker/{id}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_Registry_BrokerMappings_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_Registry_BrokerMappings_0(ctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -1539,12 +1567,13 @@ func RegisterRegistryHandlerClient(ctx context.Context, mux *runtime.ServeMux, c
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/registry.Registry/TagTopic", runtime.WithHTTPPathPattern("/v1/topics/tag/{name}"))
+		var err error
+		ctx, err = runtime.AnnotateContext(ctx, mux, req, "/registry.Registry/TagTopic", runtime.WithHTTPPathPattern("/v1/topics/tag/{name}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_Registry_TagTopic_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_Registry_TagTopic_0(ctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -1559,12 +1588,13 @@ func RegisterRegistryHandlerClient(ctx context.Context, mux *runtime.ServeMux, c
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/registry.Registry/DeleteTopicTags", runtime.WithHTTPPathPattern("/v1/topics/tag/{name}"))
+		var err error
+		ctx, err = runtime.AnnotateContext(ctx, mux, req, "/registry.Registry/DeleteTopicTags", runtime.WithHTTPPathPattern("/v1/topics/tag/{name}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_Registry_DeleteTopicTags_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_Registry_DeleteTopicTags_0(ctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -1579,12 +1609,13 @@ func RegisterRegistryHandlerClient(ctx context.Context, mux *runtime.ServeMux, c
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/registry.Registry/TagBroker", runtime.WithHTTPPathPattern("/v1/brokers/tag/{id}"))
+		var err error
+		ctx, err = runtime.AnnotateContext(ctx, mux, req, "/registry.Registry/TagBroker", runtime.WithHTTPPathPattern("/v1/brokers/tag/{id}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_Registry_TagBroker_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_Registry_TagBroker_0(ctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -1599,12 +1630,13 @@ func RegisterRegistryHandlerClient(ctx context.Context, mux *runtime.ServeMux, c
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/registry.Registry/TagBrokers", runtime.WithHTTPPathPattern("/v2/brokers/tag"))
+		var err error
+		ctx, err = runtime.AnnotateContext(ctx, mux, req, "/registry.Registry/TagBrokers", runtime.WithHTTPPathPattern("/v2/brokers/tag"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_Registry_TagBrokers_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_Registry_TagBrokers_0(ctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -1619,12 +1651,13 @@ func RegisterRegistryHandlerClient(ctx context.Context, mux *runtime.ServeMux, c
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/registry.Registry/DeleteBrokerTags", runtime.WithHTTPPathPattern("/v1/brokers/tag/{id}"))
+		var err error
+		ctx, err = runtime.AnnotateContext(ctx, mux, req, "/registry.Registry/DeleteBrokerTags", runtime.WithHTTPPathPattern("/v1/brokers/tag/{id}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_Registry_DeleteBrokerTags_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_Registry_DeleteBrokerTags_0(ctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
@@ -1639,12 +1672,13 @@ func RegisterRegistryHandlerClient(ctx context.Context, mux *runtime.ServeMux, c
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
-		rctx, err := runtime.AnnotateContext(ctx, mux, req, "/registry.Registry/TranslateOffsets", runtime.WithHTTPPathPattern("/v1/translate-offsets/{remote_cluster_alias}/{group_id}"))
+		var err error
+		ctx, err = runtime.AnnotateContext(ctx, mux, req, "/registry.Registry/TranslateOffsets", runtime.WithHTTPPathPattern("/v1/translate-offsets/{remote_cluster_alias}/{group_id}"))
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_Registry_TranslateOffsets_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_Registry_TranslateOffsets_0(ctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)

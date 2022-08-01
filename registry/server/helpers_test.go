@@ -1,12 +1,15 @@
 package server
 
 import (
-	"context"
-	"sync"
 	"time"
 
 	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
+	"github.com/DataDog/kafka-kit/v4/kafkaadmin/stub"
 	"github.com/DataDog/kafka-kit/v4/kafkazk"
+	pb "github.com/DataDog/kafka-kit/v4/registry/registry"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 var (
@@ -14,12 +17,13 @@ var (
 		Prefix: "registry_test",
 	}
 
-	kafkaBootstrapServers = "kafka:9093"
-	kafkaSSLCALocation    = "/etc/kafka/config/kafka-ca-crt.pem"
-	kafkaSecurityProtocol = "SASL_SSL"
-	kafkaSASLMechanism    = "PLAIN"
-	kafkaSASLUsername     = "registry"
-	kafkaSASLPassword     = "registry-secret"
+	kafkaBootstrapServersSSL = "kafka:9093"
+	kafkaSSLCALocation       = "/etc/kafka/config/kafka-ca-crt.pem"
+	kafkaSecurityProtocol    = "SASL_SSL"
+	kafkaSASLMechanism       = "PLAIN"
+	kafkaSASLUsername        = "registry"
+	kafkaSASLPassword        = "registry-secret"
+	registryAddr             = "registry:8090"
 )
 
 func testServer() *Server {
@@ -31,57 +35,26 @@ func testServer() *Server {
 		test:                  true,
 	})
 
+	s.kafkaadmin = stub.NewClient()
 	s.ZK = kafkazk.NewZooKeeperStub()
 	s.Tags.Store = newzkTagStorageStub()
 
 	return s
 }
 
-func testIntegrationServer() (*Server, error) {
-	s, _ := NewServer(Config{
-		HTTPListen:            "localhost:8080",
-		GRPCListen:            "localhost:8090",
-		DefaultRequestTimeout: 5 * time.Second,
-		ReadReqRate:           10,
-		WriteReqRate:          10,
-		ZKTagsPrefix:          testConfig.Prefix,
-	})
-
-	wg := &sync.WaitGroup{}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
-	// Capture and discard to avoid vet warns.
-	_ = cancel
-
-	// Init kafakzk.
-	zkCfg := &kafkazk.Config{
-		Connect: "zookeeper:2181",
-	}
-
-	if err := s.DialZK(ctx, wg, zkCfg); err != nil {
+func RegistryClient() (pb.RegistryClient, error) {
+	conn, err := grpc.Dial(registryAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
 		return nil, err
 	}
 
-	// Init KafkaAdmin.
-	adminConfig := kafkaadmin.Config{
-		BootstrapServers: kafkaBootstrapServers,
-		SSLCALocation:    kafkaSSLCALocation,
-		SecurityProtocol: kafkaSecurityProtocol,
-		SASLMechanism:    kafkaSASLMechanism,
-		SASLUsername:     kafkaSASLUsername,
-		SASLPassword:     kafkaSASLPassword,
-	}
-
-	if err := s.InitKafkaAdmin(ctx, wg, adminConfig); err != nil {
-		return nil, err
-	}
-
-	return s, nil
+	return pb.NewRegistryClient(conn), nil
 }
 
 func kafkaAdminClient() (kafkaadmin.KafkaAdmin, error) {
 	return kafkaadmin.NewClient(
 		kafkaadmin.Config{
-			BootstrapServers: kafkaBootstrapServers,
+			BootstrapServers: kafkaBootstrapServersSSL,
 			SSLCALocation:    kafkaSSLCALocation,
 			SecurityProtocol: kafkaSecurityProtocol,
 			SASLMechanism:    kafkaSASLMechanism,

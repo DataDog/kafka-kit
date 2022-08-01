@@ -1,6 +1,4 @@
-// go:build integration
 //go:build integration
-// +build integration
 
 package zookeeper
 
@@ -19,7 +17,7 @@ const (
 func TestLockIntegration(t *testing.T) {
 	cfg := ZooKeeperLockConfig{
 		Address: TESTING_ZK_ADDR,
-		Path:    "/registry/locks",
+		Path:    "/cluster_test/locks",
 	}
 
 	lock, err := NewZooKeeperLock(cfg)
@@ -43,7 +41,7 @@ func TestLockIntegration(t *testing.T) {
 func TestLockTTLIntegration(t *testing.T) {
 	cfg := ZooKeeperLockConfig{
 		Address: TESTING_ZK_ADDR,
-		Path:    "/registry/locks",
+		Path:    "/cluster_test/locks",
 		TTL:     1000,
 	}
 
@@ -70,7 +68,7 @@ func TestLockTTLIntegration(t *testing.T) {
 func TestUnlockIntegration(t *testing.T) {
 	cfg := ZooKeeperLockConfig{
 		Address: TESTING_ZK_ADDR,
-		Path:    "/registry/locks",
+		Path:    "/cluster_test/locks",
 	}
 
 	lock, err := NewZooKeeperLock(cfg)

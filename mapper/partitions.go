@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"sort"
+
+	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
 )
 
 // Partition represents the Kafka partition structure.
@@ -576,6 +578,32 @@ func PartitionMapFromString(s string) (*PartitionMap, error) {
 	sort.Sort(pm.Partitions)
 
 	return pm, nil
+}
+
+// PartitionMapFromTopicStates translates a kafkaadmin.TopicStates to a *PartitionMap.
+func PartitionMapFromTopicStates(ts kafkaadmin.TopicStates) (*PartitionMap, error) {
+	pm := NewPartitionMap()
+
+	for topic, state := range ts {
+		for _, partn := range state.PartitionStates {
+			newPartn := Partition{
+				Topic:     topic,
+				Partition: int(partn.ID),
+				Replicas:  int32sliceToInt(partn.Replicas),
+			}
+			pm.Partitions = append(pm.Partitions, newPartn)
+		}
+	}
+
+	return pm, nil
+}
+
+func int32sliceToInt(i32 []int32) []int {
+	var is = make([]int, len(i32))
+	for i := range i32 {
+		is[i] = int(i32[i])
+	}
+	return is
 }
 
 // SetReplication ensures that replica sets is reset to the replication factor

@@ -43,7 +43,7 @@ func (s *Server) GetBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.Bro
 	}
 
 	// Get brokers.
-	brokers, err := s.fetchBrokerSet(req)
+	brokers, err := s.fetchBrokerSet(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ func (s *Server) ListBrokers(ctx context.Context, req *pb.BrokerRequest) (*pb.Br
 	}
 
 	// Get brokers.
-	brokers, err := s.fetchBrokerSet(req)
+	brokers, err := s.fetchBrokerSet(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -242,13 +242,14 @@ func (s *Server) BrokerMappings(ctx context.Context, req *pb.BrokerRequest) (*pb
 }
 
 // fetchBrokerSet fetches metadata for all brokers.
-func (s *Server) fetchBrokerSet(req *pb.BrokerRequest) (BrokerSet, error) {
-	// Get brokers from ZK.
-	brokers, errs := s.ZK.GetAllBrokerMeta(false)
+func (s *Server) fetchBrokerSet(ctx context.Context, req *pb.BrokerRequest) (BrokerSet, error) {
+	// Get broker states.
+	brokerStates, errs := s.kafkaadmin.DescribeBrokers(ctx, false)
 	if errs != nil {
 		return nil, ErrFetchingBrokers
 	}
 
+	brokers, _ := mapper.BrokerMetaMapFromStates(brokerStates)
 	matched := BrokerSet{}
 
 	// Check if a specific broker is being fetched.

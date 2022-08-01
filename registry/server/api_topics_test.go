@@ -2,73 +2,79 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/DataDog/kafka-kit/v4/kafkazk"
-	"github.com/DataDog/kafka-kit/v4/mapper"
+	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
+	"github.com/DataDog/kafka-kit/v4/kafkaadmin/stub"
 	pb "github.com/DataDog/kafka-kit/v4/registry/registry"
 )
 
 func TestGetTopics(t *testing.T) {
-	s := testServer()
-
 	tests := map[int]*pb.TopicRequest{
 		0: {},
-		1: {Name: "test_topic"},
-		2: {Tag: []string{"partitions:5"}},
+		1: {Name: "test1"},
+		2: {Tag: []string{"partitions:2"}},
 		3: {WithReplicas: true},
 	}
 
 	// pb.TopicResponse{Topics: topics}
 	expectedNames := map[int][]string{
-		0: {"test_topic", "test_topic2"},
-		1: {"test_topic"},
-		2: {"test_topic", "test_topic2"},
-		3: {"test_topic", "test_topic2"},
+		0: {"test1", "test2"},
+		1: {"test1"},
+		2: {"test1", "test2"},
+		3: {"test1", "test2"},
 	}
 
-	expectedReplicas := map[int]map[uint32]pb.Replicas{
+	expectedReplicas := map[int]map[string]map[uint32]pb.Replicas{
 		3: {
-			0: {Ids: []uint32{1000, 1001}},
-			1: {Ids: []uint32{1002, 1003}},
-			2: {Ids: []uint32{1004, 1005}},
-			3: {Ids: []uint32{1006, 1007}},
-			4: {Ids: []uint32{1008, 1009}},
+			"test1": {
+				0: {Ids: []uint32{1001, 1002}},
+				1: {Ids: []uint32{1002}},
+			},
+			"test2": {
+				0: {Ids: []uint32{1003, 1002}},
+				1: {Ids: []uint32{1002, 1003}},
+			},
 		},
 	}
 
 	for i, req := range tests {
+		s := testServer()
+
 		resp, err := s.GetTopics(context.Background(), req)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		if resp.Topics == nil {
-			t.Errorf("Expected a non-nil TopicResponse.Topics field")
+			t.Errorf("[case %d] Expected a non-nil TopicResponse.Topics field", i)
 		}
 
 		topics := TopicSet(resp.Topics).Names()
 
 		if !stringsEqual(expectedNames[i], topics) {
-			t.Errorf("Expected Topic list %s, got %s", expectedNames[i], topics)
+			t.Errorf("[case %d] Expected Topic list %s, got %s", i, expectedNames[i], topics)
 		}
 
 		for _, topic := range resp.Topics {
 			v, exist := topic.Configs["retention.ms"]
 			if !exist {
-				t.Error("Expected 'retention.ms' config key to exist")
+				t.Errorf("[case %d] Expected 'retention.ms' config key to exist", i)
 			}
 			if v != "172800000" {
-				t.Errorf("Expected config value '172800000', got '%s'", v)
+				t.Errorf("[case %d] Expected config value '172800000', got '%s'", i, v)
 			}
 		}
+
 		if exp, ok := expectedReplicas[i]; ok {
 			full := resp.Topics
 			for _, topic := range topics {
 				for partition, replicas := range full[topic].Replicas {
-					assert.ElementsMatch(t, replicas.Ids, exp[partition].Ids, "Unexpected partitions")
+					msg := fmt.Sprintf("[case %d] Unexpected partitions", i)
+					assert.ElementsMatch(t, replicas.Ids, exp[topic][partition].Ids, msg)
 				}
 			}
 		}
@@ -78,21 +84,29 @@ func TestGetTopics(t *testing.T) {
 func TestListTopics(t *testing.T) {
 	s := testServer()
 
+	// Update the stub for metadata specific to this test.
+
+	bs := s.kafkaadmin.(stub.Client).DumpBrokerstates()
+	for i := 1003; i <= 1007; i++ {
+		delete(bs, i)
+	}
+	s.kafkaadmin.(stub.Client).LoadBrokerstates(bs)
+
 	tests := map[int]*pb.TopicRequest{
 		0: {},
-		1: {Spanning: true, Name: "test_topic"},
-		2: {Spanning: true, Tag: []string{"partitions:5"}},
+		1: {Spanning: true, Name: "test1"},
+		2: {Spanning: true, Tag: []string{"partitions:2"}},
 		// These should now fail; it's the same test as the last two cases, but
 		// the increase in brokers should cause these topics to fail to satisfy
 		// the spanning property.
-		3: {Spanning: true, Tag: []string{"partitions:5"}},
-		4: {Spanning: true, Tag: []string{"partitions:5"}},
+		3: {Spanning: true, Name: "test1"},
+		4: {Spanning: true, Tag: []string{"partitions:2"}},
 	}
 
 	expected := map[int][]string{
-		0: {"test_topic", "test_topic2"},
-		1: {"test_topic"},
-		2: {"test_topic", "test_topic2"},
+		0: {"test1", "test2"},
+		1: {"test1"},
+		2: {"test1", "test2"},
 		3: {},
 		4: {},
 	}
@@ -104,7 +118,7 @@ func TestListTopics(t *testing.T) {
 			// we need to add a bunch of unused brokers to underlying Kafka/ZK stub
 			// to ensure that test cases 3 and 4 fail to return the same results as
 			// 1 and 2.
-			brokers := map[int]mapper.BrokerMeta{
+			brokers := kafkaadmin.BrokerStates{
 				1008: {},
 				1009: {},
 				1010: {},
@@ -113,49 +127,23 @@ func TestListTopics(t *testing.T) {
 				1013: {},
 			}
 
-			s.ZK.(*kafkazk.Stub).AddBrokers(brokers)
+			s.kafkaadmin.(stub.Client).AddBrokers(brokers)
 		}
 
 		resp, err := s.ListTopics(context.Background(), req)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("[case %d] %s", i, err)
 		}
 
 		if resp.Names == nil {
-			t.Errorf("Expected a non-nil TopicResponse.Topics field")
+			t.Errorf("[case %d] Expected a non-nil TopicResponse.Topics field", i)
 		}
 
 		topics := resp.Names
 
 		if !stringsEqual(expected[i], topics) {
-			t.Errorf("Expected topic list %s, got %s", expected[i], topics)
+			t.Errorf("[case %d] Expected topic list %s, got %s", i, expected[i], topics)
 		}
-	}
-}
-
-func TestReassigningTopics(t *testing.T) {
-	s := testServer()
-
-	out, err := s.ReassigningTopics(context.Background(), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(out.Names) != 1 || out.Names[0] != "reassigning_topic" {
-		t.Errorf("Unexpected reassigning topic output")
-	}
-}
-
-func TestUnderReplicated(t *testing.T) {
-	s := testServer()
-
-	out, err := s.UnderReplicatedTopics(context.Background(), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(out.Names) != 1 || out.Names[0] != "underreplicated_topic" {
-		t.Errorf("Unexpected under replicated topic output")
 	}
 }
 
@@ -163,12 +151,12 @@ func TestCustomTagTopicFilter(t *testing.T) {
 	s := testServer()
 
 	s.Tags.Store.SetTags(
-		KafkaObject{Type: "topic", ID: "test_topic"},
+		KafkaObject{Type: "topic", ID: "test1"},
 		TagSet{"customtag": "customvalue"},
 	)
 
 	s.Tags.Store.SetTags(
-		KafkaObject{Type: "topic", ID: "test_topic2"},
+		KafkaObject{Type: "topic", ID: "test2"},
 		TagSet{
 			"customtag":  "customvalue",
 			"customtag2": "customvalue2",
@@ -182,8 +170,8 @@ func TestCustomTagTopicFilter(t *testing.T) {
 	}
 
 	expected := map[int][]string{
-		0: {"test_topic", "test_topic2"},
-		1: {"test_topic2"},
+		0: {"test1", "test2"},
+		1: {"test2"},
 		2: {},
 	}
 
@@ -194,13 +182,13 @@ func TestCustomTagTopicFilter(t *testing.T) {
 		}
 
 		if resp.Names == nil {
-			t.Errorf("Expected a non-nil TopicResponse.Topics field")
+			t.Errorf("[case %d] Expected a non-nil TopicResponse.Topics field", i)
 		}
 
 		topics := resp.Names
 
 		if !stringsEqual(expected[i], topics) {
-			t.Errorf("Expected Topic list %s, got %s", expected[i], topics)
+			t.Errorf("[case %d] Expected Topic list %s, got %s", i, expected[i], topics)
 		}
 	}
 }
@@ -209,10 +197,10 @@ func TestTagTopic(t *testing.T) {
 	s := testServer()
 
 	tests := map[int]*pb.TopicRequest{
-		0: {Name: "test_topic", Tag: []string{"k:v"}},
+		0: {Name: "test1", Tag: []string{"k:v"}},
 		1: {Tag: []string{"k:v"}},
-		2: {Name: "test_topic", Tag: []string{}},
-		3: {Name: "test_topic"},
+		2: {Name: "test1", Tag: []string{}},
+		3: {Name: "test1"},
 		4: {Name: "test_topic20", Tag: []string{"k:v"}},
 	}
 
@@ -237,7 +225,7 @@ func TestDeleteTopicTags(t *testing.T) {
 
 	// Set tags.
 	req := &pb.TopicRequest{
-		Name: "test_topic",
+		Name: "test1",
 		Tag:  []string{"k:v", "k2:v2", "k3:v3"},
 	}
 
@@ -248,7 +236,7 @@ func TestDeleteTopicTags(t *testing.T) {
 
 	// Delete two tags.
 	req = &pb.TopicRequest{
-		Name: "test_topic",
+		Name: "test1",
 		Tag:  []string{"k", "k2"},
 	}
 
@@ -258,14 +246,14 @@ func TestDeleteTopicTags(t *testing.T) {
 	}
 
 	// Fetch tags.
-	req = &pb.TopicRequest{Name: "test_topic"}
+	req = &pb.TopicRequest{Name: "test1"}
 	resp, err := s.GetTopics(context.Background(), req)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	expected := TagSet{"k3": "v3"}
-	got := resp.Topics["test_topic"].Tags
+	got := resp.Topics["test1"].Tags
 	if !expected.Equal(got) {
 		t.Errorf("Expected TagSet %v, got %v", expected, got)
 	}
@@ -300,11 +288,11 @@ func TestTopicMappings(t *testing.T) {
 	s := testServer()
 
 	tests := map[int]*pb.TopicRequest{
-		0: {Name: "test_topic"},
+		0: {Name: "test2"},
 	}
 
 	expected := map[int][]uint32{
-		0: {1001, 1002, 1003, 1004},
+		0: {1002, 1003},
 	}
 
 	for i, req := range tests {

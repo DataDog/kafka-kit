@@ -22,38 +22,6 @@ type CreateTopicConfig struct {
 // for the reference topic), the inner slice is an []int32 of broker assignments.
 type ReplicaAssignment [][]int32
 
-// TopicStates is a map of topic names to TopicState.
-type TopicStates map[string]TopicState
-
-// TopicState describes the current state of a topic.
-type TopicState struct {
-	Name              string
-	Partitions        int32
-	ReplicationFactor int32
-	PartitionStates   map[int]PartitionState
-}
-
-// PartitionState describes the state of a partition.
-type PartitionState struct {
-	ID       int32
-	Leader   int32
-	Replicas []int32
-	ISR      []int32
-}
-
-// NewTopicStates initializes a TopicStates.
-func NewTopicStates() TopicStates {
-	return make(map[string]TopicState)
-}
-
-// NewTopicState initializes a TopicState.
-func NewTopicState(name string) TopicState {
-	return TopicState{
-		Name:            name,
-		PartitionStates: make(map[int]PartitionState),
-	}
-}
-
 // CreateTopic creates a topic.
 func (c Client) CreateTopic(ctx context.Context, cfg CreateTopicConfig) error {
 	spec := kafka.TopicSpecification{
@@ -86,6 +54,35 @@ func (c Client) DeleteTopic(ctx context.Context, name string) error {
 // DescribeTopics takes a []string of topic names. Topic names can be name literals
 // or optional regex. A TopicStates is returned for all matching topics.
 func (c Client) DescribeTopics(ctx context.Context, topics []string) (TopicStates, error) {
+	md, err := c.getMetadata(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Strip topics that don't match any of the specified names.
+	topicNamesRegex, err := stringsToRegex(topics)
+	if err != nil {
+		return nil, err
+	}
+
+	filterMatches(md, topicNamesRegex)
+
+	return TopicStatesFromMetadata(md)
+}
+
+// UnderReplicatedTopics returns a TopicStates that only includes under-replicated
+// topics.
+func (c Client) UnderReplicatedTopics(ctx context.Context) (TopicStates, error) {
+	// Fetch all topics.
+	topicStates, err := c.DescribeTopics(ctx, []string{".*"})
+	if err != nil {
+		return nil, err
+	}
+
+	return topicStates.UnderReplicated(), nil
+}
+
+func (c Client) getMetadata(ctx context.Context) (*kafka.Metadata, error) {
 	// Use the context deadline remaining budget if set, otherwise use the default
 	// timeout value.
 	var timeout time.Duration
@@ -101,15 +98,7 @@ func (c Client) DescribeTopics(ctx context.Context, topics []string) (TopicState
 		return nil, ErrorFetchingMetadata{Message: err.Error()}
 	}
 
-	// Strip topics that don't match any of the specified names.
-	topicNamesRegex, err := stringsToRegex(topics)
-	if err != nil {
-		return nil, err
-	}
-
-	filterMatches(md, topicNamesRegex)
-
-	return TopicStatesFromMetadata(md)
+	return md, nil
 }
 
 func filterMatches(md *kafka.Metadata, re []*regexp.Regexp) {
@@ -167,4 +156,31 @@ func TopicStatesFromMetadata(md *kafka.Metadata) (TopicStates, error) {
 	}
 
 	return topicStates, nil
+}
+
+// List returns a []string of all topic names in the TopicStates.
+func (t TopicStates) List() []string {
+	var names []string
+	for n := range t {
+		names = append(names, n)
+	}
+	return names
+}
+
+// Brokers returns a list of all brokers assigned to any partition in the
+// TopicState.
+func (t TopicState) Brokers() []int {
+	var brokers []int
+	var seen = map[int32]struct{}{}
+
+	for _, partn := range t.PartitionStates {
+		for _, id := range partn.Replicas {
+			if _, exists := seen[id]; !exists {
+				seen[id] = struct{}{}
+				brokers = append(brokers, int(id))
+			}
+		}
+	}
+
+	return brokers
 }

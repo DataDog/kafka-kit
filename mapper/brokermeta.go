@@ -1,5 +1,9 @@
 package mapper
 
+import (
+	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
+)
+
 // BrokerMetaMap is a map of broker IDs to BrokerMeta.
 type BrokerMetaMap map[int]*BrokerMeta
 
@@ -51,4 +55,27 @@ func (bm BrokerMeta) Copy() BrokerMeta {
 	cp.Endpoints = append(cp.Endpoints, bm.Endpoints...)
 
 	return cp
+}
+
+// BrokerMetaMapFromStates takes a kafkaadmin.BrokerStates and translates it
+// to a BrokerMetaMap.
+func BrokerMetaMapFromStates(states kafkaadmin.BrokerStates) (BrokerMetaMap, error) {
+	var bmm = BrokerMetaMap{}
+
+	for id, state := range states {
+		bmm[id] = &BrokerMeta{
+			// XXX(jamie): dropped the fields that don't exist in
+			// kafkaadmin.BrokerStates; we don't even use these.
+			ListenerSecurityProtocolMap: map[string]string{},
+			Endpoints:                   []string{},
+			Rack:                        state.Rack,
+			// JMXPort: ,
+			Host: state.Host,
+			// Timestamp: ,
+			Port: state.Port,
+			// Version: ,
+		}
+	}
+
+	return bmm, nil
 }

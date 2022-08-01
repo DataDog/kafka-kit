@@ -23,10 +23,10 @@ func fakeTopicState(name string, partitions int32) kafkaadmin.TopicState {
 	return ts
 }
 
-func fakeKafkaMetadata() *kafka.Metadata {
+func fakeKafkaMetadata() kafka.Metadata {
 	var noErr = kafka.NewError(kafka.ErrNoError, "Success", false)
 
-	return &kafka.Metadata{
+	return kafka.Metadata{
 		Brokers: []kafka.BrokerMetadata{
 			{
 				ID:   1001,

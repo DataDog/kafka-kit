@@ -10,7 +10,7 @@ jobs:
   gofmt:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: gofmt
       run: |
         changes=$(find . -name "*.go" | xargs gofmt -s -l 2>&1)
@@ -18,6 +18,6 @@ jobs:
   vet:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: vet
       run: go vet ./...

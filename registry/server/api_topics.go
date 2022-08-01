@@ -4,13 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"regexp"
 	"sort"
-	"strconv"
 
 	zklocking "github.com/DataDog/kafka-kit/v4/cluster/zookeeper"
 	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
-	"github.com/DataDog/kafka-kit/v4/kafkazk"
 	"github.com/DataDog/kafka-kit/v4/mapper"
 	pb "github.com/DataDog/kafka-kit/v4/registry/registry"
 
@@ -33,8 +30,6 @@ var (
 	ErrInsufficientBrokers = status.Error(codes.FailedPrecondition, "insufficient number of brokers")
 	// ErrInvalidBrokerId error.
 	ErrInvalidBrokerId = status.Error(codes.FailedPrecondition, "invalid broker id")
-	// Misc.
-	allTopicsRegex = regexp.MustCompile(".*")
 )
 
 // TopicSet is a mapping of topic name to *pb.Topic.
@@ -62,7 +57,7 @@ func (s *Server) GetTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topic
 		withReplicas: req.WithReplicas,
 	}
 
-	topics, err := s.fetchTopicSet(fetchParams)
+	topics, err := s.fetchTopicSet(ctx, fetchParams)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +90,7 @@ func (s *Server) ListTopics(ctx context.Context, req *pb.TopicRequest) (*pb.Topi
 		withReplicas: req.WithReplicas,
 	}
 
-	topics, err := s.fetchTopicSet(fetchParams)
+	topics, err := s.fetchTopicSet(ctx, fetchParams)
 	if err != nil {
 		return nil, err
 	}
@@ -118,14 +113,15 @@ func (s *Server) ReassigningTopics(ctx context.Context, _ *pb.Empty) (*pb.TopicR
 		defer cancel()
 	}
 
-	reassigning := s.ZK.GetReassignments()
-	var names []string
-
-	for t := range reassigning {
-		names = append(names, t)
+	// XXX(jamie): this is still read from ZooKeeper because the underlying
+	// confluent-kafka-go client cannot differentiate reassigning and under-replicated
+	// topics. See the kafkaadmin package UnderReplicatedTopics method comments.
+	reassigning, err := s.ZK.ListReassignments()
+	if err != nil {
+		return nil, ErrFetchingTopics
 	}
 
-	return &pb.TopicResponse{Names: names}, nil
+	return &pb.TopicResponse{Names: reassigning.List()}, nil
 }
 
 // UnderReplicatedTopics returns a *pb.TopicResponse holding the names of all
@@ -140,12 +136,12 @@ func (s *Server) UnderReplicatedTopics(ctx context.Context, _ *pb.Empty) (*pb.To
 		defer cancel()
 	}
 
-	reassigning, err := s.ZK.GetUnderReplicated()
+	underReplicated, err := s.kafkaadmin.UnderReplicatedTopics(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return &pb.TopicResponse{Names: reassigning}, nil
+	return &pb.TopicResponse{Names: underReplicated.List()}, nil
 }
 
 // CreateTopic creates a topic if it doesn't exist. Topic tags can optionally
@@ -248,8 +244,13 @@ func (s *Server) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*
 		bMap := mapper.NewBrokerMap()
 
 		// Get the live broker metadata.
-		brokerState, errs := s.ZK.GetAllBrokerMeta(false)
-		if errs != nil {
+		brokerStates, err := s.kafkaadmin.DescribeBrokers(ctx, false)
+		if err != nil {
+			return empty, ErrFetchingBrokers
+		}
+
+		bmm, err := mapper.BrokerMetaMapFromStates(brokerStates)
+		if err != nil {
 			return empty, ErrFetchingBrokers
 		}
 
@@ -259,7 +260,7 @@ func (s *Server) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*
 		// only ever using brokers we just fetched from the cluster
 		// state as opposed to user provided lists. Other scenarios
 		// may need to be covered, however.
-		bMap.Update(targetBrokerIDs, brokerState)
+		bMap.Update(targetBrokerIDs, bmm)
 
 		// Rebuild the stub map with the discovered target broker list.
 		rebuildParams := mapper.RebuildParams{
@@ -358,16 +359,18 @@ func (s *Server) TopicMappings(ctx context.Context, req *pb.TopicRequest) (*pb.B
 		return nil, ErrTopicNameEmpty
 	}
 
-	// Get a mapper.PartitionMap for the topic.
-	pm, err := s.ZK.GetPartitionMap(req.Name)
-	if err != nil {
-		switch err.(type) {
-		case kafkazk.ErrNoNode:
-			return nil, ErrTopicNotExist
-		default:
-			return nil, err
-		}
+	// Get the topic state.
+	tState, err := s.kafkaadmin.DescribeTopics(ctx, []string{req.Name})
+	switch err {
+	case nil:
+	case kafkaadmin.ErrNoData:
+		return nil, ErrTopicNotExist
+	default:
+		return nil, err
 	}
+
+	// Translate it to a mapper object.
+	pm, _ := mapper.PartitionMapFromTopicStates(tState)
 
 	// Get a mapper.BrokerMap from the PartitionMap.
 	bm := mapper.BrokerMapFromPartitionMap(pm, nil, false)
@@ -427,18 +430,13 @@ func (s *Server) TagTopic(ctx context.Context, req *pb.TopicRequest) (*pb.TagRes
 	}
 
 	// Ensure the topic exists.
-
-	// Get topics from ZK.
-	r := regexp.MustCompile(fmt.Sprintf("^%s$", req.Name))
-	tr := []*regexp.Regexp{r}
-
-	topics, errs := s.ZK.GetTopics(tr)
-	if errs != nil {
-		return nil, ErrFetchingTopics
-	}
-
-	if len(topics) == 0 {
+	_, err = s.kafkaadmin.DescribeTopics(ctx, []string{req.Name})
+	switch err {
+	case nil:
+	case kafkaadmin.ErrNoData:
 		return nil, ErrTopicNotExist
+	default:
+		return nil, err
 	}
 
 	// Set the tags.
@@ -475,18 +473,13 @@ func (s *Server) DeleteTopicTags(ctx context.Context, req *pb.TopicRequest) (*pb
 	}
 
 	// Ensure the topic exists.
-
-	// Get topics from ZK.
-	r := regexp.MustCompile(fmt.Sprintf("^%s$", req.Name))
-	tr := []*regexp.Regexp{r}
-
-	topics, errs := s.ZK.GetTopics(tr)
-	if errs != nil {
-		return nil, ErrFetchingTopics
-	}
-
-	if len(topics) == 0 {
+	_, err = s.kafkaadmin.DescribeTopics(ctx, []string{req.Name})
+	switch err {
+	case nil:
+	case kafkaadmin.ErrNoData:
 		return nil, ErrTopicNotExist
+	default:
+		return nil, err
 	}
 
 	// Delete the tags.
@@ -499,106 +492,94 @@ func (s *Server) DeleteTopicTags(ctx context.Context, req *pb.TopicRequest) (*pb
 }
 
 // fetchTopicSet fetches metadata for all topics.
-func (s *Server) fetchTopicSet(params fetchTopicSetParams) (TopicSet, error) {
-	var topicRegex = []*regexp.Regexp{}
+func (s *Server) fetchTopicSet(ctx context.Context, params fetchTopicSetParams) (TopicSet, error) {
+	var topicRegexStrings = []string{}
 
 	// Check if a specific topic is being fetched.
 	if params.name != "" {
-		r := regexp.MustCompile(fmt.Sprintf("^%s$", params.name))
-		topicRegex = append(topicRegex, r)
+		r := fmt.Sprintf("^%s$", params.name)
+		topicRegexStrings = append(topicRegexStrings, r)
 	} else {
-		topicRegex = []*regexp.Regexp{allTopicsRegex}
+		topicRegexStrings = []string{".*"}
 	}
 
-	// Fetch all topics from ZK.
-	topics, errs := s.ZK.GetTopics(topicRegex)
-	if errs != nil {
-		return nil, ErrFetchingTopics
+	// Fetch topic(s) from cluster.
+	topics, err := s.kafkaadmin.DescribeTopics(ctx, topicRegexStrings)
+	switch err {
+	case nil:
+	case kafkaadmin.ErrNoData:
+		return TopicSet{}, nil
+	default:
+		return nil, err
 	}
 
-	matched := TopicSet{}
+	results := TopicSet{}
 
 	// Certain state-based topic requests will need broker info.
 	var liveBrokers []uint32
 	if params.spanning {
-		brokers, err := s.fetchBrokerSet(&pb.BrokerRequest{})
+		brokers, err := s.fetchBrokerSet(ctx, &pb.BrokerRequest{})
 		if err != nil {
+			log.Printf("fetchTopicSet: %s\n", err)
 			return nil, ErrFetchingTopics
 		}
 		liveBrokers = brokers.IDs()
 	}
 
+	// Get topic dynamic configs.
+	configs, err := s.kafkaadmin.GetDynamicConfigs(ctx, "topic", topics.List())
+	if err != nil {
+		log.Printf("fetchTopicSet: %s\n", err)
+		return nil, ErrFetchingTopics
+	}
+
 	// Populate all topics with state/config data.
-	for _, t := range topics {
-		// Get the topic state.
-		st, err := s.ZK.GetTopicState(t)
-		if err != nil {
-			switch err.(type) {
-			case kafkazk.ErrNoNode:
-				log.Printf("Topic %s was deleted between list and state fetch\n", t)
-				continue
-			default:
-				return nil, err
-			}
-		}
-
-		// Get the topic configurations.
-		c, err := s.ZK.GetTopicConfig(t)
-		if err != nil {
-			switch err.(type) {
-			// ErrNoNode cases for a topic that exists just means that there hasn't been
-			// non-default config specified for the topic.
-			case kafkazk.ErrNoNode:
-				c = &kafkazk.TopicConfig{}
-				c.Config = map[string]string{}
-			default:
-				return nil, err
-			}
-		}
-
-		// If we're filtering for "spanning" topics, now is a good time to check
-		// since the full topic state is visible here.
+	for topic, topicState := range topics {
+		// Check if we're filtering for spanning topics.
 		if params.spanning {
 			// A simple check as to whether a topic satisfies the spanning property
 			// is to request the set of brokers hosting its partitions; if the len
 			// is not equal to the number of brokers in the cluster, it cannot be
 			// considered spanning.
-			if len(st.Brokers()) < len(liveBrokers) {
+			if len(topicState.Brokers()) < len(liveBrokers) {
 				continue
 			}
 		}
 
+		// If requested, fetch assigned partition replicas.
 		replicaMap := make(map[uint32]*pb.Replicas)
 		if params.withReplicas {
-			for id, iReplicas := range st.Partitions {
-				replicas := []uint32{}
-				for _, r := range iReplicas {
+			for _, partnState := range topicState.PartitionStates {
+				var replicas []uint32
+				for _, r := range partnState.Replicas {
 					replicas = append(replicas, uint32(r))
 				}
-				// assuming that the data in zookeeper will be well-formated, ignoring error
-				parsedId, _ := strconv.ParseUint(id, 10, 32)
-				replicaMap[uint32(parsedId)] = &pb.Replicas{
+				replicaMap[uint32(partnState.ID)] = &pb.Replicas{
 					Ids: replicas,
 				}
 			}
 		}
 
-		// Add the topic to the TopicSet.
-		matched[t] = &pb.Topic{
-			Name:       t,
-			Partitions: uint32(len(st.Partitions)),
-			// TODO more sophisticated check than the
-			// first partition len.
-			Replication: uint32(len(st.Partitions["0"])),
-			Configs:     c.Config,
+		var topicConfigs = map[string]string{}
+		if cfg, exist := configs[topic]; exist {
+			topicConfigs = cfg
+		}
 
-			Replicas: replicaMap,
+		// Add the topic to the TopicSet.
+		results[topic] = &pb.Topic{
+			Name:        topic,
+			Partitions:  uint32(topicState.Partitions),
+			Replication: uint32(topicState.ReplicationFactor),
+			Configs:     topicConfigs,
+			Replicas:    replicaMap,
 		}
 	}
 
-	// Returned filtered results by tag.
-	filtered, err := s.Tags.FilterTopics(matched, params.tags)
+	// Returned filtered results by tag. Note that tag population is also
+	// handled here.
+	filtered, err := s.Tags.FilterTopics(results, params.tags)
 	if err != nil {
+		log.Printf("fetchTopicSet: %s\n", err)
 		return nil, err
 	}
 
