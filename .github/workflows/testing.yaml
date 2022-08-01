@@ -10,6 +10,13 @@ jobs:
   tests:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - name: run tests
-      run: docker-compose run --use-aliases --rm --name integration-test registry go test -timeout 30s --tags integration ./...
+      - uses: actions/checkout@v3
+
+      - name: compose build
+        run: docker-compose build
+
+      - name: compose run
+        run: docker-compose up -d --scale kakfa=3
+
+      - name: run tests
+        run: docker-compose run --rm --name integration-test registry go test -timeout 30s --tags integration ./...
