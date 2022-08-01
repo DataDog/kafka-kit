@@ -23,7 +23,7 @@ var (
 	kafkaSASLMechanism       = "PLAIN"
 	kafkaSASLUsername        = "registry"
 	kafkaSASLPassword        = "registry-secret"
-	registryAddr             = "registry:8090"
+	registryAddr             = "kafka-kit_registry_1:8090"
 )
 
 func testServer() *Server {
