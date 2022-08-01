@@ -27,6 +27,12 @@ services:
     image: wurstmeister/zookeeper
     ports:
       - "2181:2181"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost:2181"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
   kafka:
     image: wurstmeister/kafka:${KAFKA_VERSION:-2.13-2.8.1}
     deploy:
@@ -34,6 +40,12 @@ services:
     ports:
       - "9092"
       - "9093"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost:9092"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
     depends_on:
       - ssl_setup
       - zookeeper
@@ -80,6 +92,12 @@ services:
     ports:
       - "8080"
       - "8090"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "localhost:8080/v1/brokers/list"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
     depends_on:
       - zookeeper
       - kafka
