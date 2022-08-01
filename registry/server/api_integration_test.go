@@ -44,7 +44,7 @@ func TestCreateTopic(t *testing.T) {
 
 	for i := 0; i < len(tests); i++ {
 		_, err := reg.CreateTopic(context.Background(), tests[i])
-		assert.Equal(t, expectedErrors[i], err, fmt.Sprintf("test %d", i))
+		assert.Equal(t, expectedErrors[i], err, fmt.Sprintf("test %d: %s", i, err))
 	}
 
 	// Cleanup.
@@ -108,7 +108,7 @@ func TestCreateTaggedTopic(t *testing.T) {
 
 	for i := 0; i < len(tests); i++ {
 		_, err := reg.CreateTopic(context.Background(), tests[i])
-		assert.Equal(t, expectedErrors[i], err, fmt.Sprintf("test %d", i))
+		assert.Equal(t, expectedErrors[i], err, fmt.Sprintf("test %d: %s", i, err))
 	}
 
 	// Cleanup.
@@ -152,6 +152,6 @@ func TestDeleteTopic(t *testing.T) {
 
 	for i := 0; i < len(tests); i++ {
 		_, err := reg.DeleteTopic(context.Background(), tests[i])
-		assert.Equal(t, expectedErrors[i], err, fmt.Sprintf("test %d", i))
+		assert.Equal(t, expectedErrors[i], err, fmt.Sprintf("test %d: %s", i, err))
 	}
 }
