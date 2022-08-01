@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	pb "github.com/DataDog/kafka-kit/v4/registry/registry"
 
@@ -45,6 +46,8 @@ func TestCreateTopic(t *testing.T) {
 	for i := 0; i < len(tests); i++ {
 		_, err := reg.CreateTopic(context.Background(), tests[i])
 		assert.Equal(t, expectedErrors[i], err, fmt.Sprintf("test %d: %s", i, err))
+		// ..."Probabilistic consistency between dependent tests... sure"
+		time.Sleep(250 * time.Millisecond)
 	}
 
 	// Cleanup.
@@ -109,6 +112,7 @@ func TestCreateTaggedTopic(t *testing.T) {
 	for i := 0; i < len(tests); i++ {
 		_, err := reg.CreateTopic(context.Background(), tests[i])
 		assert.Equal(t, expectedErrors[i], err, fmt.Sprintf("test %d: %s", i, err))
+		time.Sleep(250 * time.Millisecond)
 	}
 
 	// Cleanup.
@@ -132,6 +136,8 @@ func TestDeleteTopic(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	time.Sleep(250 * time.Millisecond)
+
 	tests := map[int]*pb.TopicRequest{
 		0: {
 			Name: "topic_for_delete",
@@ -153,5 +159,6 @@ func TestDeleteTopic(t *testing.T) {
 	for i := 0; i < len(tests); i++ {
 		_, err := reg.DeleteTopic(context.Background(), tests[i])
 		assert.Equal(t, expectedErrors[i], err, fmt.Sprintf("test %d: %s", i, err))
+		time.Sleep(250 * time.Millisecond)
 	}
 }
