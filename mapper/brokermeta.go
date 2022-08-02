@@ -11,15 +11,12 @@ type BrokerMetaMap map[int]*BrokerMeta
 type BrokerMeta struct {
 	StorageFree       float64 // In bytes.
 	MetricsIncomplete bool
-	// Metadata from ZooKeeper.
-	ListenerSecurityProtocolMap map[string]string `json:"listener_security_protocol_map"`
-	Endpoints                   []string          `json:"endpoints"`
-	Rack                        string            `json:"rack"`
-	JMXPort                     int               `json:"jmx_port"`
-	Host                        string            `json:"host"`
-	Timestamp                   string            `json:"timestamp"`
-	Port                        int               `json:"port"`
-	Version                     int               `json:"version"`
+	// Metadata from the Kafka cluster state.
+	Host                       string
+	Port                       int
+	Rack                       string
+	LogMessageFormat           string
+	InterBrokerProtocolVersion string
 }
 
 // Copy returns a copy of a BrokerMetaMap.
@@ -37,22 +34,14 @@ func (bmm BrokerMetaMap) Copy() BrokerMetaMap {
 // Copy returns a copy of a BrokerMeta.
 func (bm BrokerMeta) Copy() BrokerMeta {
 	cp := BrokerMeta{
-		StorageFree:                 bm.StorageFree,
-		MetricsIncomplete:           bm.MetricsIncomplete,
-		ListenerSecurityProtocolMap: map[string]string{},
-		Rack:                        bm.Rack,
-		JMXPort:                     bm.JMXPort,
-		Host:                        bm.Host,
-		Timestamp:                   bm.Timestamp,
-		Port:                        bm.Port,
-		Version:                     bm.Version,
+		StorageFree:                bm.StorageFree,
+		MetricsIncomplete:          bm.MetricsIncomplete,
+		Host:                       bm.Host,
+		Port:                       bm.Port,
+		Rack:                       bm.Rack,
+		LogMessageFormat:           bm.LogMessageFormat,
+		InterBrokerProtocolVersion: bm.InterBrokerProtocolVersion,
 	}
-
-	for k, v := range bm.ListenerSecurityProtocolMap {
-		cp.ListenerSecurityProtocolMap[k] = v
-	}
-
-	cp.Endpoints = append(cp.Endpoints, bm.Endpoints...)
 
 	return cp
 }
@@ -64,16 +53,11 @@ func BrokerMetaMapFromStates(states kafkaadmin.BrokerStates) (BrokerMetaMap, err
 
 	for id, state := range states {
 		bmm[id] = &BrokerMeta{
-			// XXX(jamie): dropped the fields that don't exist in
-			// kafkaadmin.BrokerStates; we don't even use these.
-			ListenerSecurityProtocolMap: map[string]string{},
-			Endpoints:                   []string{},
-			Rack:                        state.Rack,
-			// JMXPort: ,
-			Host: state.Host,
-			// Timestamp: ,
-			Port: state.Port,
-			// Version: ,
+			Host:                       state.Host,
+			Port:                       state.Port,
+			Rack:                       state.Rack,
+			LogMessageFormat:           state.LogMessageFormat,
+			InterBrokerProtocolVersion: state.InterBrokerProtocolVersion,
 		}
 	}
 

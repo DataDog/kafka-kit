@@ -344,16 +344,13 @@ func TestReservedFields(t *testing.T) {
 	}
 
 	brokerExpected := map[string]struct{}{
-		"id":                          {},
-		"rack":                        {},
-		"jmxport":                     {},
-		"timestamp":                   {},
-		"tags":                        {},
-		"listenersecurityprotocolmap": {},
-		"endpoints":                   {},
-		"host":                        {},
-		"port":                        {},
-		"version":                     {},
+		"id":                         {},
+		"host":                       {},
+		"port":                       {},
+		"rack":                       {},
+		"logmessageformat":           {},
+		"interbrokerprotocolversion": {},
+		"tags":                       {},
 	}
 
 	for i, expected := range []map[string]struct{}{topicExpected, brokerExpected} {

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"sort"
-	"strconv"
 
 	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v4/mapper"
@@ -408,17 +407,12 @@ func (s idList) Less(i, j int) bool { return s[i] < s[j] }
 func (s idList) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 func pbBrokerFromMeta(id uint32, b *mapper.BrokerMeta) *pb.Broker {
-	ts, _ := strconv.ParseInt(b.Timestamp, 10, 64)
-
 	return &pb.Broker{
-		Id:                          id,
-		Listenersecurityprotocolmap: b.ListenerSecurityProtocolMap,
-		Rack:                        b.Rack,
-		Jmxport:                     uint32(b.JMXPort),
-		Endpoints:                   b.Endpoints,
-		Host:                        b.Host,
-		Timestamp:                   ts,
-		Port:                        uint32(b.Port),
-		Version:                     uint32(b.Version),
+		Id:                         id,
+		Host:                       b.Host,
+		Rack:                       b.Rack,
+		Port:                       uint32(b.Port),
+		Logmessageformat:           b.LogMessageFormat,
+		Interbrokerprotocolversion: b.InterBrokerProtocolVersion,
 	}
 }
