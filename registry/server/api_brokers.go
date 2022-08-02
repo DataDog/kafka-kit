@@ -3,7 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
-	"regexp"
+	"log"
 	"sort"
 	"strconv"
 
@@ -98,66 +98,51 @@ func (s *Server) UnmappedBrokers(ctx context.Context, req *pb.UnmappedBrokersReq
 		defer cancel()
 	}
 
-	// Build a map of the exclude names.
-	var exclude = map[string]struct{}{}
-	for _, e := range req.Exclude {
-		exclude[e] = struct{}{}
-	}
+	resp := &pb.BrokerResponse{}
 
-	// Get a mapper.BrokerMetaMap.
-	bm, errs := s.ZK.GetAllBrokerMeta(false)
+	// Get broker states.
+	brokerStates, errs := s.kafkaadmin.DescribeBrokers(ctx, false)
 	if errs != nil {
 		return nil, ErrFetchingBrokers
 	}
 
-	// Get all topic names.
-	ts, err := s.ZK.GetTopics([]*regexp.Regexp{regexp.MustCompile(".*")})
-	if err != nil {
-		return nil, ErrFetchingTopics
+	// Get all topics.
+	tStates, err := s.kafkaadmin.DescribeTopics(ctx, []string{".*"})
+	switch err {
+	case nil:
+	case kafkaadmin.ErrNoData:
+		// If there's no topics, just return an empty list.
+		return resp, nil
+	default:
+		log.Println(err)
+		return nil, ErrFetchingBrokers
 	}
 
-	// Strip any topic names that are listed as exclusions.
-	var topics []string
-	for _, name := range ts {
-		if _, excluded := exclude[name]; !excluded {
-			topics = append(topics, name)
-		}
+	// Strip any topics that are listed as exclusions.
+	for _, e := range req.Exclude {
+		delete(tStates, e)
 	}
 
-	// Get a mapper.PartitionMap for each topic.
-	var pms []*mapper.PartitionMap
-	for _, name := range topics {
-		pm, err := s.ZK.GetPartitionMap(name)
-		if err != nil {
-			return nil, err
-		}
-		pms = append(pms, pm)
-	}
-
-	// Build a set of all broker IDs seen in all partition maps.
+	// Build a set of all broker IDs seen amongst all partitions.
 	var mappedBrokers = map[int]struct{}{}
-	// For each partition map...
-	for _, pm := range pms {
-		// For each partition...
-		for _, partn := range pm.Partitions {
-			// Populate each replica (broker) in the partition replica list into
-			// the mapped broker set.
-			for _, r := range partn.Replicas {
-				mappedBrokers[r] = struct{}{}
+
+	for _, state := range tStates {
+		for _, partn := range state.PartitionStates {
+			for _, id := range partn.Replicas {
+				mappedBrokers[int(id)] = struct{}{}
 			}
 		}
 	}
 
 	// Diff. {all brokers} and {mapped brokers}.
 	var unmappedBrokers = map[int]struct{}{}
-	for id := range bm {
+	for id := range brokerStates {
 		if _, mapped := mappedBrokers[id]; !mapped {
 			unmappedBrokers[id] = struct{}{}
 		}
 	}
 
 	// Populate response Ids field.
-	resp := &pb.BrokerResponse{}
 	for id := range unmappedBrokers {
 		resp.Ids = append(resp.Ids, uint32(id))
 	}
