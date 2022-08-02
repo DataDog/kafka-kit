@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 
+	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v4/mapper"
 	pb "github.com/DataDog/kafka-kit/v4/registry/registry"
 
@@ -183,49 +184,42 @@ func (s *Server) BrokerMappings(ctx context.Context, req *pb.BrokerRequest) (*pb
 		return nil, ErrBrokerIDEmpty
 	}
 
-	// Get a mapper.BrokerMetaMap.
-	bm, errs := s.ZK.GetAllBrokerMeta(false)
+	// Get broker states.
+	brokerStates, errs := s.kafkaadmin.DescribeBrokers(ctx, false)
 	if errs != nil {
 		return nil, ErrFetchingBrokers
 	}
 
 	// Check if the broker exists.
-	if _, ok := bm[int(req.Id)]; !ok {
+	if _, ok := brokerStates[int(req.Id)]; !ok {
 		return nil, ErrBrokerNotExist
 	}
 
-	// Get all topic names.
-	ts, err := s.ZK.GetTopics([]*regexp.Regexp{regexp.MustCompile(".*")})
-	if err != nil {
-		return nil, ErrFetchingTopics
+	// Get all topics.
+	tStates, err := s.kafkaadmin.DescribeTopics(ctx, []string{".*"})
+	switch err {
+	case nil:
+	case kafkaadmin.ErrNoData:
+		return nil, ErrTopicNotExist
+	default:
+		return nil, err
 	}
 
-	// Get a mapper.PartitionMap for each topic.
-	var pms []*mapper.PartitionMap
-	for _, p := range ts {
-		pm, err := s.ZK.GetPartitionMap(p)
-		if err != nil {
-			return nil, err
-		}
-		pms = append(pms, pm)
-	}
+	// Translate to mapper object.
+	pm, _ := mapper.PartitionMapFromTopicStates(tStates)
 
 	// Build a mapping of brokers to topics. This is structured
 	// as a map[<broker ID>]map[<topic name>]struct{}.
 	var bmapping = make(map[int]map[string]struct{})
 
-	for _, pm := range pms {
-		// For each PartitionMap, get a mapper.BrokerMap.
-		bm := mapper.BrokerMapFromPartitionMap(pm, nil, false)
-
-		// Add the topic name to each broker's topic set.
-		name := pm.Partitions[0].Topic
-
-		for id := range bm {
+	// Walk each partition's replica list and append the topic name for each broker
+	// that's assigned to hold at least one partition.
+	for _, partn := range pm.Partitions {
+		for _, id := range partn.Replicas {
 			if bmapping[id] == nil {
 				bmapping[id] = map[string]struct{}{}
 			}
-			bmapping[id][name] = struct{}{}
+			bmapping[id][partn.Topic] = struct{}{}
 		}
 	}
 
@@ -363,7 +357,7 @@ func (s *Server) TagBrokers(ctx context.Context, req *pb.TagBrokersRequest) (*pb
 	return &pb.TagBrokersResponse{}, nil
 }
 
-//DeleteBrokerTags deletes custom tags for the specified broker.
+// DeleteBrokerTags deletes custom tags for the specified broker.
 func (s *Server) DeleteBrokerTags(ctx context.Context, req *pb.BrokerRequest) (*pb.TagResponse, error) {
 	ctx, cancel, err := s.ValidateRequest(ctx, req, writeRequest)
 	if err != nil {
