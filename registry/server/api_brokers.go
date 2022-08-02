@@ -383,13 +383,14 @@ func (s *Server) DeleteBrokerTags(ctx context.Context, req *pb.BrokerRequest) (*
 
 	// Ensure the broker exists.
 
-	// Get brokers from ZK.
-	brokers, errs := s.ZK.GetAllBrokerMeta(false)
+	// Get broker states.
+	brokerStates, errs := s.kafkaadmin.DescribeBrokers(ctx, false)
 	if errs != nil {
 		return nil, ErrFetchingBrokers
 	}
 
-	if _, exist := brokers[int(req.Id)]; !exist {
+	// Check if the broker exists.
+	if _, ok := brokerStates[int(req.Id)]; !ok {
 		return nil, ErrBrokerNotExist
 	}
 
