@@ -219,16 +219,13 @@ message UnmappedBrokersRequest {
 message Broker {
   // Registry metadata.
   map<string, string> tags = 1;
-  // Broker metadata from ZooKeeper.
+  // Broker metadata from the cluster state.
   uint32 id = 5;
-  map<string, string> listenersecurityprotocolmap = 6;
-  repeated string endpoints = 7;
+  string host = 6;
+  uint32 port = 7;
   string rack = 8;
-  uint32 jmxport = 9;
-  string host = 10;
-  int64 timestamp = 11;
-  uint32 port = 12;
-  uint32 version = 13;
+  string interbrokerprotocolversion = 9;
+  string logmessageformat = 10;
 }
 
 message TagBrokersRequest {
@@ -263,7 +260,7 @@ message TopicResponse {
 message Topic {
   // Registry metadata.
   map<string, string> tags = 1;
-  // Topic metadata from ZooKeeper.
+  // Topic metadata from the cluster state.
   string name = 5;
   uint32 partitions = 6;
   uint32 replication = 7;

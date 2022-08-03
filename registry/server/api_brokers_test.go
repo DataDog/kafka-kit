@@ -78,13 +78,13 @@ func TestUnmappedBrokers(t *testing.T) {
 
 	tests := map[int]*pb.UnmappedBrokersRequest{
 		0: {},
-		1: {Exclude: []string{"test_topic"}},
-		2: {Exclude: []string{"test_topic", "test_topic2"}},
+		1: {Exclude: []string{"test1"}},
+		2: {Exclude: []string{"test1", "test2"}},
 	}
 
 	expected := map[int]idList{
-		0: {1005, 1007},
-		1: {1005, 1007},
+		0: {1004, 1005, 1007},
+		1: {1001, 1004, 1005, 1007},
 		2: {1001, 1002, 1003, 1004, 1005, 1007},
 	}
 
@@ -95,13 +95,13 @@ func TestUnmappedBrokers(t *testing.T) {
 		}
 
 		if resp.Ids == nil {
-			t.Errorf("Expected a non-nil BrokerResponse.Ids field")
+			t.Errorf("[case %d] Expected a non-nil BrokerResponse.Ids field", i)
 		}
 
 		brokers := resp.Ids
 
 		if !intsEqual(expected[i], brokers) {
-			t.Errorf("Expected broker list %v, got %v", expected[i], brokers)
+			t.Errorf("[case %d] Expected broker list %v, got %v", i, expected[i], brokers)
 		}
 	}
 }
@@ -251,7 +251,7 @@ func TestBrokerMappings(t *testing.T) {
 	}
 
 	expected := map[int][]string{
-		0: {"test_topic", "test_topic2"},
+		0: {"test1", "test2"},
 	}
 
 	for i, req := range tests {

@@ -119,16 +119,12 @@ func (t *TagHandler) TagSetFromObject(o interface{}) (TagSet, error) {
 		b := o.(*pb.Broker)
 		ko.Type = "broker"
 		ko.ID = fmt.Sprintf("%d", b.Id)
-
-		// TODO implement map/nested types.
-		// ts["listenersecurityprotocolmap"] = b.ListenerSecurityProtocolMap
 		ts["id"] = fmt.Sprintf("%d", b.Id)
-		ts["rack"] = b.Rack
-		ts["jmxport"] = fmt.Sprintf("%d", b.Jmxport)
 		ts["host"] = b.Host
-		ts["timestamp"] = fmt.Sprintf("%d", b.Timestamp)
+		ts["rack"] = b.Rack
 		ts["port"] = fmt.Sprintf("%d", b.Port)
-		ts["version"] = fmt.Sprintf("%d", b.Version)
+		ts["logmessageformat"] = b.Logmessageformat
+		ts["interbrokerprotocolversion"] = b.Interbrokerprotocolversion
 	}
 
 	// Fetch stored tags.
