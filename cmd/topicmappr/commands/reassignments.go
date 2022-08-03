@@ -107,12 +107,6 @@ func reassign(params reassignParams, ka kafkaadmin.KafkaAdmin, zk kafkazk.Handle
 		os.Exit(1)
 	}
 
-	// Exclude any topics that are pending deletion.
-	pending, err := stripPendingDeletes(partitionMapIn, zk)
-	if err != nil {
-		fmt.Println("Error fetching topics pending deletion")
-	}
-
 	// Exclude any explicit exclusions.
 	excluded := removeTopics(partitionMapIn, params.topicsExclude)
 
@@ -120,7 +114,7 @@ func reassign(params reassignParams, ka kafkaadmin.KafkaAdmin, zk kafkazk.Handle
 	printTopics(partitionMapIn)
 
 	// Print if any topics were excluded due to pending deletion.
-	printExcludedTopics(pending, excluded)
+	printExcludedTopics(nil, excluded)
 
 	// Get a broker map.
 	brokersIn := mapper.BrokerMapFromPartitionMap(partitionMapIn, brokerMeta, false)

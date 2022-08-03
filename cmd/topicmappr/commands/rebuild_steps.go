@@ -67,7 +67,7 @@ func runRebuild(params rebuildParams, ka kafkaadmin.KafkaAdmin, zk kafkazk.Handl
 
 	// Build a partition map either from literal map text input or by fetching the
 	// map data from ZooKeeper. Store a copy of the original.
-	partitionMapIn, pending, excluded := getPartitionMap(params, zk)
+	partitionMapIn, _, excluded := getPartitionMap(params, zk)
 	originalMap := partitionMapIn.Copy()
 
 	// Get a list of affected topics.
@@ -75,7 +75,7 @@ func runRebuild(params rebuildParams, ka kafkaadmin.KafkaAdmin, zk kafkazk.Handl
 
 	// Print if any topics were excluded due to pending deletion or explicit
 	// exclusion.
-	printExcludedTopics(pending, excluded)
+	printExcludedTopics(nil, excluded)
 
 	brokers, bs := getBrokers(params, partitionMapIn, brokerMeta)
 	brokersOrig := brokers.Copy()
@@ -198,16 +198,10 @@ func getPartitionMap(params rebuildParams, zk kafkazk.Handler) (*mapper.Partitio
 			os.Exit(1)
 		}
 
-		// Exclude any topics that are pending deletion.
-		pd, err := stripPendingDeletes(pm, zk)
-		if err != nil {
-			fmt.Println("Error fetching topics pending deletion")
-		}
-
 		// Exclude topics explicitly listed.
 		et := removeTopics(pm, params.topicsExclude)
 
-		return pm, pd, et
+		return pm, nil, et
 	}
 
 	return nil, nil, nil
