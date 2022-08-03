@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
+
 	"github.com/spf13/cobra"
 )
 
@@ -52,7 +54,15 @@ func scale(cmd *cobra.Command, _ []string) {
 
 	defer zk.Close()
 
-	partitionMaps, _ := reassign(params, zk)
+	// Init kafkaadmin client.
+	bs := cmd.Parent().Flag("kafka-addr").Value.String()
+	ka, err := kafkaadmin.NewClient(kafkaadmin.Config{BootstrapServers: bs})
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	partitionMaps, _ := reassign(params, ka, zk)
 
 	// TODO intentionally not handling the one error that can be returned here
 	// right now, but would be better to distinguish errors

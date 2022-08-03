@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v4/kafkazk"
 	"github.com/DataDog/kafka-kit/v4/mapper"
 )
 
-func runRebuild(params rebuildParams, zk kafkazk.Handler) ([]*mapper.PartitionMap, []error) {
+func runRebuild(params rebuildParams, ka kafkaadmin.KafkaAdmin, zk kafkazk.Handler) ([]*mapper.PartitionMap, []error) {
 	// General flow:
 	// 1) A PartitionMap is formed (either unmarshaled from the literal
 	//   map input via --rebuild-map or generated from ZooKeeper Metadata

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
+
 	"github.com/spf13/cobra"
 )
 
@@ -54,7 +56,15 @@ func rebalance(cmd *cobra.Command, _ []string) {
 
 	defer zk.Close()
 
-	partitionMaps, errs := reassign(params, zk)
+	// Init kafkaadmin client.
+	bs := cmd.Parent().Flag("kafka-addr").Value.String()
+	ka, err := kafkaadmin.NewClient(kafkaadmin.Config{BootstrapServers: bs})
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	partitionMaps, errs := reassign(params, ka, zk)
 
 	// Handle errors that are possible to be overridden by the user (aka 'WARN'
 	// in topicmappr console output).

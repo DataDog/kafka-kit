@@ -5,6 +5,7 @@ import (
 	"os"
 	"regexp"
 
+	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v4/kafkazk"
 
 	"github.com/spf13/cobra"
@@ -150,6 +151,14 @@ func rebuild(cmd *cobra.Command, _ []string) {
 		fmt.Println("\n[INFO] --force-rebuild disables --sub-affinity")
 	}
 
+	// Init kafkaadmin client.
+	bs := cmd.Parent().Flag("kafka-addr").Value.String()
+	ka, err := kafkaadmin.NewClient(kafkaadmin.Config{BootstrapServers: bs})
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
 	// ZooKeeper init.
 	var zk kafkazk.Handler
 	if params.useMetadata || len(params.topics) > 0 || params.placement == "storage" {
@@ -164,7 +173,7 @@ func rebuild(cmd *cobra.Command, _ []string) {
 		defer zk.Close()
 	}
 
-	maps, errs := runRebuild(params, zk)
+	maps, errs := runRebuild(params, ka, zk)
 
 	// Print error/warnings.
 	handleOverridableErrs(cmd, errs)

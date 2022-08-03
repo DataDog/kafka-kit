@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v4/kafkazk"
 	"github.com/DataDog/kafka-kit/v4/mapper"
 
@@ -80,7 +81,7 @@ func reassignParamsFromCmd(cmd *cobra.Command) (params reassignParams) {
 	return params
 }
 
-func reassign(params reassignParams, zk kafkazk.Handler) ([]*mapper.PartitionMap, []error) {
+func reassign(params reassignParams, ka kafkaadmin.KafkaAdmin, zk kafkazk.Handler) ([]*mapper.PartitionMap, []error) {
 	// Get broker and partition metadata.
 	if err := checkMetaAge(zk, params.maxMetadataAge); err != nil {
 		fmt.Println(err)
