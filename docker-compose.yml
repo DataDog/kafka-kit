@@ -28,7 +28,7 @@ services:
     ports:
       - "2181:2181"
     healthcheck:
-      test: ["CMD", "nc", "-z", "localhost:2181"]
+      test: nc -z localhost 2181 || exit -1
       interval: 5s
       timeout: 5s
       retries: 5
@@ -41,11 +41,11 @@ services:
       - "9092"
       - "9093"
     healthcheck:
-      test: ["CMD", "nc", "-z", "localhost:9092"]
+      test: nc -z localhost 9092 || exit -1
       interval: 5s
       timeout: 5s
       retries: 5
-      start_period: 5s
+      start_period: 15s
     depends_on:
       - ssl_setup
       - zookeeper
@@ -93,7 +93,7 @@ services:
       - "8080"
       - "8090"
     healthcheck:
-      test: ["CMD", "curl", "-f", "localhost:8080/v1/brokers/list"]
+      test: curl -f localhost:8080/v1/brokers/list
       interval: 5s
       timeout: 5s
       retries: 5
