@@ -23,6 +23,7 @@ import (
 // configuration methods.
 type Handler interface {
 	SimpleZooKeeperClient
+	GetBrokerMetrics() (mapper.BrokerMetricsMap, error)
 	GetTopicState(string) (*mapper.TopicState, error)
 	GetTopicStateISR(string) (TopicStateISR, error)
 	UpdateKafkaConfig(KafkaConfig) ([]bool, error)
@@ -409,7 +410,7 @@ func (z *ZKHandler) GetAllBrokerMeta(withMetrics bool) (mapper.BrokerMetaMap, []
 
 	// Fetch and populate in metrics.
 	if withMetrics {
-		bmetrics, err := z.getBrokerMetrics()
+		bmetrics, err := z.GetBrokerMetrics()
 		if err != nil {
 			return nil, []error{err}
 		}
@@ -432,7 +433,7 @@ func (z *ZKHandler) GetAllBrokerMeta(withMetrics bool) (mapper.BrokerMetaMap, []
 
 // GetBrokerMetrics fetches broker metrics stored in ZooKeeper and returns a
 // BrokerMetricsMap and an error if encountered.
-func (z *ZKHandler) getBrokerMetrics() (mapper.BrokerMetricsMap, error) {
+func (z *ZKHandler) GetBrokerMetrics() (mapper.BrokerMetricsMap, error) {
 	path := z.getMetricsPath("/brokermetrics")
 
 	// Fetch the metrics object.
