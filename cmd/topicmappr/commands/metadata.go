@@ -1,10 +1,12 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"time"
 
+	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v4/kafkazk"
 	"github.com/DataDog/kafka-kit/v4/mapper"
 )
@@ -26,8 +28,23 @@ func checkMetaAge(zk kafkazk.Handler, maxAge int) error {
 // getBrokerMeta returns a map of brokers and broker metadata for those
 // registered in ZooKeeper. Optionally, metrics metadata persisted in ZooKeeper
 // (via an external mechanism*) can be merged into the metadata.
-func getBrokerMeta(zk kafkazk.Handler, m bool) (mapper.BrokerMetaMap, []error) {
-	return zk.GetAllBrokerMeta(m)
+func getBrokerMeta(ka kafkaadmin.KafkaAdmin, zk kafkazk.Handler, m bool) (mapper.BrokerMetaMap, []error) {
+	// Get broker states.
+	brokerStates, err := ka.DescribeBrokers(context.Background(), false)
+	if err != nil {
+		return nil, []error{err}
+	}
+
+	brokers, _ := mapper.BrokerMetaMapFromStates(brokerStates)
+
+	// Populate metrics.
+	if m {
+		if errs := kafkazk.LoadMetrics(zk, brokers); errs != nil {
+			return nil, errs
+		}
+	}
+
+	return brokers, nil
 }
 
 // ensureBrokerMetrics takes a map of reference brokers and a map of discovered

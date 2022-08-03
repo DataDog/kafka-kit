@@ -87,7 +87,7 @@ func reassign(params reassignParams, ka kafkaadmin.KafkaAdmin, zk kafkazk.Handle
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	brokerMeta, errs := getBrokerMeta(zk, true)
+	brokerMeta, errs := getBrokerMeta(ka, zk, true)
 	if errs != nil && brokerMeta == nil {
 		for _, e := range errs {
 			fmt.Println(e)

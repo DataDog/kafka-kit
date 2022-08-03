@@ -48,7 +48,7 @@ func runRebuild(params rebuildParams, ka kafkaadmin.KafkaAdmin, zk kafkazk.Handl
 	var brokerMeta mapper.BrokerMetaMap
 	var errs []error
 	if params.useMetadata {
-		if brokerMeta, errs = getBrokerMeta(zk, withMetrics); errs != nil && brokerMeta == nil {
+		if brokerMeta, errs = getBrokerMeta(ka, zk, withMetrics); errs != nil && brokerMeta == nil {
 			for _, e := range errs {
 				fmt.Println(e)
 			}
