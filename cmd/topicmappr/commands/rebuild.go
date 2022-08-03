@@ -70,7 +70,7 @@ type rebuildParams struct {
 	topics              []string
 	topicsExclude       []*regexp.Regexp
 	useMetadata         bool
-	leaderEvacTopics    []*regexp.Regexp
+	leaderEvacTopics    []string
 	leaderEvacBrokers   []int
 	chunkStepSize       int
 }
@@ -111,9 +111,7 @@ func rebuildParamsFromCmd(cmd *cobra.Command) (params rebuildParams) {
 	chunkStepSize, _ := cmd.Flags().GetInt("chunk-step-size")
 	params.chunkStepSize = chunkStepSize
 	let, _ := cmd.Flags().GetString("leader-evac-topics")
-	if let != "" {
-		params.leaderEvacTopics = topicRegex(let)
-	}
+	params.leaderEvacTopics = strings.Split(let, ",")
 	leb, _ := cmd.Flags().GetString("leader-evac-brokers")
 	if leb != "" {
 		params.leaderEvacBrokers = brokerStringToSlice(leb)
