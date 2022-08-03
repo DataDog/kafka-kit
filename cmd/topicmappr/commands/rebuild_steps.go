@@ -67,7 +67,7 @@ func runRebuild(params rebuildParams, ka kafkaadmin.KafkaAdmin, zk kafkazk.Handl
 
 	// Build a partition map either from literal map text input or by fetching the
 	// map data from ZooKeeper. Store a copy of the original.
-	partitionMapIn, _, excluded := getPartitionMap(params, zk)
+	partitionMapIn, _, excluded := getPartitionMap(params, ka, zk)
 	originalMap := partitionMapIn.Copy()
 
 	// Get a list of affected topics.
@@ -176,7 +176,7 @@ func runRebuild(params rebuildParams, ka kafkaadmin.KafkaAdmin, zk kafkazk.Handl
 // via the --topics flag. Two []string are returned; topics excluded due to
 // pending deletion and topics explicitly excluded (via the --topics-exclude
 // flag), respectively.
-func getPartitionMap(params rebuildParams, zk kafkazk.Handler) (*mapper.PartitionMap, []string, []string) {
+func getPartitionMap(params rebuildParams, ka kafkaadmin.KafkaAdmin, zk kafkazk.Handler) (*mapper.PartitionMap, []string, []string) {
 
 	switch {
 	// The map was provided as text.
@@ -192,7 +192,7 @@ func getPartitionMap(params rebuildParams, zk kafkazk.Handler) (*mapper.Partitio
 		return pm, []string{}, et
 	// The map needs to be fetched via ZooKeeper metadata for all specified topics.
 	case len(params.topics) > 0:
-		pm, err := kafkazk.PartitionMapFromZK(params.topics, zk)
+		pm, err := getPartitionMaps(ka, params.topics)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)

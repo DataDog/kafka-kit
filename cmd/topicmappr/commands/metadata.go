@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"sort"
 	"time"
 
 	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
@@ -45,6 +46,20 @@ func getBrokerMeta(ka kafkaadmin.KafkaAdmin, zk kafkazk.Handler, m bool) (mapper
 	}
 
 	return brokers, nil
+}
+
+func getPartitionMaps(ka kafkaadmin.KafkaAdmin, topics []string) (*mapper.PartitionMap, error) {
+	// Get the topic states.
+	tState, err := ka.DescribeTopics(context.Background(), topics)
+	if err != nil {
+		return nil, err
+	}
+
+	// Translate it to a mapper object.
+	pm, _ := mapper.PartitionMapFromTopicStates(tState)
+	sort.Sort(pm.Partitions)
+
+	return pm, nil
 }
 
 // ensureBrokerMetrics takes a map of reference brokers and a map of discovered

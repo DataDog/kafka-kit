@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strings"
 
 	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v4/kafkazk"
@@ -66,7 +67,7 @@ type rebuildParams struct {
 	replication         int
 	skipNoOps           bool
 	subAffinity         bool
-	topics              []*regexp.Regexp
+	topics              []string
 	topicsExclude       []*regexp.Regexp
 	useMetadata         bool
 	leaderEvacTopics    []*regexp.Regexp
@@ -102,7 +103,7 @@ func rebuildParamsFromCmd(cmd *cobra.Command) (params rebuildParams) {
 	subAffinity, _ := cmd.Flags().GetBool("sub-affinity")
 	params.subAffinity = subAffinity
 	topics, _ := cmd.Flags().GetString("topics")
-	params.topics = topicRegex(topics)
+	params.topics = strings.Split(topics, ",")
 	topicsExclude, _ := cmd.Flags().GetString("topics-exclude")
 	params.topicsExclude = topicRegex(topicsExclude)
 	useMetadata, _ := cmd.Flags().GetBool("use-meta")

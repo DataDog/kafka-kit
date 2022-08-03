@@ -45,7 +45,7 @@ type reassignParams struct {
 	storageThreshold       float64
 	storageThresholdGB     float64
 	tolerance              float64
-	topics                 []*regexp.Regexp
+	topics                 []string
 	topicsExclude          []*regexp.Regexp
 	requireNewBrokers      bool
 	verbose                bool
@@ -73,7 +73,7 @@ func reassignParamsFromCmd(cmd *cobra.Command) (params reassignParams) {
 	tolerance, _ := cmd.Flags().GetFloat64("tolerance")
 	params.tolerance = tolerance
 	topics, _ := cmd.Flags().GetString("topics")
-	params.topics = topicRegex(topics)
+	params.topics = strings.Split(topics, ",")
 	topicsExclude, _ := cmd.Flags().GetString("topics-exclude")
 	params.topicsExclude = topicRegex(topicsExclude)
 	verbose, _ := cmd.Flags().GetBool("verbose")
@@ -101,7 +101,7 @@ func reassign(params reassignParams, ka kafkaadmin.KafkaAdmin, zk kafkazk.Handle
 	}
 
 	// Get the current partition map.
-	partitionMapIn, err := kafkazk.PartitionMapFromZK(params.topics, zk)
+	partitionMapIn, err := getPartitionMaps(ka, params.topics)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
