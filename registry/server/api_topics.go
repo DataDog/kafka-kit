@@ -31,6 +31,8 @@ var (
 	ErrInsufficientBrokers = status.Error(codes.FailedPrecondition, "insufficient number of brokers")
 	// ErrInvalidBrokerId error.
 	ErrInvalidBrokerId = status.Error(codes.FailedPrecondition, "invalid broker id")
+	// ErrTaggingTopicTimedOut
+	ErrTaggingTopicTimedOut = status.Error(codes.Internal, "tagging topic timed out")
 )
 
 // TopicSet is a mapping of topic name to *pb.Topic.
@@ -279,8 +281,6 @@ func (s *Server) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*
 	}
 
 	// Init the create request.
-	// XXX if a topic can't be created due to insufficient brokers,
-	// the command will fail at Kafka but not return an error here.
 	cfg := kafkaadmin.CreateTopicConfig{
 		Name:              req.Topic.Name,
 		Partitions:        int(req.Topic.Partitions),
@@ -298,23 +298,55 @@ func (s *Server) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*
 	// Tag the topic. It's possible that we get a non-nil but empty Tags parameter.
 	// In this case, we simply return.
 	tags := TagSet(req.Topic.Tags).Tags()
-	delay := 250 * time.Millisecond
 	if len(tags) > 0 {
 		reqParams.Tag = tags
-		// There's occasionally a lag period between creating the topic and the topic
-		// being visible; start a backoff retry loop.
-		for i := 0; i < 3; i++ {
-			time.Sleep(delay)
-			_, err = s.TagTopic(ctx, reqParams)
-			if err != nil {
-				delay = delay * 2
-			} else {
-				break
-			}
+		if err := s.tagTopicWithRetries(ctx, reqParams); err != nil {
+			return empty, err
 		}
 	}
 
-	return empty, err
+	return empty, nil
+}
+
+// tagTopicWithRetries is an exponential backoff/retry wrapper for tagging topics.
+func (s *Server) tagTopicWithRetries(ctx context.Context, req *pb.TopicRequest) error {
+	// There's occasionally a lag period between creating the topic and the topic
+	// being visible; start a backoff retry loop that maxes at:
+	// - 5s wait intervals
+	// - 10 retries
+	// - returns at the context timeout
+	delay := 250 * time.Millisecond
+	maxDelay := 5 * time.Second
+	maxRetries := 10
+
+	var err error
+
+	// Start the loop.
+	for i := 0; i < maxRetries; i++ {
+		// Stop running if the context has already expired.
+		select {
+		case <-ctx.Done():
+			return ErrTaggingTopicTimedOut
+		default:
+		}
+
+		// Attempt the topic tagging.
+		_, err = s.TagTopic(ctx, req)
+		if err != nil {
+			// Approach the max wait.
+			delay = delay * time.Duration(i)
+			if delay > maxDelay {
+				delay = maxDelay
+			}
+			// Sleep until the next interval.
+			time.Sleep(delay)
+			continue
+		}
+		// Success.
+		return nil
+	}
+
+	return err
 }
 
 // DeleteTopic deletes the topic specified in the req.Topic.Name field.
