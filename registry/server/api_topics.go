@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"sort"
+	"time"
 
 	zklocking "github.com/DataDog/kafka-kit/v4/cluster/zookeeper"
 	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
@@ -294,12 +295,23 @@ func (s *Server) CreateTopic(ctx context.Context, req *pb.CreateTopicRequest) (*
 		return empty, err
 	}
 
-	// Tag the topic. It's possible that we get a non-nil
-	// but empty Tags parameter. In this case, we simply return.
+	// Tag the topic. It's possible that we get a non-nil but empty Tags parameter.
+	// In this case, we simply return.
 	tags := TagSet(req.Topic.Tags).Tags()
+	delay := 250 * time.Millisecond
 	if len(tags) > 0 {
 		reqParams.Tag = tags
-		_, err = s.TagTopic(ctx, reqParams)
+		// There's occasionally a lag period between creating the topic and the topic
+		// being visible; start a backoff retry loop.
+		for i := 0; i < 3; i++ {
+			time.Sleep(delay)
+			_, err = s.TagTopic(ctx, reqParams)
+			if err != nil {
+				delay = delay * 2
+			} else {
+				break
+			}
+		}
 	}
 
 	return empty, err
