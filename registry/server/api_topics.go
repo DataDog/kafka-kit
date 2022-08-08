@@ -317,7 +317,7 @@ func (s *Server) tagTopicWithRetries(ctx context.Context, req *pb.TopicRequest) 
 	// - returns at the context timeout
 	delay := 250 * time.Millisecond
 	maxDelay := 5 * time.Second
-	maxRetries := 10
+	maxRetries := 100
 
 	var err error
 
