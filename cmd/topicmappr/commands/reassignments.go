@@ -6,6 +6,8 @@ import (
 	"os"
 	"regexp"
 	"sort"
+	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/DataDog/kafka-kit/v4/kafkazk"
@@ -304,7 +306,8 @@ func getPartitionMapChunks(finalMap *mapper.PartitionMap, initialMap *mapper.Par
 	var out []*mapper.PartitionMap
 	brokerIds.SortByIDDesc()
 
-	for i := 0; i < len(brokerIds); i += chunkStepSize {
+	// Skipping the Stub broker which has an ID of int max and will be the first broker.
+	for i := 1; i < len(brokerIds); i += chunkStepSize {
 		// Select the brokers we will move data from for this chunk
 		var chunkBrokers = map[int]struct{}{}
 		for j := 0; j < chunkStepSize && i+j < len(brokerIds); j++ {
@@ -327,13 +330,17 @@ func getPartitionMapChunks(finalMap *mapper.PartitionMap, initialMap *mapper.Par
 			}
 		}
 
+		var brokers []string
+		for key := range chunkBrokers {
+			brokers = append(brokers, strconv.Itoa(key))
+		}
 		// Don't return noop maps
 		if equal, _ := tempMap.Equal(intermediateMap); !equal {
-			fmt.Printf("\n\nChanges for partition map Chunk %d", i)
-			printMapChanges(intermediateMap, tempMap)
 			out = append(out, tempMap)
+			fmt.Printf("\n\nChanges for partition map chunk %d for brokers %s", len(out), strings.Join(brokers, ","))
+			printMapChanges(intermediateMap, tempMap)
 		} else {
-			fmt.Printf("\n\nSkipping map output for chunked noop map%d", i)
+			fmt.Printf("\n\nSkipping noop map output for brokers %s", strings.Join(brokers, ","))
 		}
 		intermediateMap = tempMap
 	}
