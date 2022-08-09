@@ -32,7 +32,7 @@ var (
 	// ErrInvalidBrokerId error.
 	ErrInvalidBrokerId = status.Error(codes.FailedPrecondition, "invalid broker id")
 	// ErrTaggingTopicTimedOut
-	ErrTaggingTopicTimedOut = status.Error(codes.Internal, "tagging topic timed out")
+	ErrTaggingTopicTimedOut = status.Error(codes.DeadlineExceeded, "tagging topic timed out")
 )
 
 // TopicSet is a mapping of topic name to *pb.Topic.
