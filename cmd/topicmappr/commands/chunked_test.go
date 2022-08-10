@@ -13,6 +13,7 @@ func TestBasicChunkedDownscale(t *testing.T) {
 	var inMap = readTestPartitionMap("nine_brokers.json")
 	var finalMap = readTestPartitionMap("three_brokers.json")
 	var chunks = getPartitionMapChunks(&finalMap, &inMap, mapper.BrokerList{
+		&mapper.Broker{ID: mapper.StubBrokerID},
 		&mapper.Broker{ID: 10000},
 		&mapper.Broker{ID: 10001},
 		&mapper.Broker{ID: 10002},
@@ -35,6 +36,7 @@ func TestIgnoresNoop(t *testing.T) {
 	var inMap = readTestPartitionMap("nine_brokers.json")
 	var finalMap = readTestPartitionMap("nine_brokers.json")
 	var chunks = getPartitionMapChunks(&finalMap, &inMap, mapper.BrokerList{
+		&mapper.Broker{ID: mapper.StubBrokerID},
 		&mapper.Broker{ID: 10000},
 		&mapper.Broker{ID: 10001},
 		&mapper.Broker{ID: 10002},
@@ -54,6 +56,7 @@ func TestBasicChunkedDownscaleStepSizeOne(t *testing.T) {
 	var inMap = readTestPartitionMap("nine_brokers.json")
 	var finalMap = readTestPartitionMap("three_brokers.json")
 	var chunks = getPartitionMapChunks(&finalMap, &inMap, mapper.BrokerList{
+		&mapper.Broker{ID: mapper.StubBrokerID},
 		&mapper.Broker{ID: 10000},
 		&mapper.Broker{ID: 10001},
 		&mapper.Broker{ID: 10002},
@@ -80,6 +83,7 @@ func TestChunksGeneratedWithConsistentOrdering(t *testing.T) {
 	var inMap = readTestPartitionMap("nine_brokers.json")
 	var finalMap = readTestPartitionMap("three_brokers.json")
 	var chunks = getPartitionMapChunks(&finalMap, &inMap, mapper.BrokerList{
+		&mapper.Broker{ID: mapper.StubBrokerID},
 		&mapper.Broker{ID: 10001},
 		&mapper.Broker{ID: 10000},
 		&mapper.Broker{ID: 10006},
@@ -106,6 +110,7 @@ func TestUnevenBrokersForStepSize(t *testing.T) {
 	var inMap = readTestPartitionMap("nine_brokers.json")
 	var finalMap = readTestPartitionMap("three_brokers.json")
 	var chunks = getPartitionMapChunks(&finalMap, &inMap, mapper.BrokerList{
+		&mapper.Broker{ID: mapper.StubBrokerID},
 		&mapper.Broker{ID: 10000},
 		&mapper.Broker{ID: 10001},
 		&mapper.Broker{ID: 10002},
@@ -128,6 +133,7 @@ func TestChunkSizeBiggerThanAvailableBrokers(t *testing.T) {
 	var inMap = readTestPartitionMap("nine_brokers.json")
 	var finalMap = readTestPartitionMap("three_brokers.json")
 	var chunks = getPartitionMapChunks(&finalMap, &inMap, mapper.BrokerList{
+		&mapper.Broker{ID: mapper.StubBrokerID},
 		&mapper.Broker{ID: 10000},
 		&mapper.Broker{ID: 10001},
 		&mapper.Broker{ID: 10002},
