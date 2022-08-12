@@ -1,14 +1,16 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"os"
 
+	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v4/kafkazk"
 	"github.com/DataDog/kafka-kit/v4/mapper"
 )
 
-func runRebuild(params rebuildParams, zk kafkazk.Handler) ([]*mapper.PartitionMap, []error) {
+func runRebuild(params rebuildParams, ka kafkaadmin.KafkaAdmin, zk kafkazk.Handler) ([]*mapper.PartitionMap, []error) {
 	// General flow:
 	// 1) A PartitionMap is formed (either unmarshaled from the literal
 	//   map input via --rebuild-map or generated from ZooKeeper Metadata
@@ -27,11 +29,13 @@ func runRebuild(params rebuildParams, zk kafkazk.Handler) ([]*mapper.PartitionMa
 	var evacTopics []string
 	var err error
 	if len(params.leaderEvacTopics) != 0 {
-		evacTopics, err = zk.GetTopics(params.leaderEvacTopics)
+		tState, err := ka.DescribeTopics(context.Background(), params.leaderEvacTopics)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
+		evacTopics = tState.List()
+
 	}
 
 	// Fetch broker metadata.
@@ -47,7 +51,7 @@ func runRebuild(params rebuildParams, zk kafkazk.Handler) ([]*mapper.PartitionMa
 	var brokerMeta mapper.BrokerMetaMap
 	var errs []error
 	if params.useMetadata {
-		if brokerMeta, errs = getBrokerMeta(zk, withMetrics); errs != nil && brokerMeta == nil {
+		if brokerMeta, errs = getBrokerMeta(ka, zk, withMetrics); errs != nil && brokerMeta == nil {
 			for _, e := range errs {
 				fmt.Println(e)
 			}
@@ -66,7 +70,7 @@ func runRebuild(params rebuildParams, zk kafkazk.Handler) ([]*mapper.PartitionMa
 
 	// Build a partition map either from literal map text input or by fetching the
 	// map data from ZooKeeper. Store a copy of the original.
-	partitionMapIn, pending, excluded := getPartitionMap(params, zk)
+	partitionMapIn, _, excluded := getPartitionMap(params, ka)
 	originalMap := partitionMapIn.Copy()
 
 	// Get a list of affected topics.
@@ -74,7 +78,7 @@ func runRebuild(params rebuildParams, zk kafkazk.Handler) ([]*mapper.PartitionMa
 
 	// Print if any topics were excluded due to pending deletion or explicit
 	// exclusion.
-	printExcludedTopics(pending, excluded)
+	printExcludedTopics(nil, excluded)
 
 	brokers, bs := getBrokers(params, partitionMapIn, brokerMeta)
 	brokersOrig := brokers.Copy()
@@ -175,7 +179,7 @@ func runRebuild(params rebuildParams, zk kafkazk.Handler) ([]*mapper.PartitionMa
 // via the --topics flag. Two []string are returned; topics excluded due to
 // pending deletion and topics explicitly excluded (via the --topics-exclude
 // flag), respectively.
-func getPartitionMap(params rebuildParams, zk kafkazk.Handler) (*mapper.PartitionMap, []string, []string) {
+func getPartitionMap(params rebuildParams, ka kafkaadmin.KafkaAdmin) (*mapper.PartitionMap, []string, []string) {
 
 	switch {
 	// The map was provided as text.
@@ -191,22 +195,16 @@ func getPartitionMap(params rebuildParams, zk kafkazk.Handler) (*mapper.Partitio
 		return pm, []string{}, et
 	// The map needs to be fetched via ZooKeeper metadata for all specified topics.
 	case len(params.topics) > 0:
-		pm, err := kafkazk.PartitionMapFromZK(params.topics, zk)
+		pm, err := getPartitionMaps(ka, params.topics)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
 
-		// Exclude any topics that are pending deletion.
-		pd, err := stripPendingDeletes(pm, zk)
-		if err != nil {
-			fmt.Println("Error fetching topics pending deletion")
-		}
-
 		// Exclude topics explicitly listed.
 		et := removeTopics(pm, params.topicsExclude)
 
-		return pm, pd, et
+		return pm, nil, et
 	}
 
 	return nil, nil, nil

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v4/kafkazk"
 	"github.com/DataDog/kafka-kit/v4/mapper"
 
@@ -44,7 +45,7 @@ type reassignParams struct {
 	storageThreshold       float64
 	storageThresholdGB     float64
 	tolerance              float64
-	topics                 []*regexp.Regexp
+	topics                 []string
 	topicsExclude          []*regexp.Regexp
 	requireNewBrokers      bool
 	verbose                bool
@@ -72,7 +73,7 @@ func reassignParamsFromCmd(cmd *cobra.Command) (params reassignParams) {
 	tolerance, _ := cmd.Flags().GetFloat64("tolerance")
 	params.tolerance = tolerance
 	topics, _ := cmd.Flags().GetString("topics")
-	params.topics = topicRegex(topics)
+	params.topics = strings.Split(topics, ",")
 	topicsExclude, _ := cmd.Flags().GetString("topics-exclude")
 	params.topicsExclude = topicRegex(topicsExclude)
 	verbose, _ := cmd.Flags().GetBool("verbose")
@@ -80,13 +81,13 @@ func reassignParamsFromCmd(cmd *cobra.Command) (params reassignParams) {
 	return params
 }
 
-func reassign(params reassignParams, zk kafkazk.Handler) ([]*mapper.PartitionMap, []error) {
+func reassign(params reassignParams, ka kafkaadmin.KafkaAdmin, zk kafkazk.Handler) ([]*mapper.PartitionMap, []error) {
 	// Get broker and partition metadata.
 	if err := checkMetaAge(zk, params.maxMetadataAge); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	brokerMeta, errs := getBrokerMeta(zk, true)
+	brokerMeta, errs := getBrokerMeta(ka, zk, true)
 	if errs != nil && brokerMeta == nil {
 		for _, e := range errs {
 			fmt.Println(e)
@@ -100,16 +101,10 @@ func reassign(params reassignParams, zk kafkazk.Handler) ([]*mapper.PartitionMap
 	}
 
 	// Get the current partition map.
-	partitionMapIn, err := kafkazk.PartitionMapFromZK(params.topics, zk)
+	partitionMapIn, err := getPartitionMaps(ka, params.topics)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
-	}
-
-	// Exclude any topics that are pending deletion.
-	pending, err := stripPendingDeletes(partitionMapIn, zk)
-	if err != nil {
-		fmt.Println("Error fetching topics pending deletion")
 	}
 
 	// Exclude any explicit exclusions.
@@ -119,7 +114,7 @@ func reassign(params reassignParams, zk kafkazk.Handler) ([]*mapper.PartitionMap
 	printTopics(partitionMapIn)
 
 	// Print if any topics were excluded due to pending deletion.
-	printExcludedTopics(pending, excluded)
+	printExcludedTopics(nil, excluded)
 
 	// Get a broker map.
 	brokersIn := mapper.BrokerMapFromPartitionMap(partitionMapIn, brokerMeta, false)

@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strings"
 
+	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v4/kafkazk"
 
 	"github.com/spf13/cobra"
@@ -65,10 +67,10 @@ type rebuildParams struct {
 	replication         int
 	skipNoOps           bool
 	subAffinity         bool
-	topics              []*regexp.Regexp
+	topics              []string
 	topicsExclude       []*regexp.Regexp
 	useMetadata         bool
-	leaderEvacTopics    []*regexp.Regexp
+	leaderEvacTopics    []string
 	leaderEvacBrokers   []int
 	chunkStepSize       int
 }
@@ -101,7 +103,7 @@ func rebuildParamsFromCmd(cmd *cobra.Command) (params rebuildParams) {
 	subAffinity, _ := cmd.Flags().GetBool("sub-affinity")
 	params.subAffinity = subAffinity
 	topics, _ := cmd.Flags().GetString("topics")
-	params.topics = topicRegex(topics)
+	params.topics = strings.Split(topics, ",")
 	topicsExclude, _ := cmd.Flags().GetString("topics-exclude")
 	params.topicsExclude = topicRegex(topicsExclude)
 	useMetadata, _ := cmd.Flags().GetBool("use-meta")
@@ -109,9 +111,7 @@ func rebuildParamsFromCmd(cmd *cobra.Command) (params rebuildParams) {
 	chunkStepSize, _ := cmd.Flags().GetInt("chunk-step-size")
 	params.chunkStepSize = chunkStepSize
 	let, _ := cmd.Flags().GetString("leader-evac-topics")
-	if let != "" {
-		params.leaderEvacTopics = topicRegex(let)
-	}
+	params.leaderEvacTopics = strings.Split(let, ",")
 	leb, _ := cmd.Flags().GetString("leader-evac-brokers")
 	if leb != "" {
 		params.leaderEvacBrokers = brokerStringToSlice(leb)
@@ -150,6 +150,14 @@ func rebuild(cmd *cobra.Command, _ []string) {
 		fmt.Println("\n[INFO] --force-rebuild disables --sub-affinity")
 	}
 
+	// Init kafkaadmin client.
+	bs := cmd.Parent().Flag("kafka-addr").Value.String()
+	ka, err := kafkaadmin.NewClient(kafkaadmin.Config{BootstrapServers: bs})
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
 	// ZooKeeper init.
 	var zk kafkazk.Handler
 	if params.useMetadata || len(params.topics) > 0 || params.placement == "storage" {
@@ -164,7 +172,7 @@ func rebuild(cmd *cobra.Command, _ []string) {
 		defer zk.Close()
 	}
 
-	maps, errs := runRebuild(params, zk)
+	maps, errs := runRebuild(params, ka, zk)
 
 	// Print error/warnings.
 	handleOverridableErrs(cmd, errs)
