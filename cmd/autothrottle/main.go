@@ -206,7 +206,7 @@ func main() {
 	var ticker = time.NewTicker(time.Duration(Config.Interval) * time.Second)
 
 	// TODO(jamie): refactor this loop.
-	for ; ; <-ticker.C {
+	for {
 		interval++
 
 		// Get topics undergoing reassignment.
@@ -444,7 +444,7 @@ func main() {
 				}
 			}
 		}
-
+		<-ticker.C
 	}
 
 }
