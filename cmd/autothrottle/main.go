@@ -120,7 +120,8 @@ func main() {
 		ZKPrefix: Config.ConfigZKPrefix,
 	}
 
-	api.Init(apiConfig, zk)
+	trigger := make(chan struct{}, 1)
+	api.Init(apiConfig, zk, trigger)
 	log.Printf("Admin API: %s\n", Config.APIListen)
 
 	// Init a Kafka metrics fetcher.
@@ -207,7 +208,6 @@ func main() {
 
 	// TODO(jamie): refactor this loop.
 	for {
-		interval++
 
 		// Get topics undergoing reassignment.
 		if !Config.KafkaNativeMode {
@@ -444,7 +444,11 @@ func main() {
 				}
 			}
 		}
-		<-ticker.C
+		select {
+		case <-ticker.C:
+			interval++
+		case <-trigger:
+		}
 	}
 
 }

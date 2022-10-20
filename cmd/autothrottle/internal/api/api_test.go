@@ -9,7 +9,12 @@ import (
 	"github.com/DataDog/kafka-kit/v4/kafkazk"
 )
 
+var (
+	trigger = make(chan struct{}, 10)
+)
+
 func TestSetThrottle(t *testing.T) {
+	t.Cleanup(clearTrigger)
 	// GIVEN
 	zk := kafkazk.NewZooKeeperStub()
 	req, err := http.NewRequest("POST", "/throttle?rate=5&autoremove=false", nil)
@@ -18,16 +23,20 @@ func TestSetThrottle(t *testing.T) {
 	}
 
 	responseRecorder := httptest.NewRecorder()
-	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) { throttleGetSet(w, req, zk) })
+	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) { throttleGetSet(w, req, zk, trigger) })
 
 	// WHEN
 	handler.ServeHTTP(responseRecorder, req)
 
 	// THEN
 	checkResults(http.StatusOK, "throttle successfully set to 5MB/s, autoremove==false\n", responseRecorder, t)
+	if triggered := countTrigger(); triggered != 1 {
+		t.Errorf("mutation did not trigger config application, trigger channel length: %d", triggered)
+	}
 }
 
 func TestSetBrokerThrottle(t *testing.T) {
+	t.Cleanup(clearTrigger)
 	// GIVEN
 	zk := kafkazk.NewZooKeeperStub()
 	req, err := http.NewRequest("POST", "/throttle/123?rate=5&autoremove=false", nil)
@@ -36,16 +45,20 @@ func TestSetBrokerThrottle(t *testing.T) {
 	}
 
 	responseRecorder := httptest.NewRecorder()
-	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) { throttleGetSet(w, req, zk) })
+	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) { throttleGetSet(w, req, zk, trigger) })
 
 	// WHEN
 	handler.ServeHTTP(responseRecorder, req)
 
 	// THEN
 	checkResults(http.StatusOK, "broker 123: throttle successfully set to 5MB/s, autoremove==false\n", responseRecorder, t)
+	if triggered := countTrigger(); triggered != 1 {
+		t.Errorf("mutation did not trigger config application, trigger channel length: %d", triggered)
+	}
 }
 
 func TestGetThrottle(t *testing.T) {
+	t.Cleanup(clearTrigger)
 	// GIVEN
 	overrideRateZnode = "override_rate"
 	zk := kafkazk.NewZooKeeperStub()
@@ -58,7 +71,7 @@ func TestGetThrottle(t *testing.T) {
 
 	setRecorder := httptest.NewRecorder()
 	getRecorder := httptest.NewRecorder()
-	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) { throttleGetSet(w, req, zk) })
+	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) { throttleGetSet(w, req, zk, trigger) })
 
 	// WHEN
 	handler.ServeHTTP(setRecorder, setReq)
@@ -69,6 +82,7 @@ func TestGetThrottle(t *testing.T) {
 }
 
 func TestGetBrokerThrottle(t *testing.T) {
+	t.Cleanup(clearTrigger)
 	// GIVEN
 	overrideRateZnode = "override_rate"
 	zk := kafkazk.NewZooKeeperStub()
@@ -81,7 +95,7 @@ func TestGetBrokerThrottle(t *testing.T) {
 
 	setRecorder := httptest.NewRecorder()
 	getRecorder := httptest.NewRecorder()
-	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) { throttleGetSet(w, req, zk) })
+	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) { throttleGetSet(w, req, zk, trigger) })
 
 	// WHEN
 	handler.ServeHTTP(setRecorder, setReq)
@@ -92,6 +106,7 @@ func TestGetBrokerThrottle(t *testing.T) {
 }
 
 func TestRemoveThrottle(t *testing.T) {
+	t.Cleanup(clearTrigger)
 	// GIVEN
 	overrideRateZnode = "override_rate"
 	zk := kafkazk.NewZooKeeperStub()
@@ -106,8 +121,8 @@ func TestRemoveThrottle(t *testing.T) {
 	setRecorder := httptest.NewRecorder()
 	getRecorder := httptest.NewRecorder()
 	removeRecorder := httptest.NewRecorder()
-	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) { throttleGetSet(w, req, zk) })
-	removeHandler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) { throttleRemove(w, req, zk) })
+	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) { throttleGetSet(w, req, zk, trigger) })
+	removeHandler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) { throttleRemove(w, req, zk, trigger) })
 
 	// WHEN
 	handler.ServeHTTP(setRecorder, setReq)
@@ -117,9 +132,14 @@ func TestRemoveThrottle(t *testing.T) {
 	// THEN
 	checkResults(http.StatusOK, "throttle removed\n", removeRecorder, t)
 	checkResults(http.StatusOK, "no throttle override is set\n", getRecorder, t)
+	// 2 = 1 set + 1 remove
+	if triggered := countTrigger(); triggered != 2 {
+		t.Errorf("mutation did not trigger config application, trigger channel length: %d", triggered)
+	}
 }
 
 func TestRemoveBrokerThrottle(t *testing.T) {
+	t.Cleanup(clearTrigger)
 	// GIVEN
 	overrideRateZnode = "override_rate"
 	zk := kafkazk.NewZooKeeperStub()
@@ -134,8 +154,8 @@ func TestRemoveBrokerThrottle(t *testing.T) {
 	setRecorder := httptest.NewRecorder()
 	getRecorder := httptest.NewRecorder()
 	removeRecorder := httptest.NewRecorder()
-	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) { throttleGetSet(w, req, zk) })
-	removeHandler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) { throttleRemove(w, req, zk) })
+	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) { throttleGetSet(w, req, zk, trigger) })
+	removeHandler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) { throttleRemove(w, req, zk, trigger) })
 
 	// WHEN
 	handler.ServeHTTP(setRecorder, setReq)
@@ -145,9 +165,14 @@ func TestRemoveBrokerThrottle(t *testing.T) {
 	// THEN
 	checkResults(http.StatusOK, "broker 123: throttle removed\n", removeRecorder, t)
 	checkResults(http.StatusOK, "broker 123: no throttle override is set\n", getRecorder, t)
+	// 2 = 1 set + 1 remove
+	if triggered := countTrigger(); triggered != 2 {
+		t.Errorf("mutation did not trigger config application, trigger channel length: %d", triggered)
+	}
 }
 
 func TestRemoveAllBrokerThrottle(t *testing.T) {
+	t.Cleanup(clearTrigger)
 	// GIVEN
 	overrideRateZnode = "override_rate"
 	OverrideRateZnodePath = fmt.Sprintf("%s/%s", "zkChroot", overrideRateZnode)
@@ -166,8 +191,8 @@ func TestRemoveAllBrokerThrottle(t *testing.T) {
 	getRecorder := httptest.NewRecorder()
 	getRecorder2 := httptest.NewRecorder()
 	removeRecorder := httptest.NewRecorder()
-	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) { throttleGetSet(w, req, zk) })
-	removeHandler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) { throttleRemove(w, req, zk) })
+	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) { throttleGetSet(w, req, zk, trigger) })
+	removeHandler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) { throttleRemove(w, req, zk, trigger) })
 
 	// WHEN
 	handler.ServeHTTP(setRecorder, setReq)
@@ -192,5 +217,21 @@ func checkResults(statusCode int, expectedMessage string, rr *httptest.ResponseR
 	if rr.Body.String() != expectedMessage {
 		t.Errorf("handler returned unexpected body: got %v want %v",
 			rr.Body.String(), expectedMessage)
+	}
+}
+
+func clearTrigger() {
+	countTrigger()
+}
+
+func countTrigger() int {
+	count := 0
+	for {
+		select {
+		case <-trigger:
+			count++
+		default:
+			return count
+		}
 	}
 }
