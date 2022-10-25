@@ -25,7 +25,7 @@ var (
 	incorrectMethodError  = errors.New("disallowed method")
 )
 
-func Init(c *APIConfig, zk kafkazk.Handler) {
+func Init(c *APIConfig, zk kafkazk.Handler, trigger chan<- struct{}) {
 	chroot := fmt.Sprintf("/%s", c.ZKPrefix)
 	OverrideRateZnodePath = fmt.Sprintf("%s/%s", chroot, overrideRateZnode)
 
@@ -69,10 +69,10 @@ func Init(c *APIConfig, zk kafkazk.Handler) {
 	// Routes. A global rate vs broker-specific rate is distinguished in whether
 	// or not there's a trailing slash (and in a properly formed request, the
 	// addition of a broker ID in the request path).
-	m.HandleFunc("/throttle", func(w http.ResponseWriter, req *http.Request) { throttleGetSet(w, req, zk) })
-	m.HandleFunc("/throttle/", func(w http.ResponseWriter, req *http.Request) { throttleGetSet(w, req, zk) })
-	m.HandleFunc("/throttle/remove", func(w http.ResponseWriter, req *http.Request) { throttleRemove(w, req, zk) })
-	m.HandleFunc("/throttle/remove/", func(w http.ResponseWriter, req *http.Request) { throttleRemove(w, req, zk) })
+	m.HandleFunc("/throttle", func(w http.ResponseWriter, req *http.Request) { throttleGetSet(w, req, zk, trigger) })
+	m.HandleFunc("/throttle/", func(w http.ResponseWriter, req *http.Request) { throttleGetSet(w, req, zk, trigger) })
+	m.HandleFunc("/throttle/remove", func(w http.ResponseWriter, req *http.Request) { throttleRemove(w, req, zk, trigger) })
+	m.HandleFunc("/throttle/remove/", func(w http.ResponseWriter, req *http.Request) { throttleRemove(w, req, zk, trigger) })
 
 	// Start listener.
 	go func() {
@@ -84,7 +84,7 @@ func Init(c *APIConfig, zk kafkazk.Handler) {
 }
 
 // throttleGetSet conditionally handles the request depending on the HTTP method.
-func throttleGetSet(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler) {
+func throttleGetSet(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler, trigger chan<- struct{}) {
 	logReq(req)
 
 	switch req.Method {
@@ -94,6 +94,7 @@ func throttleGetSet(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler
 	case http.MethodPost:
 		// Set a throttle rate.
 		setThrottle(w, req, zk)
+		trigger <- struct{}{}
 	default:
 		// Invalid method.
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -103,13 +104,14 @@ func throttleGetSet(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler
 }
 
 // throttleRemove removes either the global, broker-specific throttle, or all broker-specific throttles.
-func throttleRemove(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler) {
+func throttleRemove(w http.ResponseWriter, req *http.Request, zk kafkazk.Handler, trigger chan<- struct{}) {
 	logReq(req)
 
 	switch req.Method {
 	case http.MethodPost:
 		// Remove the throttle.
 		removeThrottle(w, req, zk)
+		trigger <- struct{}{}
 	default:
 		// Invalid method.
 		w.WriteHeader(http.StatusMethodNotAllowed)
