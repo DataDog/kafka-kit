@@ -111,7 +111,9 @@ func rebuildParamsFromCmd(cmd *cobra.Command) (params rebuildParams) {
 	chunkStepSize, _ := cmd.Flags().GetInt("chunk-step-size")
 	params.chunkStepSize = chunkStepSize
 	let, _ := cmd.Flags().GetString("leader-evac-topics")
-	params.leaderEvacTopics = strings.Split(let, ",")
+	if let != "" {
+		params.leaderEvacTopics = strings.Split(let, ",")
+	}
 	leb, _ := cmd.Flags().GetString("leader-evac-brokers")
 	if leb != "" {
 		params.leaderEvacBrokers = brokerStringToSlice(leb)
