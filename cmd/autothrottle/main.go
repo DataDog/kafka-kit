@@ -211,8 +211,10 @@ func main() {
 
 		// Get topics undergoing reassignment.
 		if !Config.KafkaNativeMode {
+			log.Println("Getting reassignments with zk.GetReassignments")
 			reassignments = zk.GetReassignments()
 		} else {
+			log.Println("Getting reassignments with zk.ListReassignments")
 			// KIP-455 compatible reassignments lookup.
 			reassignments, err = zk.ListReassignments()
 			if err != nil {

@@ -227,8 +227,10 @@ func (z *ZKHandler) GetReassignments() Reassignments {
 	// Get reassignment config.
 	data, err := z.Get(path)
 	if err != nil {
+		println("getreassignments error", err)
 		return reassigns
 	}
+	println("getreassignments data", data)
 
 	rec := &reassignPartitions{}
 	json.Unmarshal(data, rec)
@@ -240,6 +242,7 @@ func (z *ZKHandler) GetReassignments() Reassignments {
 		}
 		reassigns[cfg.Topic][cfg.Partition] = cfg.Replicas
 	}
+	println("getreassignments return", reassigns)
 
 	return reassigns
 }
@@ -256,6 +259,7 @@ func (z *ZKHandler) ListReassignments() (Reassignments, error) {
 		return nil, err
 	}
 
+	println("listreassignments topics", topics)
 	// Get the current topic configuration for each topic.
 	for _, topic := range topics {
 		// Fetch the metadata.
@@ -270,6 +274,7 @@ func (z *ZKHandler) ListReassignments() (Reassignments, error) {
 			reassignments[topic] = topicReassignment[topic]
 		}
 	}
+	println("listreassignments return", reassignments)
 
 	return reassignments, nil
 }
