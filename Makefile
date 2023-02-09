@@ -4,7 +4,7 @@ K := $(foreach exec,$(EXECUTABLES),\
 
 # Run a Docker compose environment.
 run-compose: compose-build
-	docker-compose up -d --scale kakfa=3
+	docker-compose up -d --scale kafka=3
 
 # Tear down the Docker compose environment.
 stop-compose:
