@@ -4,7 +4,7 @@ build-staging:
     - if: '$CI_COMMIT_REF_NAME != "master"'
   tags: ["runner:docker"]
   script:
-    - docker build -t registry.ddbuild.io/kafka-kit:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA} --label target=staging .
+    - docker build -t registry.ddbuild.io/kafka-kit:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA} --label target=staging --target dd-image -f Dockerfile .
     - docker push registry.ddbuild.io/kafka-kit:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
 
 build-prod:
@@ -13,5 +13,5 @@ build-prod:
     - if: '$CI_COMMIT_REF_NAME == "master"'
   tags: ["runner:docker"]
   script:
-    - docker build -t registry.ddbuild.io/kafka-kit:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA} --label target=prod .
+    - docker build -t registry.ddbuild.io/kafka-kit:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA} --label target=prod --target dd-image -f Dockerfile .
     - docker push registry.ddbuild.io/kafka-kit:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
