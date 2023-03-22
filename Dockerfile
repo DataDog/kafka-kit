@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM ubuntu:22.04 as base
 
 # Install pre-reqs
 ARG DEBIAN_FRONTEND=noninteractive
@@ -68,4 +68,10 @@ RUN apt autoremove
 RUN apt clean
 
 COPY entrypoint.sh /
+ENTRYPOINT ["/entrypoint.sh"]
+
+FROM registry.ddbuild.io/images/base/gbi-ubuntu_2204 as dd-image
+
+COPY --from=base /entrypoint.sh /
+COPY --from=base /go/bin /usr/bin
 ENTRYPOINT ["/entrypoint.sh"]
