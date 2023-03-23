@@ -1,4 +1,4 @@
-FROM ubuntu:21.04 as base
+FROM ubuntu:22.04 as base
 
 # Install pre-reqs
 ARG DEBIAN_FRONTEND=noninteractive
