@@ -75,6 +75,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: base
     ports:
       - "8080"
       - "8090"
