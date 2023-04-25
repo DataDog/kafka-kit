@@ -31,6 +31,7 @@ integration-test: kill-compose stop-compose compose-build run-compose
 
 # Generate proto code outputs.
 generate-code: build-image
-	docker create --name kafka-kit kafka-kit >/dev/null; \
-	docker cp kafka-kit:/go/src/github.com/DataDog/kafka-kit/registry/registry/. ${CURDIR}/registry/registry; \
+	docker create --platform linux/amd64 --name kafka-kit kafka-kit >/dev/null; \
+	docker cp kafka-kit:/go/src/github.com/DataDog/kafka-kit/proto/registrypb/. ${CURDIR}/proto/registrypb; \
 	docker rm kafka-kit >/dev/null
+

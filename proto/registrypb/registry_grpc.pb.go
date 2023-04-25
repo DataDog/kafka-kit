@@ -827,5 +827,5 @@ var Registry_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "registry/registry.proto",
+	Metadata: "registry.proto",
 }

@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strings"
 
-	pb "github.com/DataDog/kafka-kit/v4/registry/registry"
+	pb "github.com/DataDog/kafka-kit/v4/proto/registrypb"
 )
 
 var (

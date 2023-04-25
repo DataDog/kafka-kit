@@ -6,7 +6,7 @@ import (
 	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v4/kafkaadmin/stub"
 	"github.com/DataDog/kafka-kit/v4/kafkazk"
-	pb "github.com/DataDog/kafka-kit/v4/registry/registry"
+	pb "github.com/DataDog/kafka-kit/v4/proto/registrypb"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"

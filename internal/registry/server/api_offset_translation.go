@@ -7,7 +7,7 @@ import (
 	"log"
 	"time"
 
-	pb "github.com/DataDog/kafka-kit/v4/registry/registry"
+	pb "github.com/DataDog/kafka-kit/v4/proto/registrypb"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"google.golang.org/grpc/codes"

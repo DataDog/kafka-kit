@@ -42,23 +42,24 @@ RUN go install \
 # Copy source.
 COPY cmd cmd
 COPY cluster cluster
+COPY internal internal
 COPY kafkaadmin kafkaadmin
 COPY kafkametrics kafkametrics
 COPY kafkazk kafkazk
 COPY mapper mapper
-COPY registry registry
+COPY proto proto
 
 # Codegen
-RUN protoc -I ./registry -I $GOPATH/pkg/mod/$(awk '/googleapis/ {printf "%s@%s", $1, $2}' go.mod) \
-    --go_out ./registry \
+RUN protoc -I ./proto/registrypb -I $GOPATH/pkg/mod/$(awk '/googleapis/ {printf "%s@%s", $1, $2}' go.mod) \
+    --go_out ./proto/registrypb \
     --go_opt paths=source_relative \
-    --go-grpc_out ./registry \
+    --go-grpc_out ./proto/registrypb \
     --go-grpc_opt paths=source_relative \
-    --grpc-gateway_out ./registry \
+    --grpc-gateway_out ./proto/registrypb \
     --grpc-gateway_opt logtostderr=true \
     --grpc-gateway_opt paths=source_relative \
     --grpc-gateway_opt generate_unbound_methods=true \
-    registry/registry/registry.proto
+    proto/registrypb/registry.proto
 
 # Build
 RUN go install ./cmd/...
@@ -73,5 +74,6 @@ ENTRYPOINT ["/entrypoint.sh"]
 FROM registry.ddbuild.io/images/base/gbi-ubuntu_2204 as dd-image
 
 COPY --from=base /entrypoint.sh /
+COPY --from=base /go/src /go/src
 COPY --from=base /go/bin /usr/bin
 ENTRYPOINT ["/entrypoint.sh"]

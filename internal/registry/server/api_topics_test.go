@@ -9,7 +9,7 @@ import (
 
 	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v4/kafkaadmin/stub"
-	pb "github.com/DataDog/kafka-kit/v4/registry/registry"
+	pb "github.com/DataDog/kafka-kit/v4/proto/registrypb"
 )
 
 func TestGetTopics(t *testing.T) {

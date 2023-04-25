@@ -10,7 +10,7 @@ import (
 	zklocking "github.com/DataDog/kafka-kit/v4/cluster/zookeeper"
 	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v4/mapper"
-	pb "github.com/DataDog/kafka-kit/v4/registry/registry"
+	pb "github.com/DataDog/kafka-kit/v4/proto/registrypb"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
