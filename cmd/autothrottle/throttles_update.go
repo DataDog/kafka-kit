@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/DataDog/kafka-kit/v4/cmd/autothrottle/internal/api"
-	"github.com/DataDog/kafka-kit/v4/cmd/autothrottle/internal/throttlestore"
+	"github.com/DataDog/kafka-kit/v4/internal/autothrottle/api"
+	"github.com/DataDog/kafka-kit/v4/internal/autothrottle/throttlestore"
 	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v4/kafkametrics"
 	"github.com/DataDog/kafka-kit/v4/kafkazk"

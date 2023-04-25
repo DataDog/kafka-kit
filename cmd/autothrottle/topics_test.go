@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/DataDog/kafka-kit/v4/cmd/autothrottle/internal/throttlestore"
+	"github.com/DataDog/kafka-kit/v4/internal/autothrottle/throttlestore"
 	"github.com/DataDog/kafka-kit/v4/kafkaadmin/stub"
 )
 
