@@ -1,4 +1,4 @@
-FROM ubuntu:22.04 as base
+FROM --platform=linux/amd64 ubuntu:22.04 as base
 
 # Install pre-reqs
 ARG DEBIAN_FRONTEND=noninteractive
@@ -8,8 +8,8 @@ RUN apt install -y apt-utils jq build-essential unzip curl git pkg-config softwa
 WORKDIR /root
 
 # Install Go
-RUN curl -sOL https://go.dev/dl/go1.17.5.linux-amd64.tar.gz
-RUN tar -C /usr/local -xzf go1.17.5.linux-amd64.tar.gz
+RUN curl -sOL https://go.dev/dl/go1.20.3.linux-amd64.tar.gz
+RUN tar -C /usr/local -xzf go1.20.3.linux-amd64.tar.gz
 ENV PATH=$PATH:/usr/local/go/bin:/go/bin
 ENV GOPATH=/go
 
