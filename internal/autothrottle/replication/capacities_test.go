@@ -1,4 +1,4 @@
-package main
+package replication
 
 import (
 	"testing"
@@ -9,7 +9,7 @@ import (
 func TestBrokerReplicationCapacities(t *testing.T) {
 	zk := &kafkazk.Stub{}
 	reassignments := zk.GetReassignments()
-	reassigningBrokers, _ := getReassigningBrokers(reassignments, zk)
+	reassigningBrokers, _ := GetReassigningBrokers(reassignments, zk)
 
 	lim, _ := NewLimits(NewLimitsConfig{
 		Minimum:            20,
@@ -20,7 +20,7 @@ func TestBrokerReplicationCapacities(t *testing.T) {
 
 	rtc := &ThrottleManager{
 		reassignments:          reassignments,
-		previouslySetThrottles: replicationCapacityByBroker{1000: throttleByRole{float64ptr(20)}},
+		previouslySetThrottles: ReplicationCapacityByBroker{1000: ThrottleByRole{float64ptr(20)}},
 		limits:                 lim,
 	}
 
@@ -59,7 +59,7 @@ func float64ptr(f float64) *float64 {
 }
 
 func TestStoreLeaderCapacity(t *testing.T) {
-	capacities := replicationCapacityByBroker{}
+	capacities := ReplicationCapacityByBroker{}
 
 	capacities.storeLeaderCapacity(1001, 100)
 	out := capacities[1001]
@@ -84,7 +84,7 @@ func TestStoreLeaderCapacity(t *testing.T) {
 }
 
 func TestStoreFollowerCapacity(t *testing.T) {
-	capacities := replicationCapacityByBroker{}
+	capacities := ReplicationCapacityByBroker{}
 
 	capacities.storeFollowerCapacity(1001, 100)
 	out := capacities[1001]
@@ -109,7 +109,7 @@ func TestStoreFollowerCapacity(t *testing.T) {
 }
 
 func TestReset(t *testing.T) {
-	capacities := replicationCapacityByBroker{}
+	capacities := ReplicationCapacityByBroker{}
 	capacities.setAllRatesWithDefault([]int{1001, 1002, 1003}, 100)
 
 	// Check expected len.

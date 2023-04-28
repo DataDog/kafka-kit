@@ -1,10 +1,11 @@
 // These are legacy methods that perform updates directly through ZooKeeper.
-package main
+package replication
 
 import (
 	"errors"
 	"fmt"
 	"log"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -13,7 +14,11 @@ import (
 	"github.com/DataDog/kafka-kit/v4/kafkazk"
 )
 
-func (tm *ThrottleManager) legacyApplyBrokerThrottles(configs map[int]kafkazk.KafkaConfig, capacities replicationCapacityByBroker) (chan brokerChangeEvent, []error) {
+var (
+	topicsRegex = []*regexp.Regexp{regexp.MustCompile(".*")}
+)
+
+func (tm *ThrottleManager) legacyApplyBrokerThrottles(configs map[int]kafkazk.KafkaConfig, capacities ReplicationCapacityByBroker) (chan brokerChangeEvent, []error) {
 	events := make(chan brokerChangeEvent, len(configs)*2)
 	var errs []error
 
@@ -63,7 +68,7 @@ func (tm *ThrottleManager) legacyApplyBrokerThrottles(configs map[int]kafkazk.Ka
 	return events, errs
 }
 
-func (tm *ThrottleManager) legacyApplyTopicThrottles(throttled topicThrottledReplicas) []error {
+func (tm *ThrottleManager) legacyApplyTopicThrottles(throttled TopicThrottledReplicas) []error {
 	var errs []error
 
 	for t := range throttled {

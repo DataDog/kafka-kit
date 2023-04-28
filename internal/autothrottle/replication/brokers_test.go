@@ -1,4 +1,4 @@
-package main
+package replication
 
 import (
 	"sort"
@@ -12,7 +12,7 @@ func TestGetReassigningBrokers(t *testing.T) {
 	zk := &kafkazk.Stub{}
 
 	re := zk.GetReassignments()
-	bmaps, _ := getReassigningBrokers(re, zk)
+	bmaps, _ := GetReassigningBrokers(re, zk)
 
 	srcExpected := []int{1000, 1002}
 	dstExpected := []int{1003, 1005, 1010}
@@ -129,7 +129,7 @@ func stubReassigningBrokers() reassigningBrokers {
 		src:               map[int]struct{}{},
 		dst:               map[int]struct{}{},
 		all:               map[int]struct{}{},
-		throttledReplicas: topicThrottledReplicas{},
+		throttledReplicas: TopicThrottledReplicas{},
 	}
 
 	for i := 1000; i < 1010; i++ {
@@ -141,9 +141,9 @@ func stubReassigningBrokers() reassigningBrokers {
 		b.all[i] = struct{}{}
 	}
 
-	b.throttledReplicas["stub"] = throttled{}
+	b.throttledReplicas["stub"] = Throttled{}
 
-	b.throttledReplicas["stub"]["leaders"] = brokerIDs{
+	b.throttledReplicas["stub"]["leaders"] = BrokerIDs{
 		"0:1000",
 		"1:1001",
 		"2:1002",
@@ -151,7 +151,7 @@ func stubReassigningBrokers() reassigningBrokers {
 		"4:1004",
 	}
 
-	b.throttledReplicas["stub"]["followers"] = brokerIDs{
+	b.throttledReplicas["stub"]["followers"] = BrokerIDs{
 		"0:1005",
 		"1:1006",
 		"2:1007",

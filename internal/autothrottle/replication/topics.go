@@ -1,4 +1,4 @@
-package main
+package replication
 
 import (
 	"errors"
@@ -7,34 +7,35 @@ import (
 )
 
 var (
-	errInvalidReplicaType error = errors.New("invalid replica type")
+	ErrInvalidReplicaType error = errors.New("invalid replica type")
 )
 
-// topicThrottledReplicas is a map of topic names to throttled types.
+// TopicThrottledReplicas is a map of topic names to throttled types.
 // This is ultimately populated as follows:
-//   map[topic]map[leaders]["0:1001", "1:1002"]
-//   map[topic]map[followers]["2:1003", "3:1004"]
-type topicThrottledReplicas map[topic]throttled
+//
+//	map[Topic]map[leaders]["0:1001", "1:1002"]
+//	map[Topic]map[followers]["2:1003", "3:1004"]
+type TopicThrottledReplicas map[Topic]Throttled
 
-// throttled is a replica type (leader, follower) to replica list.
-type throttled map[replicaType]brokerIDs
+// Throttled is a replica type (leader, follower) to replica list.
+type Throttled map[ReplicaType]BrokerIDs
 
 // topic name.
-type topic string
+type Topic string
 
 // leader, follower.
-type replicaType string
+type ReplicaType string
 
 // Replica broker IDs as a []string where string == partition_number:broker_id.
-type brokerIDs []string
+type BrokerIDs []string
 
-var acceptedReplicaTypes = map[replicaType]struct{}{
+var acceptedReplicaTypes = map[ReplicaType]struct{}{
 	"leaders":   {},
 	"followers": {},
 }
 
-// topics returns the topic names held in the topicThrottledReplicas.
-func (ttr topicThrottledReplicas) topics() []string {
+// topics returns the topic names held in the TopicThrottledReplicas.
+func (ttr TopicThrottledReplicas) topics() []string {
 	var names []string
 	for topic := range ttr {
 		names = append(names, string(topic))
@@ -43,15 +44,15 @@ func (ttr topicThrottledReplicas) topics() []string {
 }
 
 // addReplica takes a topic, partition number, role (leader, follower), and
-// broker ID and adds the configuration to the topicThrottledReplicas.
-func (ttr topicThrottledReplicas) addReplica(topic topic, partn string, role replicaType, id string) error {
+// broker ID and adds the configuration to the TopicThrottledReplicas.
+func (ttr TopicThrottledReplicas) addReplica(topic Topic, partn string, role ReplicaType, id string) error {
 	if _, exist := acceptedReplicaTypes[role]; !exist {
-		return errInvalidReplicaType
+		return ErrInvalidReplicaType
 	}
 
 	// Check / create the topic entry.
 	if _, exist := ttr[topic]; !exist {
-		ttr[topic] = make(throttled)
+		ttr[topic] = make(Throttled)
 	}
 
 	// Check / create the leader/follower list.
@@ -77,22 +78,22 @@ func (ttr topicThrottledReplicas) addReplica(topic topic, partn string, role rep
 	return nil
 }
 
-// getTopicsWithThrottledBrokers returns a topicThrottledReplicas that includes
+// GetTopicsWithThrottledBrokers returns a TopicThrottledReplicas that includes
 // any topics that have partitions assigned to brokers with a static throttle
 // rate set.
-func (tm *ThrottleManager) getTopicsWithThrottledBrokers() (topicThrottledReplicas, error) {
+func (tm *ThrottleManager) GetTopicsWithThrottledBrokers() (TopicThrottledReplicas, error) {
 	if !tm.kafkaNativeMode {
 		// Use the direct ZooKeeper config update method.
 		return tm.legacyGetTopicsWithThrottledBrokers()
 	}
 
 	// Lookup brokers with overrides set that are not a reassignment participant.
-	throttledBrokers := tm.brokerOverrides.Filter(notReassignmentParticipant)
+	throttledBrokers := tm.brokerOverrides.Filter(NotReassignmentParticipant)
 
-	// Construct a topicThrottledReplicas that includes any topics with replicas
+	// Construct a TopicThrottledReplicas that includes any topics with replicas
 	// assigned to brokers with overrides. The throttled list only includes brokers
 	// with throttles set rather than all configured replicas.
-	var throttleLists = make(topicThrottledReplicas)
+	var throttleLists = make(TopicThrottledReplicas)
 
 	ctx, cancelFn := tm.kafkaRequestContext()
 	defer cancelFn()
@@ -117,9 +118,9 @@ func (tm *ThrottleManager) getTopicsWithThrottledBrokers() (topicThrottledReplic
 				if _, hasThrottle := throttledBrokers[int(brokerID)]; hasThrottle {
 					// Add it to the throttleLists.
 					throttleLists.addReplica(
-						topic(topicName),
+						Topic(topicName),
 						strconv.Itoa(partition),
-						replicaType("followers"),
+						ReplicaType("followers"),
 						strconv.Itoa(int(brokerID)),
 					)
 				}

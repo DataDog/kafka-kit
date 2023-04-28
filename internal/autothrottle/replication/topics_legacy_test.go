@@ -1,4 +1,4 @@
-package main
+package replication
 
 import (
 	"testing"
@@ -22,7 +22,7 @@ func TestLegacyGetTopicsWithThrottledBrokers(t *testing.T) {
 			},
 		},
 		// Topics that include this broker shouldn't be included; the
-		// BrokerThrottleOverride.Filter called in getTopicsWithThrottledBrokers
+		// BrokerThrottleOverride.Filter called in GetTopicsWithThrottledBrokers
 		// excludes any topics mapped to brokers where ReassignmentParticipant
 		// == true.
 		1002: throttlestore.BrokerThrottleOverride{
@@ -37,9 +37,9 @@ func TestLegacyGetTopicsWithThrottledBrokers(t *testing.T) {
 	// Call.
 	topicThrottledBrokers, _ := rtf.legacyGetTopicsWithThrottledBrokers()
 
-	expected := topicThrottledReplicas{
-		"test_topic":  throttled{"followers": brokerIDs{"0:1001"}},
-		"test_topic2": throttled{"followers": brokerIDs{"0:1001"}},
+	expected := TopicThrottledReplicas{
+		"test_topic":  Throttled{"followers": BrokerIDs{"0:1001"}},
+		"test_topic2": Throttled{"followers": BrokerIDs{"0:1001"}},
 	}
 
 	if len(topicThrottledBrokers) != len(expected) {

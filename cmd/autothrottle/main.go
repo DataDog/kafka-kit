@@ -6,13 +6,14 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/DataDog/kafka-kit/v4/internal/autothrottle/api"
+	"github.com/DataDog/kafka-kit/v4/internal/autothrottle/replication"
 	"github.com/DataDog/kafka-kit/v4/internal/autothrottle/throttlestore"
+
 	"github.com/DataDog/kafka-kit/v4/kafkametrics"
 	"github.com/DataDog/kafka-kit/v4/kafkametrics/datadog"
 	"github.com/DataDog/kafka-kit/v4/kafkazk"
@@ -50,9 +51,6 @@ var (
 		CapMap                 map[string]float64
 		CleanupAfter           int64
 	}
-
-	// Misc.
-	topicsRegex = []*regexp.Regexp{regexp.MustCompile(".*")}
 )
 
 func main() {
@@ -171,32 +169,37 @@ func main() {
 
 	// Params for the updateReplicationThrottle request.
 
-	newLimitsConfig := NewLimitsConfig{
+	limitsCfg := replication.NewLimitsConfig{
 		Minimum:            Config.MinRate,
 		SourceMaximum:      Config.SourceMaxRate,
 		DestinationMaximum: Config.DestinationMaxRate,
 		CapacityMap:        Config.CapMap,
 	}
 
-	lim, err := NewLimits(newLimitsConfig)
+	lim, err := replication.NewLimits(limitsCfg)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	ThrottleManager := &ThrottleManager{
-		zk:                     zk,
-		km:                     km,
-		kafkaNativeMode:        Config.KafkaNativeMode,
-		kafkaAPIRequestTimeout: Config.KafkaAPIRequestTimeout,
-		events:                 events,
-		previouslySetThrottles: make(replicationCapacityByBroker),
-		limits:                 lim,
-		failureThreshold:       Config.FailureThreshold,
+	tmCfg := replication.ThrottleManagerConfig{
+		Limits:                 lim,
+		FailureThreshold:       Config.FailureThreshold,
+		ChangeThreshold:        Config.ChangeThreshold,
+		KafkaZK:                zk,
+		KafkaMetrics:           km,
+		KafkaNativeMode:        Config.KafkaNativeMode,
+		KafkaAPIRequestTimeout: Config.KafkaAPIRequestTimeout,
+		Events:                 events,
+	}
+
+	throttleManager, err := replication.NewThrottleManager(tmCfg)
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	// Init a KafkaAdmin Client if needed.
 	if Config.KafkaNativeMode {
-		if err := ThrottleManager.InitKafkaAdmin(Config.BootstrapServers); err != nil {
+		if err := throttleManager.InitKafkaAdmin(Config.BootstrapServers); err != nil {
 			log.Fatal(err)
 		}
 		log.Printf("Connected to Kafka: %s\n", Config.BootstrapServers)
@@ -242,9 +245,9 @@ func main() {
 		// the Kafka topic throttled replicas list. This minimizes
 		// state that must be propagated through the cluster.
 		if topicsReplicatingNow.isSubSet(topicsReplicatingPreviously) {
-			ThrottleManager.DisableTopicUpdates()
+			throttleManager.DisableTopicUpdates()
 		} else {
-			ThrottleManager.EnableTopicUpdates()
+			throttleManager.EnableTopicUpdates()
 			// Unset any previously stored throttle rates. This is done to avoid a
 			// scenario that results in autothrottle being unaware of externally
 			// specified throttles and failing to override them. The condition can be
@@ -269,7 +272,7 @@ func main() {
 			//   required ChangeThreshold.
 			//
 			// Ensure we're doing option 1 right here:
-			ThrottleManager.previouslySetThrottles.reset()
+			throttleManager.ResetPreviousThrottles()
 		}
 
 		// Rebuild topicsReplicatingPreviously with the current replications
@@ -289,23 +292,23 @@ func main() {
 		}
 
 		// Get the maps of brokers handling reassignments.
-		rb, err := getReassigningBrokers(reassignments, zk)
+		rb, err := replication.GetReassigningBrokers(reassignments, zk)
 		if err != nil {
 			log.Println(err)
 		}
 
-		ThrottleManager.brokerOverrides = bo
-		ThrottleManager.reassigningBrokers = rb
+		throttleManager.SetBrokerOverrides(bo)
+		throttleManager.SetReassigningBrokers(rb)
 
 		// If topics are being reassigned, update the replication throttle.
 		if len(topicsReplicatingNow) > 0 {
 			log.Printf("Topics with ongoing reassignments: %s\n", topicsReplicatingNow.keys())
 
-			// Update the ThrottleManager.
-			ThrottleManager.overrideRate = overrideCfg.Rate
-			ThrottleManager.reassignments = reassignments
+			// Update the throttleManager.
+			throttleManager.SetOverrideRate(overrideCfg.Rate)
+			throttleManager.SetReassignments(reassignments)
 
-			err = ThrottleManager.updateReplicationThrottle()
+			err = throttleManager.UpdateReplicationThrottle()
 			if err != nil {
 				log.Println(err)
 			} else {
@@ -316,11 +319,12 @@ func main() {
 
 		// Get brokers with active overrides, ie where the override rate is non-0,
 		// that are also not part of a reassignment.
-		activeOverrideBrokers := ThrottleManager.brokerOverrides.Filter(notReassignmentParticipant)
+		fn := replication.NotReassignmentParticipant
+		activeOverrideBrokers := throttleManager.GetBrokerOverrides().Filter(fn)
 
 		// Apply any additional broker-specific throttles that were not applied as
 		// part of a reassignment.
-		if len(ThrottleManager.brokerOverrides) > 0 {
+		if len(throttleManager.GetBrokerOverrides()) > 0 {
 			// Find all topics that include brokers with static overrides
 			// configured that aren't being reassigned. In order for broker-specific
 			// throttles to be applied, topics being replicated by those brokers
@@ -331,10 +335,12 @@ func main() {
 			// have also have a reassignment? We're discovering topics here by
 			// reverse lookup of brokers that are not reassignment participants.
 			var err error
-			ThrottleManager.overrideThrottleLists, err = ThrottleManager.getTopicsWithThrottledBrokers()
+			otl, err := throttleManager.GetTopicsWithThrottledBrokers()
 			if err != nil {
 				log.Printf("Error fetching topic states: %s\n", err)
 			}
+
+			throttleManager.SetOverrideThrottleLists(otl)
 
 			// Determine whether we need to propagate topic throttle replica
 			// list configs. If the brokers with overrides remains the same,
@@ -345,15 +351,15 @@ func main() {
 			}
 
 			if brokersThrottledNow.equal(brokersThrottledPreviously) {
-				ThrottleManager.DisableOverrideTopicUpdates()
+				throttleManager.DisableOverrideTopicUpdates()
 			} else {
-				ThrottleManager.EnableOverrideTopicUpdates()
+				throttleManager.EnableOverrideTopicUpdates()
 			}
 
 			brokersThrottledPreviously = brokersThrottledNow.copy()
 
 			// Update throttles.
-			if err := ThrottleManager.updateOverrideThrottles(); err != nil {
+			if err := throttleManager.UpdateOverrideThrottles(); err != nil {
 				log.Println(err)
 			}
 
@@ -365,7 +371,7 @@ func main() {
 		}
 
 		// Remove and delete any broker-specific overrides set to 0.
-		if errs := ThrottleManager.purgeOverrideThrottles(); errs != nil {
+		if errs := throttleManager.PurgeOverrideThrottles(); errs != nil {
 			log.Println("Error removing persisted broker throttle overrides")
 			for i := range errs {
 				log.Println(errs[i])
@@ -421,7 +427,7 @@ func main() {
 			interval = 0
 
 			// Remove all the broker + topic throttle configs.
-			err := ThrottleManager.removeAllThrottles()
+			err := throttleManager.RemoveAllThrottles()
 			if err != nil {
 				log.Printf("Error removing throttles: %s\n", err.Error())
 			} else {
@@ -431,8 +437,8 @@ func main() {
 			}
 
 			// Ensure topic throttle updates are re-enabled.
-			ThrottleManager.EnableTopicUpdates()
-			ThrottleManager.EnableOverrideTopicUpdates()
+			throttleManager.EnableTopicUpdates()
+			throttleManager.EnableOverrideTopicUpdates()
 
 			// Remove any configured throttle overrides if AutoRemove is true.
 			if overrideCfg.AutoRemove {

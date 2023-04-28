@@ -1,4 +1,4 @@
-package main
+package replication
 
 import (
 	"errors"
@@ -60,7 +60,7 @@ func NewLimits(c NewLimitsConfig) (Limits, error) {
 // is available for replication. We then use the greater of:
 // - this value * the configured portion of free bandwidth eligible for replication
 // - the configured minimum replication rate in MB/s
-func (l Limits) replicationHeadroom(b *kafkametrics.Broker, rt replicaType, prevThrottle float64) (float64, error) {
+func (l Limits) replicationHeadroom(b *kafkametrics.Broker, rt ReplicaType, prevThrottle float64) (float64, error) {
 	var currNetUtilization float64
 	var maxRatio float64
 

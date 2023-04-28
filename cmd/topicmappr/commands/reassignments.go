@@ -287,7 +287,8 @@ func computeReassignmentBundles(
 	return results
 }
 
-/**
+/*
+*
 getPartitionMapChunks Breaks a reassignment into a series of sequential, smaller reassignments.
 For large reassignments that may take a while, or risky operations that may require downtime in between, a chunked reassignment can be used.
 This will generate a series of partition maps that will converge on the desired state. To minimize data transfer,

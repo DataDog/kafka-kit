@@ -1,4 +1,4 @@
-package main
+package replication
 
 import (
 	"testing"
@@ -8,19 +8,19 @@ import (
 )
 
 func TestAddReplica(t *testing.T) {
-	ttr := make(topicThrottledReplicas)
+	ttr := make(TopicThrottledReplicas)
 
 	// Try to add an invalid type.
 	err := ttr.addReplica("test", "0", "invalid", "1001")
-	if err != errInvalidReplicaType {
-		t.Errorf("Expected 'errInvalidReplicaType' error")
+	if err != ErrInvalidReplicaType {
+		t.Errorf("Expected 'ErrInvalidReplicaType' error")
 	}
 
-	types := []replicaType{"leaders", "followers"}
+	types := []ReplicaType{"leaders", "followers"}
 
 	// Add valid types; error unexpected.
 	for _, typ := range types {
-		err := ttr.addReplica("test", "0", replicaType(typ), "1001")
+		err := ttr.addReplica("test", "0", ReplicaType(typ), "1001")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -56,7 +56,7 @@ func TestGetTopicsWithThrottledBrokers(t *testing.T) {
 			},
 		},
 		// Topics that include this broker shouldn't be included; the
-		// BrokerThrottleOverride.Filter called in getTopicsWithThrottledBrokers
+		// BrokerThrottleOverride.Filter called in GetTopicsWithThrottledBrokers
 		// excludes any topics mapped to brokers where ReassignmentParticipant
 		// == true.
 		1002: throttlestore.BrokerThrottleOverride{
@@ -69,10 +69,10 @@ func TestGetTopicsWithThrottledBrokers(t *testing.T) {
 	}
 
 	// Call.
-	topicThrottledBrokers, _ := rtf.getTopicsWithThrottledBrokers()
+	topicThrottledBrokers, _ := rtf.GetTopicsWithThrottledBrokers()
 
-	expected := topicThrottledReplicas{
-		"test1": throttled{"followers": brokerIDs{"0:1001"}},
+	expected := TopicThrottledReplicas{
+		"test1": Throttled{"followers": BrokerIDs{"0:1001"}},
 	}
 
 	if len(topicThrottledBrokers) != len(expected) {

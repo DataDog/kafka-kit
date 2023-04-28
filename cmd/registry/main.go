@@ -12,9 +12,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/DataDog/kafka-kit/v4/internal/registry/server"
 	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v4/kafkazk"
-	"github.com/DataDog/kafka-kit/v4/internal/registry/server"
 
 	"github.com/Masterminds/semver"
 	"github.com/jamiealquiza/envy"

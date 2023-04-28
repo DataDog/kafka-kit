@@ -1,4 +1,4 @@
-package main
+package replication
 
 import (
 	"strconv"
@@ -9,10 +9,10 @@ import (
 // TopicStates is a map of topic names to kafakzk.TopicState.
 type TopicStates map[string]mapper.TopicState
 
-// legacyGetTopicsWithThrottledBrokers returns a topicThrottledReplicas that
+// legacyGetTopicsWithThrottledBrokers returns a TopicThrottledReplicas that
 // includes any topics that have partitions assigned to brokers with a static
 // throttle rate set.
-func (tm *ThrottleManager) legacyGetTopicsWithThrottledBrokers() (topicThrottledReplicas, error) {
+func (tm *ThrottleManager) legacyGetTopicsWithThrottledBrokers() (TopicThrottledReplicas, error) {
 	// Fetch all topic states.
 	states, err := tm.legacyGetAllTopicStates()
 	if err != nil {
@@ -20,12 +20,12 @@ func (tm *ThrottleManager) legacyGetTopicsWithThrottledBrokers() (topicThrottled
 	}
 
 	// Lookup brokers with overrides set that are not a reassignment participant.
-	throttledBrokers := tm.brokerOverrides.Filter(notReassignmentParticipant)
+	throttledBrokers := tm.brokerOverrides.Filter(NotReassignmentParticipant)
 
-	// Construct a topicThrottledReplicas that includes any topics with replicas
+	// Construct a TopicThrottledReplicas that includes any topics with replicas
 	// assigned to brokers with overrides. The throttled list only includes brokers
 	// with throttles set rather than all configured replicas.
-	var throttleLists = make(topicThrottledReplicas)
+	var throttleLists = make(TopicThrottledReplicas)
 
 	// For each topic...
 	for topicName, state := range states {
@@ -41,9 +41,9 @@ func (tm *ThrottleManager) legacyGetTopicsWithThrottledBrokers() (topicThrottled
 				// throttled list for this {topic, partition}.
 				if _, exists := throttledBrokers[assignedID]; exists {
 					throttleLists.addReplica(
-						topic(topicName),
+						Topic(topicName),
 						partn,
-						replicaType("followers"),
+						ReplicaType("followers"),
 						strconv.Itoa(assignedID))
 				}
 			}

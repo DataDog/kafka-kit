@@ -18,12 +18,14 @@
 version: "3"
 services:
   ssl_setup:
+    platform: linux/amd64
     build:
       context: .
       dockerfile: Dockerfile.ssl_setup
     volumes:
       - "ssl-store:/etc/kafka/config"
   zookeeper:
+    platform: linux/amd64
     image: wurstmeister/zookeeper
     ports:
       - "2181:2181"
@@ -34,6 +36,7 @@ services:
       retries: 5
       start_period: 5s
   kafka:
+    platform: linux/amd64
     image: wurstmeister/kafka:${KAFKA_VERSION:-2.13-2.8.1}
     deploy:
       replicas: 3
@@ -85,6 +88,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - "ssl-store:/etc/kafka/config"
   registry:
+    platform: linux/amd64
     command: "/go/bin/registry"
     build:
       context: .

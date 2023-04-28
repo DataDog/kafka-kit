@@ -1,4 +1,4 @@
-package main
+package replication
 
 import (
 	"fmt"
@@ -6,17 +6,17 @@ import (
 	"github.com/DataDog/kafka-kit/v4/kafkametrics"
 )
 
-// replicationCapacityByBroker is a mapping of broker ID to capacity.
-type replicationCapacityByBroker map[int]throttleByRole
+// ReplicationCapacityByBroker is a mapping of broker ID to capacity.
+type ReplicationCapacityByBroker map[int]ThrottleByRole
 
-// throttleByRole represents a source and destination throttle rate in respective
+// ThrottleByRole represents a source and destination throttle rate in respective
 // order to index; position 0 is a source rate, position 1 is a dest. rate.
 // A nil value means that no throttle was needed according to the broker's role
 // in the replication, as opposed to 0.00 which explicitly describes the
 // broker as having no spare capacity available for replication.
-type throttleByRole [2]*float64
+type ThrottleByRole [2]*float64
 
-func (r replicationCapacityByBroker) storeLeaderCapacity(id int, c float64) {
+func (r ReplicationCapacityByBroker) storeLeaderCapacity(id int, c float64) {
 	if _, exist := r[id]; !exist {
 		r[id] = [2]*float64{}
 	}
@@ -26,7 +26,7 @@ func (r replicationCapacityByBroker) storeLeaderCapacity(id int, c float64) {
 	r[id] = a
 }
 
-func (r replicationCapacityByBroker) storeFollowerCapacity(id int, c float64) {
+func (r ReplicationCapacityByBroker) storeFollowerCapacity(id int, c float64) {
 	if _, exist := r[id]; !exist {
 		r[id] = [2]*float64{}
 	}
@@ -36,19 +36,19 @@ func (r replicationCapacityByBroker) storeFollowerCapacity(id int, c float64) {
 	r[id] = a
 }
 
-func (r replicationCapacityByBroker) storeLeaderAndFollerCapacity(id int, c float64) {
+func (r ReplicationCapacityByBroker) storeLeaderAndFollerCapacity(id int, c float64) {
 	r.storeLeaderCapacity(id, c)
 	r.storeFollowerCapacity(id, c)
 }
 
-func (r replicationCapacityByBroker) setAllRatesWithDefault(ids []int, rate float64) {
+func (r ReplicationCapacityByBroker) setAllRatesWithDefault(ids []int, rate float64) {
 	for _, id := range ids {
 		r.storeLeaderCapacity(id, rate)
 		r.storeFollowerCapacity(id, rate)
 	}
 }
 
-func (r replicationCapacityByBroker) reset() {
+func (r ReplicationCapacityByBroker) reset() {
 	for id := range r {
 		delete(r, id)
 	}
@@ -57,14 +57,14 @@ func (r replicationCapacityByBroker) reset() {
 // brokerReplicationCapacities traverses the list of all brokers participating
 // in the reassignment. For each broker, it determines whether the broker is
 // a leader (source) or a follower (destination), and calculates a throttle
-// accordingly, returning a replicationCapacityByBroker and error.
-func brokerReplicationCapacities(rtc *ThrottleManager, reassigning reassigningBrokers, bm kafkametrics.BrokerMetrics) (replicationCapacityByBroker, error) {
-	capacities := replicationCapacityByBroker{}
+// accordingly, returning a ReplicationCapacityByBroker and error.
+func brokerReplicationCapacities(rtc *ThrottleManager, reassigning reassigningBrokers, bm kafkametrics.BrokerMetrics) (ReplicationCapacityByBroker, error) {
+	capacities := ReplicationCapacityByBroker{}
 
 	// For each broker, check whether the it's a source and/or destination,
 	// calculating and storing the throttle for each.
 	for ID := range reassigning.all {
-		capacities[ID] = throttleByRole{}
+		capacities[ID] = ThrottleByRole{}
 		// Get the kafkametrics.Broker from the ID, check that
 		// it exists in the kafkametrics.BrokerMetrics.
 		broker, exists := bm[ID]
@@ -75,7 +75,7 @@ func brokerReplicationCapacities(rtc *ThrottleManager, reassigning reassigningBr
 		// We're traversing brokers from 'all', but a broker's role is either
 		// a leader, a follower, or both. If it's exclusively one, we can
 		// skip throttle computation for that role type for the broker.
-		for i, role := range []replicaType{"leader", "follower"} {
+		for i, role := range []ReplicaType{"leader", "follower"} {
 			var isInRole bool
 			switch role {
 			case "leader":

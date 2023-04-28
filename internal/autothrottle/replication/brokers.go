@@ -1,4 +1,4 @@
-package main
+package replication
 
 import (
 	"fmt"
@@ -15,7 +15,7 @@ type reassigningBrokers struct {
 	src               map[int]struct{}
 	dst               map[int]struct{}
 	all               map[int]struct{}
-	throttledReplicas topicThrottledReplicas
+	throttledReplicas TopicThrottledReplicas
 }
 
 // lists returns a sorted []int of broker IDs for the src, dst
@@ -46,11 +46,11 @@ func (bm reassigningBrokers) lists() ([]int, []int, []int) {
 	return srcBrokers, dstBrokers, allBrokers
 }
 
-// getReassigningBrokers takes a kafakzk.Reassignments and returns a reassigningBrokers,
+// GetReassigningBrokers takes a kafakzk.Reassignments and returns a reassigningBrokers,
 // which includes a broker list for source, destination, and all brokers
 // handling any ongoing reassignments. Additionally, a map of throttled
 // replicas by topic is included.
-func getReassigningBrokers(r kafkazk.Reassignments, zk kafkazk.Handler) (reassigningBrokers, error) {
+func GetReassigningBrokers(r kafkazk.Reassignments, zk kafkazk.Handler) (reassigningBrokers, error) {
 	lb := reassigningBrokers{
 		// Maps of src and dst brokers used as sets.
 		src: map[int]struct{}{},
@@ -58,13 +58,13 @@ func getReassigningBrokers(r kafkazk.Reassignments, zk kafkazk.Handler) (reassig
 		all: map[int]struct{}{},
 		// A map for each topic with a list throttled leaders and followers.
 		// This is used to write the topic config throttled brokers lists.
-		throttledReplicas: topicThrottledReplicas{},
+		throttledReplicas: TopicThrottledReplicas{},
 	}
 
 	// Get topic data for each topic undergoing a reassignment.
 	for t := range r {
-		topic := topic(t)
-		lb.throttledReplicas[topic] = make(throttled)
+		topic := Topic(t)
+		lb.throttledReplicas[topic] = make(Throttled)
 		lb.throttledReplicas[topic]["leaders"] = []string{}
 		lb.throttledReplicas[topic]["followers"] = []string{}
 		tstate, err := zk.GetTopicStateISR(t)
@@ -77,7 +77,7 @@ func getReassigningBrokers(r kafkazk.Reassignments, zk kafkazk.Handler) (reassig
 		// new brokers in the assignment list (but not in the current ISR state)
 		// will be destinations.
 		// TODO(jamie): the throttledReplicas can be populated here with the recently
-		// added topicThrottledReplicas.addReplica method.
+		// added TopicThrottledReplicas.addReplica method.
 		for p := range tstate {
 			partn, _ := strconv.Atoi(p)
 			if reassigning, exists := r[t][partn]; exists {

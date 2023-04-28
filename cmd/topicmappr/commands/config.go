@@ -63,12 +63,12 @@ func topicRegex(s string) []*regexp.Regexp {
 
 // initZooKeeper inits a ZooKeeper connection if one is needed.
 // Scenarios that would require a connection:
-//  - the --use-meta flag is true (default), which requests
-//    that broker metadata (such as rack ID or registration liveness).
-//  - that topics were specified via --topics, which requires
-//    topic discovery` via ZooKeeper.
-//  - that the --placement flag was set to 'storage', which expects
-//    metrics metadata to be stored in ZooKeeper.
+//   - the --use-meta flag is true (default), which requests
+//     that broker metadata (such as rack ID or registration liveness).
+//   - that topics were specified via --topics, which requires
+//     topic discovery` via ZooKeeper.
+//   - that the --placement flag was set to 'storage', which expects
+//     metrics metadata to be stored in ZooKeeper.
 func initZooKeeper(zkAddr, kafkaPrefix, metricsPrefix string) (kafkazk.Handler, error) {
 	// Suppress underlying ZK client noise.
 	log.SetOutput(ioutil.Discard)

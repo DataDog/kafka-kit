@@ -1,4 +1,4 @@
-package main
+package replication
 
 import (
 	"bytes"
@@ -23,7 +23,7 @@ type brokerChangeEvent struct {
 	rate float64
 }
 
-// updateReplicationThrottle takes a ThrottleManager that holds topics
+// UpdateReplicationThrottle takes a ThrottleManager that holds topics
 // being replicated, any ZooKeeper/other clients, throttle override params, and
 // other required metadata. Metrics for brokers participating in any ongoing
 // replication are fetched to determine replication headroom. The replication
@@ -36,7 +36,7 @@ type brokerChangeEvent struct {
 // considerable amount of shared data needs to be better encapsulated so we can
 // deconstruct these functions that hold too much of the general autothrottle logic.
 // WIP on doing so.
-func (tm *ThrottleManager) updateReplicationThrottle() error {
+func (tm *ThrottleManager) UpdateReplicationThrottle() error {
 	// Creates lists from maps.
 	srcBrokers, dstBrokers, allBrokers := tm.reassigningBrokers.lists()
 
@@ -47,7 +47,7 @@ func (tm *ThrottleManager) updateReplicationThrottle() error {
 
 	// Use the throttle override if set. Otherwise, make a calculation using broker
 	// metrics and configured capacity values.
-	var capacities = make(replicationCapacityByBroker)
+	var capacities = make(ReplicationCapacityByBroker)
 	var brokerMetrics kafkametrics.BrokerMetrics
 	var rateOverride bool
 	var inFailureMode bool
@@ -179,11 +179,11 @@ func (tm *ThrottleManager) updateReplicationThrottle() error {
 	return nil
 }
 
-// updateOverrideThrottles takes a *ThrottleManager and applies
-// replication throttles for any brokers with overrides set.
-func (tm *ThrottleManager) updateOverrideThrottles() error {
+// UpdateOverrideThrottles applies replication throttles for any brokers
+// with overrides set.
+func (tm *ThrottleManager) UpdateOverrideThrottles() error {
 	// The rate spec we'll be applying, which is the override rates.
-	var capacities = make(replicationCapacityByBroker)
+	var capacities = make(ReplicationCapacityByBroker)
 	// Broker IDs that will have throttles set.
 	var toAssign = make(map[int]struct{})
 	// Broker IDs that should have previously set throttles removed.
@@ -248,9 +248,9 @@ func (tm *ThrottleManager) updateOverrideThrottles() error {
 	return tm.removeBrokerThrottlesByID(toRemove)
 }
 
-// purgeOverrideThrottles takes a *ThrottleManager and removes
+// PurgeOverrideThrottles takes a *ThrottleManager and removes
 // broker overrides from ZK that have been set to a value of 0.
-func (tm *ThrottleManager) purgeOverrideThrottles() []error {
+func (tm *ThrottleManager) PurgeOverrideThrottles() []error {
 	// Broker IDs that should have previously set throttles removed.
 	var toRemove = make(map[int]struct{})
 
@@ -275,7 +275,7 @@ func (tm *ThrottleManager) purgeOverrideThrottles() []error {
 }
 
 // applyBrokerThrottles applies broker throttle configs.
-func (tm *ThrottleManager) applyBrokerThrottles(bs map[int]struct{}, capacities replicationCapacityByBroker) (chan brokerChangeEvent, []error) {
+func (tm *ThrottleManager) applyBrokerThrottles(bs map[int]struct{}, capacities ReplicationCapacityByBroker) (chan brokerChangeEvent, []error) {
 	var configs = kafkaadmin.SetThrottleConfig{Brokers: map[int]kafkaadmin.BrokerThrottleConfig{}}
 	var legacyConfigs = make(map[int]kafkazk.KafkaConfig)
 
@@ -321,10 +321,10 @@ func (tm *ThrottleManager) applyBrokerThrottles(bs map[int]struct{}, capacities 
 			// Check if the delta between the newly calculated throttle and the previous
 			// throttle exceeds the ChangeThreshold param.
 			d := math.Abs((*prevRate - *rate) / *prevRate * 100)
-			if d < Config.ChangeThreshold {
+			if d < tm.changeThreshold {
 				log.Printf("Proposed throttle is within %.2f%% of the previous throttle "+
 					"(below %.2f%% threshold), skipping throttle update for broker %d\n",
-					d, Config.ChangeThreshold, ID)
+					d, tm.changeThreshold, ID)
 				continue
 			}
 
@@ -363,7 +363,7 @@ func (tm *ThrottleManager) applyBrokerThrottles(bs map[int]struct{}, capacities 
 // it's a single batch job: if one fails, a single error is returned. We break
 // these into sequential KafkaAdmin SetThrottle calls so that we can individually
 // report errors/successes.
-func (tm *ThrottleManager) applyBrokerThrottlesSequential(configs kafkaadmin.SetThrottleConfig, capacities replicationCapacityByBroker) (chan brokerChangeEvent, []error) {
+func (tm *ThrottleManager) applyBrokerThrottlesSequential(configs kafkaadmin.SetThrottleConfig, capacities ReplicationCapacityByBroker) (chan brokerChangeEvent, []error) {
 	events := make(chan brokerChangeEvent, len(configs.Brokers)*2)
 	var errs []error
 
@@ -424,13 +424,13 @@ func (tm *ThrottleManager) applyBrokerThrottlesSequential(configs kafkaadmin.Set
 // TODO(jamie) review whether the throttled replicas list changes as replication
 // finishes; each time the list changes here, we probably update the config then
 // propagate a watch to all the brokers in the cluster.
-func (tm *ThrottleManager) applyTopicThrottles(throttledTopics topicThrottledReplicas) []error {
+func (tm *ThrottleManager) applyTopicThrottles(throttledTopics TopicThrottledReplicas) []error {
 	if !tm.kafkaNativeMode {
 		// Use the direct ZooKeeper config update method.
 		return tm.legacyApplyTopicThrottles(throttledTopics)
 	}
 
-	// Populate the config with all topics named in the topicThrottledReplicas.
+	// Populate the config with all topics named in the TopicThrottledReplicas.
 	ctx, cancel := tm.kafkaRequestContext()
 	defer cancel()
 
@@ -444,8 +444,8 @@ func (tm *ThrottleManager) applyTopicThrottles(throttledTopics topicThrottledRep
 	return nil
 }
 
-// removeAllThrottles calls removeTopicThrottles and removeBrokerThrottles in sequence.
-func (tm *ThrottleManager) removeAllThrottles() error {
+// RemoveAllThrottles calls removeTopicThrottles and removeBrokerThrottles in sequence.
+func (tm *ThrottleManager) RemoveAllThrottles() error {
 	for _, fn := range []func() error{
 		tm.removeTopicThrottles,
 		tm.removeBrokerThrottles,
