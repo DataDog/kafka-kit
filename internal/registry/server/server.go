@@ -312,7 +312,7 @@ func (s *Server) DialZK(ctx context.Context, wg *sync.WaitGroup, c *kafkazk.Conf
 	s.ZK = zk
 
 	// Test readiness.
-	zkReadyWait := 1000 * time.Millisecond
+	zkReadyWait := 1 * time.Second
 	time.Sleep(zkReadyWait)
 
 	if !zk.Ready() {

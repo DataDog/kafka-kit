@@ -12,18 +12,7 @@ RUN curl -sOL https://go.dev/dl/go1.20.3.linux-amd64.tar.gz
 RUN tar -C /usr/local -xzf go1.20.3.linux-amd64.tar.gz
 ENV PATH=$PATH:/usr/local/go/bin:/go/bin
 ENV GOPATH=/go
-
-# Install librdkafka
-RUN curl -sL https://packages.confluent.io/deb/6.1/archive.key | apt-key add - 2>/dev/null
-RUN add-apt-repository "deb [arch=amd64] https://packages.confluent.io/deb/6.1 stable main"
-RUN apt-get update && apt-get install -y librdkafka1 librdkafka-dev >/dev/null
-
-# Init repo.
-WORKDIR /go/src/github.com/DataDog/kafka-kit
-COPY tools.go tools.go
-COPY go.mod go.mod
-COPY go.sum go.sum
-RUN go mod download
+RUN rm -rf go*
 
 # Install protoc
 RUN curl -sOL https://github.com/protocolbuffers/protobuf/releases/download/v3.19.1/protoc-3.19.1-linux-x86_64.zip
@@ -32,22 +21,32 @@ RUN mv protoc/bin/* /usr/local/bin/
 RUN mv protoc/include/* /usr/local/include/
 RUN rm -rf protoc*
 
-# Install protoc / gRPC deps; these versions are managed in go.mod
-RUN go get -d github.com/googleapis/googleapis
-RUN go install \
-  google.golang.org/protobuf/cmd/protoc-gen-go \
-  google.golang.org/grpc/cmd/protoc-gen-go-grpc \
-  github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway
+# Install librdkafka
+RUN curl -sL https://packages.confluent.io/deb/6.1/archive.key | apt-key add - 2>/dev/null
+RUN add-apt-repository "deb [arch=amd64] https://packages.confluent.io/deb/6.1 stable main"
+RUN apt-get update && apt-get install -y librdkafka1 librdkafka-dev >/dev/null
 
-# Copy source.
-COPY cmd cmd
+# Init repo.
+WORKDIR /go/src/github.com/DataDog/kafka-kit
 COPY cluster cluster
+COPY cmd cmd
 COPY internal internal
 COPY kafkaadmin kafkaadmin
 COPY kafkametrics kafkametrics
 COPY kafkazk kafkazk
 COPY mapper mapper
 COPY proto proto
+COPY tools.go tools.go
+COPY go.mod go.mod
+COPY go.sum go.sum
+RUN go mod download
+
+# Install protoc / gRPC deps; these versions are managed in go.mod
+RUN go get -d github.com/googleapis/googleapis
+RUN go install \
+  google.golang.org/protobuf/cmd/protoc-gen-go \
+  google.golang.org/grpc/cmd/protoc-gen-go-grpc \
+  github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway
 
 # Codegen
 RUN protoc -I ./proto/registrypb -I $GOPATH/pkg/mod/$(awk '/googleapis/ {printf "%s@%s", $1, $2}' go.mod) \
@@ -76,4 +75,5 @@ FROM registry.ddbuild.io/images/base/gbi-ubuntu_2204 as dd-image
 COPY --from=base /entrypoint.sh /
 COPY --from=base /go/src /go/src
 COPY --from=base /go/bin /usr/bin
+
 ENTRYPOINT ["/entrypoint.sh"]

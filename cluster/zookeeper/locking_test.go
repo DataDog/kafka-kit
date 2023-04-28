@@ -12,8 +12,8 @@ import (
 
 func TestLock(t *testing.T) {
 	lock := newMockZooKeeperLock()
-	ctx, cf := context.WithTimeout(context.Background(), 1*time.Second)
-	_ = cf
+	ctx, cf := context.WithTimeout(context.Background(), 5*time.Second)
+	_ = cf // Escape the linter.
 
 	// This lock should succeed normally.
 	err := lock.Lock(ctx)
@@ -21,12 +21,13 @@ func TestLock(t *testing.T) {
 
 	// This lock should time out.
 	err2 := lock.Lock(ctx)
-	assert.Equal(t, err2, ErrLockingTimedOut, "Expected ErrLockingTimedOut")
+	assert.Equal(t, ErrLockingTimedOut, err2, "Expected ErrLockingTimedOut")
 }
+
 
 func TestLockSameOwner(t *testing.T) {
 	lock := newMockZooKeeperLock()
-	ctx, cf := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cf := context.WithTimeout(context.Background(), 3*time.Second)
 	ctx = context.WithValue(ctx, "owner", "owner")
 	_ = cf
 
@@ -37,12 +38,12 @@ func TestLockSameOwner(t *testing.T) {
 	// This should also succeed (with a soft error) because we have the same
 	// instance, same owner key/value.
 	err2 := lock.Lock(ctx)
-	assert.Equal(t, err2, ErrAlreadyOwnLock)
+	assert.Equal(t, ErrAlreadyOwnLock, err2)
 }
 
 func TestUnlock(t *testing.T) {
 	lock := newMockZooKeeperLock()
-	ctx, cf := context.WithTimeout(context.Background(), 1*time.Second)
+	ctx, cf := context.WithTimeout(context.Background(), 3*time.Second)
 	_ = cf
 
 	// This lock should succeed normally.
@@ -76,8 +77,8 @@ func TestExpireLockAhead(t *testing.T) {
 	id, _ := idFromZnode(node)
 
 	// Check that the lock state has been populated.
-	assert.Equal(t, lock.owner, "test_owner")
-	assert.Equal(t, lock.lockZnode, "/locks/_c_979cb11f40bb3dbc6908edeaac8f2de1-lock-000000001")
+	assert.Equal(t, "test_owner", lock.owner)
+	assert.Equal(t, "/locks/_c_979cb11f40bb3dbc6908edeaac8f2de1-lock-000000001", lock.lockZnode)
 
 	// Get the current lock entries.
 	le, _ := lock.locks()
@@ -97,10 +98,10 @@ func TestExpireLockAhead(t *testing.T) {
 	// This should now fail; the lock was expired and the only entry is ID 2
 	// for the pending claim we entered above.
 	expired, err = lock.expireLockAhead(le, id)
-	assert.Equal(t, err, ErrExpireLockFailed{message: "unable to determine which lock to enqueue behind"})
+	assert.Equal(t, ErrExpireLockFailed{message: "unable to determine which lock to enqueue behind"}, err)
 	assert.False(t, expired)
 
 	// Check that the lock state has been cleared.
 	assert.Nil(t, lock.owner)
-	assert.Equal(t, lock.lockZnode, "")
+	assert.Equal(t, "", lock.lockZnode)
 }

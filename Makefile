@@ -11,7 +11,7 @@ stop-compose:
 	docker-compose down
 
 kill-compose:
-		docker-compose kill
+	docker-compose kill
 
 # Ensure any local images used by compose are up to date.
 compose-build:
@@ -26,7 +26,7 @@ test:
 	go test -v ./...
 
 # Run all tests.
-integration-test: kill-compose stop-compose compose-build run-compose
+integration-test: kill-compose stop-compose run-compose
 	docker-compose run --rm --name integration-test registry go test -timeout 30s --tags integration ./...
 
 # Generate proto code outputs.

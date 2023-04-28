@@ -23,18 +23,20 @@ services:
       context: .
       dockerfile: Dockerfile.ssl_setup
     volumes:
-      - "ssl-store:/etc/kafka/config"
+      - ssl-store:/etc/kafka/config
   zookeeper:
     platform: linux/amd64
-    image: wurstmeister/zookeeper
+    image: zookeeper:3.8.1
     ports:
       - "2181:2181"
     healthcheck:
-      test: nc -z localhost 2181 || exit -1
+      test: 'echo ruok | nc localhost 2181 | grep -q imok'
       interval: 5s
       timeout: 5s
       retries: 5
-      start_period: 5s
+      start_period: 10s
+    environment:
+      ZOO_4LW_COMMANDS_WHITELIST: "*"
   kafka:
     platform: linux/amd64
     image: wurstmeister/kafka:${KAFKA_VERSION:-2.13-2.8.1}
@@ -43,6 +45,7 @@ services:
     ports:
       - "9092"
       - "9093"
+      - "9094"
     healthcheck:
       test: nc -z localhost 9092 || exit -1
       interval: 5s
@@ -50,17 +53,19 @@ services:
       retries: 5
       start_period: 15s
     depends_on:
-      - ssl_setup
-      - zookeeper
+      ssl_setup:
+        condition: service_completed_successfully
+      zookeeper:
+        condition: service_healthy
     environment:
       HOSTNAME_COMMAND: hostname -i
       PORT_COMMAND: "docker port $$(hostname) 9092/tcp | cut -d: -f2"
       KAFKA_ADVERTISED_LISTENERS: OUTSIDE://localhost:_{PORT_COMMAND},INSIDE://:9094,SASL_SSL://_{HOSTNAME_COMMAND}:9093
       KAFKA_LISTENERS: OUTSIDE://:9092,INSIDE://:9094,SASL_SSL://:9093
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: OUTSIDE:PLAINTEXT,INSIDE:PLAINTEXT,SASL_SSL:SASL_SSL
-      KAFKA_PORT: 9093
+      KAFKA_PORT: 9094
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_CREATE_TOPICS: "test1:1:3,test2:2:2"
+      KAFKA_CREATE_TOPICS: "test1:1:3,test2:2:2" 
       KAFKA_BROKER_RACK: 1a
       KAFKA_SECURITY_INTER_BROKER_PROTOCOL: "SASL_SSL"
       KAFKA_SSL_KEYSTORE_LOCATION: "/etc/kafka/config/keystore.jks"
@@ -82,11 +87,11 @@ services:
       sed -i 's/listener.name.sasl.ssl.plain.sasl.jaas.config/listener.name.sasl_ssl.plain.sasl.jaas.config/g' \
       /opt/kafka/config/server.properties\""
       # useful for SSL debugging
-      # LOG4J_LOGGER_KAFKA_AUTHORIZER_LOGGER: "DEBUG, authorizerAppender"
-      # KAFKA_OPTS: "-Djavax.net.debug=all"
+      LOG4J_LOGGER_KAFKA_AUTHORIZER_LOGGER: "DEBUG, authorizerAppender"
+      KAFKA_OPTS: "-Djavax.net.debug=all"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - "ssl-store:/etc/kafka/config"
+      - ssl-store:/etc/kafka/config
   registry:
     platform: linux/amd64
     command: "/go/bin/registry"
@@ -104,8 +109,10 @@ services:
       retries: 5
       start_period: 5s
     depends_on:
-      - zookeeper
-      - kafka
+      zookeeper:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
     environment:
       TEST_ZK_ADDR: zookeeper:2181
       REGISTRY_ENABLE_LOCKING: "true"
@@ -120,9 +127,8 @@ services:
       REGISTRY_KAFKA_SASL_PASSWORD: registry-secret
       REGISTRY_WRITE_RATE_LIMIT: 60
       REGISTRY_READ_RATE_LIMIT: 60
-
     volumes:
-      - "ssl-store:/etc/kafka/config"
+      - ssl-store:/etc/kafka/config
 
 volumes:
   ssl-store:
