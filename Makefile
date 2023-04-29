@@ -4,30 +4,30 @@ K := $(foreach exec,$(EXECUTABLES),\
 
 # Run a Docker compose environment.
 run-compose: compose-build
-	docker-compose up -d --scale kafka=3
+	docker compose up -d --wait
 
 # Tear down the Docker compose environment.
 stop-compose:
-	docker-compose down
+	docker compose down
 
 kill-compose:
-	docker-compose kill
+	docker compose kill
 
 # Ensure any local images used by compose are up to date.
 compose-build:
-	docker-compose build
+	docker compose build
 
 # Build the Kafka-Kit image.
 build-image:
-	docker buildx build --load --platform linux/amd64 -t kafka-kit -f Dockerfile .
+	docker buildx build --load --platform linux/amd64 -t kafka-kit --target base -f Dockerfile .
 
 # Run unit tests.
 test:
 	go test -v ./...
 
 # Run all tests.
-integration-test: kill-compose stop-compose run-compose
-	docker-compose run --rm --name integration-test registry go test -timeout 30s --tags integration ./...
+integration-test: stop-compose build-image run-compose
+	docker run --platform linux/amd64 --rm --network kafka-kit_default --name integration-test kafka-kit go test -timeout 30s --tags integration ./...
 
 # Generate proto code outputs.
 generate-code: build-image

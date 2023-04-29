@@ -34,7 +34,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 1s
     environment:
       ZOO_4LW_COMMANDS_WHITELIST: "*"
   kafka:
@@ -51,7 +51,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-      start_period: 15s
+      start_period: 1s
     depends_on:
       ssl_setup:
         condition: service_completed_successfully
@@ -103,18 +103,17 @@ services:
       - "8080"
       - "8090"
     healthcheck:
-      test: curl -f localhost:8080/v1/brokers/list
+      test: curl -f localhost:8080/v1/brokers/list || exit -1
       interval: 5s
-      timeout: 5s
+      timeout: 1s
       retries: 5
-      start_period: 5s
+      start_period: 1s
     depends_on:
       zookeeper:
         condition: service_healthy
       kafka:
         condition: service_healthy
     environment:
-      TEST_ZK_ADDR: zookeeper:2181
       REGISTRY_ENABLE_LOCKING: "true"
       REGISTRY_ZK_ADDR: zookeeper:2181
       REGISTRY_BOOTSTRAP_SERVERS: kafka:9093
