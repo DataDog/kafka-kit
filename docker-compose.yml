@@ -47,7 +47,7 @@ services:
       - "9093"
       - "9094"
     healthcheck:
-      test: nc -z localhost 9092 || exit -1
+      test: nc -z localhost 9092 || exit 1
       interval: 5s
       timeout: 5s
       retries: 5
@@ -103,7 +103,7 @@ services:
       - "8080"
       - "8090"
     healthcheck:
-      test: curl -f localhost:8080/v1/brokers/list || exit -1
+      test: curl -f localhost:8080/v1/brokers/list || exit 1
       interval: 5s
       timeout: 1s
       retries: 5
