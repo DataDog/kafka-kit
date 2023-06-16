@@ -240,13 +240,13 @@ func getSubAffinities(params rebuildParams, bm mapper.BrokerMap, bmo mapper.Brok
 // along with a BrokerStatus. These two structures hold metadata describing
 // broker state (rack IDs, whether they need to be replaced, newly provided, etc.)
 // and general statistics.
-// - The BrokerMap is later used in map rebuild time as the canonical source of
-//   broker state. Brokers that need to be removed (either because they were not
-//   registered in ZooKeeper or were removed from the --brokers list) are determined here.
-// - The BrokerStatus is used for purely informational output, such as how many missing
-//   brokers were discovered or newly provided (i.e. specified in the --brokers flag but
-//   not previously holding any partitions for any partitions of the referenced topics
-//   being rebuilt by topicmappr)
+//   - The BrokerMap is later used in map rebuild time as the canonical source of
+//     broker state. Brokers that need to be removed (either because they were not
+//     registered in ZooKeeper or were removed from the --brokers list) are determined here.
+//   - The BrokerStatus is used for purely informational output, such as how many missing
+//     brokers were discovered or newly provided (i.e. specified in the --brokers flag but
+//     not previously holding any partitions for any partitions of the referenced topics
+//     being rebuilt by topicmappr)
 func getBrokers(params rebuildParams, pm *mapper.PartitionMap, bm mapper.BrokerMetaMap) (mapper.BrokerMap, *mapper.BrokerStatus) {
 	fmt.Printf("\nBroker change summary:\n")
 

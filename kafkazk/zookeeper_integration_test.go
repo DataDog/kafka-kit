@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	zkaddr   = "localhost:2181"
+	zkaddr   = "zookeeper:2181"
 	zkprefix = "/kafkazk_test"
 )
 

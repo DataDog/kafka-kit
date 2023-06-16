@@ -32,7 +32,7 @@ func TestSetRemoveThrottle(t *testing.T) {
 
 	// Minimizes flakiness; Kafka is ocassionally slower to react than these tests
 	// run.
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(1 * time.Second)
 
 	// Get the throttle configs for the topic and brokers.
 	tConfigs, err := ka.GetDynamicConfigs(ctx, "topic", []string{"test1", "test2"})
@@ -80,7 +80,7 @@ func TestSetRemoveThrottle(t *testing.T) {
 	err = ka.RemoveThrottle(ctx, removeConfig)
 	assert.Nil(t, err)
 
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(1 * time.Second)
 
 	// Get the throttle configs for the topic and brokers.
 	tConfigs, err = ka.GetDynamicConfigs(ctx, "topic", []string{"test1", "test2"})

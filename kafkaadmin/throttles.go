@@ -129,12 +129,12 @@ func (c Client) RemoveThrottle(ctx context.Context, cfg RemoveThrottleConfig) er
 
 	// Get the named broker ID dynamic configs.
 	if len(cfg.Brokers) > 0 {
-		var brokerIDs []string
+		var brokerIDss []string
 		for _, id := range cfg.Brokers {
-			brokerIDs = append(brokerIDs, fmt.Sprintf("%d", id))
+			brokerIDss = append(brokerIDss, fmt.Sprintf("%d", id))
 		}
 
-		brokerDynamicConfigs, err = c.GetDynamicConfigs(ctx, "broker", brokerIDs)
+		brokerDynamicConfigs, err = c.GetDynamicConfigs(ctx, "broker", brokerIDss)
 		if err != nil {
 			return ErrRemoveThrottle{Message: err.Error()}
 		}
