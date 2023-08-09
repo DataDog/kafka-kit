@@ -162,7 +162,6 @@ func main() {
 
 	// Track topic replication states across intervals.
 	var topicsReplicatingNow = newSet()
-	var topicsReplicatingPreviously = newSet()
 
 	// Track override broker states.
 	var brokersThrottledPreviously = newSet()
@@ -229,55 +228,32 @@ func main() {
 			topicsReplicatingNow.add(t)
 		}
 
-		// Check for topics that were previously seen replicating, but are no
-		// longer in this interval.
-		topicsDoneReplicating := topicsReplicatingPreviously.diff(topicsReplicatingNow)
-
-		// Log and write event.
-		if len(topicsDoneReplicating) > 0 {
-			m := fmt.Sprintf("Topics done reassigning: %s", topicsDoneReplicating.keys())
-			log.Println(m)
-			events.Write("Topics done reassigning", m)
-		}
-
-		// If all of the currently replicating topics are a subset
-		// of the previously replicating topics, we can stop updating
-		// the Kafka topic throttled replicas list. This minimizes
-		// state that must be propagated through the cluster.
-		if topicsReplicatingNow.isSubSet(topicsReplicatingPreviously) {
-			throttleManager.DisableTopicUpdates()
-		} else {
-			throttleManager.EnableTopicUpdates()
-			// Unset any previously stored throttle rates. This is done to avoid a
-			// scenario that results in autothrottle being unaware of externally
-			// specified throttles and failing to override them. The condition can be
-			// triggered when two subsequent reassignments involving the same broker
-			// set are handled by autothrottle. The error condition is as follows:
-			//
-			// - Autothrottle sees reassignment 1 involving brokers 1001, 1002
-			//   and determines a throttle rate of 100MB/s.
-			// - Reassignment 1 completes, reassignment 2 is started in-between
-			//   autothrottle intervals and a manual rate of 25MB/s is specified from
-			//   the reassignment tool.
-			// - Autothrottle sees reassignment 2, revisits throughput and determines
-			//   the rate for brokers 1001 and 1002 should be 105MB/s, below the
-			//   ChangeThreshold of 10% when compared to the last known rates set;
-			//   throttle updates are skipped.
-			// - The reassignment is now stuck at 25MB/s.
-			//
-			// There's two solutions considered to reconcile the stale state:
-			// - Reset all previously stored rates when the current reassigning
-			//   topic list is not a subset of the previous reassigning topic list.
-			// - Force throttle updates every so many intervals, regardless of the
-			//   required ChangeThreshold.
-			//
-			// Ensure we're doing option 1 right here:
-			throttleManager.ResetPreviousThrottles()
-		}
-
-		// Rebuild topicsReplicatingPreviously with the current replications
-		// for the next check iteration.
-		topicsReplicatingPreviously = topicsReplicatingNow.copy()
+		throttleManager.EnableTopicUpdates()
+		// Unset any previously stored throttle rates. This is done to avoid a
+		// scenario that results in autothrottle being unaware of externally
+		// specified throttles and failing to override them. The condition can be
+		// triggered when two subsequent reassignments involving the same broker
+		// set are handled by autothrottle. The error condition is as follows:
+		//
+		// - Autothrottle sees reassignment 1 involving brokers 1001, 1002
+		//   and determines a throttle rate of 100MB/s.
+		// - Reassignment 1 completes, reassignment 2 is started in-between
+		//   autothrottle intervals and a manual rate of 25MB/s is specified from
+		//   the reassignment tool.
+		// - Autothrottle sees reassignment 2, revisits throughput and determines
+		//   the rate for brokers 1001 and 1002 should be 105MB/s, below the
+		//   ChangeThreshold of 10% when compared to the last known rates set;
+		//   throttle updates are skipped.
+		// - The reassignment is now stuck at 25MB/s.
+		//
+		// There's two solutions considered to reconcile the stale state:
+		// - Reset all previously stored rates when the current reassigning
+		//   topic list is not a subset of the previous reassigning topic list.
+		// - Force throttle updates every so many intervals, regardless of the
+		//   required ChangeThreshold.
+		//
+		// Ensure we're doing option 1 right here:
+		throttleManager.ResetPreviousThrottles()
 
 		// Check if a global throttle override was configured.
 		overrideCfg, err := throttlestore.FetchThrottleOverride(zk, api.OverrideRateZnodePath)
