@@ -154,10 +154,6 @@ func main() {
 		tags:        tags,
 	}
 
-	// Default to true on startup in case throttles were set in an autothrottle
-	// process other than the current one.
-	knownThrottles := true
-
 	var reassignments kafkazk.Reassignments
 
 	// Track topic replication states across intervals.
@@ -206,7 +202,6 @@ func main() {
 	}
 
 	// Run.
-	var interval int64
 	var ticker = time.NewTicker(time.Duration(Config.Interval) * time.Second)
 
 	// TODO(jamie): refactor this loop.
@@ -311,9 +306,6 @@ func main() {
 			err = throttleManager.UpdateReplicationThrottle()
 			if err != nil {
 				log.Println(err)
-			} else {
-				// Set knownThrottles.
-				knownThrottles = true
 			}
 		}
 
@@ -362,12 +354,6 @@ func main() {
 			if err := throttleManager.UpdateOverrideThrottles(); err != nil {
 				log.Println(err)
 			}
-
-			// If we're updating throttles and the active count (those not marked for
-			// removal) is > 0, we should set the knownThrottles to true.
-			if len(activeOverrideBrokers) > 0 {
-				knownThrottles = true
-			}
 		}
 
 		// Remove and delete any broker-specific overrides set to 0.
@@ -396,8 +382,6 @@ func main() {
 		// Capture all the current conditions:
 
 		// Are there throttles eligible to be cleared?
-		var throttlesToClear = knownThrottles || interval == Config.CleanupAfter
-
 		// Are any topics being reassigned?
 		var topicsReassigning bool
 		if len(topicsReplicatingNow) > 0 {
@@ -416,24 +400,17 @@ func main() {
 			log.Println("No topics undergoing reassignment")
 		}
 
-		if !topicsReassigning && throttlesToClear && brokerOverridesSet {
+		if !topicsReassigning && brokerOverridesSet {
 			log.Println("One or more brokers level override are set; automatic throttle removal will be skipped")
 		}
 
 		// If there's previously set throttles but no topics reassigning nor
 		// broker overrides set, we can issue a global throttle removal.
-		if throttlesToClear && !topicsReassigning && !brokerOverridesSet {
-			// Reset the interval count.
-			interval = 0
-
+		if !topicsReassigning && !brokerOverridesSet {
 			// Remove all the broker + topic throttle configs.
 			err := throttleManager.RemoveAllThrottles()
 			if err != nil {
 				log.Printf("Error removing throttles: %s\n", err.Error())
-			} else {
-				// Only set knownThrottles to false if we've removed all
-				// without error.
-				knownThrottles = false
 			}
 
 			// Ensure topic throttle updates are re-enabled.
@@ -452,7 +429,6 @@ func main() {
 		}
 		select {
 		case <-ticker.C:
-			interval++
 		case <-trigger:
 		}
 	}
