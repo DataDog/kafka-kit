@@ -245,8 +245,10 @@ func main() {
 		// the Kafka topic throttled replicas list. This minimizes
 		// state that must be propagated through the cluster.
 		if topicsReplicatingNow.isSubSet(topicsReplicatingPreviously) {
+			log.Println("No new topics to throttle, disable topic updates")
 			throttleManager.DisableTopicUpdates()
 		} else {
+			log.Println("New topics to throttle, disable topic updates")
 			throttleManager.EnableTopicUpdates()
 			// Unset any previously stored throttle rates. This is done to avoid a
 			// scenario that results in autothrottle being unaware of externally
@@ -351,8 +353,10 @@ func main() {
 			}
 
 			if brokersThrottledNow.equal(brokersThrottledPreviously) {
+				log.Println("No new brokers to throttle, disable topic updates")
 				throttleManager.DisableOverrideTopicUpdates()
 			} else {
+				log.Println("New brokers to throttle, enable topic updates")
 				throttleManager.EnableOverrideTopicUpdates()
 			}
 
