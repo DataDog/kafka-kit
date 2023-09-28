@@ -348,12 +348,13 @@ func main() {
 
 			// Determine whether we need to propagate topic throttle replica
 			// list configs. If the brokers with overrides remains the same,
-			// we don't need to need to update those configs.
+			// we don't need to update those configs.
 			var brokersThrottledNow = newSet()
 			for broker := range activeOverrideBrokers {
 				brokersThrottledNow.add(strconv.Itoa(broker))
 			}
-
+			log.Printf("BrokersThrottledNow: %v", brokersThrottledNow)
+			log.Printf("BrokersThrottledPreviously: %v", brokersThrottledPreviously)
 			if brokersThrottledNow.equal(brokersThrottledPreviously) {
 				log.Println("No new brokers to throttle, disable topic updates")
 				throttleManager.DisableOverrideTopicUpdates()
