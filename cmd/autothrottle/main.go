@@ -245,10 +245,10 @@ func main() {
 		// the Kafka topic throttled replicas list. This minimizes
 		// state that must be propagated through the cluster.
 		if topicsReplicatingNow.isSubSet(topicsReplicatingPreviously) {
-			log.Println("No new topics to throttle, disable topic updates")
+			log.Println("No new reassigning topics to throttle, disable topic updates")
 			throttleManager.DisableTopicUpdates()
 		} else {
-			log.Println("New topics to throttle, disable topic updates")
+			log.Println("New reassigning topics to throttle, enable topic updates")
 			throttleManager.EnableTopicUpdates()
 			// Unset any previously stored throttle rates. This is done to avoid a
 			// scenario that results in autothrottle being unaware of externally
@@ -336,6 +336,8 @@ func main() {
 			// TODO(jamie): is there a scenario where we should exclude topics
 			// have also have a reassignment? We're discovering topics here by
 			// reverse lookup of brokers that are not reassignment participants.
+			log.Println("There are broker overrides")
+			log.Print(throttleManager.GetBrokerOverrides())
 			var err error
 			otl, err := throttleManager.GetTopicsWithThrottledBrokers()
 			if err != nil {
