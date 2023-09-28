@@ -318,8 +318,10 @@ func main() {
 		}
 
 		// Get brokers with active overrides, ie where the override rate is non-0,
-		// that are also not part of a reassignment.
-		fn := replication.NotReassignmentParticipant
+		// this includes both brokers with manual overrides and part of broker
+		// replacement process (previously we filtered for brokers that were
+		// also not part of a reassignment).
+		fn := replication.AlsoReassignmentParticipant
 		activeOverrideBrokers := throttleManager.GetBrokerOverrides().Filter(fn)
 
 		// Apply any additional broker-specific throttles that were not applied as
@@ -344,11 +346,14 @@ func main() {
 
 			// Determine whether we need to propagate topic throttle replica
 			// list configs. If the brokers with overrides remains the same,
-			// we don't need to need to update those configs.
+			// we don't need to update those configs.
 			var brokersThrottledNow = newSet()
 			for broker := range activeOverrideBrokers {
 				brokersThrottledNow.add(strconv.Itoa(broker))
 			}
+
+			log.Printf("BrokersThrottledNow: %v", brokersThrottledNow)
+			log.Printf("BrokersThrottledPreviously: %v", brokersThrottledPreviously)
 
 			if brokersThrottledNow.equal(brokersThrottledPreviously) {
 				throttleManager.DisableOverrideTopicUpdates()

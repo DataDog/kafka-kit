@@ -179,6 +179,11 @@ func NotReassignmentParticipant(bto throttlestore.BrokerThrottleOverride) bool {
 	return !bto.ReassignmentParticipant && bto.Config.Rate != 0
 }
 
+// AlsoReassignmentParticipant filter func.
+func AlsoReassignmentParticipant(bto throttlestore.BrokerThrottleOverride) bool {
+	return bto.Config.Rate != 0
+}
+
 // ThrottledBrokers is a list of brokers with a throttle applied
 // for an ongoing reassignment.
 type ThrottledBrokers struct {

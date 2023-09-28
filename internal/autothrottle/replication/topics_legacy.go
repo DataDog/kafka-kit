@@ -19,8 +19,9 @@ func (tm *ThrottleManager) legacyGetTopicsWithThrottledBrokers() (TopicThrottled
 		return nil, err
 	}
 
-	// Lookup brokers with overrides set that are not a reassignment participant.
-	throttledBrokers := tm.brokerOverrides.Filter(NotReassignmentParticipant)
+	//Lookup brokers with overrides set (previously we only filtered for brokers
+	// that are not a reassignment participant).
+	throttledBrokers := tm.brokerOverrides.Filter(AlsoReassignmentParticipant)
 
 	// Construct a TopicThrottledReplicas that includes any topics with replicas
 	// assigned to brokers with overrides. The throttled list only includes brokers

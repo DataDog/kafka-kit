@@ -76,7 +76,7 @@ func TestGetTopicsWithThrottledBrokers(t *testing.T) {
 	}
 
 	if len(topicThrottledBrokers) != len(expected) {
-		t.Fatalf("Expected len %d, got %d", len(expected), len(topicThrottledBrokers))
+		t.Fatalf("Expected len %d, got %d, expected- %v and actual - %v", len(expected), len(topicThrottledBrokers), expected, topicThrottledBrokers)
 	}
 
 	for topic := range expected {
