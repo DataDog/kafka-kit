@@ -51,6 +51,7 @@ func init() {
 	flag.BoolVar(&config.Verbose, "verbose", false, "Verbose output")
 	flag.BoolVar(&config.DryRun, "dry-run", false, "Dry run mode (don't reach Zookeeper)")
 	flag.BoolVar(&config.Compression, "compression", true, "Whether to compress metrics data written to ZooKeeper")
+	brq := flag.String("broker-storage-raw-query", "", "A complete broker free storage query string to use")
 
 	envy.Parse("METRICSFETCHER")
 	flag.Parse()
@@ -61,7 +62,12 @@ func init() {
 	}
 
 	// Complete query string.
-	config.BrokerQuery = fmt.Sprintf("%s by {%s}.rollup(avg, %d)", *bq, config.BrokerIDTag, config.Span)
+	if *brq == "" {
+		config.BrokerQuery = fmt.Sprintf("%s by {%s}.rollup(avg, %d)", *bq, config.BrokerIDTag, config.Span)
+	} else {
+		config.BrokerQuery = *brq
+	}
+
 	config.PartnQuery = fmt.Sprintf("%s.rollup(avg, %d)", *pq, config.Span)
 }
 
