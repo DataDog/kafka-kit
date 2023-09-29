@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 ubuntu:20.04 as base
+FROM --platform=linux/amd64 ubuntu:22.04 as base
 
 # Install pre-reqs
 ARG DEBIAN_FRONTEND=noninteractive
@@ -70,7 +70,7 @@ RUN apt clean
 COPY entrypoint.sh /
 ENTRYPOINT ["/entrypoint.sh"]
 
-FROM registry.ddbuild.io/images/base/gbi-ubuntu_2004 as dd-image
+FROM registry.ddbuild.io/images/base/gbi-ubuntu_2204 as dd-image
 
 COPY --from=base /entrypoint.sh /
 COPY --from=base /go/src /go/src
