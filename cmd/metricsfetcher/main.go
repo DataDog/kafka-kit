@@ -61,7 +61,7 @@ func init() {
 	}
 
 	// Complete query string.
-	config.BrokerQuery = fmt.Sprintf("%s by {%s}.rollup(avg, %d)", *bq, config.BrokerIDTag, config.Span)
+	config.BrokerQuery = fmt.Sprintf("%s by {%s}.fill(last)", *bq, config.BrokerIDTag)
 	config.PartnQuery = fmt.Sprintf("%s.rollup(avg, %d)", *pq, config.Span)
 }
 
