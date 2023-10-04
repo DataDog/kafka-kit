@@ -72,11 +72,12 @@ func TestGetTopicsWithThrottledBrokers(t *testing.T) {
 	topicThrottledBrokers, _ := rtf.GetTopicsWithThrottledBrokers()
 
 	expected := TopicThrottledReplicas{
-		"test1": Throttled{"followers": BrokerIDs{"0:1001"}},
+		"test1": Throttled{"followers": BrokerIDs{"0:1001", "0:1002", "1:1002"}},
+		"test2": Throttled{"followers": BrokerIDs{"0:1002", "1:1002"}},
 	}
 
 	if len(topicThrottledBrokers) != len(expected) {
-		t.Fatalf("Expected len %d, got %d, expected- %v and actual - %v", len(expected), len(topicThrottledBrokers), expected, topicThrottledBrokers)
+		t.Fatalf("Expected len %d, got %d", len(expected), len(topicThrottledBrokers))
 	}
 
 	for topic := range expected {

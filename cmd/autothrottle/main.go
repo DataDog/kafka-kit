@@ -317,11 +317,9 @@ func main() {
 			}
 		}
 
-		// Get brokers with active overrides, ie where the override rate is non-0,
-		// this includes both brokers with manual overrides and part of broker
-		// replacement process (previously we filtered for brokers that were
-		// also not part of a reassignment).
-		fn := replication.AlsoReassignmentParticipant
+		// Get brokers with active overrides, ie where the override rate is non-0.
+		// Note: this includes brokers that may or may not be part of reassignment.
+		fn := replication.HasActiveOverride
 		activeOverrideBrokers := throttleManager.GetBrokerOverrides().Filter(fn)
 
 		// Apply any additional broker-specific throttles that were not applied as
@@ -351,9 +349,6 @@ func main() {
 			for broker := range activeOverrideBrokers {
 				brokersThrottledNow.add(strconv.Itoa(broker))
 			}
-
-			log.Printf("BrokersThrottledNow: %v", brokersThrottledNow)
-			log.Printf("BrokersThrottledPreviously: %v", brokersThrottledPreviously)
 
 			if brokersThrottledNow.equal(brokersThrottledPreviously) {
 				throttleManager.DisableOverrideTopicUpdates()

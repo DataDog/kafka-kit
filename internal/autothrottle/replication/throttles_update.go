@@ -190,17 +190,13 @@ func (tm *ThrottleManager) UpdateOverrideThrottles() error {
 	var toRemove = make(map[int]struct{})
 
 	for _, override := range tm.brokerOverrides {
-		// ReassignmentParticipant have already had their override rate used as part
-		// of an ongoing reassignment.
-		if !override.ReassignmentParticipant {
-			rate := float64(override.Config.Rate)
-			// Rate == 0 means the rate was removed via the API.
-			if rate == 0 {
-				toRemove[override.ID] = struct{}{}
-			} else {
-				toAssign[override.ID] = struct{}{}
-				capacities.storeLeaderAndFollerCapacity(override.ID, rate)
-			}
+		rate := float64(override.Config.Rate)
+		// Rate == 0 means the rate was removed via the API.
+		if rate == 0 {
+			toRemove[override.ID] = struct{}{}
+		} else {
+			toAssign[override.ID] = struct{}{}
+			capacities.storeLeaderAndFollerCapacity(override.ID, rate)
 		}
 	}
 
