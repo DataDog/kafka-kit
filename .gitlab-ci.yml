@@ -1,17 +1,29 @@
+variables:
+  DOCKER_IMAGE: registry.ddbuild.io/docker:24.0.4-gbi-focal
+
 build-staging:
-  image: registry.ddbuild.io/docker:20.10.3
+  id_tokens:
+    DDSIGN_ID_TOKEN:
+      aud: image-integrity
+  image: $DOCKER_IMAGE
   rules:
     - if: '$CI_COMMIT_REF_NAME != "master"'
   tags: ["runner:docker"]
   script:
     - docker build -t registry.ddbuild.io/kafka-kit:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA} --label target=staging --target dd-image -f Dockerfile .
     - docker push registry.ddbuild.io/kafka-kit:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+    - ddsign sign registry.ddbuild.io/kafka-kit:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA} --digest-from-docker
+
 
 build-prod:
-  image: registry.ddbuild.io/docker:20.10.3
+  id_tokens:
+    DDSIGN_ID_TOKEN:
+      aud: image-integrity
+  image: $DOCKER_IMAGE
   rules:
     - if: '$CI_COMMIT_REF_NAME == "master"'
   tags: ["runner:docker"]
   script:
     - docker build -t registry.ddbuild.io/kafka-kit:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA} --label target=prod --target dd-image -f Dockerfile .
     - docker push registry.ddbuild.io/kafka-kit:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+    - ddsign sign registry.ddbuild.io/kafka-kit:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA} --digest-from-docker
