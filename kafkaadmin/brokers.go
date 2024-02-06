@@ -118,10 +118,7 @@ func (c Client) fetchBrokers(ctx context.Context) ([]kafka.BrokerMetadata, error
 		to = time.Until(dl)
 	}
 
-	// confluent-kafka-go loads both topic and broker metadata in a single call.
-	// This is a hack to avoid looking up topic metadata.
-	ts := ""
-	md, err := c.c.GetMetadata(&ts, false, int(to.Milliseconds()))
+	md, err := c.c.GetMetadata(nil, false, int(to.Milliseconds()))
 	if err != nil {
 		return nil, ErrorFetchingMetadata{err.Error()}
 	}
