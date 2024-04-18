@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/Masterminds/semver v1.5.0
-	github.com/confluentinc/confluent-kafka-go v1.4.0
+	github.com/confluentinc/confluent-kafka-go v1.9.2
 	github.com/go-zookeeper/zk v1.0.3
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.15.2
 	github.com/jamiealquiza/envy v1.1.0
