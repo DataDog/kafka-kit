@@ -4,7 +4,6 @@ go 1.20
 
 require (
 	github.com/Masterminds/semver v1.5.0
-	github.com/confluentinc/confluent-kafka-go v1.4.0
 	github.com/go-zookeeper/zk v1.0.3
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.15.2
 	github.com/jamiealquiza/envy v1.1.0
@@ -15,7 +14,7 @@ require (
 	google.golang.org/grpc v1.54.0
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.3.0
 	google.golang.org/protobuf v1.30.0
-	gopkg.in/DataDog/dd-trace-go.v1 v1.40.1
+	gopkg.in/DataDog/dd-trace-go.v1 v1.36.2
 )
 
 require (
@@ -24,6 +23,7 @@ require (
 	github.com/DataDog/gostackparse v0.5.0 // indirect
 	github.com/Microsoft/go-winio v0.5.2 // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
+	github.com/confluentinc/confluent-kafka-go/v2 v2.0.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/golang/glog v1.1.1 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect

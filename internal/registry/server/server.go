@@ -11,7 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 
 	"github.com/DataDog/kafka-kit/v4/cluster"
 	zklocking "github.com/DataDog/kafka-kit/v4/cluster/zookeeper"

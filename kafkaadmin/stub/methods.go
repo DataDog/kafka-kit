@@ -6,7 +6,7 @@ import (
 
 	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
 
-	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 )
 
 func (s Client) Close() {

@@ -3,7 +3,7 @@ package stub
 import (
 	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
 
-	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 )
 
 // fakeTopicState takes a topic name and desired number of partitions and returns
