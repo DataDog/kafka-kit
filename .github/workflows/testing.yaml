@@ -16,7 +16,7 @@ jobs:
         run: docker compose build
 
       - name: compose run
-        run: docker compose up -d --scale kakfa=3
+        run: docker compose up -d --scale kafka=3
 
       - name: run tests
         run: docker compose run --rm --name integration-test registry go test -timeout 30s --tags integration ./...
