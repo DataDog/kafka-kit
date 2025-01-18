@@ -9,7 +9,7 @@ import (
 
 	pb "github.com/DataDog/kafka-kit/v4/proto/registrypb"
 
-	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

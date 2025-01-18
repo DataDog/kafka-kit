@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 )
 
 // BrokerMeta holds metadata that describes a broker.

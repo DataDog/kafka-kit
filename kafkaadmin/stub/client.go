@@ -3,7 +3,7 @@ package stub
 import (
 	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
 
-	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 )
 
 // StubClient is a stubbed implementation of KafkaAdminClient.
