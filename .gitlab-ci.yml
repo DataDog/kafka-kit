@@ -7,7 +7,7 @@ build-staging:
       aud: image-integrity
   image: $DOCKER_IMAGE
   tags:
-    - linux/amd64
+    - arch:arm64
   rules:
     - if: '$CI_COMMIT_REF_NAME != "master"'
   script:
@@ -22,7 +22,7 @@ build-prod:
       aud: image-integrity
   image: $DOCKER_IMAGE
   tags:
-    - linux/amd64
+    - arch:arm64
   rules:
     - if: '$CI_COMMIT_REF_NAME == "master"'
   script:
