@@ -21,6 +21,10 @@ compose-build:
 build-image:
 	docker buildx build --load --platform linux/amd64 -t kafka-kit --target base -f Dockerfile .
 
+# docker buildx build --platform linux/amd64,linux/arm64 -t registry.ddbuild.io/kafka-kit:${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA} --label target=staging --target dd-image -f Dockerfile --push --metadata-file ${METADATA_FILE} .
+build-multiarch-image:
+	docker buildx build --platform linux/amd64,linux/arm64 -t kafka-kit --target base -f Dockerfile .
+
 # Run unit tests.
 test:
 	go test -v ./...
