@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
-
 	"github.com/spf13/cobra"
 )
 
@@ -55,8 +53,7 @@ func scale(cmd *cobra.Command, _ []string) {
 	defer zk.Close()
 
 	// Init kafkaadmin client.
-	bs := cmd.Parent().Flag("kafka-addr").Value.String()
-	ka, err := kafkaadmin.NewClient(kafkaadmin.Config{BootstrapServers: bs})
+	ka, err := newKafkaAdminClient(cmd)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

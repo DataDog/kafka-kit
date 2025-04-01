@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/DataDog/kafka-kit/v4/kafkazk"
+	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
 
 	"github.com/spf13/cobra"
 )
@@ -91,6 +92,30 @@ func initZooKeeper(zkAddr, kafkaPrefix, metricsPrefix string) (kafkazk.Handler, 
 	}
 
 	return zk, nil
+}
+
+func newKafkaAdminClient(cmd *cobra.Command) (kafkaadmin.KafkaAdmin, error) {
+	cfg := kafkaadmin.Config{
+		BootstrapServers: cmd.Parent().Flag("kafka-addr").Value.String(),
+	}
+
+	if flag := cmd.Parent().Flag("kafka-ssl-ca-location"); flag.Changed {
+		cfg.SSLCALocation = flag.Value.String()
+	}
+	if flag := cmd.Parent().Flag("kafka-security-protocol"); flag.Changed {
+		cfg.SecurityProtocol = flag.Value.String()
+	}
+	if flag := cmd.Parent().Flag("kafka-sasl-mechanism"); flag.Changed {
+		cfg.SASLMechanism = flag.Value.String()
+	}
+	if flag := cmd.Parent().Flag("kafka-sasl-username"); flag.Changed {
+		cfg.SASLUsername = flag.Value.String()
+	}
+	if flag := cmd.Parent().Flag("kafka-sasl-password"); flag.Changed {
+		cfg.SASLPassword = flag.Value.String()
+	}
+
+	return kafkaadmin.NewClient(cfg)
 }
 
 // containsRegex takes a topic name reference and returns whether or not
