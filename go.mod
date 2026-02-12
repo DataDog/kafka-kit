@@ -1,6 +1,6 @@
 module github.com/DataDog/kafka-kit/v4
 
-go 1.23
+go 1.25.7
 
 require (
 	github.com/Masterminds/semver v1.5.0
