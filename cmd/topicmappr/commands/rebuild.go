@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v4/kafkazk"
 
 	"github.com/spf13/cobra"
@@ -153,8 +152,7 @@ func rebuild(cmd *cobra.Command, _ []string) {
 	}
 
 	// Init kafkaadmin client.
-	bs := cmd.Parent().Flag("kafka-addr").Value.String()
-	ka, err := kafkaadmin.NewClient(kafkaadmin.Config{BootstrapServers: bs})
+	ka, err := newKafkaAdminClient(cmd)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
