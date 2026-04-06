@@ -2,6 +2,8 @@ module github.com/DataDog/kafka-kit/v4
 
 go 1.23
 
+toolchain go1.26.1
+
 require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/confluentinc/confluent-kafka-go v1.4.0
