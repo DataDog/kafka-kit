@@ -16,7 +16,7 @@ import (
 	"github.com/DataDog/kafka-kit/v4/kafkaadmin"
 	"github.com/DataDog/kafka-kit/v4/kafkazk"
 
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
 	"github.com/jamiealquiza/envy"
 	"gopkg.in/DataDog/dd-trace-go.v1/profiler"
 )

@@ -3,7 +3,7 @@ module github.com/DataDog/kafka-kit/v4
 go 1.23
 
 require (
-	github.com/Masterminds/semver v1.5.0
+	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/confluentinc/confluent-kafka-go v1.4.0
 	github.com/go-zookeeper/zk v1.0.3
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.15.2
