@@ -1,0 +1,22 @@
+name: testing
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: compose build
+        run: docker compose build
+
+      - name: compose run
+        run: docker compose up -d --scale kafka=3
+
+      - name: run tests
+        run: docker compose run --rm --name integration-test registry go test -timeout 30s --tags integration ./...

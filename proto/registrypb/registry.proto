@@ -1,0 +1,298 @@
+/*
+If this proto file is updated, the generated outputs can be updated with
+the `make generate-code` command.
+*/
+
+syntax = "proto3";
+option go_package = "github.com/DataDog/kafka-kit/registry/registry";
+package registry;
+
+import "google/api/annotations.proto";
+
+service Registry {
+  // GetBrokers returns a BrokerResponse with the brokers field populated
+  // with full broker metadata. If the input BrokerRequest.id field is
+  // non-nil, a single broker is returned matching the ID specified in the
+  // Broker object. Otherwise all brokers are returned, optionally filtered
+  // by any provided BrokerRequest.tags parameters.
+  rpc GetBrokers (BrokerRequest) returns (BrokerResponse) {
+    option (google.api.http) = {
+      get: "/v1/brokers"
+    };
+  }
+
+  // ListBrokers returns a BrokerResponse with the ids field populated
+  // with broker IDs. If the input BrokerRequest.id field is non-nil,
+  // a single broker ID is returned matching the ID specified in the
+  // Broker object if the broker exists. Otherwise all brokers are returned,
+  // optionally filtered by any provided BrokerRequest.tags parameters.
+  rpc ListBrokers (BrokerRequest) returns (BrokerResponse) {
+    option (google.api.http) = {
+      get: "/v1/brokers/list"
+    };
+  }
+
+  // UnmappedBrokers returns a BrokerResponse with the ids field
+  // populated with broker IDs that do not hold any assigned partitions.
+  // Any topic names specified in the UnmappedBrokersRequest exclude field
+  // are ignored. For example, broker 1000 holds no partitions other
+  // than one belonging to the 'test0' topic. If UnmappedBrokers is called
+  // with 'test0' specified as an exclude name, broker 1000 will be returned
+  // in the BrokerResponse as an unmapped broker.
+  rpc UnmappedBrokers (UnmappedBrokersRequest) returns (BrokerResponse) {
+    option (google.api.http) = {
+      get: "/v1/brokers/unmapped"
+    };
+  }
+
+  // GetTopics returns a TopicResponse with the topics field populated
+  // with full topic metadata. If the input TopicRequest.name field is
+  // non-nil, a single topic is returned matching the name specified in the
+  // Topic object. Otherwise all topics are returned, optionally filtered
+  // by any provided TopicRequest.tags parameters.
+  rpc GetTopics (TopicRequest) returns (TopicResponse) {
+    option (google.api.http) = {
+      get: "/v1/topics"
+    };
+  }
+
+  // ListTopics returns a TopicResponse with the names field populated
+  // with topic names. If the input TopicRequest.name field is non-nil,
+  // a single topic name is returned matching the name specified in the
+  // Topic object if the topic exists. Otherwise all topics are returned,
+  // optionally filtered by any provided TopicRequest.tags parameters.
+  rpc ListTopics (TopicRequest) returns (TopicResponse) {
+    option (google.api.http) = {
+      get: "/v1/topics/list"
+    };
+  }
+
+  /*
+  CreateTopic creates a topic.
+  Example:
+     $ curl -XPOST "localhost:8080/v1/topics/create" -d '{
+       "topic": {
+         "name": "mytopic",
+         "partitions": 32,
+         "replication": 2,
+         "tags": {"env":"staging"}
+       },
+       "target_broker_tags": ["pool:tests"]
+     }'
+  */
+  rpc CreateTopic (CreateTopicRequest) returns (Empty) {
+    option (google.api.http) = {
+      post: "/v1/topics/create"
+      body: "*"
+    };
+  }
+
+  /*
+  DeleteTopic takes a TopicRequest and deletes the topic specified in the
+  TopicRequest.name field.
+  Example:
+     $ curl -XDELETE "localhost:8080/v1/topics/mytopic"
+  */
+  rpc DeleteTopic (TopicRequest) returns (Empty) {
+    option (google.api.http) = {
+      delete: "/v1/topics/{name}"
+    };
+  }
+
+  // ReassigningTopics returns a TopicResponse with the names field populated
+  // with topic names of all topics undergoing a reassignment.
+  rpc ReassigningTopics (Empty) returns (TopicResponse) {
+    option (google.api.http) = {
+      get: "/v1/topics/reassigning"
+    };
+  }
+
+  // UnderReplicatedTopics returns a TopicResponse with the names field populated
+  // with topic names of all under replicated topics.
+  rpc UnderReplicatedTopics (Empty) returns (TopicResponse) {
+    option (google.api.http) = {
+      get: "/v1/topics/underreplicated"
+    };
+  }
+
+  // TopicMappings returns a BrokerResponse with the ids field
+  // populated with broker IDs that hold at least one partition
+  // for the requested topic. Both a single topic name or specified in the
+  // TopicRequest.name field.
+  rpc TopicMappings (TopicRequest) returns (BrokerResponse) {
+    option (google.api.http) = {
+      get: "/v1/mappings/topic/{name}"
+    };
+  }
+
+  // BrokerMappings returns a TopicResponse with the names field
+  // populated with topics that the broker holds at least one partition
+  // for the requested broker. The broker is specified in the
+  // BrokerRequest.id field.
+  rpc BrokerMappings (BrokerRequest) returns (TopicResponse) {
+    option (google.api.http) = {
+      get: "/v1/mappings/broker/{id}"
+    };
+  }
+
+  // TagTopic takes a TopicRequest and sets any specified
+  // tags for the named topic. Any existing tags that are
+  // not specified in the request are left unmodified.
+  rpc TagTopic (TopicRequest) returns (TagResponse) {
+    option (google.api.http) = {
+      put: "/v1/topics/tag/{name}"
+    };
+  }
+
+  // DeleteTopicTags takes a TopicRequest and deletes any
+  // specified tags for the named topic. Tags must be provided
+  // as key names only; "key:value" will not target the tag "key".
+  rpc DeleteTopicTags (TopicRequest) returns (TagResponse) {
+    option (google.api.http) = {
+      delete: "/v1/topics/tag/{name}"
+    };
+  }
+
+  // TagBroker takes a BrokerRequest and sets any specified
+  // tags for the named broker. Any existing tags that are
+  // not specified in the request are left unmodified.
+  rpc TagBroker (BrokerRequest) returns (TagResponse) {
+    option (google.api.http) = {
+      put: "/v1/brokers/tag/{id}"
+    };
+  }
+
+  // TagBrokers takes a TagBrokersRequest and sets any specified tags for the
+  // brokers. Any existing tags that are not specified in the request are left
+  // unmodified.
+  rpc TagBrokers (TagBrokersRequest) returns (TagBrokersResponse) {
+    option (google.api.http) = {
+      post: "/v2/brokers/tag"
+      body: "*"
+    };
+  }
+
+  // DeleteBrokerTags takes a BrokerRequest and deletes any
+  // specified tags for the named broker. Tags must be provided
+  // as key names only; "key:value" will not target the tag "key".
+  rpc DeleteBrokerTags (BrokerRequest) returns (TagResponse) {
+    option (google.api.http) = {
+      delete: "/v1/brokers/tag/{id}"
+    };
+  }
+
+  // TranslateOffsets returns a TranslateOffsetResponse with the
+  // the upstream/local offsets for the provided consumer group
+  // populated per topic/partition.
+  // The remote cluster alias and consumer group id are specified
+  // in the TranslateOffsetRequest.remote_cluster_alias and
+  // TranslateOffsetRequest.group_id respectively.
+  rpc TranslateOffsets (TranslateOffsetRequest) returns (TranslateOffsetResponse) {
+    option (google.api.http) = {
+      get: "/v1/translate-offsets/{remote_cluster_alias}/{group_id}"
+    };
+  }
+}
+
+message TagResponse {
+  string message = 1;
+}
+
+/**********
+* Brokers *
+**********/
+
+message BrokerRequest {
+  repeated string tag = 1;
+  uint32 id = 2;
+}
+
+message BrokerResponse {
+  map<uint32, Broker> brokers = 5;
+  repeated uint32 ids = 6;
+}
+
+message UnmappedBrokersRequest {
+  repeated string exclude = 1;
+}
+
+message Broker {
+  // Registry metadata.
+  map<string, string> tags = 1;
+  // Broker metadata from the cluster state.
+  uint32 id = 5;
+  string host = 6;
+  uint32 port = 7;
+  string rack = 8;
+  string interbrokerprotocolversion = 9;
+  string logmessageformat = 10;
+}
+
+message TagBrokersRequest {
+	repeated string tags = 1;
+	repeated uint32 ids = 2;
+}
+
+message TagBrokersResponse { }
+
+/*********
+* Topics *
+*********/
+
+message TopicRequest {
+  repeated string tag = 1;
+  string name = 2;
+  bool spanning = 3;
+  bool with_replicas = 4;
+}
+
+message CreateTopicRequest {
+  Topic topic = 1;
+  repeated string target_broker_tags = 2;
+  repeated uint32 target_broker_ids = 3;
+}
+
+message TopicResponse {
+  map<string, Topic> topics = 5;
+  repeated string names = 6;
+}
+
+message Topic {
+  // Registry metadata.
+  map<string, string> tags = 1;
+  // Topic metadata from the cluster state.
+  string name = 5;
+  uint32 partitions = 6;
+  uint32 replication = 7;
+  map<string, string> configs = 8;
+
+  map<uint32, Replicas> replicas = 9;
+}
+
+message Replicas {
+  repeated uint32 ids = 2;
+}
+
+/***************
+* MirrorMaker2 *
+***************/
+
+message OffsetMapping {
+  uint64 upstream_offset = 1;
+  uint64 local_offset = 2;
+}
+
+message TranslateOffsetRequest {
+  string remote_cluster_alias = 1;
+  string group_id = 2;
+}
+
+message TranslateOffsetResponse {
+  map<string, OffsetMapping> offsets = 1;
+}
+
+/*******
+* Misc *
+*******/
+
+message Empty {}

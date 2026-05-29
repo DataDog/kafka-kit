@@ -1,0 +1,23 @@
+name: code quality
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  gofmt:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: gofmt
+      run: |
+        changes=$(find . -name "*.go" | xargs gofmt -s -l 2>&1)
+        if [[ -n ${changes} ]]; then echo "Improperly formatted files:"; echo ${changes}; exit 1; fi
+  vet:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: vet
+      run: go vet ./...
